@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends
-from .db import init_db, get_session
-from .models import User
-from sqlmodel import Session
+from fastapi import FastAPI
+from backend.routers.user import user_router
 
 app = FastAPI()
+
+app.include_router(user_router, prefix="/user")
 
 
 @app.get("/")
