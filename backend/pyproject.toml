@@ -1,0 +1,27 @@
+[project]
+name = "transcribee-backend"
+version = "0.1.0"
+description = "The backend for the transcribee open-source transcription platform."
+authors = [
+    { name = "anuejn", email = "jarohabiger@googlemail.com" },
+    { name = "pajowu", email = "git@ca.pajowu.de" },
+    { name = "phlmn", email = "info@philipp-mandler.com" },
+    { name = "vup", email = "robin.ole.heinemann+transcribee@gmail.com" },
+]
+
+dependencies = [
+    "fastapi>=0.92.0",
+    "uvicorn[standard]>=0.20.0",
+    "sqlmodel>=0.0.8",
+    "alembic>=1.9.4",
+]
+requires-python = ">=3.10"
+readme = "../README.md"
+license = { text = "AGPL-3.0" }
+
+
+[tool.pdm]
+
+[build-system]
+requires = ["pdm-pep517>=1.0"]
+build-backend = "pdm.pep517.api"
