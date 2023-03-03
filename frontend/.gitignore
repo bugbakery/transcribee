@@ -1,2 +1,8 @@
+# npm
 node_modules
+
+# vite
 /dist
+
+# typescript
+*.tsbuildinfo
