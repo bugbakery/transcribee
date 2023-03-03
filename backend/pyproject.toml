@@ -10,10 +10,9 @@ authors = [
 ]
 
 dependencies = [
-    "fastapi>=0.92.0",
-    "uvicorn[standard]>=0.20.0",
-    "sqlmodel>=0.0.8",
-    "alembic>=1.9.4",
+    "django>=4.1.7",
+    "django-rest-framework>=0.1.0",
+    "django-configurations[cache,database,email,search]>=2.4",
 ]
 requires-python = ">=3.10"
 readme = "../README.md"
