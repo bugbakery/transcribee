@@ -1,3 +1,5 @@
 *.pyc
 __pycache__/
-db.sqlite
+storage/
+static/
+db.sqlite3
