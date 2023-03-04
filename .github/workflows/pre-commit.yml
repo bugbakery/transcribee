@@ -1,0 +1,30 @@
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: cachix/install-nix-action@v20
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - uses: HatsuneMiku3939/direnv-action@v1
+
+    - name: install frontend dependencies
+      run: pnpm --prefix frontend/ i
+
+    - name: cache pre-commit env
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pre-commit
+        key: ${{ hashFiles('.pre-commit-config.yaml') }}
+
+    - name: run pre-commit
+      run: pre-commit run --show-diff-on-failure --color=always --all-files
