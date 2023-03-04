@@ -27,7 +27,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
 
 function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
   const classes = [];
-  if (leaf.conf != undefined && leaf.conf < 0.5) {
+  if (leaf.conf != undefined && leaf.conf < 0.7) {
     classes.push('text-red-500');
   }
 
