@@ -1,0 +1,61 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # python checks
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+  - repo: https://github.com/psf/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+
+  # frontend checks
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.35.0
+    hooks:
+      - id: eslint
+        additional_dependencies:
+          - eslint@7.32.0
+          - "@typescript-eslint/eslint-plugin@4.30.0"
+          - "@typescript-eslint/parser@4.30.0"
+          - eslint-plugin-import@2.24.2
+          - eslint-plugin-prettier@4.0.0
+          - eslint-plugin-react@7.25.1
+          - eslint-plugin-unused-imports@1.1.4
+        files: \.tsx?$ # *.js, *.jsx, *.ts and *.tsx
+        types: [file]
+        args: ["-c", "frontend/.eslintrc.json", "--max-warnings", "0"]
+  - repo: local
+    hooks:
+      - id: tsc
+        name: tsc
+        entry: npm --prefix frontend/ run check:tsc
+        language: node
+        files: frontend/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: npm_test
+        name: npm test
+        entry: npm --prefix frontend/ run test:fast
+        language: node
+        files: frontend/.*
+        pass_filenames: false

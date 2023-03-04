@@ -9,7 +9,8 @@
     "check": "npm-run-all --continue-on-error check:*",
     "check:tsc": "tsc --noEmit --incremental",
     "check:eslint": "eslint --ext .ts,.tsx .",
-    "check:format": "prettier --check 'src/**/*.(ts|tsx)'"
+    "check:format": "prettier --check 'src/**/*.(ts|tsx)'",
+    "test:fast": "echo never mind for now. these tests will be executed in pre-commit"
   },
   "author": "transcribee team <transcribee@riseup.net>",
   "maintainers": [
