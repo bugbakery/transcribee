@@ -29,6 +29,7 @@ class Base(Configuration):
     # Application definition
 
     INSTALLED_APPS = [
+        "daphne",
         "django.contrib.admin",
         "django.contrib.auth",
         "django.contrib.contenttypes",
@@ -39,6 +40,7 @@ class Base(Configuration):
         "rest_framework.authtoken",
         "backend.base",
         "backend.api",
+        "backend.sync",
     ]
 
     MIDDLEWARE = [
@@ -121,3 +123,5 @@ class Base(Configuration):
             "rest_framework.authentication.TokenAuthentication",
         ]
     }
+
+    ASGI_APPLICATION = "backend.asgi.application"

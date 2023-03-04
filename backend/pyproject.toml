@@ -13,6 +13,9 @@ dependencies = [
     "django>=4.1.7",
     "django-rest-framework>=0.1.0",
     "django-configurations[cache,database,email,search]>=2.4",
+    "y-py>=0.6.0",
+    "uvicorn[standard]>=0.20.0",
+    "channels[daphne]>=4.0.0",
 ]
 requires-python = ">=3.10"
 readme = "../README.md"
