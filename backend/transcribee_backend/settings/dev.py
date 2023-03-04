@@ -1,4 +1,4 @@
-from .base import Base, BASE_DIR
+from .base import BASE_DIR, Base
 
 
 class Dev(Base):

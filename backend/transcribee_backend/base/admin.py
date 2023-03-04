@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import User, Document, DocumentUpdate
+
+from .models import Document, DocumentUpdate, User
 
 admin.register(User)
 admin.register(Document)
