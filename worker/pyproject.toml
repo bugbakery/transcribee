@@ -15,7 +15,7 @@ dependencies = [
     "numpy>=1.23.5",
     "librosa>=0.10.0",
     "pydantic>=1.10.5",
-    "whispercpp @ git+https://github.com/aarnphm/whispercpp",
+    "whispercpp @ git+https://github.com/transcribee/whispercpp",
     "transformers>=4.26.1",
     "torchaudio>=0.13.1",
     "torch>=1.13.1",
