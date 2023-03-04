@@ -1,15 +1,13 @@
-from rest_framework import viewsets, generics, views
-from django.contrib.auth.mixins import LoginRequiredMixin
-from transcribee_backend.base.models import User, Document
-from transcribee_backend.base.serializers import UserSerializer, DocumentSerializer
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import serializers
-from rest_framework import status
-from .serializers import CreateUserSerializer
+from rest_framework import serializers, status, viewsets
+from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.serializers import AuthTokenSerializer
 from rest_framework.decorators import action
-from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from transcribee_backend.base.models import Document, User
+from transcribee_backend.base.serializers import DocumentSerializer, UserSerializer
+
+from .serializers import CreateUserSerializer
 
 
 class DocumentViewSet(viewsets.ModelViewSet):

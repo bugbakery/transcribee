@@ -1,6 +1,5 @@
+from channels.routing import URLRouter
 from django.urls import path
-
-from channels.routing import ProtocolTypeRouter, URLRouter
 from transcribee_backend.sync import routing as sync_routing
 
 websocket_urlpatterns = [
