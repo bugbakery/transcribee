@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from backend.base.models import User
+from transcribee_backend.base.models import User
 
 
 class CreateUserSerializer(serializers.Serializer):

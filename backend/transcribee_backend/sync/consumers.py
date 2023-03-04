@@ -1,7 +1,7 @@
 import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
-from backend.base.models import Document, DocumentUpdate
+from transcribee_backend.base.models import Document, DocumentUpdate
 from channels.db import database_sync_to_async
 
 
