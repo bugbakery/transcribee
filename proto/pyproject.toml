@@ -1,0 +1,23 @@
+[project]
+name = "transcribee-proto"
+version = "0.1.0"
+description = "common python code & datatypes in the transcribee open-source transcription platform"
+authors = [
+    {name = "anuejn", email = "jarohabiger@googlemail.com"},
+    {name = "pajowu", email = "git@ca.pajowu.de"},
+    {name = "phlmn", email = "info@philipp-mandler.com"},
+    {name = "vup", email = "robin.ole.heinemann+transcribee@gmail.com"},
+]
+
+dependencies = [
+    "pydantic>=1.10.5",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "AGPL-3.0"}
+
+[tool.pdm]
+
+[build-system]
+requires = ["pdm-pep517>=1.0"]
+build-backend = "pdm.pep517.api"
