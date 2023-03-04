@@ -3,3 +3,4 @@ __pycache__/
 storage/
 static/
 db.sqlite3
+.pdm.toml
