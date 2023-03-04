@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from transcribee_backend.base.models import Document, User
 from transcribee_backend.base.serializers import DocumentSerializer, UserSerializer
 
-from .serializers import CreateUserSerializer
+from .serializers import UserCreateSerializer
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
@@ -22,10 +22,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
 
 class UserViewSet(viewsets.ViewSet):
-    serializer_class = CreateUserSerializer
+    serializer_class = UserCreateSerializer
 
     def create(self, request, *args, **kwargs):
-        serializer = CreateUserSerializer(data=request.data)
+        serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
             user, created = User.objects.get_or_create(
                 username=serializer.validated_data["username"]
