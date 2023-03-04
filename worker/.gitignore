@@ -1,0 +1,5 @@
+__pypackages__/
+__pycache__/
+.pdm.toml
+
+.data/

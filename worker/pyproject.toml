@@ -1,0 +1,31 @@
+[project]
+name = "transcribee-worker"
+version = "0.1.0"
+description = "a transcription worker for the transcribee open-source transcription platform"
+authors = [
+    {name = "anuejn", email = "jarohabiger@googlemail.com"},
+    {name = "pajowu", email = "git@ca.pajowu.de"},
+    {name = "phlmn", email = "info@philipp-mandler.com"},
+    {name = "vup", email = "robin.ole.heinemann+transcribee@gmail.com"},
+]
+
+dependencies = [
+    "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
+    "pandas>=1.5.3",
+    "numpy>=1.23.5",
+    "librosa>=0.10.0",
+    "pydantic>=1.10.5",
+    "whispercpp @ git+https://github.com/aarnphm/whispercpp",
+    "transformers>=4.26.1",
+    "torchaudio>=0.13.1",
+    "torch>=1.13.1",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "AGPL-3.0"}
+
+[tool.pdm]
+
+[build-system]
+requires = ["pdm-pep517>=1.0"]
+build-backend = "pdm.pep517.api"
