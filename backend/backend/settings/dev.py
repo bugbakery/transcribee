@@ -18,3 +18,5 @@ class Dev(Base):
     MEDIA_URL = "/media/"
 
     DEBUG = True
+
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}

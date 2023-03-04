@@ -12,6 +12,10 @@ class Document(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=255, null=False, blank=False)
     audio_file = models.FileField(null=True)
-    yjs_content = models.BinaryField()
     created_at = models.DateTimeField(auto_now_add=True)
     changed_at = models.DateTimeField(auto_now=True)
+
+
+class DocumentUpdate(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE)
+    update_content = models.BinaryField()
