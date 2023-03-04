@@ -1,0 +1,10 @@
+{
+    "python.autoComplete.extraPaths": [
+        "backend/__pypackages__/3.10/lib",
+        "worker/__pypackages__/3.10/lib"
+    ],
+    "python.analysis.extraPaths": [
+        "backend/__pypackages__/3.10/lib",
+        "worker/__pypackages__/3.10/lib"
+    ],
+}
