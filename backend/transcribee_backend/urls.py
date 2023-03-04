@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from backend.api import urls as backend_urls
+from transcribee_backend.api import urls as backend_urls
 from django.conf import settings
 
 urlpatterns = [

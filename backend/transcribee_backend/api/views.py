@@ -1,7 +1,7 @@
 from rest_framework import viewsets, generics, views
 from django.contrib.auth.mixins import LoginRequiredMixin
-from backend.base.models import User, Document
-from backend.base.serializers import UserSerializer, DocumentSerializer
+from transcribee_backend.base.models import User, Document
+from transcribee_backend.base.serializers import UserSerializer, DocumentSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import serializers

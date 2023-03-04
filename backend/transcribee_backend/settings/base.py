@@ -38,9 +38,9 @@ class Base(Configuration):
         "django.contrib.staticfiles",
         "rest_framework",
         "rest_framework.authtoken",
-        "backend.base",
-        "backend.api",
-        "backend.sync",
+        "transcribee_backend.base",
+        "transcribee_backend.api",
+        "transcribee_backend.sync",
     ]
 
     MIDDLEWARE = [
@@ -53,7 +53,7 @@ class Base(Configuration):
         "django.middleware.clickjacking.XFrameOptionsMiddleware",
     ]
 
-    ROOT_URLCONF = "backend.urls"
+    ROOT_URLCONF = "transcribee_backend.urls"
 
     TEMPLATES = [
         {
@@ -71,7 +71,7 @@ class Base(Configuration):
         },
     ]
 
-    WSGI_APPLICATION = "backend.wsgi.application"
+    WSGI_APPLICATION = "transcribee_backend.wsgi.application"
 
     # Password validation
     # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -124,4 +124,4 @@ class Base(Configuration):
         ]
     }
 
-    ASGI_APPLICATION = "backend.asgi.application"
+    ASGI_APPLICATION = "transcribee_backend.asgi.application"
