@@ -1,40 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
-import { createEditor, Descendant, Transforms, Element, Editor } from 'slate';
-import { withReact, Slate, Editable, RenderElementProps } from 'slate-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createEditor, Descendant } from 'slate';
+import { withReact, Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import * as Y from 'yjs';
-import { withYjs, YjsEditor } from '@slate-yjs/core';
-import DebugPanel from './DebugPanel';
+import { withYjs, withYHistory, YjsEditor } from '@slate-yjs/core';
+import { WebsocketProvider } from './WebsocketProvider';
+import { useDebugMode } from '../debugMode';
 
-const defaultElement: Element = {
-  type: 'paragraph',
-  speaker: 'Speaker 1',
-  children: [{ text: '' }],
-};
+const LazyDebugPanel = React.lazy(() => import('./DebugPanel'));
 
-export function withNormalize<T extends Editor>(editor: T) {
-  const { normalizeNode } = editor;
-
-  // ensure editor always has at least one child
-  editor.normalizeNode = (entry) => {
-    const [node] = entry;
-    if (!Editor.isEditor(node) || node.children.length > 0) {
-      return normalizeNode(entry);
-    }
-
-    Transforms.insertNodes(editor, defaultElement, { at: [0] });
-  };
-
-  return editor;
-}
-
-function renderElement({ element, children }: RenderElementProps): JSX.Element {
+function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
   if (element.type === 'paragraph') {
     return (
       <div className="mb-6 flex">
         <div contentEditable={false} className="w-48 mr-8">
           {element.speaker}
         </div>
-        {children}
+        <div {...attributes} className="grow-1 basis-full">
+          {children}
+        </div>
       </div>
     );
   }
@@ -42,19 +25,47 @@ function renderElement({ element, children }: RenderElementProps): JSX.Element {
   throw Error('Unknown element type');
 }
 
+function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
+  const classes = [];
+  if (leaf.conf != undefined && leaf.conf < 0.5) {
+    classes.push('text-red-500');
+  }
+
+  return (
+    <span {...attributes} className={classes.join(' ')}>
+      {children}
+    </span>
+  );
+}
+
 export default function TranscriptionEditor() {
+  const debugMode = useDebugMode();
   const [value, setValue] = useState<Descendant[]>([]);
-  const yDoc = useMemo(() => new Y.Doc(), []);
+
+  const yDoc = useMemo(() => {
+    console.log('new yDoc');
+    const doc = new Y.Doc();
+
+    const documentId = new URLSearchParams(location.search).get('doc');
+
+    if (documentId) {
+      new WebsocketProvider(
+        `ws://localhost:8000/sync/documents/${documentId}/`,
+        doc,
+      );
+    }
+
+    return doc;
+  }, []);
 
   const editor = useMemo(() => {
     const baseEditor = createEditor();
     const editorWithReact = withReact(baseEditor);
 
     const sharedRoot = yDoc.get('content', Y.XmlText) as Y.XmlText;
-    const editorWithYjs = withYjs(editorWithReact, sharedRoot);
+    const editorWithYjs = withYHistory(withYjs(editorWithReact, sharedRoot));
 
-    const editorWithNormalization = withNormalize(editorWithYjs);
-    return editorWithNormalization;
+    return editorWithYjs;
   }, []);
 
   useEffect(() => {
@@ -65,9 +76,10 @@ export default function TranscriptionEditor() {
   return (
     <div>
       <Slate editor={editor} value={value} onChange={setValue}>
-        <Editable renderElement={renderElement} />
+        <Editable renderElement={renderElement} renderLeaf={renderLeaf} />
       </Slate>
-      <DebugPanel value={value} yDoc={yDoc} />
+
+      {debugMode && <LazyDebugPanel editor={editor} value={value} yDoc={yDoc} />}
     </div>
   );
 }
