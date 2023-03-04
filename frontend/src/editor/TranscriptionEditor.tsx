@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createEditor, Descendant, Editor, Transforms, Element } from 'slate';
+import { createEditor, Descendant, Transforms, Element, Editor } from 'slate';
 import { withReact, Slate, Editable, RenderElementProps } from 'slate-react';
 import * as Y from 'yjs';
 import { withYjs, YjsEditor } from '@slate-yjs/core';
@@ -46,19 +46,16 @@ export default function TranscriptionEditor() {
   const [value, setValue] = useState<Descendant[]>([]);
   const yDoc = useMemo(() => new Y.Doc(), []);
 
-  const editor = useMemo(
-    () =>
-      withNormalize(
-        withYjs(withReact(createEditor()), yDoc.get('content', Y.XmlText) as Y.XmlText),
-      ),
-    [],
-  );
+  const editor = useMemo(() => {
+    const baseEditor = createEditor();
+    const editorWithReact = withReact(baseEditor);
 
-  useEffect(() => {
-    Transforms.insertNodes(editor, defaultElement, {
-      at: [0],
-    });
-  }, [editor]);
+    const sharedRoot = yDoc.get('content', Y.XmlText) as Y.XmlText;
+    const editorWithYjs = withYjs(editorWithReact, sharedRoot);
+
+    const editorWithNormalization = withNormalize(editorWithYjs);
+    return editorWithNormalization;
+  }, []);
 
   useEffect(() => {
     YjsEditor.connect(editor);
