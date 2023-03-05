@@ -1,5 +1,5 @@
 # <div align="center">🎤 transcribee 🐝</div>
-> **<div align="center">[going to be] an open soruce audio- and videotranscription software</div>**
+> **<div align="center">[going to be] an open source audio- and videotranscription software</div>**
 
 Currently transcribee is heavily work-in-progress. Please come back in a few weeks / months.
 
