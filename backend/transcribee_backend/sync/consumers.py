@@ -9,11 +9,6 @@ def get_doc(doc_id):
 
 
 @database_sync_to_async
-def get_doc_updates(doc):
-    return list(DocumentUpdate.objects.filter(document=doc))
-
-
-@database_sync_to_async
 def create_update(document, update_content):
     return DocumentUpdate.objects.create(
         document=document, update_content=update_content
