@@ -51,6 +51,7 @@ class Base(Configuration):
         "django.contrib.auth.middleware.AuthenticationMiddleware",
         "django.contrib.messages.middleware.MessageMiddleware",
         "django.middleware.clickjacking.XFrameOptionsMiddleware",
+        "transcribee_backend.base.middleware.WorkerTokenMiddleware",
     ]
 
     ROOT_URLCONF = "transcribee_backend.urls"
@@ -125,3 +126,5 @@ class Base(Configuration):
     }
 
     ASGI_APPLICATION = "transcribee_backend.asgi.application"
+
+    TRANSCRIBEE_WORKER_TIMEOUT = 10 * 60  # Timeout in seconds, 10 Minutes
