@@ -24,6 +24,11 @@ Now you can start the development server with
 pdm run dev
 ```
 
+### Initial data
+
+Now create a user by going to http://localhost:8000/api/v1/users/ and filling out the form.
+After that you can create a document by going to http://localhost:8000/api/v1/documents/ and filling out the form
+
 ## Deployment
 
 > **Warning**
