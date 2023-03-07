@@ -430,7 +430,7 @@ name = "whispercpp"
 version = "0.0.9.dev0"
 requires_python = ">=3.8"
 git = "https://github.com/transcribee/whispercpp"
-revision = "e78147e776bb713d15659257fafc3d77b0ff11f9"
+revision = "3583c9b21d5e742e8c87072826e9b06399c2cd0b"
 summary = "whispercpp: Pybind11 bindings for whisper.cpp"
 
 [metadata]

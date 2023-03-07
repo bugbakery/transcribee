@@ -9,17 +9,20 @@ pkgs.mkShell {
 
     nodePackages.pnpm
 
+    # required by whispercpp
+    bazel_6
+
+    # required by pre-commit
+    git
   ] ++
 
-  # we need these to build whisper-cpp (+ python bindings)
-  [
-    stdenv
-  ] ++ (if !stdenv.isDarwin then [ ] else [
+  # accelerates whisper.cpp on M{1,2} Macs
+  (if !stdenv.isDarwin then [ ] else [
     darwin.apple_sdk.frameworks.Accelerate
   ]);
 
+  # use the system bazel (necessary on NixOS and Guix, as the downloaded bazel binary cannot run on these)
   shellHook = ''
-    export CFLAGS="-I ${pkgs.libcxx.dev}/include/c++/v1 -I${pkgs.openfst}/include $CFLAGS"
-    export LDFLAGS="-L${pkgs.openfst}/lib $LDFLAGS"
+    export DISABLE_BAZEL_WRAPPER=1
   '';
 }
