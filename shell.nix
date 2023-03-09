@@ -14,6 +14,9 @@ pkgs.mkShell {
 
     # required by pre-commit
     git
+
+    # required by librosa to open audio files
+    ffmpeg
   ] ++
 
   # accelerates whisper.cpp on M{1,2} Macs
