@@ -2,6 +2,8 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from transcribee_backend.base.models import Document, DocumentUpdate
 
+from .enums import SyncMessageType
+
 
 @database_sync_to_async
 def get_doc(doc_id):
@@ -25,8 +27,20 @@ class DocumentSyncConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-        for update in await get_doc_updates(self.document):
-            await self.send(bytes_data=update.update_content)
+        async for update in DocumentUpdate.objects.filter(
+            document=self.document
+        ).aiterator():
+            await self.send_change(change_content=update.update_content)
+
+        await self.send_change_backlog_complete()
+
+    async def send_change(self, change_content):
+        msg = bytes([SyncMessageType.CHANGE]) + change_content
+        await self.send(bytes_data=msg)
+
+    async def send_change_backlog_complete(self):
+        msg = bytes([SyncMessageType.CHANGE_BACKLOG_COMPLETE])
+        await self.send(bytes_data=msg)
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
@@ -36,8 +50,9 @@ class DocumentSyncConsumer(AsyncWebsocketConsumer):
 
         # TODO: Do not send update back to user
         await self.channel_layer.group_send(
-            self.room_group_name, {"type": "channel_msg", "bytes_data": bytes_data}
+            self.room_group_name,
+            {"type": "broadcast_change", "change_content": bytes_data},
         )
 
-    async def channel_msg(self, message):
-        await self.send(bytes_data=message["bytes_data"])
+    async def broadcast_change(self, msg):
+        await self.send_change(msg["change_content"])
