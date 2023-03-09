@@ -128,3 +128,5 @@ class Base(Configuration):
     ASGI_APPLICATION = "transcribee_backend.asgi.application"
 
     TRANSCRIBEE_WORKER_TIMEOUT = 10 * 60  # Timeout in seconds, 10 Minutes
+    # Time in milliseconds to wait after every message of the initial editor sync
+    TRANSCRIBEE_INITIAL_SYNC_SLOWDOWN = 0
