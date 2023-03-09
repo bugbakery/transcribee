@@ -6,9 +6,9 @@ from pydantic import BaseModel
 
 class Atom(BaseModel):
     text: str
-    start: float # in ms
-    end: float # in ms
-    conf: float # confidence ~ logit probability
+    start: float  # in ms
+    end: float  # in ms
+    conf: float  # confidence ~ logit probability
 
 
 class Paragraph(BaseModel):

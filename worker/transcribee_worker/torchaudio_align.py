@@ -5,13 +5,11 @@ Authors (among others): C. Max Bain
 """
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Iterator, Union
 
 import numpy as np
-import pandas as pd
 import torch
 import torchaudio
-from transcribee_proto.document import TranscriptSegment
+from transcribee_proto.document import Document
 from transcribee_worker.config import SAMPLE_RATE
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
@@ -51,9 +49,9 @@ def load_model(language_code: str, device):
     else:
         raise ValueError(f"No align-model for language: {language_code}")
 
-    if model_name in torchaudio.pipelines.__all__:
+    if hasattr(torchaudio.pipelines, model_name):
         pipeline_type = "torchaudio"
-        bundle = torchaudio.pipelines.__dict__[model_name]
+        bundle = getattr(torchaudio.pipelines, model_name)
         align_model = bundle.get_model().to(device)
         labels = bundle.get_labels()
         align_dictionary = {c.lower(): i for i, c in enumerate(labels)}
@@ -96,49 +94,36 @@ def interpolate_nans(x, method="nearest"):
 
 
 def align(
-    transcript: Iterator[TranscriptSegment],
-    audio: Union[str, np.ndarray, torch.Tensor],
-    lang_code: str,
+    transcript: Document,
+    audio: np.ndarray | torch.Tensor,
     device="cpu",
-    extend_duration: float = 0.0,
-    interpolate_method: str = "nearest",
-    start_from_previous: bool = True,
-):
+    extend_duration: float = 2000.0,
+) -> Document:
     """
     Force align phoneme recognition predictions to known transcription
 
     Parameters
     ----------
-    transcript: Iterator[TranscriptSegment]
+    transcript: Document
         The (coarsly) aligned transcript
 
-    audio: Union[np.ndarray, torch.Tensor]
+    audio: np.ndarray | torch.Tensor
         The audio waveform
-
-    lang_code: str
-        The language code to use for the model
 
     device
         The pytorch device to use
 
     extend_duration: float
-        Amount to pad input segments by. If not using vad--filter then recommended to use 2 seconds
-
-        If the gzip compression ratio is above this value, treat as failed
-
-    interpolate_method: str ["nearest", "linear", "ignore"]
-        Method to assign timestamps to non-aligned words. Words are not able to be aligned when
-        none of the characters occur in the align model dictionary. "nearest" copies timestamp
-        of nearest word within the segment. "linear" is linear interpolation. "drop" removes
-        that word from output.
+        Amount to pad input segments by in ms.
 
     Returns
     -------
-    A dictionary containing the resulting text ("text") and segment-level details ("segments"), and
-    the spoken language ("language"), which is detected when `decode_options["language"]` is None.
+    A Document with all Atoms force aligned. Atoms that could not be aligned using the
+    Wav2Vec2 model are assigned timings to cover the end of the previous until the start
+    of the next Atom with timings.
     """
     model, align_model_metadata = load_model(
-        lang_code,
+        transcript.lang,
         device,
     )
 
@@ -150,382 +135,111 @@ def align(
     MAX_DURATION = audio.shape[1] / SAMPLE_RATE
 
     model_dictionary = align_model_metadata["dictionary"]
-    model_lang = align_model_metadata["language"]
     model_type = align_model_metadata["type"]
 
-    aligned_segments = []
+    # every character has
+    # - a token index
+    # - a start
+    # - a stop
 
-    prev_t2 = 0
+    # from the ctc model we only get the starts and stops for certain characters
+    # for the rest we need to invent them
+    #
+    # For each atom we look at the time for the first and the last character.
+    # If we have timings for these use them for the atom timing
+    # If not use timing from adjacent characters
+    #
+    # We also fold word seperators into the Atoms (as whisper generates them as part of the Atoms)
+    # We might want to consider not counting the word separator to the timing of a atom
 
-    char_segments_arr = {
-        "segment-idx": [],
-        "subsegment-idx": [],
-        "word-idx": [],
-        "char": [],
-        "start": [],
-        "end": [],
-        "score": [],
-    }
+    atom_index_to_timing_index = []
+    tokens = []
 
-    for sdx, segment in enumerate(transcript):
-        while True:
-            segment_align_success = False
+    for atom in transcript.iter_atoms():
+        start_index = None
+        end_index = None
 
-            # strip spaces at beginning / end, but keep track of the amount.
-            num_leading = len(segment.text) - len(segment.text.lstrip())
-            num_trailing = len(segment.text) - len(segment.text.rstrip())
-            transcription = segment.text
+        for i, c in enumerate(atom.text):
+            # TODO(robin): this is stupid hardcoding, lets do this better
+            if c == " ":
+                c = "|"
 
-            # TODO: convert number tokenizer / symbols to phonetic words for alignment.
-            # e.g. "$300" -> "three hundred dollars"
-            # currently "$300" is ignored since no characters present in the phonetic dictionary
+            c = c.lower()
 
-            # split into words
-            if model_lang not in LANGUAGES_WITHOUT_SPACES:
-                per_word = transcription.split(" ")
+            idx = None
+            if c in model_dictionary:
+                idx = len(tokens)
+                tokens.append(model_dictionary[c])
+
+            if i == 0:
+                start_index = (idx, len(tokens) - 1 if idx is None else 2)
+            if (i + 1) == len(atom.text):
+                end_index = (idx, len(tokens))
+
+        atom_index_to_timing_index.append((start_index, end_index))
+
+    start = transcript.start() / 1e3
+    end = transcript.end() / 1e3
+
+    # if token level timestamps are disabled in the whisper layer
+    # the timestamps are negative, so we don't know anything about
+    # the timing and have to consider the full text
+    if start < 0:
+        start = 0
+
+    if end < 0:
+        end = MAX_DURATION
+
+    # pad according original timestamps
+    t1 = max(start - extend_duration, 0)
+    t2 = min(end + extend_duration, MAX_DURATION)
+
+    waveform_segment = audio[:, int(t1 * SAMPLE_RATE) : int(t2 * SAMPLE_RATE)]
+
+    with torch.inference_mode():
+        if model_type == "torchaudio":
+            emissions, _ = model(waveform_segment.to(device))
+        elif model_type == "huggingface":
+            emissions = model(waveform_segment.to(device)).logits
+        else:
+            raise NotImplementedError(
+                f"Align model of type {model_type} not supported."
+            )
+        emissions = torch.log_softmax(emissions, dim=-1)
+    emission = emissions[0].cpu().detach()
+
+    trellis = get_trellis(emission, tokens)
+    path = backtrack(trellis, emission, tokens)
+
+    char_segments = merge_repeats(path)
+
+    conversion_factor = (
+        (waveform_segment.size(1) / (trellis.size(0) - 1)) / SAMPLE_RATE * 1e3
+    )
+
+    for i, atom in enumerate(transcript.iter_atoms()):
+        (start, last_end), (end, next_start) = atom_index_to_timing_index[i]
+
+        if start is None:
+            if last_end < 0:
+                start_time = t1
             else:
-                per_word = transcription
+                start_time = char_segments[last_end].end * conversion_factor
+        else:
+            start_time = char_segments[start].start * conversion_factor
 
-            # first check that characters in transcription can be aligned
-            # (they are contained in align model"s dictionary)
-            clean_char, clean_cdx = [], []
-            for cdx, char in enumerate(transcription):
-                char_ = char.lower()
-                # wav2vec2 models use "|" character to represent spaces
-                if model_lang not in LANGUAGES_WITHOUT_SPACES:
-                    char_ = char_.replace(" ", "|")
+        if end is None:
+            if next_start not in char_segments:
+                end_time = t2
+            else:
+                end_time = char_segments[next_start].start * conversion_factor
+        else:
+            end_time = char_segments[end].end * conversion_factor
 
-                # ignore whitespace at beginning and end of transcript
-                if cdx < num_leading:
-                    pass
-                elif cdx > len(transcription) - num_trailing - 1:
-                    pass
-                elif char_ in model_dictionary.keys():
-                    clean_char.append(char_)
-                    clean_cdx.append(cdx)
+        atom.start = start_time
+        atom.end = end_time
 
-            clean_wdx = []
-            for wdx, wrd in enumerate(per_word):
-                if any([c in model_dictionary.keys() for c in wrd]):
-                    clean_wdx.append(wdx)
-
-            # if no characters are in the dictionary, then we skip this segment...
-            if len(clean_char) == 0:
-                print(
-                    f'Failed to align segment ("{segment.text}"): no characters in this'
-                    " segment found in model dictionary, resorting to original..."
-                )
-                break
-
-            transcription_cleaned = "".join(clean_char)
-            tokens = [model_dictionary[c] for c in transcription_cleaned]
-
-            # we only pad if not using VAD filtering
-            if not hasattr(segment, "seg_text"):
-                # pad according original timestamps
-                t1 = max(segment.start - extend_duration, 0)
-                t2 = min(segment.end + extend_duration, MAX_DURATION)
-
-            # use prev_t2 as current t1 if it"s later
-            if start_from_previous and t1 < prev_t2:
-                t1 = prev_t2
-
-            # check if timestamp range is still valid
-            if t1 >= MAX_DURATION:
-                print(
-                    "Failed to align segment: original start time longer than audio"
-                    " duration, skipping..."
-                )
-                break
-            if t2 - t1 < 0.02:
-                print(
-                    "Failed to align segment: duration smaller than 0.02s time"
-                    " precision"
-                )
-                break
-
-            f1 = int(t1 * SAMPLE_RATE)
-            f2 = int(t2 * SAMPLE_RATE)
-
-            waveform_segment = audio[:, f1:f2]
-
-            with torch.inference_mode():
-                if model_type == "torchaudio":
-                    emissions, _ = model(waveform_segment.to(device))
-                elif model_type == "huggingface":
-                    emissions = model(waveform_segment.to(device)).logits
-                else:
-                    raise NotImplementedError(
-                        f"Align model of type {model_type} not supported."
-                    )
-                emissions = torch.log_softmax(emissions, dim=-1)
-
-            emission = emissions[0].cpu().detach()
-
-            trellis = get_trellis(emission, tokens)
-            path = backtrack(trellis, emission, tokens)
-            if path is None:
-                print(
-                    f'Failed to align segment ("{segment.text}"): backtrack failed,'
-                    " resorting to original..."
-                )
-                break
-            char_segments = merge_repeats(path, transcription_cleaned)
-            # word_segments = merge_words(char_segments)
-
-            # sub-segments
-            if not hasattr(segment, "seg_text"):
-                segment.seg_text = [transcription]
-
-            seg_lens = [0] + [len(x) for x in segment.seg_text]
-            seg_lens_cumsum = list(np.cumsum(seg_lens))
-            sub_seg_idx = 0
-
-            wdx = 0
-            duration = t2 - t1
-            ratio = duration * waveform_segment.size(0) / (trellis.size(0) - 1)
-            for cdx, char in enumerate(transcription + " "):
-                is_last = False
-                if cdx == len(transcription):
-                    break
-                elif cdx + 1 == len(transcription):
-                    is_last = True
-
-                start, end, score = None, None, None
-                if cdx in clean_cdx:
-                    char_seg = char_segments[clean_cdx.index(cdx)]
-                    start = char_seg.start * ratio + t1
-                    end = char_seg.end * ratio + t1
-                    score = char_seg.score
-
-                char_segments_arr["char"].append(char)
-                char_segments_arr["start"].append(start)
-                char_segments_arr["end"].append(end)
-                char_segments_arr["score"].append(score)
-                char_segments_arr["word-idx"].append(wdx)
-                char_segments_arr["segment-idx"].append(sdx)
-                char_segments_arr["subsegment-idx"].append(sub_seg_idx)
-
-                # word-level info
-                if model_lang in LANGUAGES_WITHOUT_SPACES:
-                    # character == word
-                    wdx += 1
-                elif (
-                    is_last
-                    or transcription[cdx + 1] == " "
-                    or cdx == seg_lens_cumsum[sub_seg_idx + 1] - 1
-                ):
-                    wdx += 1
-
-                if is_last or cdx == seg_lens_cumsum[sub_seg_idx + 1] - 1:
-                    wdx = 0
-                    sub_seg_idx += 1
-
-            prev_t2 = segment.end
-
-            segment_align_success = True
-            # end while True loop
-            break
-
-        # reset prev_t2 due to drifting issues
-        if not segment_align_success:
-            prev_t2 = 0
-
-    char_segments_arr = pd.DataFrame(char_segments_arr)
-    not_space = char_segments_arr["char"] != " "
-
-    per_seg_grp = char_segments_arr.groupby(
-        ["segment-idx", "subsegment-idx"], as_index=False
-    )
-    char_segments_arr = per_seg_grp.apply(
-        lambda x: x.reset_index(drop=True)
-    ).reset_index()
-    per_word_grp = char_segments_arr[not_space].groupby(
-        ["segment-idx", "subsegment-idx", "word-idx"]
-    )
-    per_subseg_grp = char_segments_arr[not_space].groupby(
-        ["segment-idx", "subsegment-idx"]
-    )
-    per_seg_grp = char_segments_arr[not_space].groupby(["segment-idx"])
-    char_segments_arr["local-char-idx"] = char_segments_arr.groupby(
-        ["segment-idx", "subsegment-idx"]
-    ).cumcount()
-    per_word_grp = char_segments_arr[not_space].groupby(
-        ["segment-idx", "subsegment-idx", "word-idx"]
-    )  # regroup
-
-    word_segments_arr = {}
-
-    # start of word is first char with a timestamp
-    word_segments_arr["start"] = per_word_grp["start"].min().values
-    # end of word is last char with a timestamp
-    word_segments_arr["end"] = per_word_grp["end"].max().values
-    # score of word is mean (excluding nan)
-    word_segments_arr["score"] = per_word_grp["score"].mean().values
-
-    word_segments_arr["segment-text-start"] = (
-        per_word_grp["local-char-idx"].min().astype(int).values
-    )
-    word_segments_arr["segment-text-end"] = (
-        per_word_grp["local-char-idx"].max().astype(int).values + 1
-    )
-    word_segments_arr = pd.DataFrame(word_segments_arr)
-
-    word_segments_arr[["segment-idx", "subsegment-idx", "word-idx"]] = (
-        per_word_grp["local-char-idx"]
-        .min()
-        .reset_index()[["segment-idx", "subsegment-idx", "word-idx"]]
-        .astype(int)
-    )
-    segments_arr = {}
-    segments_arr["start"] = per_subseg_grp["start"].min().reset_index()["start"]
-    segments_arr["end"] = per_subseg_grp["end"].max().reset_index()["end"]
-    segments_arr = pd.DataFrame(segments_arr)
-    segments_arr[["segment-idx", "subsegment-idx-start"]] = (
-        per_subseg_grp["start"].min().reset_index()[["segment-idx", "subsegment-idx"]]
-    )
-    segments_arr["subsegment-idx-end"] = segments_arr["subsegment-idx-start"] + 1
-
-    # interpolate missing words / sub-segments
-    if interpolate_method != "ignore":
-        wrd_subseg_grp = word_segments_arr.groupby(
-            ["segment-idx", "subsegment-idx"], group_keys=False
-        )
-        wrd_seg_grp = word_segments_arr.groupby(["segment-idx"], group_keys=False)
-        # we still know which word timestamps are interpolated because their score == nan
-        word_segments_arr["start"] = wrd_subseg_grp["start"].apply(
-            lambda group: interpolate_nans(group, method=interpolate_method)
-        )
-        word_segments_arr["end"] = wrd_subseg_grp["end"].apply(
-            lambda group: interpolate_nans(group, method=interpolate_method)
-        )
-
-        word_segments_arr["start"] = wrd_seg_grp["start"].apply(
-            lambda group: interpolate_nans(group, method=interpolate_method)
-        )
-        word_segments_arr["end"] = wrd_seg_grp["end"].apply(
-            lambda group: interpolate_nans(group, method=interpolate_method)
-        )
-
-        sub_seg_grp = segments_arr.groupby(["segment-idx"], group_keys=False)
-        segments_arr["start"] = sub_seg_grp["start"].apply(
-            lambda group: interpolate_nans(group, method=interpolate_method)
-        )
-        segments_arr["end"] = sub_seg_grp["end"].apply(
-            lambda group: interpolate_nans(group, method=interpolate_method)
-        )
-
-        # merge words & subsegments which are missing times
-        word_grp = word_segments_arr.groupby(["segment-idx", "subsegment-idx", "end"])
-
-        word_segments_arr["segment-text-start"] = word_grp[
-            "segment-text-start"
-        ].transform(min)
-        word_segments_arr["segment-text-end"] = word_grp["segment-text-end"].transform(
-            max
-        )
-        word_segments_arr.drop_duplicates(
-            subset=["segment-idx", "subsegment-idx", "end"], inplace=True
-        )
-
-        seg_grp_dup = segments_arr.groupby(["segment-idx", "start", "end"])
-        segments_arr["subsegment-idx-start"] = seg_grp_dup[
-            "subsegment-idx-start"
-        ].transform(min)
-        segments_arr["subsegment-idx-end"] = seg_grp_dup[
-            "subsegment-idx-end"
-        ].transform(max)
-        segments_arr.drop_duplicates(
-            subset=["segment-idx", "subsegment-idx-start", "subsegment-idx-end"],
-            inplace=True,
-        )
-    else:
-        word_segments_arr.dropna(inplace=True)
-        segments_arr.dropna(inplace=True)
-
-    # if some segments still have missing timestamps
-    # (usually because all numerals / symbols), then use original timestamps...
-    segments_arr["start"].fillna(pd.Series([x.start for x in transcript]), inplace=True)
-    segments_arr["end"].fillna(pd.Series([x.end for x in transcript]), inplace=True)
-    segments_arr["subsegment-idx-start"].fillna(0, inplace=True)
-    segments_arr["subsegment-idx-end"].fillna(1, inplace=True)
-
-    aligned_segments = []
-    aligned_segments_word = []
-
-    word_segments_arr.set_index(["segment-idx", "subsegment-idx"], inplace=True)
-    char_segments_arr.set_index(
-        ["segment-idx", "subsegment-idx", "word-idx"], inplace=True
-    )
-
-    for sdx, srow in segments_arr.iterrows():
-        seg_idx = int(srow["segment-idx"])
-        try:
-            sub_start = int(srow["subsegment-idx-start"])
-        except Exception:
-            pass
-            # import pdb
-            # pdb.set_trace()
-        sub_end = int(srow["subsegment-idx-end"])
-
-        seg = transcript[seg_idx]
-        text = "".join(seg.seg_text[sub_start:sub_end])
-
-        wseg = word_segments_arr.loc[seg_idx].loc[sub_start : sub_end - 1]
-        wseg["start"].fillna(srow["start"], inplace=True)
-        wseg["end"].fillna(srow["end"], inplace=True)
-        wseg["segment-text-start"].fillna(0, inplace=True)
-        wseg["segment-text-end"].fillna(len(text) - 1, inplace=True)
-
-        cseg = char_segments_arr.loc[seg_idx].loc[sub_start : sub_end - 1]
-        # fixes bug for single segment in transcript
-        cseg["segment-text-start"] = cseg["level_1"] if "level_1" in cseg else 0
-        cseg["segment-text-end"] = cseg["level_1"] + 1 if "level_1" in cseg else 1
-        if "level_1" in cseg:
-            del cseg["level_1"]
-        if "level_0" in cseg:
-            del cseg["level_0"]
-        cseg.reset_index(inplace=True)
-        aligned_segments.append(
-            {
-                "start": srow["start"],
-                "end": srow["end"],
-                "text": text,
-                "word-segments": wseg,
-                "char-segments": cseg,
-            }
-        )
-
-        def get_raw_text(word_row):
-            return seg.seg_text[word_row.name][
-                int(word_row["segment-text-start"]) : int(word_row["segment-text-end"])
-                + 1
-            ]
-
-        wdx = 0
-        curr_text = get_raw_text(wseg.iloc[wdx])
-        if len(wseg) > 1:
-            for _, wrow in wseg.iloc[1:].iterrows():
-                if wrow["start"] != wseg.iloc[wdx]["start"]:
-                    aligned_segments_word.append(
-                        {
-                            "text": curr_text.strip(),
-                            "start": wseg.iloc[wdx]["start"],
-                            "end": wseg.iloc[wdx]["end"],
-                        }
-                    )
-                    curr_text = ""
-                curr_text += " " + get_raw_text(wrow)
-                wdx += 1
-        aligned_segments_word.append(
-            {
-                "text": curr_text.strip(),
-                "start": wseg.iloc[wdx]["start"],
-                "end": wseg.iloc[wdx]["end"],
-            }
-        )
-
-    return {"segments": aligned_segments, "word_segments": aligned_segments_word}
+    return transcript
 
 
 """
@@ -603,54 +317,29 @@ def backtrack(trellis, emission, tokens, blank_id=0):
 # Merge the labels
 @dataclass
 class Segment:
-    label: str
     start: int
     end: int
     score: float
 
     def __repr__(self):
-        return f"{self.label}\t({self.score:4.2f}): [{self.start:5d}, {self.end:5d})"
+        return f"({self.score:4.2f}): [{self.start:5d}, {self.end:5d})"
 
     @property
     def length(self):
         return self.end - self.start
 
 
-def merge_repeats(path, transcript):
+def merge_repeats(path):
     i1, i2 = 0, 0
-    segments = []
+    segments = {}
     while i1 < len(path):
         while i2 < len(path) and path[i1].token_index == path[i2].token_index:
             i2 += 1
         score = sum(path[k].score for k in range(i1, i2)) / (i2 - i1)
-        segments.append(
-            Segment(
-                transcript[path[i1].token_index],
-                path[i1].time_index,
-                path[i2 - 1].time_index + 1,
-                score,
-            )
+        segments[path[i1].token_index] = Segment(
+            path[i1].time_index,
+            path[i2 - 1].time_index + 1,
+            score,
         )
         i1 = i2
     return segments
-
-
-def merge_words(segments, separator="|"):
-    words = []
-    i1, i2 = 0, 0
-    while i1 < len(segments):
-        if i2 >= len(segments) or segments[i2].label == separator:
-            if i1 != i2:
-                segs = segments[i1:i2]
-                word = "".join([seg.label for seg in segs])
-                score = sum(seg.score * seg.length for seg in segs) / sum(
-                    seg.length for seg in segs
-                )
-                words.append(
-                    Segment(word, segments[i1].start, segments[i2 - 1].end, score)
-                )
-            i1 = i2 + 1
-            i2 = i1
-        else:
-            i2 += 1
-    return words
