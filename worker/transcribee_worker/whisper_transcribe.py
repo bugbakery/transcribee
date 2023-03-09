@@ -4,7 +4,7 @@ from typing import Iterator, Tuple
 
 import requests
 from numpy.typing import ArrayLike
-from transcribee_proto.document import UNKNOWN_SPEAKER, Paragraph, TranscriptSegment
+from transcribee_proto.document import UNKNOWN_SPEAKER, Atom, Paragraph
 from transcribee_worker.config import MODELS_DIR
 from whispercpp import api
 
@@ -38,6 +38,8 @@ class TranscriptionWorkDoneToken:
     pass
 
 
+# TODO(robin): this currently filters all special tokens
+# recovery of multilingual text could be hard if we keep this filtering
 def _transcription_work(
     result_queue: asyncio.Queue,
     data: ArrayLike,
@@ -52,41 +54,102 @@ def _transcription_work(
     ):
         result_queue, loop = result_queue_and_loop
         segment = ctx.full_n_segments() - n_new
+
+        rest_token_bytes = b""
+        rest_conf = 0
+        rest_count = 0
+        rest_start = 0
+
         while segment < ctx.full_n_segments():
             tokens = (
                 ctx.full_get_token_data(segment, token_idx)
                 for token_idx in range(ctx.full_n_tokens(segment))
             )
-            paragraph = Paragraph(
-                children=[
-                    TranscriptSegment(
-                        text=ctx.token_to_str(token.id),
-                        conf=token.p,
-                        start=token.t0,
-                        end=token.t1,
+
+            atoms = []
+            for token in tokens:
+                if token.id in special_tokens or token.id > special_tokens[-1]:
+                    continue
+
+                token_bytes = ctx.token_to_str(token.id)
+                conf = token.p
+                start = token.t0
+                end = token.t1
+
+                # tokens can be incomplete utf-8, so we sometimes need to combine tokens to
+                # get valid utf we assume this invalid utf cannot span multiple segments
+                try:
+                    text = (rest_token_bytes + token_bytes).decode("utf-8")
+                    conf = (rest_conf + conf) / (rest_count + 1)
+                    if rest_start != 0:
+                        start = rest_start
+                except UnicodeDecodeError:
+                    logging.info(
+                        "invalid utf-8 encountered in whisper token, skipping decoding, "
+                        "appending to rest"
                     )
-                    for token in tokens
-                ],
+                    rest_token_bytes += token_bytes
+                    rest_conf += conf
+                    rest_count += 1
+                    if rest_start != 0:
+                        rest_start = start
+                    continue
+
+                rest_token_bytes = b""
+                rest_conf = 0
+                rest_count = 0
+                rest_start = 0
+
+                atoms.append(
+                    Atom(
+                        text=text,
+                        conf=conf,
+                        # 10·ms -> ms
+                        start=start * 10,
+                        # 10·ms -> ms
+                        end=end * 10,
+                    )
+                )
+
+            paragraph = Paragraph(
+                children=atoms,
                 speaker=UNKNOWN_SPEAKER,
             )
+
             # asyncio.Queue is not threadsafe, so we need to use the *_threadsafe functions
             loop.call_soon_threadsafe(result_queue.put_nowait, paragraph)
             segment += 1
 
     ctx = get_context(model_name)
-    params = api.Params.from_sampling_strategy(
-        api.SamplingStrategies.from_strategy_type(api.SAMPLING_GREEDY)
+
+    special_tokens = [
+        ctx.eot_token,
+        ctx.sot_token,
+        ctx.prev_token,
+        ctx.solm_token,
+        ctx.not_token,
+        ctx.beg_token,
+    ]
+
+    sampling = api.SamplingStrategies.from_strategy_type(api.SAMPLING_GREEDY)
+    sampling.greedy.best_of = 5  # parameter stolen from whisper.cpp cli
+    params = api.Params.from_sampling_strategy(sampling)
+    params.no_context = (
+        False  # if False, feeds back already transcribed text back to the model
     )
+    params.num_threads = 4
     params.language = lang_code
+    params.max_segment_length = 60  # parameter stolen from whisper.cpp cli
     params.token_timestamps = True
     params.on_new_segment(handle_new_segment, (result_queue, loop))
+    print(ctx.sys_info())
     ctx.full(params, data)
 
     return TranscriptionWorkDoneToken()
 
 
 async def transcribe(
-    data: ArrayLike, model_name: str, lang_code="en", _num_proc=4
+    data: ArrayLike, model_name: str, lang_code="en"
 ) -> Iterator[Paragraph]:
     loop = asyncio.get_running_loop()
     results_queue = asyncio.Queue()

@@ -4,27 +4,44 @@ A script for manually transcribing audio and outputting it in the transcribee da
 This might be handy for testing or other debugging work.
 """
 
+import argparse
+import asyncio
 import logging
-import sys
+import pathlib
+from concurrent.futures import ThreadPoolExecutor
 
-from transcribee_proto.document import Document, Paragraph
+from transcribee_proto.document import Document
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe
 
 logging.basicConfig(level=logging.INFO)
 
+
+async def main():
+    parser = argparse.ArgumentParser(
+        description="Manually execute the transcription worker"
+    )
+    parser.add_argument("file", type=pathlib.Path, help="audio file")
+    parser.add_argument("-l", "--lang", default="en", type=str, help="language")
+    parser.add_argument(
+        "-m", "--model", default="tiny.en", type=str, help="whisper model"
+    )
+    args = parser.parse_args()
+
+    audio = load_audio(args.file)
+
+    paragraphs = []
+    with ThreadPoolExecutor() as executor:
+        asyncio.get_running_loop().set_default_executor(executor)
+        async for paragraph in transcribe(audio, args.model, args.lang):
+            paragraphs.append(paragraph)
+
+    document = Document(lang=args.lang, paragraphs=paragraphs)
+    aligned_document = align(document, audio)
+
+    print(aligned_document.json())
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print(f"usage:\n\t{sys.argv[0]} lang_code path/to/audio.mp3")
-        exit(-1)
-    else:
-        _, lang_code, audio_path = sys.argv
-
-    audio = load_audio(audio_path)
-    transcript = transcribe(audio, "tiny", lang_code)
-    aligned_transcript = align(transcript, audio, lang_code)
-
-    paragraph = Paragraph(speaker="speaker 1", children=transcript)
-    document = Document(__root__=[paragraph])
-    print(document.json())
+    asyncio.run(main())
