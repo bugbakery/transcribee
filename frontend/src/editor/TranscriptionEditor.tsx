@@ -75,6 +75,18 @@ export default function TranscriptionEditor() {
     return () => YjsEditor.disconnect(editor);
   }, [editor]);
 
+  useEffect(() => {
+    const preventCtrlS = (e: KeyboardEvent) => {
+      const ctrlOrCmd = window.navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey;
+      if (ctrlOrCmd && e.key === 's') {
+        e.preventDefault();
+        console.log('CommandOrControl + S prevented – we automatically save the document anyways');
+      }
+    };
+    document.addEventListener('keydown', preventCtrlS);
+    return () => document.removeEventListener('keydown', preventCtrlS);
+  }, []);
+
   return (
     <div className={syncComplete ? '' : 'blur'}>
       <Slate editor={editor} value={value} onChange={setValue}>
