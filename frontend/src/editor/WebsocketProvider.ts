@@ -6,18 +6,27 @@ enum MessageSyncType {
   ChangeBacklogComplete = 2,
 }
 export class WebsocketProvider extends Observable<'update' | 'initalSyncComplete'> {
-  ws: WebSocket;
+  ws!: WebSocket;
+  url: string;
+  yDoc: Y.Doc;
 
   constructor(url: string, yDoc: Y.Doc) {
     super();
 
-    this.ws = new WebSocket(url);
+    this.url = url;
+    this.yDoc = yDoc;
+
+    this.connectWebsocket();
+  }
+
+  connectWebsocket() {
+    this.ws = new WebSocket(this.url);
 
     this.ws.addEventListener('open', (e) => {
       console.debug('[ws] Connected', e);
     });
 
-    yDoc.on('update', (update, origin) => {
+    this.yDoc.on('update', (update, origin) => {
       if (origin !== this) {
         if (this.ws.readyState === this.ws.OPEN) {
           this.ws.send(update);
@@ -28,7 +37,7 @@ export class WebsocketProvider extends Observable<'update' | 'initalSyncComplete
     });
 
     this.on('update', (update: Uint8Array) => {
-      Y.applyUpdate(yDoc, update, this);
+      Y.applyUpdate(this.yDoc, update, this);
     });
 
     this.ws.addEventListener('message', async (event: MessageEvent) => {
@@ -42,5 +51,7 @@ export class WebsocketProvider extends Observable<'update' | 'initalSyncComplete
         console.log('All changes synced');
       }
     });
+
+    this.ws.addEventListener('close', () => setTimeout(() => this.connectWebsocket(), 1000));
   }
 }
