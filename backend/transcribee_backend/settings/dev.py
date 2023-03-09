@@ -20,3 +20,4 @@ class Dev(Base):
     DEBUG = True
 
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    TRANSCRIBEE_INITIAL_SYNC_SLOWDOWN = 1

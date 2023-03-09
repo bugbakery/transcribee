@@ -1,5 +1,8 @@
+import asyncio
+
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.conf import settings
 from transcribee_backend.base.models import Document, DocumentUpdate
 
 from .enums import SyncMessageType
@@ -31,6 +34,8 @@ class DocumentSyncConsumer(AsyncWebsocketConsumer):
             document=self.document
         ).aiterator():
             await self.send_change(change_content=update.update_content)
+            if settings.TRANSCRIBEE_INITIAL_SYNC_SLOWDOWN is not None:
+                await asyncio.sleep(settings.TRANSCRIBEE_INITIAL_SYNC_SLOWDOWN / 1000)
 
         await self.send_change_backlog_complete()
 
