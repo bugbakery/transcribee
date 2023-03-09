@@ -1,7 +1,11 @@
 import { Observable } from 'lib0/observable';
 import * as Y from 'yjs';
 
-export class WebsocketProvider extends Observable<'update'> {
+enum MessageSyncType {
+  Change = 1,
+  ChangeBacklogComplete = 2,
+}
+export class WebsocketProvider extends Observable<'update' | 'initalSyncComplete'> {
   ws: WebSocket;
 
   constructor(url: string, yDoc: Y.Doc) {
@@ -28,9 +32,15 @@ export class WebsocketProvider extends Observable<'update'> {
     });
 
     this.ws.addEventListener('message', async (event: MessageEvent) => {
-      const data = event.data as Blob;
-      const buffer = await data.arrayBuffer();
-      this.emit('update', [new Uint8Array(buffer)]);
+      const msg_data = new Uint8Array(await event.data.arrayBuffer());
+      const msg_type = msg_data[0];
+      const msg = msg_data.slice(1);
+      if (msg_type === MessageSyncType.Change) {
+        this.emit('update', [msg]);
+      } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
+        this.emit('initalSyncComplete', []);
+        console.log('All changes synced');
+      }
     });
   }
 }
