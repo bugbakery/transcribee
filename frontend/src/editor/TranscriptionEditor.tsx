@@ -41,6 +41,7 @@ function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Elemen
 export default function TranscriptionEditor() {
   const debugMode = useDebugMode();
   const [value, setValue] = useState<Descendant[]>([]);
+  const [syncComplete, setSyncComplete] = useState<boolean>(false);
 
   const yDoc = useMemo(() => {
     console.log('new yDoc');
@@ -49,7 +50,11 @@ export default function TranscriptionEditor() {
     const documentId = new URLSearchParams(location.search).get('doc');
 
     if (documentId) {
-      new WebsocketProvider(`ws://localhost:8000/sync/documents/${documentId}/`, doc);
+      const provider = new WebsocketProvider(
+        `ws://localhost:8000/sync/documents/${documentId}/`,
+        doc,
+      );
+      provider.on('initalSyncComplete', () => setSyncComplete(true));
     }
 
     return doc;
@@ -71,7 +76,7 @@ export default function TranscriptionEditor() {
   }, [editor]);
 
   return (
-    <div>
+    <div className={syncComplete ? '' : 'blur'}>
       <Slate editor={editor} value={value} onChange={setValue}>
         <Editable renderElement={renderElement} renderLeaf={renderLeaf} />
       </Slate>
