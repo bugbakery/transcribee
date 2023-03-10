@@ -18,7 +18,11 @@ from transcribee_backend.base.serializers import (
     UserSerializer,
 )
 
-from .serializers import KeepaliveSerializer, UserCreateSerializer
+from .serializers import (
+    AssignedTaskSerializer,
+    KeepaliveSerializer,
+    UserCreateSerializer,
+)
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
@@ -127,7 +131,7 @@ class TaskViewSet(
             job.assigned_worker = request.authenticated_worker
             job.last_keepalive = datetime.datetime.now()
             job.save()
-            serializer = self.get_serializer(job, many=False)
+            serializer = AssignedTaskSerializer(job)
             return Response(serializer.data)
 
     @action(
