@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { navigate } from 'wouter/use-location';
@@ -16,13 +16,19 @@ type FieldValues = {
 };
 
 export default function NewDocumentPage() {
+  const [dropIndicator, setDropIndicator] = useState(false);
+  const audioFileRef = useRef<HTMLInputElement | null>(null);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<FieldValues>();
 
-  const [dropIndicator, setDropIndicator] = useState(false);
+  const { ref: audioFileRegisterRef, ...audioFileRegister } = register('audioFile', {
+    required: true,
+  });
 
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
     const formData = new FormData();
@@ -63,61 +69,74 @@ export default function NewDocumentPage() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
+                  setValue('audioFile', e.dataTransfer.files, {
+                    shouldTouch: true,
+                    shouldDirty: true,
+                  });
+
+                  if (audioFileRef.current) {
+                    // also set files via ref since react-hook-form's setValue does not set the value properly
+                    audioFileRef.current.files = e.dataTransfer.files;
+                  }
+
                   setDropIndicator(false);
                 }}
               >
-                {dropIndicator ? (
-                  <div
-                    className={clsx(
-                      'absolute',
-                      'top-1',
-                      'bottom-1',
-                      'right-1',
-                      'left-1',
-                      'border-2',
-                      'rounded',
-                      'border-black',
-                      'border-dashed',
-                      'flex',
-                      'items-center',
-                      'justify-center',
-                    )}
-                  >
-                    <div className="text-center">
-                      <p className="font-medium">Drop audio file…</p>
-                    </div>
-                  </div>
-                ) : (
+                <div
+                  className={clsx(
+                    'absolute',
+                    'top-1',
+                    'bottom-1',
+                    'right-1',
+                    'left-1',
+                    'border-2',
+                    'rounded',
+                    'border-black',
+                    'border-dashed',
+                    'flex',
+                    'items-center',
+                    'justify-center',
+                    dropIndicator || 'hidden',
+                  )}
+                >
                   <div className="text-center">
-                    <p className="font-medium">Drag audio file here</p>
-                    <p className="relative">
-                      or{' '}
-                      <input
-                        {...register('audioFile', { required: true })}
-                        type="file"
-                        className="opacity-0 absolute peer w-full"
-                      />
-                      <a
-                        href="#"
-                        className={clsx(
-                          'inline-block',
-                          'relative',
-                          'link',
-                          'underline',
-                          'rounded-sm',
-                          'pointer-events-none',
-                          'hover:opacity-60',
-                          'peer-hover:opacity-60',
-                          'peer-focus-visible:outline',
-                          'peer-focus-visible:outline-3',
-                          'peer-focus-visible:outline-blue-600',
-                        )}
-                      >
-                        choose file
-                      </a>
-                    </p>
+                    <p className="font-medium">Drop audio file…</p>
                   </div>
-                )}
+                </div>
+                <div className={clsx('text-center', dropIndicator && 'hidden')}>
+                  <p className="font-medium">Drag audio file here</p>
+                  <p className="relative">
+                    or{' '}
+                    <input
+                      {...audioFileRegister}
+                      ref={(ref) => {
+                        audioFileRegisterRef(ref);
+                        audioFileRef.current = ref;
+                      }}
+                      type="file"
+                      className="opacity-0 absolute peer w-full"
+                      accept="audio/*,video/*"
+                    />
+                    <a
+                      href="#"
+                      className={clsx(
+                        'inline-block',
+                        'relative',
+                        'link',
+                        'underline',
+                        'rounded-sm',
+                        'pointer-events-none',
+                        'hover:opacity-60',
+                        'peer-hover:opacity-60',
+                        'peer-focus-visible:outline',
+                        'peer-focus-visible:outline-3',
+                        'peer-focus-visible:outline-blue-600',
+                      )}
+                    >
+                      choose file
+                    </a>
+                  </p>
+                </div>
               </div>
               {errors.audioFile && (
                 <p className="text-red-600 text-sm mt-0.5">Audio file is required.</p>
