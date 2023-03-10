@@ -85,6 +85,14 @@ export default function NewDocumentPage() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
+                  setDropIndicator(false);
+
+                  const fileType = e.dataTransfer.files[0].type;
+
+                  if (!fileType.startsWith('audio/') && !fileType.startsWith('video/')) {
+                    return;
+                  }
+
                   setValue('audioFile', e.dataTransfer.files, {
                     shouldTouch: true,
                     shouldDirty: true,
@@ -94,8 +102,6 @@ export default function NewDocumentPage() {
                     // also set files via ref since react-hook-form's setValue does not set the value properly
                     audioFileRef.current.files = e.dataTransfer.files;
                   }
-
-                  setDropIndicator(false);
                 }}
               >
                 <div
