@@ -9,6 +9,7 @@ specifiers:
   '@typescript-eslint/eslint-plugin': ^5.54.0
   '@typescript-eslint/parser': ^5.54.0
   autoprefixer: ^10.4.13
+  clsx: ^1.2.1
   eslint: ^8.35.0
   eslint-config-prettier: ^8.6.0
   eslint-plugin-import: ^2.27.5
@@ -33,6 +34,7 @@ specifiers:
 dependencies:
   '@fontsource/inter': 4.5.15
   '@slate-yjs/core': 0.3.1_slate@0.91.4+yjs@13.5.48
+  clsx: 1.2.1
   lib0: 0.2.63
   react: 18.2.0
   react-base16-styling: 0.9.1
@@ -790,6 +792,11 @@ packages:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.2
+
+  /clsx/1.2.1:
+    resolution: {integrity: sha512-EcR6r5a8bj6pu3ycsa/E/cKVGuTgZJZdsyUYHOksG/UHIiKfjxzRxYJpyVBwYaQeOvghal9fcc4PidlgzugAQg==}
+    engines: {node: '>=6'}
+    dev: false
 
   /color-convert/1.9.3:
     resolution: {integrity: sha512-QfAUtd+vFdAtFQcC8CCyYt1fYWxSqAiK2cSD6zDB8N3cpsEBAvRxp9zOGg6G/SHHJYAT88/az/IuDGALsNVbGg==}
