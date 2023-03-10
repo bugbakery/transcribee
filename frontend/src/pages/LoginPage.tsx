@@ -56,7 +56,7 @@ export default function LoginPage() {
         >
           <div className="flex flex-col gap-6">
             <FormControl label="Username" error={errors.username && 'This field is required.'}>
-              <Input {...register('username', { required: true })} />
+              <Input autoFocus {...register('username', { required: true })} />
             </FormControl>
             <FormControl label="Password" error={errors.password && 'This field is required.'}>
               <Input {...register('password', { required: true })} type="password" />
