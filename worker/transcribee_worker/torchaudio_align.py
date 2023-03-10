@@ -122,6 +122,9 @@ def align(
     Wav2Vec2 model are assigned timings to cover the end of the previous until the start
     of the next Atom with timings.
     """
+    if transcript.is_empty():
+        return transcript
+
     model, align_model_metadata = load_model(
         transcript.lang,
         device,

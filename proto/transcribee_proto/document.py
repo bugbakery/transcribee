@@ -32,6 +32,12 @@ class Document(BaseModel):
     lang: str
     paragraphs: List[Paragraph]
 
+    def is_empty(self) -> bool:
+        for paragraph in self.paragraphs:
+            for atom in paragraph.children:
+                return True
+        return False
+
     def text(self) -> str:
         return "".join(p.text() for p in self.paragraphs)
 
