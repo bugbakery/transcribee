@@ -56,7 +56,7 @@ export default function NewDocumentPage() {
         <form onSubmit={handleSubmit(submitHandler)}>
           <div className="flex flex-col gap-6">
             <FormControl label="Name" error={errors.name && 'This field is required.'}>
-              <Input {...register('name', { required: true })} />
+              <Input autoFocus {...register('name', { required: true })} />
             </FormControl>
 
             <div>
