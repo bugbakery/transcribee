@@ -49,10 +49,7 @@ export default function TranscriptionEditor() {
     const documentId = new URLSearchParams(location.search).get('doc');
 
     if (documentId) {
-      new WebsocketProvider(
-        `ws://localhost:8000/sync/documents/${documentId}/`,
-        doc,
-      );
+      new WebsocketProvider(`ws://localhost:8000/sync/documents/${documentId}/`, doc);
     }
 
     return doc;
