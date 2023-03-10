@@ -1,7 +1,13 @@
 import { SubmitHandler, useForm } from 'react-hook-form';
-import clsx from 'clsx';
+import { navigate } from 'wouter/use-location';
+import { useState } from 'react';
 
-import { BASE_URL } from '../api';
+import { fetchApi, storeAuthToken } from '../api';
+import Dialog from '../components/Dialog';
+import DialogTitle from '../components/DialogTitle';
+import Input from '../components/Input';
+import PrimaryButton from '../components/PrimaryButton';
+import FormControl from '../components/FormControl';
 
 type FieldValues = {
   username: string;
@@ -9,68 +15,64 @@ type FieldValues = {
 };
 
 export default function LoginPage() {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FieldValues>();
+
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
-    await fetch(BASE_URL + 'v1/users/login/', {
+    setErrorMessage(null); // clear general error when hitting submit
+
+    const response = await fetchApi('v1/users/login/', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers: {
-        'Content-Type': 'application/json',
-      },
     });
+
+    if (response.ok) {
+      const resData = await response.json();
+      storeAuthToken(resData.token);
+      navigate('/');
+    } else {
+      try {
+        const resData = await response.json();
+        setErrorMessage(resData.non_field_errors.join(' '));
+      } catch (ex: unknown) {
+        setErrorMessage('An unknown error occcured.');
+      }
+    }
   };
 
   return (
-    <div
-      className="h-screen w-screen flex items-center justify-center"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => e.preventDefault()}
-    >
-      <div className="w-96">
-        <div className="p-6 bg-white border-black border-2 shadow-brutal rounded-lg">
-          <h2 className="font-bold text-lg mb-4">Login</h2>
-          <form onSubmit={handleSubmit(submitHandler)}>
-            <div className="flex flex-col gap-6">
-              <label className="block">
-                <span className="text-sm font-medium">Username</span>
-                <input
-                  {...register('username', { required: true })}
-                  className="block w-full form-input rounded border-2 border-black mt-0.5"
-                />
-                {errors.username && <p className="text-red-600">Username is required.</p>}
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium">Password</span>
-                <input
-                  {...register('password', { required: true })}
-                  type="password"
-                  className="block w-full form-input rounded border-2 border-black mt-0.5"
-                />
-                {errors.password && <p className="text-red-600">Password is required.</p>}
-              </label>
-              <div className="block">
-                <button
-                  type="submit"
-                  className={clsx(
-                    'bg-black',
-                    'hover:bg-gray-700',
-                    'rounded-md',
-                    'text-white',
-                    'py-2',
-                    'px-4',
-                  )}
-                >
-                  Login
-                </button>
+    <div className="h-screen w-screen flex items-center justify-center">
+      <Dialog>
+        <DialogTitle>Login</DialogTitle>
+        <form
+          onSubmit={handleSubmit(submitHandler, () => {
+            setErrorMessage(null); // clear general error when hitting submit
+          })}
+        >
+          <div className="flex flex-col gap-6">
+            <FormControl label="Username" error={errors.username && 'This field is required.'}>
+              <Input {...register('username', { required: true })} />
+            </FormControl>
+            <FormControl label="Password" error={errors.password && 'This field is required.'}>
+              <Input {...register('password', { required: true })} type="password" />
+            </FormControl>
+
+            {errorMessage && (
+              <div className="block bg-red-100 px-2 py-2 rounded text-center text-red-700">
+                {errorMessage}
               </div>
+            )}
+            <div className="block">
+              <PrimaryButton type="submit">Login</PrimaryButton>
             </div>
-          </form>
-        </div>
-      </div>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }
