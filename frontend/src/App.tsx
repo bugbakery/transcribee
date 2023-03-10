@@ -11,8 +11,8 @@ export default function App() {
     <div>
       <Switch>
         <Route path="/" component={HomePage} />
-        <Route path="/new" component={NewDocumentPage} />
         <Route path="/login" component={LoginPage} />
+        <Route path="/new" component={NewDocumentPage} />
         <Route path="/document" component={DocumentPage} />
         <Route component={PageNotFoundPage} />
       </Switch>
