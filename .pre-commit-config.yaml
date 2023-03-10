@@ -48,7 +48,7 @@ repos:
     hooks:
       - id: tsc
         name: tsc
-        entry: npm --prefix frontend/ run check:tsc
+        entry: pnpm --prefix frontend/ run check:tsc
         language: node
         files: frontend/.*
         pass_filenames: false
@@ -56,15 +56,15 @@ repos:
     hooks:
       - id: format
         name: format
-        entry: npm --prefix frontend/ run check:format
+        entry: pnpm --prefix frontend/ run check:format
         language: node
         files: frontend/.*
         pass_filenames: false
   - repo: local
     hooks:
-      - id: npm_test
-        name: npm test
-        entry: npm --prefix frontend/ run test:fast
+      - id: pnpm_test
+        name: pnpm test
+        entry: pnpm --prefix frontend/ run test:fast
         language: node
         files: frontend/.*
         pass_filenames: false
