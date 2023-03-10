@@ -12,7 +12,7 @@ import FormControl from '../components/FormControl';
 
 type FieldValues = {
   name: string;
-  audioFile: FileList;
+  audioFile: FileList | undefined;
 };
 
 export default function NewDocumentPage() {
@@ -24,13 +24,21 @@ export default function NewDocumentPage() {
     handleSubmit,
     formState: { errors },
     setValue,
+    watch,
   } = useForm<FieldValues>();
 
   const { ref: audioFileRegisterRef, ...audioFileRegister } = register('audioFile', {
     required: true,
   });
 
+  const audioFile = watch('audioFile');
+
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
+    if (!data.audioFile) {
+      console.error('[NewDocumentPage] Illegal state: audioFile is undefined.');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('name', data.name);
     formData.append('audio_file', data.audioFile[0]);
@@ -61,9 +69,17 @@ export default function NewDocumentPage() {
 
             <div>
               <div
-                className={
-                  'border-2 border-black rounded h-32 flex items-center justify-center relative'
-                }
+                className={clsx(
+                  'border-2',
+                  'border-b-0',
+                  'border-black',
+                  'rounded-t',
+                  'h-32',
+                  'flex',
+                  'items-center',
+                  'justify-center',
+                  'relative',
+                )}
                 onDragEnter={() => setDropIndicator(true)}
                 onDragExit={() => setDropIndicator(false)}
                 onDragOver={(e) => e.preventDefault()}
@@ -137,6 +153,21 @@ export default function NewDocumentPage() {
                     </a>
                   </p>
                 </div>
+              </div>
+              <div
+                className={clsx(
+                  'bg-black',
+                  'text-white',
+                  'text-sm',
+                  'text-center',
+                  'p-2',
+                  'whitespace-nowrap',
+                  'overflow-hidden',
+                  'text-ellipsis',
+                  'rounded-b',
+                )}
+              >
+                {audioFile?.[0]?.name || 'No file selected.'}
               </div>
               {errors.audioFile && (
                 <p className="text-red-600 text-sm mt-0.5">Audio file is required.</p>
