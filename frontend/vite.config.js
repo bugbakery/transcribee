@@ -6,9 +6,9 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        cookieDomainRewrite: true,
-        hostRewrite: true,
-
+        headers: {
+          Origin: "http://localhost:8000"
+        }
       },
     },
   },
