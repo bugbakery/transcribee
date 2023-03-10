@@ -1,9 +1,9 @@
 import asyncio
 import logging
-from typing import Iterator, Tuple
+from typing import Any, AsyncIterator, Callable, Optional, Tuple
 
 import requests
-from numpy.typing import ArrayLike
+from numpy.typing import NDArray
 from transcribee_proto.document import UNKNOWN_SPEAKER, Atom, Paragraph
 from transcribee_worker.config import MODELS_DIR
 from whispercpp import api
@@ -42,10 +42,11 @@ class TranscriptionWorkDoneToken:
 # recovery of multilingual text could be hard if we keep this filtering
 def _transcription_work(
     result_queue: asyncio.Queue,
-    data: ArrayLike,
+    data: NDArray[Any],
     model_name: str,
     lang_code,
     loop: asyncio.BaseEventLoop,
+    progress_callback: Optional[Callable],
 ):
     def handle_new_segment(
         ctx: api.Context,
@@ -71,7 +72,7 @@ def _transcription_work(
                 if token.id in special_tokens or token.id > special_tokens[-1]:
                     continue
 
-                token_bytes = ctx.token_to_str(token.id)
+                token_bytes = ctx.token_to_bytes(token.id)
                 conf = token.p
                 start = token.t0
                 end = token.t1
@@ -123,39 +124,49 @@ def _transcription_work(
     ctx = get_context(model_name)
 
     special_tokens = [
-        ctx.eot_token,
-        ctx.sot_token,
-        ctx.prev_token,
-        ctx.solm_token,
-        ctx.not_token,
-        ctx.beg_token,
+        ctx.eot_token,  # type: ignore
+        ctx.sot_token,  # type: ignore
+        ctx.prev_token,  # type: ignore
+        ctx.solm_token,  # type: ignore
+        ctx.not_token,  # type: ignore
+        ctx.beg_token,  # type: ignore
     ]
 
-    sampling = api.SamplingStrategies.from_strategy_type(api.SAMPLING_GREEDY)
+    sampling = api.SamplingStrategies.from_enum(api.SAMPLING_GREEDY)
     sampling.greedy.best_of = 5  # parameter stolen from whisper.cpp cli
-    params = api.Params.from_sampling_strategy(sampling)
-    params.no_context = (
-        False  # if False, feeds back already transcribed text back to the model
+    params = (
+        api.Params.from_sampling_strategy(sampling)
+        .with_no_context(
+            False
+        )  # if False, feeds back already transcribed text back to the model
+        .with_num_threads(4)
+        .with_language(lang_code)
+        .with_max_segment_length(120)  # parameter stolen from whisper.cpp cli
+        .with_token_timestamps(True)
     )
-    params.num_threads = 4
-    params.language = lang_code
-    params.max_segment_length = 60  # parameter stolen from whisper.cpp cli
-    params.token_timestamps = True
     params.on_new_segment(handle_new_segment, (result_queue, loop))
-    print(ctx.sys_info())
+    if progress_callback is not None:
+        params.on_progress(progress_callback, None)
     ctx.full(params, data)
 
     return TranscriptionWorkDoneToken()
 
 
 async def transcribe(
-    data: ArrayLike, model_name: str, lang_code="en"
-) -> Iterator[Paragraph]:
+    data: NDArray, model_name: str, lang_code="en", progress_callback=None
+) -> AsyncIterator[Paragraph]:
     loop = asyncio.get_running_loop()
     results_queue = asyncio.Queue()
 
     transcription_work = loop.run_in_executor(
-        None, _transcription_work, results_queue, data, model_name, lang_code, loop
+        None,
+        _transcription_work,
+        results_queue,
+        data,
+        model_name,
+        lang_code,
+        loop,
+        progress_callback,
     )
 
     pending = set([asyncio.create_task(results_queue.get()), transcription_work])
