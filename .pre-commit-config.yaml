@@ -35,14 +35,13 @@ repos:
     hooks:
       - id: eslint
         additional_dependencies:
-          - eslint@7.32.0
-          - "@typescript-eslint/eslint-plugin@4.30.0"
-          - "@typescript-eslint/parser@4.30.0"
-          - eslint-plugin-import@2.24.2
-          - eslint-plugin-prettier@4.0.0
-          - eslint-plugin-react@7.25.1
-          - eslint-plugin-unused-imports@1.1.4
-        files: \.tsx?$ # *.js, *.jsx, *.ts and *.tsx
+          - eslint@8.35.0
+          - eslint-config-prettier@8.6.0
+          - eslint-plugin-import@2.27.5
+          - eslint-plugin-react@7.32.2
+          - "@typescript-eslint/eslint-plugin@5.54.0"
+          - "@typescript-eslint/parser@5.54.0"
+        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
         types: [file]
         args: ["-c", "frontend/.eslintrc.json", "--max-warnings", "0"]
   - repo: local
@@ -50,6 +49,14 @@ repos:
       - id: tsc
         name: tsc
         entry: npm --prefix frontend/ run check:tsc
+        language: node
+        files: frontend/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: format
+        name: format
+        entry: npm --prefix frontend/ run check:format
         language: node
         files: frontend/.*
         pass_filenames: false
