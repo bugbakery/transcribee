@@ -13,7 +13,7 @@ export default function App() {
         <Route path="/" component={HomePage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/new" component={NewDocumentPage} />
-        <Route path="/document" component={DocumentPage} />
+        <Route path="/document/:documentId" component={DocumentPage} />
         <Route component={PageNotFoundPage} />
       </Switch>
     </div>

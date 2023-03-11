@@ -42,7 +42,7 @@ export default function HomePage() {
           return (
             <li key={doc.id}>
               <Link
-                to={`document?doc=${doc.id}`}
+                to={`document/${doc.id}`}
                 className={clsx(
                   'block',
                   'p-4',
