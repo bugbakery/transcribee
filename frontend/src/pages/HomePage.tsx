@@ -37,7 +37,17 @@ export default function HomePage() {
           <PrimaryButton onClick={() => navigate('/new')}>New Document</PrimaryButton>
         </div>
       </div>
-      <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-6">
+      <ul
+        className={clsx(
+          'grid',
+          'grid-cols-2',
+          'sm:grid-cols-3',
+          'md:grid-cols-4',
+          'lg:grid-cols-5',
+          'xl:grid-cols-6',
+          'gap-6',
+        )}
+      >
         {documents?.map((doc) => {
           return (
             <li key={doc.id}>
