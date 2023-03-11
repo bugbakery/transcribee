@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { createEditor, Descendant } from 'slate';
 import { withReact, Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import * as Y from 'yjs';
@@ -6,7 +6,7 @@ import { withYjs, withYHistory, YjsEditor } from '@slate-yjs/core';
 import { WebsocketProvider } from './WebsocketProvider';
 import { useDebugMode } from '../debugMode';
 
-const LazyDebugPanel = React.lazy(() => import('./DebugPanel'));
+const LazyDebugPanel = lazy(() => import('./DebugPanel'));
 
 function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
   if (element.type === 'paragraph') {
@@ -38,7 +38,7 @@ function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Elemen
   );
 }
 
-export default function TranscriptionEditor() {
+export default function TranscriptionEditor({ documentId }: { documentId: string }) {
   const debugMode = useDebugMode();
   const [value, setValue] = useState<Descendant[]>([]);
   const [syncComplete, setSyncComplete] = useState<boolean>(false);
@@ -47,15 +47,11 @@ export default function TranscriptionEditor() {
     console.log('new yDoc');
     const doc = new Y.Doc();
 
-    const documentId = new URLSearchParams(location.search).get('doc');
-
-    if (documentId) {
-      const provider = new WebsocketProvider(
-        `ws://localhost:8000/sync/documents/${documentId}/`,
-        doc,
-      );
-      provider.on('initalSyncComplete', () => setSyncComplete(true));
-    }
+    const provider = new WebsocketProvider(
+      `ws://localhost:8000/sync/documents/${documentId}/`,
+      doc,
+    );
+    provider.on('initalSyncComplete', () => setSyncComplete(true));
 
     return doc;
   }, []);
@@ -93,7 +89,9 @@ export default function TranscriptionEditor() {
         <Editable renderElement={renderElement} renderLeaf={renderLeaf} />
       </Slate>
 
-      {debugMode && <LazyDebugPanel editor={editor} value={value} yDoc={yDoc} />}
+      <Suspense>
+        {debugMode && <LazyDebugPanel editor={editor} value={value} yDoc={yDoc} />}
+      </Suspense>
     </div>
   );
 }
