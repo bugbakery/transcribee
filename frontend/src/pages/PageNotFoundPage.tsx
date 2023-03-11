@@ -4,7 +4,7 @@ import PrimaryButton from '../components/PrimaryButton';
 
 export default function PageNotFoundPage() {
   return (
-    <div className="h-screen flex items-center justify-center">
+    <div className="h-screen p-6 flex items-center justify-center">
       <div className="flex flex-col items-center gap-6">
         <h1 className="font-medium text-4xl">Page Not Found</h1>
         <p>We couldn&apos;t find what you were looking for.</p>
