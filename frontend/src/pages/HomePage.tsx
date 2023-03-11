@@ -28,8 +28,6 @@ export default function HomePage() {
     })();
   }, []);
 
-  console.log(documents);
-
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8 flex justify-between items-center">
@@ -47,8 +45,8 @@ export default function HomePage() {
                 to={`document?doc=${doc.id}`}
                 className={clsx(
                   'block',
-                  'h-40',
                   'p-4',
+                  'aspect-square',
                   'bg-white',
                   'font-medium',
                   'rounded-lg',
