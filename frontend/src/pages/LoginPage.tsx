@@ -46,7 +46,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center">
+    <div className="h-screen p-6 flex items-center justify-center">
       <Dialog>
         <DialogTitle>Login</DialogTitle>
         <form

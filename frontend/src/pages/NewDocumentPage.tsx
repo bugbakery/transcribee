@@ -55,7 +55,7 @@ export default function NewDocumentPage() {
 
   return (
     <div
-      className="h-screen w-screen flex items-center justify-center"
+      className="h-screen p-6 flex items-center justify-center"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => e.preventDefault()}
     >
