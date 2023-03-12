@@ -140,14 +140,15 @@ paths:
       - api
   /api/v1/users/me/:
     get:
-      operationId: meUserViewSet
+      operationId: meUserCreate
       description: ''
       parameters: []
       responses:
         '200':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/UserCreate'
           description: ''
       tags:
       - api
@@ -213,43 +214,51 @@ paths:
       - api
   /api/v1/users/:
     post:
-      operationId: createUserViewSet
+      operationId: createUserCreate
       description: ''
       parameters: []
       requestBody:
         content:
           application/json:
-            schema: {}
+            schema:
+              $ref: '#/components/schemas/UserCreate'
           application/x-www-form-urlencoded:
-            schema: {}
+            schema:
+              $ref: '#/components/schemas/UserCreate'
           multipart/form-data:
-            schema: {}
+            schema:
+              $ref: '#/components/schemas/UserCreate'
       responses:
         '201':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/UserCreate'
           description: ''
       tags:
       - api
   /api/v1/users/login/:
     post:
-      operationId: loginUserViewSet
+      operationId: loginUserCreate
       description: ''
       parameters: []
       requestBody:
         content:
           application/json:
-            schema: {}
+            schema:
+              $ref: '#/components/schemas/UserCreate'
           application/x-www-form-urlencoded:
-            schema: {}
+            schema:
+              $ref: '#/components/schemas/UserCreate'
           multipart/form-data:
-            schema: {}
+            schema:
+              $ref: '#/components/schemas/UserCreate'
       responses:
         '201':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/UserCreate'
           description: ''
       tags:
       - api
@@ -309,6 +318,37 @@ paths:
           description: ''
       tags:
       - api
+  /api/v1/tasks/{id}/mark_completed/:
+    post:
+      operationId: markCompletedTaskComplete
+      description: ''
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskComplete'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskComplete'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskComplete'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskComplete'
+          description: ''
+      tags:
+      - api
 components:
   schemas:
     Document:
@@ -323,8 +363,7 @@ components:
           maxLength: 255
         audio_file:
           type: string
-          format: binary
-          nullable: true
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -335,6 +374,16 @@ components:
           readOnly: true
       required:
       - name
+    UserCreate:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+      - username
+      - password
     Task:
       type: object
       properties:
@@ -365,6 +414,18 @@ components:
           type: string
           format: date-time
           readOnly: true
+        assigned_at:
+          type: string
+          format: date-time
+          readOnly: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completion_data:
+          type: object
+          readOnly: true
       required:
       - document
       - task_type
@@ -373,3 +434,10 @@ components:
       properties:
         progress:
           type: number
+    TaskComplete:
+      type: object
+      properties:
+        completion_data:
+          type: object
+      required:
+      - completion_data
