@@ -12,10 +12,18 @@ pdm install
 
 ## Usage
 
-The default development configuration uses a sqlite database in `db.sqlite3`. To setup the database, run all migrations with
+The default development configuration uses a sqlite database in `db.sqlite3`. To set up the
+database, run all migrations with
 
 ```shell
-pdm run python manage.py migrate
+pdm run manage migrate
+```
+
+To create a new admin user, you can now run:
+
+```shell
+pdm run manage create_superuser_if_not_exists --user test --pass test
+
 ```
 
 Now you can start the development server with
@@ -24,12 +32,8 @@ Now you can start the development server with
 pdm run dev
 ```
 
-### Initial data
-
-Now create a user by going to http://localhost:8000/api/v1/users/ and filling out the form.
-After that you can create a document by going to http://localhost:8000/api/v1/documents/ and filling out the form
-
 ## Deployment
 
 > **Warning**
-> The setup is not ready for production deployment yet. See the [django deployment checklist](https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/)
+> The setup is not ready for production deployment yet. See the
+> [django deployment checklist](https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/)
