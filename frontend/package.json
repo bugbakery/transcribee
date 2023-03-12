@@ -10,7 +10,8 @@
     "check:tsc": "tsc --noEmit --incremental",
     "check:eslint": "eslint --max-warnings 0 --ext .ts,.tsx .",
     "check:format": "prettier --check 'src/**/*.(ts|tsx)'",
-    "test:fast": "echo never mind for now. these tests will be executed in pre-commit"
+    "test:fast": "echo never mind for now. these tests will be executed in pre-commit",
+    "generate-openapi": "openapi-typescript ../backend/openapi-schema.yml --output src/openapi-schema.ts"
   },
   "author": "transcribee team <transcribee@riseup.net>",
   "maintainers": [
@@ -37,6 +38,7 @@
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-react": "^7.32.2",
     "npm-run-all": "^4.1.5",
+    "openapi-typescript": "^6.2.0",
     "postcss": "^8.4.21",
     "prettier": "^2.8.4",
     "typescript": "^4.9.5",
