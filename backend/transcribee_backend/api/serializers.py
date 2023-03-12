@@ -18,3 +18,7 @@ class AssignedTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ("id", "task_type", "task_parameters", "document")
+
+
+class TaskCompleteSerializer(serializers.Serializer):
+    completion_data = serializers.JSONField()
