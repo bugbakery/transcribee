@@ -39,7 +39,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
-class UserViewSet(viewsets.ViewSet):
+class UserViewSet(viewsets.GenericViewSet):
     serializer_class = UserCreateSerializer
 
     def create(self, request, *args, **kwargs):
