@@ -51,7 +51,7 @@ class Task(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document = models.ForeignKey(Document, on_delete=models.CASCADE)
 
-    dependency = models.ManyToManyField(to="Task")
+    dependency = models.ManyToManyField(to="Task", blank=True)
     task_type = models.CharField(max_length=20, choices=TaskType.choices)
     progress = models.FloatField(null=True)
     task_parameters = models.JSONField(
