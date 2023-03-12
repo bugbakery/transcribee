@@ -20,6 +20,11 @@ def create_update(document, update_content):
     )
 
 
+@database_sync_to_async
+def save_doc(document):
+    document.save()
+
+
 class DocumentSyncConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.document_id = self.scope["url_route"]["kwargs"]["document_id"]
@@ -52,6 +57,7 @@ class DocumentSyncConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, bytes_data):
         await create_update(document=self.document, update_content=bytes_data)
+        await save_doc(self.document)  # save document to update changed_at field
 
         # TODO: Do not send update back to user
         await self.channel_layer.group_send(
