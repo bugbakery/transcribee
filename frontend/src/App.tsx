@@ -8,10 +8,10 @@ import PageNotFoundPage from './pages/PageNotFoundPage';
 import trimTrailingSlash from './utils/trimTrailingSlash';
 
 export default function App() {
-  const baseUrl = import.meta.env.BASE_URL as string;
+  const routerBase = trimTrailingSlash(import.meta.env.BASE_URL);
 
   return (
-    <Router base={trimTrailingSlash(baseUrl)}>
+    <Router base={routerBase}>
       <Switch>
         <Route path="/" component={HomePage} />
         <Route path="/login" component={LoginPage} />
