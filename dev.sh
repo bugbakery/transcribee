@@ -6,17 +6,7 @@
 
 set -euxo pipefail
 
-echo -e "\033[1m# setting up backend:\033[0m\n"
-pdm install -p backend/
-pdm run -p backend/ manage migrate
-pdm run -p backend/ manage create_superuser_if_not_exists --user admin --pass admin
-
-echo -e "\n\n\033[1m# setting up worker:\033[0m\n"
-pdm install -p worker/
-
-echo -e "\n\n\033[1m# setting up frontend:\033[0m\n"
-pnpm --prefix frontend/ install
-
+./packaging/dev_prepare.sh
 
 echo -e "\n\n\033[1m# starting application:\033[0m\n"
 overmind start

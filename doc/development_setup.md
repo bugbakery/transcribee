@@ -9,7 +9,7 @@ same software & versions conviniently. Thus, the easiest way to start is to have
 Alternatively you can install the dependencies listed in the [`shell.nix`](../shell.nix) file by
 hand (but that might be more inconvenient).
 
-## Minimal setup
+## Minimal setup (nix)
 
 If you just want to try out `transcribee`, you need to go through the following steps:
 
@@ -22,6 +22,27 @@ If you just want to try out `transcribee`, you need to go through the following 
 3. Profit! You can now point your browser to [http://localhost:5173/](http://localhost:5173/) and
    interact with the running transcribee instance. An admin user with the username "admin" and the
    password "admin" is created for you.
+
+## Minimal setup (Docker)
+
+If you just want to try out `transcribee` and **not** install nix, you need to go through
+the following steps:
+
+1. [Install `Docker` on your system](https://docs.docker.com/get-docker/).
+2. Build the docker container: `docker build -f packaging/Dockerfile -t transcribee:latest .`
+3. Run the docker container: `docker run -it -p 5173:5173 transcribee:latest`
+4. Profit! You can now point your browser to [http://localhost:5173/](http://localhost:5173/) and
+   interact with the running transcribee instance. An admin user with the username "admin" and the
+   password "admin" is created for you.
+
+> **Note**
+> To use this setup for development, you can use the following command to bind-mount your code
+> into the container. This way, the application will auto-reload if you change the code, and you
+> do not need to restart the container:
+>
+> ```shell
+> docker run -it -p 5173:5173 --mount type=bind,source="$(pwd)",target=/app transcribee:latest
+> ```
 
 ## Extended setup
 
