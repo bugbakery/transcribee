@@ -135,10 +135,11 @@ class TaskViewSet(
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context.setdefault("document_queryset", Document.objects.none())
-        if self.request.user.is_authenticated:
-            context["document_queryset"] = Document.objects.filter(
-                user=self.request.user
-            )
+        if self.request is not None:  # self.request is None during schema generation
+            if self.request.user.is_authenticated:
+                context["document_queryset"] = Document.objects.filter(
+                    user=self.request.user
+                )
         return context
 
     @action(detail=False, methods=["post"], permission_classes=[IsAuthenticatedWorker])

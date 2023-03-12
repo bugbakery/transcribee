@@ -28,6 +28,14 @@ repos:
     hooks:
       - id: flake8
         exclude: ^backend/.*/migrations/.*$
+  - repo: local  # update openapi-schema of the backend
+    hooks:
+      - id: django-openapi
+        name: django-openapi
+        entry: pdm run -p backend/ manage generateschema --file openapi-schema.yml
+        language: python
+        files: backend/.*
+        pass_filenames: false
 
   # frontend checks
   - repo: https://github.com/pre-commit/mirrors-eslint
