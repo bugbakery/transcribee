@@ -23,7 +23,7 @@ from .serializers import KeepaliveSerializer, UserCreateSerializer
 
 class DocumentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
-        return Document.objects.filter(user=self.request.user).order_by("-created_at")
+        return Document.objects.filter(user=self.request.user).order_by("-changed_at")
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
