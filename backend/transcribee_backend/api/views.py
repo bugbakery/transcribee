@@ -9,10 +9,10 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from rest_framework import filters, mixins, serializers, status, viewsets
 from rest_framework.authtoken.models import Token
-from rest_framework.authtoken.serializers import AuthTokenSerializer
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.schemas.openapi import AutoSchema
 from transcribee_backend.base.models import Document, Task, User
 from transcribee_backend.base.serializers import (
     DocumentSerializer,
@@ -39,8 +39,28 @@ class DocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
+class UserViewSetSchema(AutoSchema):
+    def get_response_serializer(self, path, method):
+        if (
+            hasattr(self.view, "response_serializer")
+            and self.view.response_serializer is not None
+        ):
+            return self.view.response_serializer(
+                context=self.view.get_serializer_context()
+            )
+
+        return self.get_serializer(path, method)
+
+
+class TokenSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
 class UserViewSet(viewsets.GenericViewSet):
     serializer_class = UserCreateSerializer
+    schema = UserViewSetSchema()
+
+    response_serializer = None
 
     def create(self, request, *args, **kwargs):
         serializer = UserCreateSerializer(data=request.data)
@@ -62,9 +82,9 @@ class UserViewSet(viewsets.GenericViewSet):
         user = self.request.user
         return Response(UserSerializer(instance=user).data)
 
-    @action(detail=False, methods=["post"])
+    @action(detail=False, methods=["post"], response_serializer=TokenSerializer)
     def login(self, request):
-        serializer = AuthTokenSerializer(data=request.data)
+        serializer = TokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]  # type: ignore
         token, created = Token.objects.get_or_create(user=user)

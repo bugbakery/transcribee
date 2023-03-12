@@ -258,7 +258,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserCreate'
+                $ref: '#/components/schemas/Token'
           description: ''
       tags:
       - api
@@ -429,6 +429,13 @@ components:
       required:
       - document
       - task_type
+    Token:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
     Keepalive:
       type: object
       properties:
