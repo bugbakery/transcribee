@@ -1,4 +1,4 @@
-__pypackages__/
+*.pyc
 __pycache__/
 .pdm.toml
 
