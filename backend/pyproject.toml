@@ -30,6 +30,11 @@ dev = "python manage.py runserver"
 manage = "python manage.py"
 
 
+[tool.pdm.dev-dependencies]
+dev = [
+    "pyyaml>=6.0",
+    "uritemplate>=4.1.1",
+]
 [build-system]
 requires = ["pdm-pep517>=1.0"]
 build-backend = "pdm.pep517.api"
