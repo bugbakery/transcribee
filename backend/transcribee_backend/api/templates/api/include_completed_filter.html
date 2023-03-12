@@ -1,0 +1,12 @@
+{% load i18n %}
+<form class="form-inline">
+  <div class="form-group">
+    <div>
+        <input type="checkbox" id="include_completed" name="include_completed" {% if current %}checked{%endif%}>
+        <label for="include_completed">{% trans "Include Completed" %}</label>
+    </div>
+    <div>
+        <button class="btn btn-primary">Submit</button>
+    </div>
+  </div>
+</form>

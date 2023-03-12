@@ -112,8 +112,17 @@ class Worker:
         # aligned_document = align(document, audio)
         raise NotImplementedError("Alignment is not yet implemented")
 
-    def mark_completed(self, task: AssignedTask):
-        raise NotImplementedError("Marking tasks as completed in not yet implemented")
+    def mark_completed(self, task_id: str, completion_data: Optional[dict] = None):
+        body = {
+            "completion_data": completion_data if completion_data is not None else {}
+        }
+        logging.debug(f"Marking task as completed {task_id=} {body=}")
+        req = requests.post(
+            f"{self.base_url}/{task_id}/mark_completed/",
+            json=body,
+            headers=self._get_headers(),
+        )
+        req.raise_for_status()
 
     async def run_task(self):
         self.tmpdir = Path(tempfile.mkdtemp())
@@ -123,7 +132,7 @@ class Worker:
             if task is not None:
                 task_result = await self.perform_task(task)
                 logging.info(f"Worker returned: {task_result=}")
-                self.mark_completed(task)
+                self.mark_completed(task.id, {"result": task_result})
             else:
                 logging.info("Got empty task, not running worker")
         except Exception as exc:

@@ -50,8 +50,18 @@ class TaskSerializer(serializers.ModelSerializer):
             "task_parameters",
             "assigned_worker",
             "last_keepalive",
+            "assigned_at",
+            "completed_at",
+            "completion_data",
         )
-        read_only_fields = ("assigned_worker", "last_keepalive", "progress")
+        read_only_fields = (
+            "assigned_worker",
+            "last_keepalive",
+            "progress",
+            "assigned_at",
+            "completed_at",
+            "completion_data",
+        )
 
     def validate_task_parameters(self, value):
         if value is None:
