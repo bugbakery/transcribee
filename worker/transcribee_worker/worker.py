@@ -17,7 +17,7 @@ from transcribee_worker.whisper_transcribe import transcribe
 class Worker:
     base_url: str
     token: str
-    tmpdir: Path
+    tmpdir: Optional[Path]
     task_types: list[TaskType]
 
     def __init__(
@@ -28,6 +28,7 @@ class Worker:
     ):
         self.base_url = base_url
         self.token = token
+        self.tmpdir = None
         if task_types is not None:
             self.task_types = task_types
         else:
@@ -46,12 +47,17 @@ class Worker:
         req.raise_for_status()
         return parse_raw_as(Optional[AssignedTask], req.text)
 
+    def _get_tmpfile(self, filename: str) -> Path:
+        if self.tmpdir is None:
+            raise ValueError("`tmpdir` must be set")
+        return self.tmpdir / filename
+
     def get_document_file(self, document: ApiDocument) -> Optional[Path]:
         logging.debug(f"Getting file. {document=}")
         if document.audio_file is None:
             return
         file_url = urllib.parse.urljoin(self.base_url, document.audio_file)
-        outfile = self.tmpdir / "audiofile"
+        outfile = self._get_tmpfile("audiofile")
         logging.info(f"Downloading {file_url=} to {outfile=}")
         with open(outfile, "wb") as f:
             response = requests.get(file_url, stream=True)
