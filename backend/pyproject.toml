@@ -27,6 +27,7 @@ license = { text = "AGPL-3.0" }
 [tool.pdm.scripts]
 start = "uvicorn transcribee_backend.asgi:application --reload"
 dev = "python manage.py runserver"
+manage = "python manage.py"
 
 
 [build-system]
