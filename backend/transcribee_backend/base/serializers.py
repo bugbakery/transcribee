@@ -14,6 +14,7 @@ class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields = ("id", "name", "audio_file", "created_at", "changed_at")
+        ordering = ["-created_at", "id"]
 
 
 class WorkerSerializer(serializers.ModelSerializer):
