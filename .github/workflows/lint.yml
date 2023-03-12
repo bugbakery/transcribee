@@ -18,6 +18,9 @@ jobs:
 
       - uses: HatsuneMiku3939/direnv-action@v1
 
+      - name: install backend dependencies
+        run: pdm install -p backend/
+
       - name: install frontend dependencies
         run: pnpm --prefix frontend/ i
 
