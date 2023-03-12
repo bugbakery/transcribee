@@ -4,10 +4,7 @@
     "es6": true,
     "node": true
   },
-  "plugins": [
-    "react",
-    "@typescript-eslint"
-  ],
+  "plugins": ["react", "@typescript-eslint"],
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
@@ -18,6 +15,12 @@
     "prettier"
   ],
   "parser": "@typescript-eslint/parser",
+  "rules": {
+    "@typescript-eslint/no-unused-vars": [
+      1,
+      { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }
+    ]
+  },
   "settings": {
     "react": {
       "version": "detect"
