@@ -1,5 +1,5 @@
 import { SubmitHandler, useForm } from 'react-hook-form';
-import { navigate } from 'wouter/use-location';
+import { useLocation } from 'wouter';
 import { useState } from 'react';
 
 import { fetchApi, storeAuthToken } from '../api';
@@ -15,6 +15,7 @@ type FieldValues = {
 };
 
 export default function LoginPage() {
+  const [_, navigate] = useLocation();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const {
