@@ -22,7 +22,7 @@ pdm run manage migrate
 To create a new admin user, you can now run:
 
 ```shell
-pdm run manage create_superuser_if_not_exists --user test --pass test
+pdm run manage create_superuser_if_not_exists --user admin --pass admin
 
 ```
 
