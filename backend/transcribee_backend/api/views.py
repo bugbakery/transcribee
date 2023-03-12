@@ -131,7 +131,9 @@ class TaskViewSet(
             job.assigned_worker = request.authenticated_worker
             job.last_keepalive = datetime.datetime.now()
             job.save()
-            serializer = AssignedTaskSerializer(job)
+            serializer = AssignedTaskSerializer(
+                job, context=self.get_serializer_context()
+            )
             return Response(serializer.data)
 
     @action(
