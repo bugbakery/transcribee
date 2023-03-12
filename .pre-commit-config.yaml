@@ -52,6 +52,14 @@ repos:
         files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
         types: [file]
         args: ["-c", "frontend/.eslintrc.json", "--max-warnings", "0"]
+  - repo: local  # openapi-schema typescript from the openapi-schema of the backend
+    hooks:
+      - id: openapi-typescript
+        name: openapi-typescript
+        entry: pnpm --prefix frontend/ run generate-openapi
+        language: node
+        files: backend/openapi-schema.yml
+        pass_filenames: false
   - repo: local
     hooks:
       - id: tsc
