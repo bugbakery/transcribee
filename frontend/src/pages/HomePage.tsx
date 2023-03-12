@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'wouter';
-import { navigate } from 'wouter/use-location';
+import { Link, useLocation } from 'wouter';
 import clsx from 'clsx';
 
 import { fetchApi } from '../api';
@@ -17,6 +16,7 @@ type Document = {
 
 export default function HomePage() {
   const [documents, setDocuments] = useState<Document[] | null>(null);
+  const [_, navigate] = useLocation();
 
   useEffect(() => {
     (async () => {

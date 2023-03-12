@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
-import { navigate } from 'wouter/use-location';
+import { useLocation } from 'wouter';
 
 import { fetchApi } from '../api';
 import Dialog from '../components/Dialog';
@@ -16,6 +16,7 @@ type FieldValues = {
 };
 
 export default function NewDocumentPage() {
+  const [_, navigate] = useLocation();
   const [dropIndicator, setDropIndicator] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
 
