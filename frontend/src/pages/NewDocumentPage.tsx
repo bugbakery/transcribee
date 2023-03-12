@@ -3,12 +3,12 @@ import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
 
-import { fetchApi } from '../api';
 import Dialog from '../components/Dialog';
 import DialogTitle from '../components/DialogTitle';
 import Input from '../components/Input';
 import PrimaryButton from '../components/PrimaryButton';
 import FormControl from '../components/FormControl';
+import { createDocument } from '../api/document';
 
 type FieldValues = {
   name: string;
@@ -40,14 +40,7 @@ export default function NewDocumentPage() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('name', data.name);
-    formData.append('audio_file', data.audioFile[0]);
-
-    const response = await fetchApi('v1/documents/', {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await createDocument({ name: data.name, audio_file: data.audioFile[0] });
 
     if (response.ok) {
       navigate('/');

@@ -17,6 +17,7 @@ specifiers:
   lib0: ^0.2.63
   npm-run-all: ^4.1.5
   openapi-typescript: ^6.2.0
+  openapi-typescript-fetch: github:transcribee/openapi-typescript-fetch#content-type
   postcss: ^8.4.21
   prettier: ^2.8.4
   react: ^18.2.0
@@ -26,6 +27,7 @@ specifiers:
   react-json-tree: ^0.18.0
   slate: ^0.91.4
   slate-react: ^0.91.8
+  swr: ^2.1.0
   tailwindcss: ^3.2.7
   typescript: ^4.9.5
   vite: ^4.1.4
@@ -37,6 +39,7 @@ dependencies:
   '@slate-yjs/core': 0.3.1_slate@0.91.4+yjs@13.5.48
   clsx: 1.2.1
   lib0: 0.2.63
+  openapi-typescript-fetch: github.com/transcribee/openapi-typescript-fetch/1fcb5d7f9f0a2a4d26eec58e1a0a9d8be1655190
   react: 18.2.0
   react-base16-styling: 0.9.1
   react-dom: 18.2.0_react@18.2.0
@@ -44,6 +47,7 @@ dependencies:
   react-json-tree: 0.18.0_pmekkgnqduwlme35zpnqhenc34
   slate: 0.91.4
   slate-react: 0.91.8_6tgy34rvmll7duwkm4ydcekf3u
+  swr: 2.1.0_react@18.2.0
   tailwindcss: 3.2.7_postcss@8.4.21
   wouter: 2.10.0_react@18.2.0
   yjs: 13.5.48
@@ -2553,6 +2557,16 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+  /swr/2.1.0_react@18.2.0:
+    resolution: {integrity: sha512-4hYl5p3/KalQ1MORealM79g/DtLohmud6yyfXw5l4wjtFksYUnocRFudvyaoUtgj3FrVNK9lS25Av9dsZYvz0g==}
+    engines: {pnpm: '7'}
+    peerDependencies:
+      react: ^16.11.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: 18.2.0
+      use-sync-external-store: 1.2.0_react@18.2.0
+    dev: false
+
   /tailwindcss/3.2.7_postcss@8.4.21:
     resolution: {integrity: sha512-B6DLqJzc21x7wntlH/GsZwEXTBttVSl1FtCzC8WP4oBc/NKef7kaax5jeihkkCEWc831/5NDJ9gRNDK6NEioQQ==}
     engines: {node: '>=12.13.0'}
@@ -2828,3 +2842,12 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: true
+
+  github.com/transcribee/openapi-typescript-fetch/1fcb5d7f9f0a2a4d26eec58e1a0a9d8be1655190:
+    resolution: {tarball: https://codeload.github.com/transcribee/openapi-typescript-fetch/tar.gz/1fcb5d7f9f0a2a4d26eec58e1a0a9d8be1655190}
+    name: openapi-typescript-fetch
+    version: 1.1.3
+    engines: {node: '>= 12.0.0', npm: '>= 7.0.0'}
+    prepare: true
+    requiresBuild: true
+    dev: false
