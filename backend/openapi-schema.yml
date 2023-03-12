@@ -150,6 +150,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserCreate'
           description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthenticatedError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenError'
+          description: ''
       tags:
       - api
   /api/v1/tasks/:
@@ -235,6 +247,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserCreate'
           description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthenticatedError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+          description: ''
       tags:
       - api
   /api/v1/users/login/:
@@ -259,6 +295,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Token'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthenticatedError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
           description: ''
       tags:
       - api
@@ -384,6 +444,20 @@ components:
       required:
       - username
       - password
+    UnauthenticatedError:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    ForbiddenError:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
     Task:
       type: object
       properties:
@@ -429,6 +503,25 @@ components:
       required:
       - document
       - task_type
+    ValidationError:
+      type: object
+      properties:
+        errors:
+          type: object
+        non_field_errors:
+          type: array
+          items:
+            type: string
+      required:
+      - errors
+      - non_field_errors
+    NotFoundError:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
     Token:
       type: object
       properties:
