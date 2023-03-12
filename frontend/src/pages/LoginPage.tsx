@@ -2,12 +2,13 @@ import { SubmitHandler, useForm } from 'react-hook-form';
 import { useLocation } from 'wouter';
 import { useState } from 'react';
 
-import { fetchApi, storeAuthToken } from '../api';
+import { storeAuthToken } from '../api';
 import Dialog from '../components/Dialog';
 import DialogTitle from '../components/DialogTitle';
 import Input from '../components/Input';
 import PrimaryButton from '../components/PrimaryButton';
 import FormControl from '../components/FormControl';
+import { login } from '../api/user';
 
 type FieldValues = {
   username: string;
@@ -27,22 +28,23 @@ export default function LoginPage() {
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
     setErrorMessage(null); // clear general error when hitting submit
 
-    const response = await fetchApi('v1/users/login/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-
-    if (response.ok) {
-      const resData = await response.json();
-      storeAuthToken(resData.token);
+    try {
+      const response = await login(data);
+      storeAuthToken(response.data.token);
       navigate('/');
-    } else {
-      try {
-        const resData = await response.json();
-        setErrorMessage(resData.non_field_errors.join(' '));
-      } catch (ex: unknown) {
-        setErrorMessage('An unknown error occcured.');
+    } catch (e) {
+      let message = 'An unknown error occcured.';
+
+      if (e instanceof login.Error) {
+        const error = e.getActualType();
+        if (error.status === 400) {
+          if (error.data.non_field_errors) {
+            message = error.data.non_field_errors.join(' ');
+          }
+        }
       }
+
+      setErrorMessage(message);
     }
   };
 

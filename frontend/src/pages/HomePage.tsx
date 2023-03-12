@@ -1,32 +1,12 @@
-import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import clsx from 'clsx';
 
-import { fetchApi } from '../api';
-
 import PrimaryButton from '../components/PrimaryButton';
-
-type Document = {
-  id: string;
-  name: string;
-  audio_file: string | null;
-  created_at: string;
-  changed_at: string;
-};
+import { useListDocuments } from '../api/document';
 
 export default function HomePage() {
-  const [documents, setDocuments] = useState<Document[] | null>(null);
   const [_, navigate] = useLocation();
-
-  useEffect(() => {
-    (async () => {
-      const response = await fetchApi('v1/documents/', {});
-
-      if (response.ok) {
-        setDocuments(await response.json());
-      }
-    })();
-  }, []);
+  const { data } = useListDocuments({});
 
   return (
     <div className="container mx-auto p-6">
@@ -48,7 +28,7 @@ export default function HomePage() {
           'gap-6',
         )}
       >
-        {documents?.map((doc) => {
+        {data?.map((doc) => {
           return (
             <li key={doc.id}>
               <Link
