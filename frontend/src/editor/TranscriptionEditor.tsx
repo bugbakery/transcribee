@@ -44,7 +44,6 @@ export default function TranscriptionEditor({ documentId }: { documentId: string
   const [syncComplete, setSyncComplete] = useState<boolean>(false);
 
   const yDoc = useMemo(() => {
-    console.log('new yDoc');
     const doc = new Y.Doc();
 
     const provider = new WebsocketProvider(
