@@ -7,7 +7,7 @@ import logging
 from transcribee_proto.api import TaskType
 from transcribee_worker.worker import Worker
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 async def main():
