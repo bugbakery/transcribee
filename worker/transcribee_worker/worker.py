@@ -134,6 +134,8 @@ class Worker:
         self.tmpdir = Path(tempfile.mkdtemp())
         task = self.claim_task()
 
+        no_work = False
+
         try:
             if task is not None:
                 task_result = await self.perform_task(task)
@@ -141,6 +143,7 @@ class Worker:
                 self.mark_completed(task.id, {"result": task_result})
             else:
                 logging.info("Got empty task, not running worker")
+                no_work = True
         except Exception as exc:
             logging.warning("Worker failed with exception", exc_info=exc)
 
@@ -148,3 +151,4 @@ class Worker:
         shutil.rmtree(self.tmpdir)
         self.tmpdir = None
         logging.info("Done :)")
+        return no_work

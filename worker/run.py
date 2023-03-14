@@ -28,8 +28,9 @@ async def main():
         task_types=[TaskType.TRANSCRIBE],
     )
     while True:
-        await worker.run_task()
-        await asyncio.sleep(5)
+        no_work = await worker.run_task()
+        if no_work:
+            await asyncio.sleep(5)
 
 
 if __name__ == "__main__":
