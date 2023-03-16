@@ -2,6 +2,7 @@ import logging
 import shutil
 import tempfile
 import urllib.parse
+from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
@@ -52,18 +53,13 @@ class Worker:
             raise ValueError("`tmpdir` must be set")
         return self.tmpdir / filename
 
-    def get_document_file(self, document: ApiDocument) -> Optional[Path]:
-        logging.debug(f"Getting file. {document=}")
+    def get_document_audio(self, document: ApiDocument) -> Optional[BytesIO]:
+        logging.debug(f"Getting audio. {document=}")
         if document.audio_file is None:
             return
         file_url = urllib.parse.urljoin(self.base_url, document.audio_file)
-        outfile = self._get_tmpfile("audiofile")
-        logging.info(f"Downloading {file_url=} to {outfile=}")
-        with open(outfile, "wb") as f:
-            response = requests.get(file_url, stream=True)
-            for data in response.iter_content(chunk_size=1024 * 1024):
-                f.write(data)
-        return outfile
+        response = requests.get(file_url)
+        return BytesIO(response.content)
 
     def keepalive(self, task_id: str, progress: Optional[float]):
         body = {}
@@ -93,8 +89,12 @@ class Worker:
         if task.task_type != TaskType.TRANSCRIBE:
             return
 
-        document_file = self.get_document_file(task.document)
-        audio = load_audio(str(document_file))
+        document_audio = self.get_document_audio(task.document)
+        if document_audio is None:
+            raise ValueError(
+                f"Document {task.document} has no audio attached. Cannot transcribe."
+            )
+        audio = load_audio(document_audio)
 
         def progress_callback(_ctx, progress, _data):
             self.keepalive(task.id, progress=progress / 100)
