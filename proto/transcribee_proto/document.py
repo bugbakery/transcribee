@@ -33,6 +33,14 @@ class Document(BaseModel):
     paragraphs: List[Paragraph]
 
     def is_empty(self) -> bool:
+        """Check whether the document contains at least one atom
+
+        Note: The document might still have visible content. If you want to check for that, check
+        that `document.text()` is not empty.
+
+        Returns:
+            bool: True if the document contains at least one atom
+        """
         for paragraph in self.paragraphs:
             for atom in paragraph.children:
                 return True
