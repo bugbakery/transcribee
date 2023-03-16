@@ -3,7 +3,9 @@
 import argparse
 import asyncio
 import logging
+import traceback
 
+import requests.exceptions
 from transcribee_proto.api import TaskType
 from transcribee_worker.worker import Worker
 
@@ -28,8 +30,17 @@ async def main():
         task_types=[TaskType.TRANSCRIBE],
     )
     while True:
-        no_work = await worker.run_task()
-        if no_work:
+        try:
+            no_work = await worker.run_task()
+            if no_work:
+                await asyncio.sleep(5)
+        except requests.exceptions.ConnectionError:
+            logging.warn("could not connect to backend")
+            await asyncio.sleep(5)
+        except Exception:
+            logging.warn(
+                f"an error occured during worker execution:\n{traceback.format_exc()}"
+            )
             await asyncio.sleep(5)
 
 
