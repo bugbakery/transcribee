@@ -12,20 +12,23 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ("username",)
 
 
+class SignedFiledField(serializers.FileField):
+    def to_representation(self, value):
+        if not value:
+            return None
+
+        request = self.context["request"]
+        url = sign_url(value.url, salt=settings.TRANSCRIBEE_MEDIA_SIGNATURE_SALT)
+        return request.build_absolute_uri(url)
+
+
 class DocumentSerializer(serializers.ModelSerializer):
-    audio_file = serializers.SerializerMethodField()
+    audio_file = SignedFiledField()
 
     class Meta:
         model = Document
         fields = ("id", "name", "audio_file", "created_at", "changed_at")
         ordering = ["-created_at", "id"]
-
-    def get_audio_file(self, document: Document):
-        request = self.context["request"]
-        url = sign_url(
-            document.audio_file.url, salt=settings.TRANSCRIBEE_MEDIA_SIGNATURE_SALT
-        )
-        return request.build_absolute_uri(url)
 
 
 class WorkerSerializer(serializers.ModelSerializer):
