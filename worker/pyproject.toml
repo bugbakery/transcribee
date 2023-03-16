@@ -28,6 +28,9 @@ dev = [
     "black>=23.1.0",
 ]
 
+[tool.pdm.scripts]
+start = "python run.py"
+
 [build-system]
 requires = ["pdm-pep517>=1.0"]
 build-backend = "pdm.pep517.api"
