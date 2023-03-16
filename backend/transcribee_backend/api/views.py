@@ -33,8 +33,14 @@ class DocumentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Document.objects.filter(user=self.request.user).order_by("-changed_at")
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    def perform_create(self, serializer: DocumentSerializer):
+        doc = serializer.save(user=self.request.user)
+        # TODO: This needs to be more advanced, add diarization etc, be configurable, ...
+        Task.objects.create(
+            document=doc,
+            task_type=Task.TaskType.TRANSCRIBE,
+            task_parameters={"lang": "auto", "model": "base"},
+        )
 
     serializer_class = DocumentSerializer
     permission_classes = [IsAuthenticated]

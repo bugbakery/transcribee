@@ -58,7 +58,7 @@ class Task(models.Model):
         default=dict, help_text="Task parameters like language, number of speakers, ..."
     )
 
-    assigned_at = models.DateTimeField()
+    assigned_at = models.DateTimeField(null=True)
     assigned_worker = models.ForeignKey(Worker, null=True, on_delete=models.SET_NULL)
     last_keepalive = models.DateTimeField(auto_now=True)
 
