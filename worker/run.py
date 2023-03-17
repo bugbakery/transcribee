@@ -9,7 +9,7 @@ import requests.exceptions
 from transcribee_proto.api import TaskType
 from transcribee_worker.worker import Worker
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 async def main():

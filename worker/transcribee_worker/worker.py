@@ -150,5 +150,5 @@ class Worker:
         logging.debug(f"Cleaning tmpdir '{self.tmpdir}'")
         shutil.rmtree(self.tmpdir)
         self.tmpdir = None
-        logging.info("Done :)")
+        logging.debug("run_task() done :)")
         return no_work
