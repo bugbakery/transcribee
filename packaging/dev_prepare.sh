@@ -10,6 +10,7 @@ echo -e "\033[1m# setting up backend:\033[0m\n"
 pdm install -p backend/
 pdm run -p backend/ manage migrate
 pdm run -p backend/ manage create_superuser_if_not_exists --user test --pass test
+pdm run -p backend/ manage create_worker --token dev_worker --name "Development Worker"
 
 echo -e "\n\n\033[1m# setting up worker:\033[0m\n"
 pdm install -p worker/
