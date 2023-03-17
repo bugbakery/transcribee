@@ -39,7 +39,7 @@ class Worker(models.Model):
     token = models.CharField(max_length=128, default=generate_worker_token)
     name = models.CharField(max_length=255, null=False, blank=False)
 
-    last_seen = models.DateTimeField()
+    last_seen = models.DateTimeField(blank=True, null=True)
 
 
 class Task(models.Model):
