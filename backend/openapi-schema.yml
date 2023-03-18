@@ -423,7 +423,7 @@ components:
           maxLength: 255
         audio_file:
           type: string
-          readOnly: true
+          format: binary
         created_at:
           type: string
           format: date-time
@@ -434,6 +434,7 @@ components:
           readOnly: true
       required:
       - name
+      - audio_file
     UserCreate:
       type: object
       properties:

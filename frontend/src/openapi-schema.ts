@@ -50,7 +50,8 @@ export interface components {
       /** Format: uuid */
       id?: string;
       name: string;
-      audio_file?: string;
+      /** Format: binary */
+      audio_file: string;
       /** Format: date-time */
       created_at?: string;
       /** Format: date-time */
