@@ -169,7 +169,7 @@ async def transcribe(
         progress_callback,
     )
 
-    pending = set([asyncio.create_task(results_queue.get()), transcription_work])
+    pending = {asyncio.create_task(results_queue.get()), transcription_work}
 
     run = True
     while run:
@@ -179,12 +179,16 @@ async def transcribe(
             if isinstance(value, TranscriptionWorkDoneToken):
                 run = False
             else:
-                if run:
-                    pending.add(asyncio.create_task(results_queue.get()))
+
                 yield value
 
                 for _ in range(results_queue.qsize()):
                     yield results_queue.get_nowait()
+
+        # If we are still running, `transcription_work` cannot have returend, i.e. we got an
+        # element from the results queue. -> We need to add a new `results_queue.get`-Task
+        if run:
+            pending.add(asyncio.create_task(results_queue.get()))
 
     for task in pending:
         task.cancel()
