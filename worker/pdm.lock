@@ -290,10 +290,6 @@ version = "1.13.1"
 requires_python = ">=3.7.0"
 summary = "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
 dependencies = [
-    "nvidia-cublas-cu11==11.10.3.66; platform_system == \"Linux\" and platform.machine == \"x86_64\"",
-    "nvidia-cuda-nvrtc-cu11==11.7.99; platform_system == \"Linux\" and platform.machine == \"x86_64\"",
-    "nvidia-cuda-runtime-cu11==11.7.99; platform_system == \"Linux\" and platform.machine == \"x86_64\"",
-    "nvidia-cudnn-cu11==8.5.0.96; platform_system == \"Linux\" and platform.machine == \"x86_64\"",
     "typing-extensions",
 ]
 
