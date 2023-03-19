@@ -6,11 +6,14 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
+import automerge
 import requests
+import websockets
 from pydantic import parse_raw_as
 from transcribee_proto.api import AlignTask, AssignedTask, DiarizeTask
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import TaskType, TranscribeTask
+from transcribee_proto.document import Document as EditorDocument
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe
 
@@ -24,10 +27,12 @@ class Worker:
     def __init__(
         self,
         base_url: str,
+        websocket_base_url: str,
         token: str,
         task_types: Optional[list[TaskType]] = None,
     ):
         self.base_url = base_url
+        self.websocket_base_url = websocket_base_url
         self.token = token
         self.tmpdir = None
         if task_types is not None:
@@ -85,6 +90,29 @@ class Worker:
         else:
             raise ValueError(f"Invalid task type: '{task.task_type}'")
 
+    async def get_document_state(self, document_id: str) -> automerge.Document:
+        doc = automerge.init(EditorDocument)
+        async with websockets.connect(
+            f"{self.websocket_base_url}documents/{document_id}/"
+        ) as websocket:
+            while True:
+                msg = await websocket.recv()
+                if msg[0] == 2:
+                    break
+                automerge.apply_changes(doc, [msg[1:]])
+        return doc
+
+    async def send_change(self, document_id: str, change: bytes):
+        async with websockets.connect(
+            f"{self.websocket_base_url}documents/{document_id}/"
+        ) as websocket:
+            while True:
+                msg_type, *_msg_data = await websocket.recv()
+                if msg_type == 2:
+                    break
+
+            await websocket.send(change)
+
     async def transcribe(self, task: TranscribeTask):
         if task.task_type != TaskType.TRANSCRIBE:
             return
@@ -99,16 +127,27 @@ class Worker:
         def progress_callback(_ctx, progress, _data):
             self.keepalive(task.id, progress=progress / 100)
 
-        paragraphs = []
+        doc = await self.get_document_state(task.document.id)
+
+        if doc.paragraphs is None or len(doc.paragraphs) != 0:
+            with automerge.transaction(doc) as d:
+                d.paragraphs = []
+
+            change = automerge.get_last_local_change(doc).bytes()
+            await self.send_change(task.document.id, change)
+
         async for paragraph in transcribe(
             audio,
             task.task_parameters.model,
             task.task_parameters.lang,
             progress_callback,
         ):
-            paragraphs.append(paragraph)
+            with automerge.transaction(doc, "Automatic Transcription") as d:
+                d.paragraphs.append(paragraph.dict())
 
-        raise NotImplementedError("Transcription is not fully implemented yet")
+            change = automerge.get_last_local_change(doc).bytes()
+
+            await self.send_change(task.document.id, change)
 
     async def diarize(self, task: DiarizeTask):
         raise NotImplementedError("Diarization is not yet implemented")
@@ -130,7 +169,7 @@ class Worker:
         )
         req.raise_for_status()
 
-    async def run_task(self):
+    async def run_task(self, mark_completed=True):
         self.tmpdir = Path(tempfile.mkdtemp())
         task = self.claim_task()
 
@@ -140,7 +179,8 @@ class Worker:
             if task is not None:
                 task_result = await self.perform_task(task)
                 logging.info(f"Worker returned: {task_result=}")
-                self.mark_completed(task.id, {"result": task_result})
+                if mark_completed:
+                    self.mark_completed(task.id, {"result": task_result})
             else:
                 logging.info("Got empty task, not running worker")
                 no_work = True

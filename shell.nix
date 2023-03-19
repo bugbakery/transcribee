@@ -28,6 +28,11 @@ pkgs.mkShell {
 
     # required by librosa to open audio files
     ffmpeg
+
+    # for automerge-py
+    libiconv
+    rustc
+    cargo
   ] ++
 
   # accelerates whisper.cpp on M{1,2} Macs
@@ -38,5 +43,11 @@ pkgs.mkShell {
   # use the system bazel (necessary on NixOS and Guix, as the downloaded bazel binary cannot run on these)
   shellHook = ''
     export DISABLE_BAZEL_WRAPPER=1
-  '';
+  '' + (
+    pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+      # Use accellerate framework on darwin
+      export BAZEL_LINKOPTS="-F ${pkgs.darwin.apple_sdk.frameworks.Accelerate}/Library/Frameworks"
+    ''
+  );
+
 }
