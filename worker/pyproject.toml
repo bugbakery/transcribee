@@ -18,15 +18,15 @@ dependencies = [
     "transformers>=4.26.1",
     "torchaudio>=0.13.1",
     "torch>=1.13.1",
+    "automerge @ git+https://github.com/transcribee/automerge-py.git@rewrite",
+    "websockets>=10.4",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "AGPL-3.0" }
 
 [tool.pdm.dev-dependencies]
-dev = [
-    "black>=23.1.0",
-]
+dev = ["black>=23.1.0"]
 
 [tool.pdm.scripts]
 start = "python run.py"

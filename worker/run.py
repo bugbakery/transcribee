@@ -21,11 +21,18 @@ async def main():
         help="url to the task coordinator (aka the transcribee backend)",
         default="http://localhost:8000",
     )
+    parser.add_argument(
+        "--websocket-base-url",
+        help="url to the websocket sync server (aka the transcribee backend)",
+        default="ws://localhost:8000/sync/",
+    )
     parser.add_argument("--token", help="Worker token", required=True)
+    parser.add_argument("--run-once-and-dont-complete", action="store_true")
     args = parser.parse_args()
 
     worker = Worker(
         base_url=f"{args.coordinator}/api/v1/tasks",
+        websocket_base_url=args.websocket_base_url,
         token=args.token,
         task_types=[TaskType.TRANSCRIBE],
     )
@@ -34,6 +41,8 @@ async def main():
             no_work = await worker.run_task()
             if no_work:
                 await asyncio.sleep(5)
+            elif args.run_once_and_dont_complete:
+                break
         except requests.exceptions.ConnectionError:
             logging.warn("could not connect to backend")
             await asyncio.sleep(5)
