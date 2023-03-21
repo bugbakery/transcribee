@@ -80,7 +80,7 @@ export interface components {
       /** Format: date-time */
       last_keepalive?: string;
       /** Format: date-time */
-      assigned_at?: string;
+      assigned_at?: string | null;
       /** Format: date-time */
       completed_at?: string | null;
       completion_data?: Record<string, never>;
