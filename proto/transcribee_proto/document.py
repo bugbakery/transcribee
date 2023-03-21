@@ -15,6 +15,7 @@ class Paragraph(BaseModel):
     type: Literal["paragraph"] = "paragraph"
     speaker: str
     children: List[Atom]
+    lang: str
 
     def text(self) -> str:
         return "".join(a.text for a in self.children)
@@ -29,7 +30,6 @@ class Paragraph(BaseModel):
 
 
 class Document(BaseModel):
-    lang: str
     paragraphs: List[Paragraph]
 
     def is_empty(self) -> bool:

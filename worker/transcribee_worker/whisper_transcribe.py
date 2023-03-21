@@ -115,6 +115,7 @@ def _transcription_work(
             paragraph = Paragraph(
                 children=atoms,
                 speaker=UNKNOWN_SPEAKER,
+                lang=lang_code,
             )
 
             # asyncio.Queue is not threadsafe, so we need to use the *_threadsafe functions

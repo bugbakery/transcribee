@@ -11,9 +11,9 @@ export type Paragraph = {
   speaker: string;
   start?: number;
   end?: number;
+  lang: string;
 };
 
 export type Document = {
-  lang: string;
   paragraphs: Paragraph[];
 };
