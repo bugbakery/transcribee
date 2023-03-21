@@ -4,3 +4,4 @@ storage/
 static/
 db.sqlite3
 .pdm.toml
+transcribee_backend/settings/local.py

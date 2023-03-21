@@ -1,7 +1,7 @@
 from .base import BASE_DIR, Base
 
 
-class Dev(Base):
+class DevBase(Base):
     SECRET_KEY = "django-insecure-bzzpbzzp"
 
     # Database
@@ -20,4 +20,11 @@ class Dev(Base):
     DEBUG = True
 
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
-    TRANSCRIBEE_INITIAL_SYNC_SLOWDOWN = 1
+
+
+try:
+    from .local import Dev
+except ImportError:
+
+    class Dev(DevBase):
+        pass
