@@ -4,8 +4,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
 from transcribee_backend.base.models import Document, DocumentUpdate
-
-from .enums import SyncMessageType
+from transcribee_proto.sync import SyncMessageType
 
 
 @database_sync_to_async

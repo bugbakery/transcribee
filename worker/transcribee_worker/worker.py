@@ -14,6 +14,7 @@ from transcribee_proto.api import AlignTask, AssignedTask, DiarizeTask
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import TaskType, TranscribeTask
 from transcribee_proto.document import Document as EditorDocument
+from transcribee_proto.sync import SyncMessageType
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe
 
@@ -97,7 +98,7 @@ class Worker:
         ) as websocket:
             while True:
                 msg = await websocket.recv()
-                if msg[0] == 2:
+                if msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
                     break
                 automerge.apply_changes(doc, [msg[1:]])
         return doc
@@ -107,8 +108,8 @@ class Worker:
             f"{self.websocket_base_url}documents/{document_id}/"
         ) as websocket:
             while True:
-                msg_type, *_msg_data = await websocket.recv()
-                if msg_type == 2:
+                msg_type, *_ = await websocket.recv()
+                if msg_type == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
                     break
 
             await websocket.send(change)
