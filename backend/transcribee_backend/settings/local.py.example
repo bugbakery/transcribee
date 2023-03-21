@@ -1,0 +1,5 @@
+from .dev import DevBase
+
+
+class Dev(DevBase):
+    pass

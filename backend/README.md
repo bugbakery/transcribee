@@ -32,6 +32,10 @@ Now you can start the development server with
 pdm run dev
 ```
 
+### Local Settings
+
+To change the settings locally, copy the `transcribee_backend/settings/local.py.example` to `transcribee_backend/settings/local.py.example` and change the `Dev`-Class in there.
+
 ## Deployment
 
 > **Warning**
