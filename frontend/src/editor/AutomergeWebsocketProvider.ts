@@ -1,4 +1,5 @@
 import { Observable } from 'lib0/observable';
+import { Change } from '@automerge/automerge';
 
 enum MessageSyncType {
   Change = 1,
@@ -15,6 +16,12 @@ export class AutomergeWebsocketProvider extends Observable<'update' | 'initalSyn
     this.url = url;
 
     this.connectWebsocket();
+
+    this.on('update', ({ change, remote }: { change: Change; remote: boolean }) => {
+      if (remote) return;
+      console.log('send update', change);
+      this.ws.send(change);
+    });
   }
 
   connectWebsocket() {
@@ -29,7 +36,7 @@ export class AutomergeWebsocketProvider extends Observable<'update' | 'initalSyn
       const msg_type = msg_data[0];
       const msg = msg_data.slice(1);
       if (msg_type === MessageSyncType.Change) {
-        this.emit('update', [msg]);
+        this.emit('update', [{ change: msg, remote: true }]);
       } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
         this.emit('initalSyncComplete', []);
         console.log('All changes synced');

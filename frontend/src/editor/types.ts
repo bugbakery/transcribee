@@ -14,6 +14,4 @@ export type Paragraph = {
   lang: string;
 };
 
-export type Document = {
-  paragraphs: Paragraph[];
-};
+export type Document = { children: Paragraph[] };

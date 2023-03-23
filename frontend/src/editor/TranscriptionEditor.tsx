@@ -1,11 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { createEditor, Descendant } from 'slate';
+import { createEditor, Descendant, Editor } from 'slate';
 import { withReact, Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
 import { AutomergeWebsocketProvider } from './AutomergeWebsocketProvider';
 import { useDebugMode } from '../debugMode';
+import { toSlateOp } from '@slate-collaborative/bridge/src/convert';
+import { applyOperation } from '@slate-collaborative/bridge/src/apply';
 
 import { Document } from './types';
+import { AutomergeChangesBuffer } from './AutomergeChangesBuffer';
 
 const LazyDebugPanel = lazy(() => import('./DebugPanel'));
 
@@ -56,7 +59,12 @@ export default function TranscriptionEditor({ documentId }: { documentId: string
     const baseEditor = createEditor();
     const editorWithReact = withReact(baseEditor);
 
-    return editorWithReact;
+    const editorWithAutomerge = {
+      ...editorWithReact,
+      isRemote: false,
+    };
+
+    return editorWithAutomerge;
   }, []);
 
   useEffect(() => {
@@ -64,27 +72,67 @@ export default function TranscriptionEditor({ documentId }: { documentId: string
     const provider = new AutomergeWebsocketProvider(
       `ws://localhost:8000/sync/documents/${documentId}/`,
     );
-    provider.on('update', (change: Uint8Array) => {
-      const [newDoc] = Automerge.applyChanges(currentDoc.current, [change], {
-        patchCallback: (x) => console.debug('automerge patches', x),
+
+    const changesBuffer = new AutomergeChangesBuffer();
+
+    provider.on('update', ({ change, remote }: { change: Uint8Array; remote: boolean }) => {
+      if (!remote) return;
+
+      changesBuffer.receive(change);
+
+      const changes = changesBuffer.collectChanges();
+      if (changes.length == 0) return;
+
+      changes.forEach((change) => {
+        console.log('processing change', Automerge.decodeChange(change).deps);
+      });
+
+      const [newDoc] = Automerge.applyChanges(currentDoc.current, changes, {
+        patchCallback: (patches, opts) => {
+          const operations = toSlateOp(patches, opts.before);
+          editor.isRemote = true;
+          Editor.withoutNormalizing(editor, () => {
+            operations.forEach((op) => {
+              if (op.type === 'set_node' && op.path.length == 0) return;
+              try {
+                editor.apply(op);
+              } catch (e) {
+                console.error(e, 'apply failed', { op });
+              }
+            });
+          });
+          Promise.resolve().then((_) => (editor.isRemote = false));
+        },
       });
       setDoc(newDoc);
       currentDoc.current = newDoc;
-      if (newDoc.paragraphs) {
-        if ('paragraphs' in newDoc) {
-          const children = [...editor.children];
+    });
+    provider.on('initalSyncComplete', () => {
+      setSyncComplete(true);
+    });
 
-          children.forEach((node) => editor.apply({ type: 'remove_node', path: [0], node }));
+    const oldOnChange = editor.onChange;
+    editor.onChange = (options) => {
+      if (!editor.isRemote) {
+        console.log('onchange', options);
+        if (options?.operation) {
+          const operation = options.operation;
+          const newDoc = Automerge.change(currentDoc.current, (draft) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            applyOperation(draft as any, operation);
+          });
+          currentDoc.current = newDoc;
+          setDoc(newDoc);
 
-          newDoc.paragraphs
-            .filter((x) => x)
-            .forEach((node, i) => {
-              editor.apply({ type: 'insert_node', path: [i], node: node });
-            });
+          const lastChange = Automerge.getLastLocalChange(newDoc);
+          if (lastChange) {
+            provider.emit('update', [{ change: lastChange, remote: false }]);
+          }
         }
       }
-    });
-    provider.on('initalSyncComplete', () => setSyncComplete(true));
+
+      oldOnChange(options);
+    };
   }, []);
 
   useEffect(() => {

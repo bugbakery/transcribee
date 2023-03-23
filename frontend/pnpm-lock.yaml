@@ -5,7 +5,9 @@ overrides:
 
 specifiers:
   '@automerge/automerge': file:deps/automerge-2.0.2.tgz
+  '@automerge/automerge-wasm': file:/Users/phlmn/Developer/transcribee/transcribee/frontend/deps/automerge-wasm-0.1.25.tgz
   '@fontsource/inter': ^4.5.15
+  '@slate-collaborative/bridge': file:../slate-collaborative/packages/bridge
   '@slate-yjs/core': ^0.3.1
   '@tailwindcss/forms': ^0.5.3
   '@types/react': ^18.0.28
@@ -42,7 +44,9 @@ specifiers:
 
 dependencies:
   '@automerge/automerge': file:deps/automerge-2.0.2.tgz
+  '@automerge/automerge-wasm': file:deps/automerge-wasm-0.1.25.tgz
   '@fontsource/inter': 4.5.15
+  '@slate-collaborative/bridge': file:../slate-collaborative/packages/bridge
   '@slate-yjs/core': 0.3.1_slate@0.91.4+yjs@13.5.48
   clsx: 1.2.1
   lib0: 0.2.63
@@ -80,6 +84,13 @@ devDependencies:
   vite: 4.1.4
 
 packages:
+
+  /@automerge/automerge/2.0.2:
+    resolution: {integrity: sha512-UnKOB4L/0qJ91aiVQDiN9Qf9IuigWpRs9yKC+5Z9qmCHH8AcETvv/B82FqWjkNn4bDPAJoDMhy/DG78pP+bfew==}
+    dependencies:
+      '@automerge/automerge-wasm': file:deps/automerge-wasm-0.1.25.tgz
+      uuid: 9.0.0
+    dev: false
 
   /@babel/runtime/7.21.0:
     resolution: {integrity: sha512-xwII0//EObnq89Ji5AKYQaRYiW/nZ3llSv29d49IuxPhKbtJoLP+9QUUZ4nVragQVtaVGeZrpB+ZtG/Pdy/POw==}
@@ -2763,6 +2774,12 @@ packages:
       is-typed-array: 1.1.10
     dev: true
 
+  /typescript/3.9.10:
+    resolution: {integrity: sha512-w6fIxVE/H1PkLKcCPsFqKE7Kv7QUwhU8qQY2MueZXWx5cPZdwFupLgKK3vntcK98BtNHZtAF4LA/yl2a7k8R6Q==}
+    engines: {node: '>=4.2.0'}
+    hasBin: true
+    dev: false
+
   /typescript/4.9.5:
     resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
     engines: {node: '>=4.2.0'}
@@ -2969,6 +2986,16 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: true
+
+  file:../slate-collaborative/packages/bridge:
+    resolution: {directory: ../slate-collaborative/packages/bridge, type: directory}
+    name: '@slate-collaborative/bridge'
+    version: 0.7.2
+    dependencies:
+      '@automerge/automerge': 2.0.2
+      slate: 0.91.4
+      typescript: 3.9.10
+    dev: false
 
   file:deps/automerge-2.0.2.tgz:
     resolution: {integrity: sha512-azjcUKRvtBN5FGspx3xjgEcxSGw93onuIcMTkYhiFr4Ni8BxexDk5sHgh90p+fiN1TP2yK/Xd5HaGD9T6N4fRg==, tarball: file:deps/automerge-2.0.2.tgz}

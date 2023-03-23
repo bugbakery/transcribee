@@ -130,9 +130,9 @@ class Worker:
 
         doc = await self.get_document_state(task.document.id)
 
-        if doc.paragraphs is None or len(doc.paragraphs) != 0:
+        if doc.children is None or len(doc.children) != 0:
             with automerge.transaction(doc) as d:
-                d.paragraphs = []
+                d.children = []
 
             change = automerge.get_last_local_change(doc).bytes()
             await self.send_change(task.document.id, change)
@@ -144,7 +144,7 @@ class Worker:
             progress_callback,
         ):
             with automerge.transaction(doc, "Automatic Transcription") as d:
-                d.paragraphs.append(paragraph.dict())
+                d.children.append(paragraph.dict())
 
             change = automerge.get_last_local_change(doc).bytes()
 
