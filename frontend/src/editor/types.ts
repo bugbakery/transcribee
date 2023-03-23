@@ -16,6 +16,6 @@ export type Paragraph = {
 };
 
 export type Document = {
-  paragraphs: Paragraph[];
+  children: Paragraph[];
   speaker_names: Record<number, string>;
 };

@@ -2,15 +2,13 @@ import { Descendant, Editor, Transforms, Element } from 'slate';
 import * as Automerge from '@automerge/automerge';
 import { JSONTree } from 'react-json-tree';
 import { getBase16Theme } from 'react-base16-styling';
-import { Document } from './types';
 
 export type DebugPanelProps = {
   value: Descendant[];
-  doc: Automerge.Doc<Document>;
   editor: Editor;
 };
 
-export function DebugPanel({ value, doc, editor }: DebugPanelProps) {
+export function DebugPanel({ value, editor }: DebugPanelProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 h-96 p-8">
       <div className="w-full h-full p-4 text-sm bg-white border-black border-2 shadow-brutal rounded-lg overflow-auto">
@@ -20,7 +18,7 @@ export function DebugPanel({ value, doc, editor }: DebugPanelProps) {
       <div className="absolute top-12 right-12 flex flex-col gap-2">
         <Button
           onClick={() => {
-            const update = Automerge.save(doc);
+            const update = Automerge.save(editor.doc);
             console.log(update);
           }}
         >

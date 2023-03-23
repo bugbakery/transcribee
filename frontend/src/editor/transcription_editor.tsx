@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { createEditor, Descendant } from 'slate';
 import { withReact, Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
+import { withAutomergeDoc } from 'slate-automerge-doc';
 import { AutomergeWebsocketProvider } from './automerge_websocket_provider';
 import { useDebugMode } from '../debugMode';
 
@@ -70,51 +71,43 @@ function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Elemen
 export function TranscriptionEditor({ documentId }: { documentId: string }) {
   const debugMode = useDebugMode();
   const [value, setValue] = useState<Descendant[]>([]);
-  const [doc, setDoc] = useState<Automerge.Doc<Document>>(Automerge.init());
-  const currentDoc = useRef<Automerge.Doc<Document>>(Automerge.init());
   const [syncComplete, setSyncComplete] = useState<boolean>(false);
-
-  currentDoc.current = doc;
 
   const editor = useMemo(() => {
     const baseEditor = createEditor();
     const editorWithReact = withReact(baseEditor);
-
-    return editorWithReact;
-  }, []);
+    return withAutomergeDoc(editorWithReact, Automerge.init());
+  }, [documentId]);
 
   useEffect(() => {
-    console.log('Initing provider');
     const provider = new AutomergeWebsocketProvider(
       `ws://localhost:8000/sync/documents/${documentId}/`,
     );
-    const applyNewDoc = (newDoc: Automerge.Doc<Document>) => {
-      console.log('applying doc', newDoc);
-      setDoc(newDoc);
-      currentDoc.current = newDoc;
-      if (newDoc.paragraphs) {
-        if ('paragraphs' in newDoc) {
-          const children = [...editor.children];
 
-          children.forEach((node) => editor.apply({ type: 'remove_node', path: [0], node }));
+    provider.on('initalSyncComplete', () => {
+      setSyncComplete(true);
+    });
 
-          newDoc.paragraphs
-            .filter((x) => x)
-            .forEach((node, i) => {
-              editor.apply({ type: 'insert_node', path: [i], node: node });
-            });
-        }
+    provider.on('update', ({ change, remote }: { change: Uint8Array; remote: boolean }) => {
+      if (!remote) return;
+
+      // skip own changes
+      // TODO: filter own changes in backend?
+      if (Automerge.decodeChange(change).actor == Automerge.getActorId(editor.doc)) return;
+
+      const [newDoc] = Automerge.applyChanges(editor.doc, [change]);
+      editor.setDoc(newDoc);
+    });
+
+    provider.on('fullDoc', (fullDoc: Uint8Array) => editor.setDoc(Automerge.load(fullDoc)));
+
+    editor.onDocChange = (newDoc) => {
+      const lastChange = Automerge.getLastLocalChange(newDoc);
+      if (lastChange) {
+        provider.emit('update', [{ change: lastChange, remote: false }]);
       }
     };
-    provider.on('update', (change: Uint8Array) => {
-      const [newDoc] = Automerge.applyChanges(currentDoc.current, [change], {
-        patchCallback: (x) => console.debug('automerge patches', x),
-      });
-      applyNewDoc(newDoc);
-    });
-    provider.on('initalSyncComplete', () => setSyncComplete(true));
-    provider.on('fullDoc', (fullDoc: Uint8Array) => applyNewDoc(Automerge.load(fullDoc)));
-  }, []);
+  }, [editor]);
 
   useEffect(() => {
     const preventCtrlS = (e: KeyboardEvent) => {
@@ -134,7 +127,7 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
         <SecondaryButton
           className="my-4"
           onClick={() => {
-            const vtt = generateWebVtt(doc);
+            const vtt = generateWebVtt(Automerge.toJS(editor.doc));
             downloadTextAsFile('document.vtt', 'text/vtt', vtt.toString());
           }}
         >
@@ -143,12 +136,13 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
       </div>
       <div className={syncComplete ? '' : 'blur'}>
         <Slate editor={editor} value={value} onChange={setValue}>
-          <Editable renderElement={(props) => renderElement(props, doc)} renderLeaf={renderLeaf} />
+          <Editable
+            renderElement={(props) => renderElement(props, editor.doc)}
+            renderLeaf={renderLeaf}
+          />
         </Slate>
 
-        <Suspense>
-          {debugMode && <LazyDebugPanel editor={editor} value={value} doc={doc} />}
-        </Suspense>
+        <Suspense>{debugMode && <LazyDebugPanel editor={editor} value={value} />}</Suspense>
       </div>
     </>
   );

@@ -173,7 +173,7 @@ class Worker:
         doc = await self.get_document_state(task.document.id)
 
         with automerge.transaction(doc, "Reset Document") as d:
-            d.paragraphs = []
+            d.children = []
 
         change = d.get_change()
         if change is not None:
@@ -186,7 +186,10 @@ class Worker:
             progress_callback,
         ):
             with automerge.transaction(doc, "Automatic Transcription") as d:
-                d.paragraphs.append(paragraph.dict())
+                p = paragraph.dict()
+                for c in p['children']:
+                    c['text'] = automerge.Text(c['text'])
+                d.children.append(p)
 
             change = d.get_change()
             if change is not None:

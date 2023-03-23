@@ -5,7 +5,7 @@ export function generateWebVtt(doc: Document): WebVtt {
   const vtt = new WebVtt(
     'This file was generated using transcribee. Find out more at https://github.com/transcribee/transcribee',
   );
-  for (const paragraph of doc.paragraphs) {
+  for (const paragraph of doc.children) {
     if (paragraph.children.length === 0) {
       continue;
     }
