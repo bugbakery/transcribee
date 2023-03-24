@@ -47,7 +47,7 @@ async def main():
         base_url=f"{args.coordinator}/api/v1/tasks",
         websocket_base_url=args.websocket_base_url,
         token=args.token,
-        task_types=[TaskType.TRANSCRIBE],
+        task_types=[TaskType.TRANSCRIBE, TaskType.ALIGN],
     )
     while True:
         try:

@@ -26,7 +26,10 @@ readme = "README.md"
 license = { text = "AGPL-3.0" }
 
 [tool.pdm.dev-dependencies]
-dev = ["black>=23.1.0"]
+dev = [
+    "black>=23.1.0",
+    "-e file:///${PROJECT_ROOT}/../proto#egg=transcribee-proto",
+]
 
 [tool.pdm.scripts]
 start = "python run.py"
