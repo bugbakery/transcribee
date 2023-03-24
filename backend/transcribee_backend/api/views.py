@@ -169,7 +169,9 @@ class TaskViewSet(
             if task_type in Task.TaskType:
                 filter_types.append(Task.TaskType[task_type])
 
-        queryset = Task.objects.filter(task_type__in=filter_types, completed=False)
+        queryset = Task.objects.filter(
+            task_type__in=filter_types, completed=False
+        ).exclude(dependency__completed=False)
 
         with transaction.atomic():
             queryset = queryset.filter(

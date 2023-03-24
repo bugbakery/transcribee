@@ -53,15 +53,19 @@ class Task(models.Model):
 
     dependency = models.ManyToManyField(to="Task", blank=True)
     task_type = models.CharField(max_length=20, choices=TaskType.choices)
-    progress = models.FloatField(null=True)
+    progress = models.FloatField(null=True, blank=True)
     task_parameters = models.JSONField(
-        default=dict, help_text="Task parameters like language, number of speakers, ..."
+        default=dict,
+        help_text="Task parameters like language, number of speakers, ...",
+        blank=True,
     )
 
-    assigned_at = models.DateTimeField(null=True)
-    assigned_worker = models.ForeignKey(Worker, null=True, on_delete=models.SET_NULL)
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    assigned_worker = models.ForeignKey(
+        Worker, null=True, blank=True, on_delete=models.SET_NULL
+    )
     last_keepalive = models.DateTimeField(auto_now=True)
 
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
-    completion_data = models.JSONField(default=dict)
+    completion_data = models.JSONField(default=dict, blank=True)
