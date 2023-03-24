@@ -69,3 +69,6 @@ class Task(models.Model):
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     completion_data = models.JSONField(default=dict, blank=True)
+
+    def __str__(self) -> str:
+        return f"Task(document={self.document}, type={self.task_type}, progress={self.progress})"

@@ -36,11 +36,23 @@ class DocumentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer: DocumentSerializer):
         doc = serializer.save(user=self.request.user)
         # TODO: This needs to be more advanced, add diarization etc, be configurable, ...
-        Task.objects.create(
+        diar_task = Task.objects.create(
+            document=doc,
+            task_type=Task.TaskType.DIARIZE,
+            task_parameters={},
+        )
+        transcribe_task = Task.objects.create(
             document=doc,
             task_type=Task.TaskType.TRANSCRIBE,
             task_parameters={"lang": "auto", "model": "base"},
         )
+        align_task = Task.objects.create(
+            document=doc,
+            task_type=Task.TaskType.ALIGN,
+            task_parameters={},
+        )
+        align_task.dependency.add(diar_task)
+        align_task.dependency.add(transcribe_task)
 
     serializer_class = DocumentSerializer
     permission_classes = [IsAuthenticated]

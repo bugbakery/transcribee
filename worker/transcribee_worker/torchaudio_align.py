@@ -10,7 +10,7 @@ import numpy as np
 import torch
 import torchaudio
 from transcribee_proto.document import Document
-from transcribee_worker.config import SAMPLE_RATE
+from transcribee_worker.config import settings
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
 LANGUAGES_WITHOUT_SPACES = ["ja", "zh"]
@@ -132,7 +132,7 @@ def align(
     if len(audio.shape) == 1:
         audio = audio.unsqueeze(0)
 
-    MAX_DURATION = audio.shape[1] / SAMPLE_RATE
+    MAX_DURATION = audio.shape[1] / settings.SAMPLE_RATE
 
     for lang, atoms in transcript.iter_lang_blocks():
         if not atoms:
@@ -206,7 +206,9 @@ def align(
         t1 = max(start - extend_duration, 0)
         t2 = min(end + extend_duration, MAX_DURATION)
 
-        waveform_segment = audio[:, int(t1 * SAMPLE_RATE) : int(t2 * SAMPLE_RATE)]
+        waveform_segment = audio[
+            :, int(t1 * settings.SAMPLE_RATE) : int(t2 * settings.SAMPLE_RATE)
+        ]
 
         with torch.inference_mode():
             if model_type == "torchaudio":
@@ -226,7 +228,9 @@ def align(
         char_segments = merge_repeats(path)
 
         conversion_factor = (
-            (waveform_segment.size(1) / (trellis.size(0) - 1)) / SAMPLE_RATE * 1e3
+            (waveform_segment.size(1) / (trellis.size(0) - 1))
+            / settings.SAMPLE_RATE
+            * 1e3
         )
 
         for i, atom in enumerate(atoms):

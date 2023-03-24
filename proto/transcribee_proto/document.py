@@ -81,3 +81,9 @@ class Document(BaseModel):
 
 
 UNKNOWN_SPEAKER = "Speaker 1"
+
+
+class Segment(BaseModel):
+    start: float
+    end: float
+    speakers: List[int]

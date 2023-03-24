@@ -5,12 +5,12 @@ from typing import Any, AsyncIterator, Callable, Optional, Tuple
 import requests
 from numpy.typing import NDArray
 from transcribee_proto.document import UNKNOWN_SPEAKER, Atom, Paragraph
-from transcribee_worker.config import MODELS_DIR
+from transcribee_worker.config import settings
 from whispercpp import api
 
 
 def get_model_file(model_name: str):
-    whisper_models_dir = MODELS_DIR / "whisper"
+    whisper_models_dir = settings.MODELS_DIR / "whisper"
     whisper_models_dir.mkdir(parents=True, exist_ok=True)
     model_file = whisper_models_dir / f"{model_name}.bin"
 

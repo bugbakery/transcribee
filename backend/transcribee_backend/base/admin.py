@@ -13,8 +13,11 @@ def requeue(modeladmin, request, queryset):
 
 
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ["document", "task_type", "completed"]
+    list_display = ["document", "task_type", "completed", "dependencies"]
     actions = [requeue]
+
+    def dependencies(self, obj):
+        return [dep for dep in obj.dependency.all()]
 
 
 admin.site.register(User)
