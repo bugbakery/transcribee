@@ -61,6 +61,10 @@ def _transcription_work(
         rest_count = 0
         rest_start = 0
 
+        lang = lang_code
+        if lang in [None, "", "auto"]:
+            lang = ctx.lang_id_to_str(ctx.full_lang_id())
+
         while segment < ctx.full_n_segments():
             tokens = (
                 ctx.full_get_token_data(segment, token_idx)
@@ -115,7 +119,7 @@ def _transcription_work(
             paragraph = Paragraph(
                 children=atoms,
                 speakers=[],
-                lang=lang_code,
+                lang=lang,
             )
 
             # asyncio.Queue is not threadsafe, so we need to use the *_threadsafe functions

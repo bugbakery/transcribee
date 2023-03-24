@@ -36,11 +36,13 @@ function renderElement(
     return (
       <div className="mb-6 flex">
         <div contentEditable={false} className="w-48 mr-8">
-          {getSpeakerNames(element.speakers, doc)} {'['}
-          {para_start}
-          {'-->'}
-          {para_end}
-          {']'}
+          {getSpeakerNames(element.speakers, doc)}
+          {' ['}
+          {para_start?.toFixed(0)}
+          {'→'}
+          {para_end?.toFixed(0)}
+          {'] '}
+          {element.lang}
         </div>
         <div {...attributes} className="grow-1 basis-full">
           {children}
