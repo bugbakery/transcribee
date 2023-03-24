@@ -180,10 +180,9 @@ async def transcribe(
             if isinstance(value, TranscriptionWorkDoneToken):
                 run = False
             else:
-
                 yield value
 
-                for _ in range(results_queue.qsize()):
+                while not results_queue.empty():
                     yield results_queue.get_nowait()
 
         # If we are still running, `transcription_work` cannot have returend, i.e. we got an
@@ -193,3 +192,47 @@ async def transcribe(
 
     for task in pending:
         task.cancel()
+
+
+async def recombine_split_words(
+    iter: AsyncIterator[Paragraph],
+) -> AsyncIterator[Paragraph]:
+    last_paragraph = None
+    async for paragraph in iter:
+        if last_paragraph is None:
+            last_paragraph = paragraph
+            continue
+
+        starts_with_whitespace = not paragraph.text()[:1].strip()
+        if starts_with_whitespace:
+            yield last_paragraph
+            last_paragraph = paragraph
+        else:
+            last_paragraph.children.extend(paragraph.children)
+
+    if last_paragraph is not None:
+        yield last_paragraph
+
+
+async def remove_leading_whitespace_from_paragraph(
+    iter: AsyncIterator[Paragraph],
+) -> AsyncIterator[Paragraph]:
+    async for paragraph in iter:
+        paragraph.children[0].text = paragraph.children[0].text.strip()
+        yield paragraph
+
+
+async def transcribe_clean(
+    data: NDArray, model_name: str, lang_code="en", progress_callback=None
+):
+    async for v in remove_leading_whitespace_from_paragraph(
+        recombine_split_words(
+            transcribe(
+                data=data,
+                model_name=model_name,
+                lang_code=lang_code,
+                progress_callback=progress_callback,
+            )
+        )
+    ):
+        yield v
