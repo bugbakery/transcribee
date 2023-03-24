@@ -63,5 +63,5 @@ class Task(models.Model):
     last_keepalive = models.DateTimeField(auto_now=True)
 
     completed = models.BooleanField(default=False)
-    completed_at = models.DateTimeField(null=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
     completion_data = models.JSONField(default=dict)
