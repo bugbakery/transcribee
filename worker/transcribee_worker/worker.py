@@ -16,7 +16,7 @@ from transcribee_proto.api import TaskType, TranscribeTask
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
 from transcribee_worker.util import load_audio
-from transcribee_worker.whisper_transcribe import transcribe
+from transcribee_worker.whisper_transcribe import transcribe_clean
 
 
 class Worker:
@@ -130,14 +130,14 @@ class Worker:
 
         doc = await self.get_document_state(task.document.id)
 
-        with automerge.transaction(doc) as d:
+        with automerge.transaction(doc, "Reset Document") as d:
             d.paragraphs = []
 
         change = d.get_change()
         if change is not None:
             await self.send_change(task.document.id, change.bytes())
 
-        async for paragraph in transcribe(
+        async for paragraph in transcribe_clean(
             audio,
             task.task_parameters.model,
             task.task_parameters.lang,
