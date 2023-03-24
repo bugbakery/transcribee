@@ -4,7 +4,7 @@ from typing import Any, AsyncIterator, Callable, Optional, Tuple
 
 import requests
 from numpy.typing import NDArray
-from transcribee_proto.document import UNKNOWN_SPEAKER, Atom, Paragraph
+from transcribee_proto.document import Atom, Paragraph
 from transcribee_worker.config import settings
 from whispercpp import api
 
@@ -114,7 +114,7 @@ def _transcription_work(
 
             paragraph = Paragraph(
                 children=atoms,
-                speaker=UNKNOWN_SPEAKER,
+                speakers=[],
                 lang=lang_code,
             )
 

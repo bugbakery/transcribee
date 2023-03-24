@@ -31,7 +31,8 @@ async def main():
         token=args.token,
         task_types=[TaskType.TRANSCRIBE],
     )
-    print(json.dumps(automerge.dump(await worker.get_document_state(args.doc_id))))
+    doc = await worker.get_document_state(args.doc_id)
+    print(json.dumps(automerge.dump(doc), indent=4))
 
 
 if __name__ == "__main__":

@@ -86,8 +86,8 @@ name = "automerge"
 version = "0.0.1"
 requires_python = ">=3.9,<4.0"
 git = "https://github.com/transcribee/automerge-py.git"
-ref = "7d916ac63a5f4044853c43dbc5cc6128a6648d87"
-revision = "7d916ac63a5f4044853c43dbc5cc6128a6648d87"
+ref = "c87d3b39bb271a3b9efcee7aba059b432cf6c09b"
+revision = "c87d3b39bb271a3b9efcee7aba059b432cf6c09b"
 summary = "A python wrapper around the Automerge rust implementation"
 
 [[package]]
@@ -1160,7 +1160,7 @@ dependencies = [
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:ee2f0054fd121dcee204c3fa486b04aaab3b2ad248c4f4e94f6414a2d77b7889"
+content_hash = "sha256:89396b49ea076167a6d172d54d7db1d5d11fc3e53182951c3d9e7b88e61d5364"
 
 [metadata.files]
 "absl-py 1.4.0" = [

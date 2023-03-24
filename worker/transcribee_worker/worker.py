@@ -106,6 +106,19 @@ class Worker:
         else:
             raise ValueError(f"Invalid task type: '{task.task_type}'")
 
+    async def _init_doc(self, document_id: str, doc: automerge.Document):
+        with automerge.transaction(doc, "Initialize Document") as d:
+            if d.paragraphs is None:
+                d.paragraphs = []
+            if d.diarization is None:
+                d.diarization = []
+            if d.speaker_names is None:
+                d.speaker_names = {}
+
+        change = d.get_change()
+        if change is not None:
+            await self.send_change(document_id, change.bytes())
+
     async def get_document_state(self, document_id: str) -> automerge.Document:
         doc = automerge.init(EditorDocument)
         async with websockets.connect(
@@ -116,6 +129,8 @@ class Worker:
                 if msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
                     break
                 automerge.apply_changes(doc, [msg[1:]])
+
+        await self._init_doc(document_id, doc)
         return doc
 
     async def send_change(self, document_id: str, change: bytes):
@@ -179,6 +194,7 @@ class Worker:
         diarization = diarize(document_audio, progress_callback=progress_callback)
         with automerge.transaction(doc, "Diarization") as d:
             d.diarization = [x.dict() for x in diarization]
+            d.speaker_names = {}
 
         change = d.get_change()
         if change is not None:
@@ -204,6 +220,28 @@ class Worker:
         change = d.get_change()
         if change is not None:
             await self.send_change(task.document.id, change.bytes())
+
+        document = EditorDocument.parse_obj(automerge.dump(doc))
+
+        if document.diarization:
+            with automerge.transaction(doc, "Assign Speakers") as d:
+                for para in d.paragraphs:
+                    if len(para) == 0:
+                        continue
+                    para_start = para.children[0].start
+                    para_end = para.children[-1].end
+                    speakers = set(para.speakers)
+                    for segment in document.diarization:
+                        if segment.start <= para_end and segment.end >= para_start:
+                            for speaker in segment.speakers:
+                                speakers.add(speaker)
+
+                    if set(para.speakers) != speakers:
+                        para.speakers = sorted(list(speakers))
+
+            change = d.get_change()
+            if change is not None:
+                await self.send_change(task.document.id, change.bytes())
 
     def mark_completed(self, task_id: str, completion_data: Optional[dict] = None):
         body = {
