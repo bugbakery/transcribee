@@ -18,7 +18,7 @@ dependencies = [
     "transformers>=4.26.1",
     "torchaudio>=0.13.1",
     "torch>=1.13.1",
-    "automerge @ git+https://github.com/transcribee/automerge-py.git@5488f418edf52a5be7d61f7ae08c3a4721a233a1",
+    "automerge @ git+https://github.com/transcribee/automerge-py.git@7d916ac63a5f4044853c43dbc5cc6128a6648d87",
     "websockets>=10.4",
 ]
 requires-python = ">=3.10"
