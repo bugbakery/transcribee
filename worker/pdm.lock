@@ -367,6 +367,7 @@ dependencies = [
 name = "transcribee-proto"
 version = "0.1.0"
 requires_python = ">=3.10"
+editable = true
 path = "../proto"
 summary = "common python code & datatypes in the transcribee open-source transcription platform"
 dependencies = [
@@ -419,7 +420,7 @@ summary = "whispercpp: Pybind11 bindings for whisper.cpp"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:7d7772806f9e5be2e77987dc2247af5406afc97179b2dc5e80de9976bc50b786"
+content_hash = "sha256:b634254bc4e77d9ae3f7377497a6c94c6b305cd85570895799af241dab1368fb"
 
 [metadata.files]
 "appdirs 1.4.4" = [

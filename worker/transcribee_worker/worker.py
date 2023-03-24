@@ -15,6 +15,7 @@ from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import TaskType, TranscribeTask
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
+from transcribee_worker.torchaudio_align import align
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
 
@@ -154,9 +155,25 @@ class Worker:
         raise NotImplementedError("Diarization is not yet implemented")
 
     async def align(self, task: AlignTask):
-        # document = Document(lang=args.lang, paragraphs=paragraphs)
-        # aligned_document = align(document, audio)
-        raise NotImplementedError("Alignment is not yet implemented")
+        document_audio = self.get_document_audio(task.document)
+        if document_audio is None:
+            raise ValueError(
+                f"Document {task.document} has no audio attached. Cannot transcribe."
+            )
+        audio = load_audio(document_audio)
+        doc = await self.get_document_state(task.document.id)
+        document = EditorDocument.parse_obj(automerge.dump(doc))
+
+        aligned_document = align(document, audio)
+        with automerge.transaction(doc, "Alignment") as d:
+            for d_para, al_para in zip(d.paragraphs, aligned_document.paragraphs):
+                for d_atom, al_atom in zip(d_para.children, al_para.children):
+                    d_atom.start = al_atom.start
+                    d_atom.end = al_atom.end
+
+        change = d.get_change()
+        if change is not None:
+            await self.send_change(task.document.id, change.bytes())
 
     def mark_completed(self, task_id: str, completion_data: Optional[dict] = None):
         body = {
@@ -183,7 +200,7 @@ class Worker:
                 if mark_completed:
                     self.mark_completed(task.id, {"result": task_result})
             else:
-                logging.info("Got empty task, not running worker")
+                logging.info("Got no task, not running worker")
                 no_work = True
         except Exception as exc:
             logging.warning("Worker failed with exception", exc_info=exc)

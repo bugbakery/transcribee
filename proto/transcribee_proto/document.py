@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterator, List, Literal
+from typing import Iterator, List, Literal, Tuple
 
 from pydantic import BaseModel
 
@@ -32,6 +32,25 @@ class Paragraph(BaseModel):
 class Document(BaseModel):
     paragraphs: List[Paragraph]
 
+    def iter_lang_blocks(self) -> Iterator[Tuple[str, List[Atom]]]:
+        atoms = []
+        lang = None
+        for paragraph in self.paragraphs:
+            if lang is None:
+                lang = paragraph.lang
+                atoms = paragraph.children
+                continue
+
+            if paragraph.lang != lang:
+                yield lang, atoms
+                lang = paragraph.lang
+                atoms = paragraph.children
+            else:
+                atoms += paragraph.children
+
+        if lang is not None:
+            yield lang, atoms
+
     def is_empty(self) -> bool:
         """Check whether the document contains at least one atom
 
@@ -39,12 +58,12 @@ class Document(BaseModel):
         that `document.text()` is not empty.
 
         Returns:
-            bool: True if the document contains at least one atom
+            bool: True if the document does not contain at least one atom
         """
         for paragraph in self.paragraphs:
             for atom in paragraph.children:
-                return True
-        return False
+                return False
+        return True
 
     def text(self) -> str:
         return "".join(p.text() for p in self.paragraphs)
