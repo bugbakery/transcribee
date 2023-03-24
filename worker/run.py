@@ -8,9 +8,14 @@ import urllib.parse
 
 import requests.exceptions
 from transcribee_proto.api import TaskType
-from transcribee_worker.worker import Worker
+from transcribee_worker.config import settings
 
 logging.basicConfig(level=logging.INFO)
+
+settings.setup_env_vars()
+
+# Needs to be done after settings.setup_env
+from transcribee_worker.worker import Worker  # noqa
 
 
 async def main():
@@ -47,7 +52,7 @@ async def main():
         base_url=f"{args.coordinator}/api/v1/tasks",
         websocket_base_url=args.websocket_base_url,
         token=args.token,
-        task_types=[TaskType.TRANSCRIBE, TaskType.ALIGN],
+        task_types=[TaskType.TRANSCRIBE, TaskType.ALIGN, TaskType.DIARIZE],
     )
     while True:
         try:

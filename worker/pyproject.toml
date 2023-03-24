@@ -13,14 +13,18 @@ dependencies = [
     "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
     "numpy>=1.23.5",
     "librosa>=0.10.0",
-    "pydantic>=1.10.5",
+    "pydantic[dotenv]>=1.10.7",
     "whispercpp @ git+https://github.com/transcribee/whispercpp.git@pajowu/wip",
     "transformers>=4.26.1",
-    "torchaudio>=0.13.1",
-    "torch>=1.13.1",
+    "torchaudio==0.11.0",
+    "torch==1.11.0",
     "automerge @ git+https://github.com/transcribee/automerge-py.git@7d916ac63a5f4044853c43dbc5cc6128a6648d87",
     "websockets>=10.4",
+    "pyannote-audio>=2.1",
+    "torchvision==0.12.0",
+    "hmmlearn @ git+https://github.com/hmmlearn/hmmlearn@e22127765b0ca70d01976df2a369667756b8445e",             # hmmlearn version which actually compiled 🙃. Needs to be specified here instead of in pdm.resolution.overrides because pdm crashes otherwise 🙃🙃
 ]
+
 requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "AGPL-3.0" }
@@ -37,3 +41,6 @@ start = "python run.py"
 [build-system]
 requires = ["pdm-pep517>=1.0"]
 build-backend = "pdm.pep517.api"
+
+[tool.pdm.resolution.overrides]
+soundfile = "0.11.0"

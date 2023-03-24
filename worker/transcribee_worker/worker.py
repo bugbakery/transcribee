@@ -15,6 +15,7 @@ from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import TaskType, TranscribeTask
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
+from transcribee_worker.diarize import diarize
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
@@ -60,13 +61,26 @@ class Worker:
             raise ValueError("`tmpdir` must be set")
         return self.tmpdir / filename
 
-    def get_document_audio(self, document: ApiDocument) -> Optional[BytesIO]:
+    def get_document_audio_bytes(self, document: ApiDocument) -> Optional[bytes]:
         logging.debug(f"Getting audio. {document=}")
         if document.audio_file is None:
             return
         file_url = urllib.parse.urljoin(self.base_url, document.audio_file)
         response = requests.get(file_url)
-        return BytesIO(response.content)
+        return response.content
+
+    def get_document_audio(self, document: ApiDocument) -> Optional[BytesIO]:
+        b = self.get_document_audio_bytes(document=document)
+        if b is not None:
+            return BytesIO(b)
+
+    def get_document_audio_path(self, document: ApiDocument) -> Optional[Path]:
+        b = self.get_document_audio_bytes(document=document)
+        if b is not None:
+            path = self._get_tmpfile("doc_audio")
+            with open(path, "wb") as f:
+                f.write(b)
+            return path
 
     def keepalive(self, task_id: str, progress: Optional[float]):
         body = {}
@@ -152,13 +166,29 @@ class Worker:
                 await self.send_change(task.document.id, change.bytes())
 
     async def diarize(self, task: DiarizeTask):
-        raise NotImplementedError("Diarization is not yet implemented")
+        document_audio = self.get_document_audio_path(task.document)
+        if document_audio is None:
+            raise ValueError(
+                f"Document {task.document} has no audio attached. Cannot diarize."
+            )
+        doc = await self.get_document_state(task.document.id)
+
+        def progress_callback(_ctx, progress, _data):
+            self.keepalive(task.id, progress=progress / 100)
+
+        diarization = diarize(document_audio, progress_callback=progress_callback)
+        with automerge.transaction(doc, "Diarization") as d:
+            d.diarization = [x.dict() for x in diarization]
+
+        change = d.get_change()
+        if change is not None:
+            await self.send_change(task.document.id, change.bytes())
 
     async def align(self, task: AlignTask):
         document_audio = self.get_document_audio(task.document)
         if document_audio is None:
             raise ValueError(
-                f"Document {task.document} has no audio attached. Cannot transcribe."
+                f"Document {task.document} has no audio attached. Cannot align."
             )
         audio = load_audio(document_audio)
         doc = await self.get_document_state(task.document.id)
