@@ -11,15 +11,35 @@ const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
 );
 
-function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
+function getSpeakerName(speaker_id: number, speaker_names: Record<number, string>): string {
+  if (speaker_id in speaker_names) {
+    return speaker_names[speaker_id];
+  } else {
+    return `Speaker ${speaker_id + 1}`;
+  }
+}
+function getSpeakerNames(speaker_ids: number[], speaker_names: Record<number, string>): string {
+  if (speaker_ids.length > 0) {
+    return speaker_ids.map((id) => getSpeakerName(id, speaker_names)).join(', ');
+  } else {
+    return 'Unknown Speaker';
+  }
+}
+
+function renderElement(
+  { element, children, attributes }: RenderElementProps,
+  doc: Automerge.Doc<Document>,
+): JSX.Element {
   if (element.type === 'paragraph') {
+    const para_start = element.children[0].start;
+    const para_end = element.children[element.children.length - 1].end;
     return (
       <div className="mb-6 flex">
         <div contentEditable={false} className="w-48 mr-8">
-          {element.speaker} {'['}
-          {element.children[0].start}
+          {getSpeakerNames(element.speakers, doc)} {'['}
+          {para_start}
           {'-->'}
-          {element.children[0].end}
+          {para_end}
           {']'}
         </div>
         <div {...attributes} className="grow-1 basis-full">
@@ -104,7 +124,7 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
   return (
     <div className={syncComplete ? '' : 'blur'}>
       <Slate editor={editor} value={value} onChange={setValue}>
-        <Editable renderElement={renderElement} renderLeaf={renderLeaf} />
+        <Editable renderElement={(props) => renderElement(props, doc)} renderLeaf={renderLeaf} />
       </Slate>
 
       <Suspense>{debugMode && <LazyDebugPanel editor={editor} value={value} doc={doc} />}</Suspense>

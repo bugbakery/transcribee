@@ -8,7 +8,7 @@ export type Text = {
 export type Paragraph = {
   type: 'paragraph';
   children: Text[];
-  speaker: string;
+  speakers: number[];
   start?: number;
   end?: number;
   lang: string;
@@ -16,4 +16,5 @@ export type Paragraph = {
 
 export type Document = {
   paragraphs: Paragraph[];
+  speaker_names: Record<number, string>;
 };

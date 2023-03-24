@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterator, List, Literal, Tuple
+from typing import Iterator, List, Literal, Mapping, Optional, Tuple
 
 from pydantic import BaseModel
 
@@ -13,7 +13,7 @@ class Atom(BaseModel):
 
 class Paragraph(BaseModel):
     type: Literal["paragraph"] = "paragraph"
-    speaker: str
+    speakers: List[int]
     children: List[Atom]
     lang: str
 
@@ -29,7 +29,15 @@ class Paragraph(BaseModel):
             return self.children[-1].end
 
 
+class Segment(BaseModel):
+    start: float
+    end: float
+    speakers: List[int]
+
+
 class Document(BaseModel):
+    diarization: Optional[List[Segment]]
+    speaker_names: Optional[Mapping[int, str]]
     paragraphs: List[Paragraph]
 
     def iter_lang_blocks(self) -> Iterator[Tuple[str, List[Atom]]]:
@@ -78,12 +86,3 @@ class Document(BaseModel):
 
     def iter_atoms(self) -> Iterator[Atom]:
         return itertools.chain.from_iterable(p.children for p in self.paragraphs)
-
-
-UNKNOWN_SPEAKER = "Speaker 1"
-
-
-class Segment(BaseModel):
-    start: float
-    end: float
-    speakers: List[int]

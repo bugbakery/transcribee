@@ -52,7 +52,9 @@ def load_model(language_code: str, device):
     if hasattr(torchaudio.pipelines, model_name):
         pipeline_type = "torchaudio"
         bundle = getattr(torchaudio.pipelines, model_name)
-        align_model = bundle.get_model().to(device)
+        align_model = bundle.get_model(dl_kwargs={"model_dir": settings.MODELS_DIR}).to(
+            device
+        )
         labels = bundle.get_labels()
         align_dictionary = {c.lower(): i for i, c in enumerate(labels)}
     else:
