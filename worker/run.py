@@ -51,7 +51,9 @@ async def main():
     )
     while True:
         try:
-            no_work = await worker.run_task()
+            no_work = await worker.run_task(
+                mark_completed=not args.run_once_and_dont_complete
+            )
             if no_work:
                 await asyncio.sleep(5)
             elif args.run_once_and_dont_complete:
