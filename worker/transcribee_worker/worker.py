@@ -130,12 +130,12 @@ class Worker:
 
         doc = await self.get_document_state(task.document.id)
 
-        if doc.paragraphs is None or len(doc.paragraphs) != 0:
-            with automerge.transaction(doc) as d:
-                d.paragraphs = []
+        with automerge.transaction(doc) as d:
+            d.paragraphs = []
 
-            change = automerge.get_last_local_change(doc).bytes()
-            await self.send_change(task.document.id, change)
+        change = d.get_change()
+        if change is not None:
+            await self.send_change(task.document.id, change.bytes())
 
         async for paragraph in transcribe(
             audio,
@@ -146,9 +146,9 @@ class Worker:
             with automerge.transaction(doc, "Automatic Transcription") as d:
                 d.paragraphs.append(paragraph.dict())
 
-            change = automerge.get_last_local_change(doc).bytes()
-
-            await self.send_change(task.document.id, change)
+            change = d.get_change()
+            if change is not None:
+                await self.send_change(task.document.id, change.bytes())
 
     async def diarize(self, task: DiarizeTask):
         raise NotImplementedError("Diarization is not yet implemented")
