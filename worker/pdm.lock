@@ -17,8 +17,8 @@ name = "automerge"
 version = "0.0.1"
 requires_python = ">=3.9,<4.0"
 git = "https://github.com/transcribee/automerge-py.git"
-ref = "5488f418edf52a5be7d61f7ae08c3a4721a233a1"
-revision = "5488f418edf52a5be7d61f7ae08c3a4721a233a1"
+ref = "7d916ac63a5f4044853c43dbc5cc6128a6648d87"
+revision = "7d916ac63a5f4044853c43dbc5cc6128a6648d87"
 summary = "A python wrapper around the Automerge rust implementation"
 
 [[package]]
@@ -419,7 +419,7 @@ summary = "whispercpp: Pybind11 bindings for whisper.cpp"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:bfb34e0f766e482bc78ba77c28dfdf24d9f456daaa7f7eae4cb390510d977d43"
+content_hash = "sha256:7d7772806f9e5be2e77987dc2247af5406afc97179b2dc5e80de9976bc50b786"
 
 [metadata.files]
 "appdirs 1.4.4" = [
