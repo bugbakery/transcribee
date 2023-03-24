@@ -8,6 +8,16 @@ let
       url = "https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz";
     })
     { };
+  pdm = pkgs.pdm.overridePythonAttrs (old: rec {
+    version = "2.4.9";
+    pname = old.pname;
+    src = pkgs.fetchPypi {
+      inherit pname version;
+      sha256 = "28b/sZXzmrJLS8tQf+mXiaYaMhWdi/In8xF7lPMn8vI=";
+    };
+    doCheck = false;
+  });
+
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [
