@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import logging
 import traceback
+import urllib.parse
 
 import requests.exceptions
 from transcribee_proto.api import TaskType
@@ -23,12 +24,24 @@ async def main():
     )
     parser.add_argument(
         "--websocket-base-url",
-        help="url to the websocket sync server (aka the transcribee backend)",
-        default="ws://localhost:8000/sync/",
+        help=(
+            "url to the websocket sync server (aka the transcribee backend), "
+            "default: {coordinator}/sync/"
+        ),
+        default=None,
     )
     parser.add_argument("--token", help="Worker token", required=True)
     parser.add_argument("--run-once-and-dont-complete", action="store_true")
     args = parser.parse_args()
+
+    if args.websocket_base_url is None:
+        sync_url = urllib.parse.urlparse(args.coordinator)
+        sync_url = sync_url._replace(path=sync_url.path + "/sync/")
+        assert sync_url.scheme in ["http", "https"]
+        sync_url = sync_url._replace(
+            scheme="ws" if sync_url.scheme == "http" else "wss"
+        )
+        args.websocket_base_url = urllib.parse.urlunparse(sync_url)
 
     worker = Worker(
         base_url=f"{args.coordinator}/api/v1/tasks",
