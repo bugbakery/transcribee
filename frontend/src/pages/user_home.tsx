@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { useListDocuments } from '../api/document';
 import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
 import { AppContainer } from '../components/app';
+import { AiOutlinePlus } from 'react-icons/ai';
 
 export function UserHomePage() {
   const { data } = useListDocuments({});
@@ -55,6 +56,29 @@ export function UserHomePage() {
             </li>
           );
         })}
+
+        <li>
+          <Link
+            to={`/new`}
+            className={clsx(
+              'block',
+              'p-4',
+              'aspect-square',
+              'bg-white',
+              'font-medium',
+              'rounded-lg',
+              'border',
+              'border-gray-200',
+              'hover:shadow-lg',
+              'hover:scale-105',
+              'transition-all',
+              'flex',
+            )}
+          >
+            {' '}
+            <AiOutlinePlus size="1.75rem" />
+          </Link>
+        </li>
       </ul>
     </AppContainer>
   );
