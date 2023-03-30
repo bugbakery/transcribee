@@ -144,7 +144,11 @@ class Worker:
             progress_callback,
         ):
             with automerge.transaction(doc, "Automatic Transcription") as d:
-                d.children.append(paragraph.dict())
+                # d.children.append(paragraph.dict())
+                p = paragraph.dict()
+                for c in p['children']:
+                    c['text'] = automerge.Text(c['text'])
+                d.children.append(p)
 
             change = automerge.get_last_local_change(doc).bytes()
 

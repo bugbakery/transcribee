@@ -48,7 +48,7 @@
     "@automerge/automerge": "file:deps/automerge-2.0.2.tgz",
     "@automerge/automerge-wasm": "file:deps/automerge-wasm-0.1.25.tgz",
     "@fontsource/inter": "^4.5.15",
-    "@slate-collaborative/bridge": "file:../slate-collaborative/packages/bridge",
+    "@slate-collaborative/bridge": "link:../../slate-collaborative/packages/bridge",
     "@slate-yjs/core": "^0.3.1",
     "clsx": "^1.2.1",
     "lib0": "^0.2.63",

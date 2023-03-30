@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { createEditor, Descendant, Editor } from 'slate';
+import { BaseEditor, createEditor, Descendant, Editor } from 'slate';
 import { withReact, Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
 import { AutomergeWebsocketProvider } from './AutomergeWebsocketProvider';
@@ -8,7 +8,6 @@ import { toSlateOp } from '@slate-collaborative/bridge/src/convert';
 import { applyOperation } from '@slate-collaborative/bridge/src/apply';
 
 import { Document } from './types';
-import { AutomergeChangesBuffer } from './AutomergeChangesBuffer';
 
 const LazyDebugPanel = lazy(() => import('./DebugPanel'));
 
@@ -46,6 +45,16 @@ function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Elemen
   );
 }
 
+type EditorAutomergeProps = { isRemote: boolean };
+
+function withAutomerge<T extends BaseEditor>(e: T): T & EditorAutomergeProps {
+  const editor = e as T & EditorAutomergeProps;
+  editor.isRemote = false;
+  return editor;
+}
+
+const appliedOperations: any[] = [];
+
 export default function TranscriptionEditor({ documentId }: { documentId: string }) {
   const debugMode = useDebugMode();
   const [value, setValue] = useState<Descendant[]>([]);
@@ -58,13 +67,7 @@ export default function TranscriptionEditor({ documentId }: { documentId: string
   const editor = useMemo(() => {
     const baseEditor = createEditor();
     const editorWithReact = withReact(baseEditor);
-
-    const editorWithAutomerge = {
-      ...editorWithReact,
-      isRemote: false,
-    };
-
-    return editorWithAutomerge;
+    return withAutomerge(editorWithReact);
   }, []);
 
   useEffect(() => {
@@ -73,40 +76,34 @@ export default function TranscriptionEditor({ documentId }: { documentId: string
       `ws://localhost:8000/sync/documents/${documentId}/`,
     );
 
-    const changesBuffer = new AutomergeChangesBuffer();
-
     provider.on('update', ({ change, remote }: { change: Uint8Array; remote: boolean }) => {
       if (!remote) return;
 
-      changesBuffer.receive(change);
-
-      const changes = changesBuffer.collectChanges();
-      if (changes.length == 0) return;
-
-      changes.forEach((change) => {
-        console.log('processing change', Automerge.decodeChange(change).deps);
-      });
-
-      const [newDoc] = Automerge.applyChanges(currentDoc.current, changes, {
+      const [newDoc] = Automerge.applyChanges(currentDoc.current, [change], {
         patchCallback: (patches, opts) => {
-          const operations = toSlateOp(patches, opts.before);
           editor.isRemote = true;
+
           Editor.withoutNormalizing(editor, () => {
+            const operations = toSlateOp(patches, opts.before);
             operations.forEach((op) => {
               if (op.type === 'set_node' && op.path.length == 0) return;
               try {
+                appliedOperations.push(op);
                 editor.apply(op);
               } catch (e) {
                 console.error(e, 'apply failed', { op });
               }
             });
           });
+
           Promise.resolve().then((_) => (editor.isRemote = false));
         },
       });
+
       setDoc(newDoc);
       currentDoc.current = newDoc;
     });
+
     provider.on('initalSyncComplete', () => {
       setSyncComplete(true);
     });
@@ -152,7 +149,6 @@ export default function TranscriptionEditor({ documentId }: { documentId: string
       <Slate editor={editor} value={value} onChange={setValue}>
         <Editable renderElement={renderElement} renderLeaf={renderLeaf} />
       </Slate>
-
       <Suspense>{debugMode && <LazyDebugPanel editor={editor} value={value} doc={doc} />}</Suspense>
     </div>
   );
