@@ -73,7 +73,7 @@ repos:
     hooks:
       - id: format
         name: format
-        entry: pnpm --prefix frontend/ run check:format
+        entry: pnpm --prefix frontend/ run format
         language: node
         files: frontend/.*
         pass_filenames: false
