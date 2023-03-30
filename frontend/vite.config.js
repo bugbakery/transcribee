@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
 
+// eslint-disable-next-line import/no-default-export
 export default defineConfig({
   server: {
     host: '0.0.0.0',

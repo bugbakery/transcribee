@@ -1,14 +1,14 @@
 import { Route, Router, Switch, useLocation } from 'wouter';
 
-import DocumentPage from './pages/DocumentPage';
-import UserHomePage from './pages/UserHomePage';
-import LoginPage from './pages/LoginPage';
-import NewDocumentPage from './pages/NewDocumentPage';
-import PageNotFoundPage from './pages/PageNotFoundPage';
-import trimTrailingSlash from './utils/trimTrailingSlash';
+import { trimTrailingSlash } from './utils/trim_trailing_slash';
 import { useGetMe } from './api/user';
+import { LoginPage } from './pages/login';
+import { UserHomePage } from './pages/user_home';
+import { NewDocumentPage } from './pages/new_document';
+import { DocumentPage } from './pages/document';
+import { PageNotFoundPage } from './pages/page_not_found';
 
-export default function App() {
+export function App() {
   const routerBase = trimTrailingSlash(import.meta.env.BASE_URL);
 
   const [_location, navigate] = useLocation();

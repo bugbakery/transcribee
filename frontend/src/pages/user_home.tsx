@@ -2,10 +2,10 @@ import { Link } from 'wouter';
 import clsx from 'clsx';
 
 import { useListDocuments } from '../api/document';
-import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/TopBar';
-import { AppContainer } from '../components/AppContainer';
+import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
+import { AppContainer } from '../components/app';
 
-export default function UserHomePage() {
+export function UserHomePage() {
   const { data } = useListDocuments({});
 
   return (

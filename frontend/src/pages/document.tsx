@@ -1,12 +1,12 @@
 import { RouteComponentProps, useLocation } from 'wouter';
 import { useGetDocument } from '../api/document';
-import { IconButton } from '../components/IconButton';
-import TranscriptionEditor from '../editor/TranscriptionEditor';
 import { IoIosArrowBack } from 'react-icons/io';
-import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/TopBar';
-import { AppContainer } from '../components/AppContainer';
+import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
+import { AppContainer } from '../components/app';
+import { IconButton } from '../components/button';
+import { TranscriptionEditor } from '../editor/transcription_editor';
 
-export default function DocumentPage({ params }: RouteComponentProps<{ documentId: string }>) {
+export function DocumentPage({ params }: RouteComponentProps<{ documentId: string }>) {
   const { data } = useGetDocument({ id: params.documentId });
   const [_location, navigate] = useLocation();
 

@@ -3,19 +3,17 @@ import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
 
-import Dialog from '../components/Dialog';
-import DialogTitle from '../components/DialogTitle';
-import Input from '../components/Input';
-import PrimaryButton from '../components/PrimaryButton';
-import FormControl from '../components/FormControl';
 import { createDocument } from '../api/document';
+import { Dialog, DialogTitle } from '../components/dialog';
+import { FormControl, Input } from '../components/form';
+import { PrimaryButton } from '../components/button';
 
 type FieldValues = {
   name: string;
   audioFile: FileList | undefined;
 };
 
-export default function NewDocumentPage() {
+export function NewDocumentPage() {
   const [_, navigate] = useLocation();
   const [dropIndicator, setDropIndicator] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);

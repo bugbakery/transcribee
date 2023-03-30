@@ -1,8 +1,7 @@
 import { useLocation } from 'wouter';
+import { PrimaryButton } from '../components/button';
 
-import PrimaryButton from '../components/PrimaryButton';
-
-export default function PageNotFoundPage() {
+export function PageNotFoundPage() {
   const [_, navigate] = useLocation();
   return (
     <div className="h-screen p-6 flex items-center justify-center">

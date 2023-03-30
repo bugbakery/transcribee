@@ -2,12 +2,14 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createEditor, Descendant } from 'slate';
 import { withReact, Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
-import { AutomergeWebsocketProvider } from './AutomergeWebsocketProvider';
+import { AutomergeWebsocketProvider } from './automerge_websocket_provider';
 import { useDebugMode } from '../debugMode';
 
 import { Document } from './types';
 
-const LazyDebugPanel = lazy(() => import('./DebugPanel'));
+const LazyDebugPanel = lazy(() =>
+  import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
+);
 
 function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
   if (element.type === 'paragraph') {
@@ -43,7 +45,7 @@ function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Elemen
   );
 }
 
-export default function TranscriptionEditor({ documentId }: { documentId: string }) {
+export function TranscriptionEditor({ documentId }: { documentId: string }) {
   const debugMode = useDebugMode();
   const [value, setValue] = useState<Descendant[]>([]);
   const [doc, setDoc] = useState<Automerge.Doc<Document>>(Automerge.init());

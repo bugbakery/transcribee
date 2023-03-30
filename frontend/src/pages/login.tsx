@@ -3,19 +3,17 @@ import { useLocation } from 'wouter';
 import { useState } from 'react';
 
 import { storeAuthToken } from '../api';
-import Dialog from '../components/Dialog';
-import DialogTitle from '../components/DialogTitle';
-import Input from '../components/Input';
-import PrimaryButton from '../components/PrimaryButton';
-import FormControl from '../components/FormControl';
 import { login, useGetMe } from '../api/user';
+import { Dialog, DialogTitle } from '../components/dialog';
+import { FormControl, Input } from '../components/form';
+import { PrimaryButton } from '../components/button';
 
 type FieldValues = {
   username: string;
   password: string;
 };
 
-export default function LoginPage() {
+export function LoginPage() {
   const [_, navigate] = useLocation();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { mutate } = useGetMe({});
