@@ -1,9 +1,8 @@
 import clsx from 'clsx';
-import { ReactNode, useState } from 'react';
+import { cloneElement, ReactElement, ReactNode, useState } from 'react';
 import { usePopper } from 'react-popper';
-import SecondaryButton from './SecondaryButton';
 
-export function TooltipButton({ children, text }: { children?: ReactNode; text: string }) {
+export function Popup({ children, button }: { children?: ReactNode; button: ReactElement }) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
 
@@ -23,14 +22,13 @@ export function TooltipButton({ children, text }: { children?: ReactNode; text: 
 
   return (
     <div ref={setReferenceElement}>
-      <SecondaryButton
-        onClick={() => {
+      {cloneElement(button, {
+        onClick: () => {
           setShow((old) => !old);
           update && update();
-        }}
-      >
-        {text}
-      </SecondaryButton>
+        },
+      })}
+
       {show ? (
         <div
           className={clsx(

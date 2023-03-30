@@ -29,6 +29,7 @@ specifiers:
   react-base16-styling: ^0.9.1
   react-dom: ^18.2.0
   react-hook-form: ^7.43.5
+  react-icons: ^4.8.0
   react-json-tree: ^0.18.0
   react-popper: ^2.3.0
   slate: ^0.91.4
@@ -54,6 +55,7 @@ dependencies:
   react-base16-styling: 0.9.1
   react-dom: 18.2.0_react@18.2.0
   react-hook-form: 7.43.5_react@18.2.0
+  react-icons: 4.8.0_react@18.2.0
   react-json-tree: 0.18.0_pmekkgnqduwlme35zpnqhenc34
   react-popper: 2.3.0_d52dtujcogewjimhlbpfze4rs4
   slate: 0.91.4
@@ -2337,6 +2339,14 @@ packages:
     engines: {node: '>=12.22.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18
+    dependencies:
+      react: 18.2.0
+    dev: false
+
+  /react-icons/4.8.0_react@18.2.0:
+    resolution: {integrity: sha512-N6+kOLcihDiAnj5Czu637waJqSnwlMNROzVZMhfX68V/9bu9qHaMIJC4UdozWoOk57gahFCNHwVvWzm0MTzRjg==}
+    peerDependencies:
+      react: '*'
     dependencies:
       react: 18.2.0
     dev: false
