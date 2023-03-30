@@ -9,4 +9,6 @@ def serve_signed(request, *args, salt: str, max_age: int, **kwargs) -> FileRespo
     path = request.get_full_path()
     if not verify_url(path, salt=salt, max_age=max_age):
         raise PermissionDenied()
-    return serve(request, *args, **kwargs)
+    response = serve(request, *args, **kwargs)
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
