@@ -9,6 +9,7 @@ class Atom(BaseModel):
     start: float  # in ms
     end: float  # in ms
     conf: float  # confidence ~ logit probability
+    conf_ts: float  # timestamp confidence
 
 
 class Paragraph(BaseModel):

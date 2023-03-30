@@ -60,6 +60,7 @@ def _transcription_work(
         rest_conf = 0
         rest_count = 0
         rest_start = 0
+        rest_conf_ts = 0
 
         lang = lang_code
         if lang in [None, "", "auto"]:
@@ -78,6 +79,7 @@ def _transcription_work(
 
                 token_bytes = ctx.token_to_bytes(token.id)
                 conf = token.p
+                conf_ts = token.pt
                 start = token.t0
                 end = token.t1
 
@@ -86,6 +88,7 @@ def _transcription_work(
                 try:
                     text = (rest_token_bytes + token_bytes).decode("utf-8")
                     conf = (rest_conf + conf) / (rest_count + 1)
+                    conf_ts = (rest_conf_ts + conf_ts) / (rest_count + 1)
                     if rest_start != 0:
                         start = rest_start
                 except UnicodeDecodeError:
@@ -96,12 +99,14 @@ def _transcription_work(
                     rest_token_bytes += token_bytes
                     rest_conf += conf
                     rest_count += 1
+                    rest_conf_ts += conf_ts
                     if rest_start != 0:
                         rest_start = start
                     continue
 
                 rest_token_bytes = b""
                 rest_conf = 0
+                rest_conf_ts = 0
                 rest_count = 0
                 rest_start = 0
 
@@ -113,6 +118,7 @@ def _transcription_work(
                         start=start * 10,
                         # 10·ms -> ms
                         end=end * 10,
+                        conf_ts=conf_ts,
                     )
                 )
 
