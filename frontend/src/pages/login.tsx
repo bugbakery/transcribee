@@ -7,6 +7,7 @@ import { login, useGetMe } from '../api/user';
 import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input } from '../components/form';
 import { PrimaryButton } from '../components/button';
+import { AppCenter } from '../components/app';
 
 type FieldValues = {
   username: string;
@@ -49,7 +50,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="h-screen p-6 flex items-center justify-center">
+    <AppCenter>
       <Dialog>
         <DialogTitle>transcribee login</DialogTitle>
         <form
@@ -76,6 +77,6 @@ export function LoginPage() {
           </div>
         </form>
       </Dialog>
-    </div>
+    </AppCenter>
   );
 }

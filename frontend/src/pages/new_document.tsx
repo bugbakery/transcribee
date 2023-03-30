@@ -7,6 +7,7 @@ import { createDocument } from '../api/document';
 import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input } from '../components/form';
 import { PrimaryButton } from '../components/button';
+import { AppCenter } from '../components/app';
 
 type FieldValues = {
   name: string;
@@ -46,11 +47,7 @@ export function NewDocumentPage() {
   };
 
   return (
-    <div
-      className="h-screen p-6 flex items-center justify-center"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => e.preventDefault()}
-    >
+    <AppCenter onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
       <Dialog>
         <DialogTitle>New Document</DialogTitle>
         <form onSubmit={handleSubmit(submitHandler)}>
@@ -177,6 +174,6 @@ export function NewDocumentPage() {
           </div>
         </form>
       </Dialog>
-    </div>
+    </AppCenter>
   );
 }
