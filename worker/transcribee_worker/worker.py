@@ -21,6 +21,14 @@ from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
 
 
+def ensure_timing_invariant(doc: EditorDocument):
+    prev_atom = None
+    for atom in doc.iter_atoms():
+        if prev_atom is not None:
+            assert prev_atom.start <= atom.start, f"{prev_atom} < {atom}"
+        prev_atom = atom
+
+
 class Worker:
     base_url: str
     token: str
@@ -210,7 +218,8 @@ class Worker:
         doc = await self.get_document_state(task.document.id)
         document = EditorDocument.parse_obj(automerge.dump(doc))
 
-        aligned_document = align(document, audio)
+        aligned_document = align(document, audio, extend_duration=500)
+        ensure_timing_invariant(aligned_document)
         with automerge.transaction(doc, "Alignment") as d:
             for d_para, al_para in zip(d.paragraphs, aligned_document.paragraphs):
                 for d_atom, al_atom in zip(d_para.children, al_para.children):
