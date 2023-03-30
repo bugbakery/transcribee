@@ -14,7 +14,6 @@ export default function App() {
   const [_location, navigate] = useLocation();
   const { data, isLoading } = useGetMe({});
   const isLoggedIn = data?.username;
-  console.log('isLoggedIn', isLoggedIn, data);
   if (!isLoggedIn && !isLoading) {
     setTimeout(() => navigate('/login'), 0);
   }

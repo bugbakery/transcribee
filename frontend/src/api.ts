@@ -32,7 +32,7 @@ export function makeSwrHook<P, R>(
   fn: (params: P, req?: RequestInit | undefined) => Promise<ApiResponse<R>>,
 ) {
   return (params: P) =>
-    useSwr([id, params], async (_id: string, params: P) => {
+    useSwr([id, params], async () => {
       const response = await fn(params);
       return response.data;
     });
