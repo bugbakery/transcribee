@@ -3,8 +3,11 @@ import clsx from 'clsx';
 
 import PrimaryButton from '../components/PrimaryButton';
 import { useListDocuments } from '../api/document';
+import { TooltipButton } from '../components/Popup';
+import { useGetMe } from '../api/user';
+import { storeAuthToken } from '../api';
 
-export default function HomePage() {
+export default function UserHomePage() {
   const [_, navigate] = useLocation();
   const { data } = useListDocuments({});
 
@@ -12,9 +15,11 @@ export default function HomePage() {
     <div className="container mx-auto p-6">
       <div className="mb-8 flex justify-between items-center">
         <h1 className="text-xl font-bold">transcribee</h1>
-        <div>
-          <PrimaryButton onClick={() => navigate('/login')}>Login</PrimaryButton>{' '}
-          <PrimaryButton onClick={() => navigate('/new')}>New Document</PrimaryButton>
+        <div className="flex gap-4">
+          <PrimaryButton onClick={() => navigate('/new')}>new</PrimaryButton>
+          <TooltipButton text="me">
+            <MeMenu />
+          </TooltipButton>
         </div>
       </div>
       <ul
@@ -54,5 +59,26 @@ export default function HomePage() {
         })}
       </ul>
     </div>
+  );
+}
+
+function MeMenu() {
+  const { data, mutate } = useGetMe({});
+  const [_location, navigate] = useLocation();
+
+  return (
+    <>
+      <div className="pb-4">hello, {data?.username}</div>
+      <PrimaryButton
+        onClick={() => {
+          storeAuthToken(undefined);
+          mutate();
+          navigate('/');
+          window.location.reload();
+        }}
+      >
+        Logout
+      </PrimaryButton>
+    </>
   );
 }

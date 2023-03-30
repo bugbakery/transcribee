@@ -6,6 +6,7 @@ overrides:
 specifiers:
   '@automerge/automerge': file:deps/automerge-2.0.2.tgz
   '@fontsource/inter': ^4.5.15
+  '@popperjs/core': ^2.11.7
   '@slate-yjs/core': ^0.3.1
   '@tailwindcss/forms': ^0.5.3
   '@types/react': ^18.0.28
@@ -29,6 +30,7 @@ specifiers:
   react-dom: ^18.2.0
   react-hook-form: ^7.43.5
   react-json-tree: ^0.18.0
+  react-popper: ^2.3.0
   slate: ^0.91.4
   slate-react: ^0.91.8
   swr: ^2.1.0
@@ -43,6 +45,7 @@ specifiers:
 dependencies:
   '@automerge/automerge': file:deps/automerge-2.0.2.tgz
   '@fontsource/inter': 4.5.15
+  '@popperjs/core': 2.11.7
   '@slate-yjs/core': 0.3.1_slate@0.91.4+yjs@13.5.48
   clsx: 1.2.1
   lib0: 0.2.63
@@ -52,6 +55,7 @@ dependencies:
   react-dom: 18.2.0_react@18.2.0
   react-hook-form: 7.43.5_react@18.2.0
   react-json-tree: 0.18.0_pmekkgnqduwlme35zpnqhenc34
+  react-popper: 2.3.0_d52dtujcogewjimhlbpfze4rs4
   slate: 0.91.4
   slate-react: 0.91.8_6tgy34rvmll7duwkm4ydcekf3u
   swr: 2.1.0_react@18.2.0
@@ -335,6 +339,10 @@ packages:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.15.0
+
+  /@popperjs/core/2.11.7:
+    resolution: {integrity: sha512-Cr4OjIkipTtcXKjAsm8agyleBuDHvxzeBoa1v543lbv1YaIwQjESsVcmjiWiPEbC1FIeHOG/Op9kdCmAmiS3Kw==}
+    dev: false
 
   /@rollup/plugin-replace/5.0.2:
     resolution: {integrity: sha512-M9YXNekv/C/iHHK+cvORzfRYfPbq0RDD8r0G+bMiTXjNGKulPnCT9O3Ss46WfhI6ZOCgApOP7xAdmCQJ+U2LAA==}
@@ -2320,6 +2328,10 @@ packages:
       scheduler: 0.23.0
     dev: false
 
+  /react-fast-compare/3.2.1:
+    resolution: {integrity: sha512-xTYf9zFim2pEif/Fw16dBiXpe0hoy5PxcD8+OwBnTtNLfIm3g6WxhKNurY+6OmdH1u6Ta/W/Vl6vjbYP1MFnDg==}
+    dev: false
+
   /react-hook-form/7.43.5_react@18.2.0:
     resolution: {integrity: sha512-YcaXhuFHoOPipu5pC7ckxrLrialiOcU91pKu8P+isAcXZyMgByUK9PkI9j5fENO4+6XU5PwWXRGMIFlk9u9UBQ==}
     engines: {node: '>=12.22.0'}
@@ -2344,6 +2356,20 @@ packages:
       '@types/react': 18.0.28
       react: 18.2.0
       react-base16-styling: 0.9.1
+    dev: false
+
+  /react-popper/2.3.0_d52dtujcogewjimhlbpfze4rs4:
+    resolution: {integrity: sha512-e1hj8lL3uM+sgSR4Lxzn5h1GxBlpa4CQz0XLF8kx4MDrDRWY0Ena4c97PUeSX9i5W3UAfDP0z0FXCTQkoXUl3Q==}
+    peerDependencies:
+      '@popperjs/core': ^2.0.0
+      react: ^16.8.0 || ^17 || ^18
+      react-dom: ^16.8.0 || ^17 || ^18
+    dependencies:
+      '@popperjs/core': 2.11.7
+      react: 18.2.0
+      react-dom: 18.2.0_react@18.2.0
+      react-fast-compare: 3.2.1
+      warning: 4.0.3
     dev: false
 
   /react/18.2.0:
@@ -2877,6 +2903,12 @@ packages:
       rollup: 3.18.0
     optionalDependencies:
       fsevents: 2.3.2
+
+  /warning/4.0.3:
+    resolution: {integrity: sha512-rpJyN222KWIvHJ/F53XSZv0Zl/accqHR8et1kpaMTD/fLCRxtV8iX8czMzY7sVZupTI3zcUTg8eycS2kNF9l6w==}
+    dependencies:
+      loose-envify: 1.4.0
+    dev: false
 
   /which-boxed-primitive/1.0.2:
     resolution: {integrity: sha512-bwZdv0AKLpplFY2KZRX6TvyuN7ojjr7lwkg6ml0roIy9YeuSr7JS372qlNW18UQYzgYK9ziGcerWqZOmEn9VNg==}
