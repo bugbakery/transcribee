@@ -136,7 +136,9 @@ def align(
 
     MAX_DURATION = audio.shape[1] / settings.SAMPLE_RATE
 
-    for lang, atoms in transcript.iter_lang_blocks():
+    for paragraph in transcript.paragraphs[:2]:
+        lang = paragraph.lang
+        atoms = paragraph.children
         if not atoms:
             continue
 
@@ -205,8 +207,8 @@ def align(
             end = MAX_DURATION
 
         # pad according original timestamps
-        t1 = max(start - extend_duration, 0)
-        t2 = min(end + extend_duration, MAX_DURATION)
+        t1 = max(start - (extend_duration / 1e3), 0)
+        t2 = min(end + (extend_duration / 1e3), MAX_DURATION)
 
         waveform_segment = audio[
             :, int(t1 * settings.SAMPLE_RATE) : int(t2 * settings.SAMPLE_RATE)
@@ -240,7 +242,7 @@ def align(
 
             if start is None:
                 if last_end < 0:
-                    start_time = t1
+                    start_time = 0
                 else:
                     start_time = char_segments[last_end].end * conversion_factor
             else:
@@ -248,15 +250,14 @@ def align(
 
             if end is None:
                 if next_start not in char_segments:
-                    end_time = t2
+                    end_time = t2 - t1
                 else:
                     end_time = char_segments[next_start].start * conversion_factor
             else:
                 end_time = char_segments[end].end * conversion_factor
 
-            atom.start = start_time
-            atom.end = end_time
-
+            atom.start = start_time + (t1 * 1e3)
+            atom.end = end_time + (t1 * 1e3)
     return transcript
 
 
