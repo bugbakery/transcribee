@@ -1,6 +1,6 @@
 import { primitiveWithClassname } from '../styled';
 
-const Dialog = primitiveWithClassname('div', [
+export const Dialog = primitiveWithClassname('div', [
   'w-96',
   'p-6',
   'bg-white',
@@ -10,4 +10,4 @@ const Dialog = primitiveWithClassname('div', [
   'rounded-lg',
 ]);
 
-export default Dialog;
+export const DialogTitle = primitiveWithClassname('h2', 'font-bold text-lg mb-4');

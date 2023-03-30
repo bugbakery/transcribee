@@ -1,5 +1,22 @@
-import clsx from 'clsx';
+import { primitiveWithClassname } from '../styled';
 import { IconType } from 'react-icons';
+import clsx from 'clsx';
+
+export const PrimaryButton = primitiveWithClassname('button', [
+  'bg-black',
+  'hover:bg-gray-700',
+  'rounded-md',
+  'text-white',
+  'py-2',
+  'px-4',
+]);
+
+export const SecondaryButton = primitiveWithClassname('button', [
+  'hover:bg-gray-200',
+  'rounded-md',
+  'py-2',
+  'px-4',
+]);
 
 export function IconButton({
   icon,

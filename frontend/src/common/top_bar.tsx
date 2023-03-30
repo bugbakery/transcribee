@@ -1,11 +1,10 @@
 import { useLocation } from 'wouter';
 import { storeAuthToken } from '../api';
 import { useGetMe } from '../api/user';
-import PrimaryButton from '../components/PrimaryButton';
 import { primitiveWithClassname } from '../styled';
-import { Popup } from '../components/Popup';
 import { BiUser } from 'react-icons/bi';
-import { IconButton } from '../components/IconButton';
+import { IconButton, PrimaryButton } from '../components/button';
+import { Popup } from '../components/popup';
 
 export const TopBar = primitiveWithClassname('div', 'mb-8 flex items-center gap-4 justify-between');
 export const TopBarTitle = primitiveWithClassname('h2', 'text-xl font-bold');
