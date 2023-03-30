@@ -8,7 +8,7 @@ import DialogTitle from '../components/DialogTitle';
 import Input from '../components/Input';
 import PrimaryButton from '../components/PrimaryButton';
 import FormControl from '../components/FormControl';
-import { login } from '../api/user';
+import { login, useGetMe } from '../api/user';
 
 type FieldValues = {
   username: string;
@@ -18,6 +18,7 @@ type FieldValues = {
 export default function LoginPage() {
   const [_, navigate] = useLocation();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { mutate } = useGetMe({});
 
   const {
     register,
@@ -31,6 +32,7 @@ export default function LoginPage() {
     try {
       const response = await login(data);
       storeAuthToken(response.data.token);
+      mutate();
       navigate('/');
     } catch (e) {
       let message = 'An unknown error occcured.';
@@ -51,7 +53,7 @@ export default function LoginPage() {
   return (
     <div className="h-screen p-6 flex items-center justify-center">
       <Dialog>
-        <DialogTitle>Login</DialogTitle>
+        <DialogTitle>transcribee login</DialogTitle>
         <form
           onSubmit={handleSubmit(submitHandler, () => {
             setErrorMessage(null); // clear general error when hitting submit
