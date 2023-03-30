@@ -5,6 +5,7 @@ import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
 import { AppContainer } from '../components/app';
 import { IconButton } from '../components/button';
 import { TranscriptionEditor } from '../editor/transcription_editor';
+import { PlayerBar } from '../editor/player';
 
 export function DocumentPage({ params }: RouteComponentProps<{ documentId: string }>) {
   const { data } = useGetDocument({ id: params.documentId });
@@ -28,6 +29,7 @@ export function DocumentPage({ params }: RouteComponentProps<{ documentId: strin
       </TopBar>
 
       <TranscriptionEditor documentId={params.documentId} />
+      <PlayerBar audioFile={data?.audio_file} />
     </AppContainer>
   );
 }
