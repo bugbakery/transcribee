@@ -16,6 +16,7 @@ dependencies = [
     "y-py>=0.6.0",
     "uvicorn[standard]>=0.20.0",
     "channels[daphne]>=4.0.0",
+    "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
