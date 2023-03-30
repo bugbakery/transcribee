@@ -1,27 +1,25 @@
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import clsx from 'clsx';
 
-import PrimaryButton from '../components/PrimaryButton';
 import { useListDocuments } from '../api/document';
-import { TooltipButton } from '../components/Popup';
-import { useGetMe } from '../api/user';
-import { storeAuthToken } from '../api';
+import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/TopBar';
+import { AppContainer } from '../components/AppContainer';
 
 export default function UserHomePage() {
-  const [_, navigate] = useLocation();
   const { data } = useListDocuments({});
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-8 flex justify-between items-center">
-        <h1 className="text-xl font-bold">transcribee</h1>
-        <div className="flex gap-4">
-          <PrimaryButton onClick={() => navigate('/new')}>new</PrimaryButton>
-          <TooltipButton text="me">
-            <MeMenu />
-          </TooltipButton>
-        </div>
-      </div>
+    <AppContainer>
+      <TopBar>
+        <TopBarPart>
+          <TopBarTitle>transcribee</TopBarTitle>
+        </TopBarPart>
+
+        <TopBarPart>
+          <MeButton />
+        </TopBarPart>
+      </TopBar>
+
       <ul
         className={clsx(
           'grid',
@@ -58,27 +56,6 @@ export default function UserHomePage() {
           );
         })}
       </ul>
-    </div>
-  );
-}
-
-function MeMenu() {
-  const { data, mutate } = useGetMe({});
-  const [_location, navigate] = useLocation();
-
-  return (
-    <>
-      <div className="pb-4">hello, {data?.username}</div>
-      <PrimaryButton
-        onClick={() => {
-          storeAuthToken(undefined);
-          mutate();
-          navigate('/');
-          window.location.reload();
-        }}
-      >
-        Logout
-      </PrimaryButton>
-    </>
+    </AppContainer>
   );
 }
