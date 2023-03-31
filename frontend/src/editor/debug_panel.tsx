@@ -54,7 +54,8 @@ function Button(props: JSX.IntrinsicElements['button']) {
 const exampleElement: Element = {
   type: 'paragraph',
   lang: 'de',
-  speakers: [0],
+  speaker: 0,
+  alternative_speakers: [0, 1, 2],
   children: [
     { text: 'hallo ', start: 0.33, end: 0.75, conf: 1 },
     { text: 'und ', start: 0.75, end: 0.87, conf: 1 },

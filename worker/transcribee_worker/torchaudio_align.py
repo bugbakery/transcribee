@@ -5,11 +5,12 @@ Authors (among others): C. Max Bain
 """
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Any, Callable, Iterable, Optional
 
 import numpy as np
 import torch
 import torchaudio
-from transcribee_proto.document import Document
+from transcribee_proto.document import Document, Paragraph
 from transcribee_worker.config import settings
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
@@ -100,7 +101,8 @@ def align(
     audio: np.ndarray | torch.Tensor,
     device="cpu",
     extend_duration: float = 2000.0,
-) -> Document:
+    progress_callback: Optional[Callable[[Optional[float], Any], Any]] = None,
+) -> Iterable[Paragraph]:
     """
     Force align phoneme recognition predictions to known transcription
 
@@ -129,6 +131,9 @@ def align(
 
     models_by_lang = {}
 
+    if progress_callback is not None:
+        progress_callback(0, {"action": "converting audio"})
+
     if not torch.is_tensor(audio):
         audio = torch.from_numpy(audio)
     if len(audio.shape) == 1:
@@ -136,13 +141,18 @@ def align(
 
     MAX_DURATION = audio.shape[1] / settings.SAMPLE_RATE
 
-    for paragraph in transcript.paragraphs[:2]:
+    for paragraph in transcript.paragraphs:
         lang = paragraph.lang
         atoms = paragraph.children
         if not atoms:
             continue
 
         if lang not in models_by_lang:
+            if progress_callback is not None:
+                progress_callback(
+                    None,
+                    {"action": "loading model", "lang": lang},
+                )
             models_by_lang[lang] = load_model(
                 transcript.paragraphs[0].lang,
                 device,
@@ -195,7 +205,7 @@ def align(
             atom_index_to_timing_index.append((start_index, end_index))
 
         start = atoms[0].start / 1e3
-        end = atoms[-1].end / 1e3
+        segment_end = atoms[-1].end / 1e3
 
         # if token level timestamps are disabled in the whisper layer
         # the timestamps are negative, so we don't know anything about
@@ -203,16 +213,21 @@ def align(
         if start < 0:
             start = 0
 
-        if end < 0:
-            end = MAX_DURATION
+        if segment_end < 0:
+            segment_end = MAX_DURATION
 
         # pad according original timestamps
         t1 = max(start - (extend_duration / 1e3), 0)
-        t2 = min(end + (extend_duration / 1e3), MAX_DURATION)
+        t2 = min(segment_end + (extend_duration / 1e3), MAX_DURATION)
 
         waveform_segment = audio[
             :, int(t1 * settings.SAMPLE_RATE) : int(t2 * settings.SAMPLE_RATE)
         ]
+
+        if progress_callback is not None:
+            progress_callback(
+                start / MAX_DURATION, {"action": "interference", "start": t1, "end": t2}
+            )
 
         with torch.inference_mode():
             if model_type == "torchaudio":
@@ -236,7 +251,6 @@ def align(
             / settings.SAMPLE_RATE
             * 1e3
         )
-
         for i, atom in enumerate(atoms):
             (start, last_end), (end, next_start) = atom_index_to_timing_index[i]
 
@@ -258,7 +272,12 @@ def align(
 
             atom.start = start_time + (t1 * 1e3)
             atom.end = end_time + (t1 * 1e3)
-    return transcript
+        if progress_callback is not None:
+            progress_callback(
+                segment_end / MAX_DURATION,
+                {"action": "finished paragraph", "start": t1, "end": t2},
+            )
+        yield paragraph
 
 
 """

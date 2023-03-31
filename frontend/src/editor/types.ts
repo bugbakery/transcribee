@@ -8,7 +8,8 @@ export type Text = {
 export type Paragraph = {
   type: 'paragraph';
   children: Text[];
-  speakers: number[];
+  speaker: number | null;
+  alternative_speakers: number[];
   start?: number;
   end?: number;
   lang: string;

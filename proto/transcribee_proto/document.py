@@ -1,7 +1,7 @@
 import itertools
 from typing import Iterator, List, Literal, Mapping, Optional, Tuple
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Atom(BaseModel):
@@ -14,7 +14,8 @@ class Atom(BaseModel):
 
 class Paragraph(BaseModel):
     type: Literal["paragraph"] = "paragraph"
-    speakers: List[int]
+    speaker: Optional[int] = None
+    alternative_speakers: List[int] = Field(default_factory=list)
     children: List[Atom]
     lang: str
 
