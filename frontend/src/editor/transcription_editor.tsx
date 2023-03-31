@@ -5,24 +5,21 @@ import * as Automerge from '@automerge/automerge';
 import { AutomergeWebsocketProvider } from './automerge_websocket_provider';
 import { useDebugMode } from '../debugMode';
 
-import { Document } from './types';
+import { Document, Paragraph } from './types';
 
 const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
 );
 
-function getSpeakerName(speaker_id: number, speaker_names: Record<number, string>): string {
-  if (speaker_id in speaker_names) {
-    return speaker_names[speaker_id];
+function getSpeakerName(element: Paragraph, speaker_names: Record<number, string>): string {
+  if (element.speaker === null && element.alternative_speakers.length > 0) {
+    return `Unknown (${element.alternative_speakers.length} possible speakers)`;
+  } else if (element.speaker === null) {
+    return `Unknown`;
+  } else if (element.speaker in speaker_names) {
+    return speaker_names[element.speaker];
   } else {
-    return `Speaker ${speaker_id + 1}`;
-  }
-}
-function getSpeakerNames(speaker_ids: number[], speaker_names: Record<number, string>): string {
-  if (speaker_ids.length > 0) {
-    return speaker_ids.map((id) => getSpeakerName(id, speaker_names)).join(', ');
-  } else {
-    return 'Unknown Speaker';
+    return `Speaker ${element.speaker + 1}`;
   }
 }
 
@@ -36,7 +33,7 @@ function renderElement(
     return (
       <div className="mb-6 flex">
         <div contentEditable={false} className="w-48 mr-8">
-          {getSpeakerNames(element.speakers, doc)}
+          {getSpeakerName(element, doc)}
           {' ['}
           {para_start?.toFixed(0)}
           {'→'}

@@ -1,10 +1,11 @@
 import logging
 import shutil
 import tempfile
+import time
 import urllib.parse
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import automerge
 import requests
@@ -164,7 +165,7 @@ class Worker:
         audio = load_audio(document_audio)
 
         def progress_callback(_ctx, progress, _data):
-            self.keepalive(task.id, progress=progress / 100)
+            self._set_progress(task.id, "whisper", progress=progress / 100)
 
         doc = await self.get_document_state(task.document.id)
 
@@ -196,8 +197,12 @@ class Worker:
             )
         doc = await self.get_document_state(task.document.id)
 
-        def progress_callback(_ctx, progress, _data):
-            self.keepalive(task.id, progress=progress / 100)
+        self._set_progress(task.id, "diarize", progress=0)
+
+        def progress_callback(progress, extra_data):
+            self._set_progress(
+                task.id, "diarize", progress=progress, extra_data=extra_data
+            )
 
         diarization = diarize(document_audio, progress_callback=progress_callback)
         with automerge.transaction(doc, "Diarization") as d:
@@ -207,6 +212,8 @@ class Worker:
         change = d.get_change()
         if change is not None:
             await self.send_change(task.document.id, change.bytes())
+
+        self._set_progress(task.id, "diarize", progress=1)
 
     async def align(self, task: AlignTask):
         document_audio = self.get_document_audio(task.document)
@@ -218,17 +225,24 @@ class Worker:
         doc = await self.get_document_state(task.document.id)
         document = EditorDocument.parse_obj(automerge.dump(doc))
 
-        aligned_document = align(document, audio, extend_duration=500)
-        ensure_timing_invariant(aligned_document)
-        with automerge.transaction(doc, "Alignment") as d:
-            for d_para, al_para in zip(d.paragraphs, aligned_document.paragraphs):
+        aligned_para_iter = align(
+            document,
+            audio,
+            extend_duration=500,
+            progress_callback=lambda progress, extra_data: self._set_progress(
+                task.id, "torchaudio aligner", progress, extra_data
+            ),
+        )
+        for i, al_para in enumerate(aligned_para_iter):
+            with automerge.transaction(doc, "Alignment") as d:
+                d_para = d.paragraphs[i]
                 for d_atom, al_atom in zip(d_para.children, al_para.children):
                     d_atom.start = al_atom.start
                     d_atom.end = al_atom.end
 
-        change = d.get_change()
-        if change is not None:
-            await self.send_change(task.document.id, change.bytes())
+            change = d.get_change()
+            if change is not None:
+                await self.send_change(task.document.id, change.bytes())
 
         document = EditorDocument.parse_obj(automerge.dump(doc))
 
@@ -239,20 +253,25 @@ class Worker:
                         continue
                     para_start = para.children[0].start
                     para_end = para.children[-1].end
-                    speakers = set(para.speakers)
+                    speakers = set(para.additional_speakers)
                     for segment in document.diarization:
                         if segment.start <= para_end and segment.end >= para_start:
                             for speaker in segment.speakers:
                                 speakers.add(speaker)
 
-                    if set(para.speakers) != speakers:
-                        para.speakers = sorted(list(speakers))
+                    if set(para.additional_speakers) != speakers:
+                        para.additional_speakers = sorted(list(speakers))
+                        if len(speakers) == 1:
+                            para.speaker = list(speakers)[0]
 
             change = d.get_change()
             if change is not None:
                 await self.send_change(task.document.id, change.bytes())
 
-    def mark_completed(self, task_id: str, completion_data: Optional[dict] = None):
+    def mark_completed(self, task_id: str, additional_data: Optional[dict] = None):
+        completion_data = {**self._result_data}
+        if additional_data:
+            completion_data.update(additional_data)
         body = {
             "completion_data": completion_data if completion_data is not None else {}
         }
@@ -264,11 +283,26 @@ class Worker:
         )
         req.raise_for_status()
 
+    def _set_progress(
+        self, task_id: str, step: str, progress: Optional[float], extra_data: Any = None
+    ):
+        self._result_data["progress"].append(
+            {
+                "step": step,
+                "progress": progress,
+                "extra_data": extra_data,
+                "timestamp": time.time(),
+            }
+        )
+        print(self._result_data["progress"][-1])
+        self.keepalive(task_id, progress)
+
     async def run_task(self, mark_completed=True):
         self.tmpdir = Path(tempfile.mkdtemp())
         task = self.claim_task()
 
         no_work = False
+        self._result_data = {"progress": []}
 
         try:
             if task is not None:

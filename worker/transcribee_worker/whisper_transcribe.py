@@ -124,7 +124,6 @@ def _transcription_work(
 
             paragraph = Paragraph(
                 children=atoms,
-                speakers=[],
                 lang=lang,
             )
 
@@ -235,14 +234,17 @@ async def remove_leading_whitespace_from_paragraph(
 async def transcribe_clean(
     data: NDArray, model_name: str, lang_code="en", progress_callback=None
 ):
-    async for v in remove_leading_whitespace_from_paragraph(
-        recombine_split_words(
-            transcribe(
-                data=data,
-                model_name=model_name,
-                lang_code=lang_code,
-                progress_callback=progress_callback,
-            )
-        )
-    ):
+    chain = (
+        recombine_split_words,
+        remove_leading_whitespace_from_paragraph,
+    )
+    iter = transcribe(
+        data=data,
+        model_name=model_name,
+        lang_code=lang_code,
+        progress_callback=progress_callback,
+    )
+    for elem in chain:
+        iter = elem(iter)
+    async for v in iter:
         yield v

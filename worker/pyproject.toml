@@ -16,13 +16,14 @@ dependencies = [
     "pydantic[dotenv]>=1.10.7",
     "whispercpp @ git+https://github.com/transcribee/whispercpp.git@pajowu/wip",
     "transformers>=4.26.1",
-    "torchaudio==0.11.0",
-    "torch==1.11.0",
-    "automerge @ git+https://github.com/transcribee/automerge-py.git@c87d3b39bb271a3b9efcee7aba059b432cf6c09b",
+    "torchaudio==0.13.1",
+    "torch==1.13.1",
+    "automerge @ git+https://github.com/transcribee/automerge-py.git@2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed",
     "websockets>=10.4",
-    "pyannote-audio>=2.1",
-    "torchvision==0.12.0",
+    "pyannote-audio @ git+https://github.com/pyannote/pyannote-audio.git@develop",
+    "torchvision==0.14.1",
     "hmmlearn @ git+https://github.com/hmmlearn/hmmlearn@e22127765b0ca70d01976df2a369667756b8445e",             # hmmlearn version which actually compiled 🙃. Needs to be specified here instead of in pdm.resolution.overrides because pdm crashes otherwise 🙃🙃
+    "lightning-lite>=1.8.6",
 ]
 
 requires-python = ">=3.10"
