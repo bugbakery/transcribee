@@ -187,8 +187,8 @@ class Worker:
         ):
             with automerge.transaction(doc, "Automatic Transcription") as d:
                 p = paragraph.dict()
-                for c in p['children']:
-                    c['text'] = automerge.Text(c['text'])
+                for c in p["children"]:
+                    c["text"] = automerge.Text(c["text"])
                 d.children.append(p)
 
             change = d.get_change()
