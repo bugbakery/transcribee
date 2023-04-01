@@ -16,6 +16,8 @@ export const SecondaryButton = primitiveWithClassname('button', [
   'rounded-md',
   'py-2',
   'px-4',
+  'border',
+  'border-black',
 ]);
 
 export function IconButton({

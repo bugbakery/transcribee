@@ -6,7 +6,7 @@ import { useLocation } from 'wouter';
 import { createDocument } from '../api/document';
 import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input } from '../components/form';
-import { PrimaryButton } from '../components/button';
+import { PrimaryButton, SecondaryButton } from '../components/button';
 import { AppCenter } from '../components/app';
 
 type FieldValues = {
@@ -168,7 +168,8 @@ export function NewDocumentPage() {
                 <p className="text-red-600 text-sm mt-0.5">Audio file is required.</p>
               )}
             </div>
-            <div className="block">
+            <div className="flex justify-between">
+              <SecondaryButton onClick={() => navigate(`/`)}>Cancel</SecondaryButton>
               <PrimaryButton type="submit">Create</PrimaryButton>
             </div>
           </div>
