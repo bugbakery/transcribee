@@ -38,7 +38,7 @@ export function IconButton({
       aria-label={label}
       className={clsx('hover:bg-gray-200', 'rounded-full', 'p-2', props.className)}
     >
-      <Icon size={size || '1.25rem'} />
+      <Icon size={size || 20} />
     </button>
   );
 }
