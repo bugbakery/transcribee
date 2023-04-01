@@ -16,6 +16,12 @@ export function Popup({ children, button }: { children?: ReactNode; button: Reac
           flipVariations: true,
         },
       },
+      {
+        name: 'offset',
+        options: {
+          offset: [0, 8],
+        },
+      },
     ],
   });
   const [show, setShow] = useState(false);
@@ -38,7 +44,6 @@ export function Popup({ children, button }: { children?: ReactNode; button: Reac
             'border-2',
             'shadow-brutal',
             'rounded-lg',
-            'm-2',
           )}
           style={styles.popper}
           ref={setPopperElement}
