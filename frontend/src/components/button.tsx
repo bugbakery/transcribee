@@ -22,8 +22,10 @@ export const SecondaryButton = primitiveWithClassname('button', [
 
 export function IconButton({
   icon,
+  label,
+  size = undefined,
   ...props
-}: { icon: IconType } & React.DetailedHTMLProps<
+}: { icon: IconType; size?: number; label: string } & React.DetailedHTMLProps<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   HTMLButtonElement
 >) {
@@ -32,9 +34,11 @@ export function IconButton({
   return (
     <button
       {...props}
+      title={label}
+      aria-label={label}
       className={clsx('hover:bg-gray-200', 'rounded-full', 'p-2', props.className)}
     >
-      <Icon size={'1.25rem'} />
+      <Icon size={size || '1.25rem'} />
     </button>
   );
 }
