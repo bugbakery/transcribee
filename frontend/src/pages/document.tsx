@@ -14,7 +14,11 @@ export function DocumentPage({ params }: RouteComponentProps<{ documentId: strin
     <AppContainer>
       <TopBar>
         <TopBarPart className="sticky left-4 -ml-12">
-          <IconButton icon={IoIosArrowBack} onClick={() => navigate('/')} />
+          <IconButton
+            icon={IoIosArrowBack}
+            label="back to document gallery"
+            onClick={() => navigate('/')}
+          />
           <TopBarTitle>{data?.name}</TopBarTitle>
         </TopBarPart>
 

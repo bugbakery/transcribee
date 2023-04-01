@@ -12,7 +12,7 @@ export const TopBarPart = primitiveWithClassname('div', 'gap-4 flex items-center
 
 export function MeButton() {
   return (
-    <Popup button={<IconButton icon={BiUser} />}>
+    <Popup button={<IconButton icon={BiUser} label="user-menu" />}>
       <MeMenu />
     </Popup>
   );

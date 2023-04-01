@@ -59,6 +59,8 @@ export function UserHomePage() {
 
         <li>
           <Link
+            title="create new document"
+            aria-label="create new document"
             to={`/new`}
             className={clsx(
               'block',
