@@ -3,9 +3,12 @@ import { Observable } from 'lib0/observable';
 enum MessageSyncType {
   Change = 1,
   ChangeBacklogComplete = 2,
+  FullDoc = 3,
 }
 
-export class AutomergeWebsocketProvider extends Observable<'update' | 'initalSyncComplete'> {
+export class AutomergeWebsocketProvider extends Observable<
+  'update' | 'initalSyncComplete' | 'fullDoc'
+> {
   ws!: WebSocket;
   url: string;
 
@@ -33,6 +36,9 @@ export class AutomergeWebsocketProvider extends Observable<'update' | 'initalSyn
       } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
         this.emit('initalSyncComplete', []);
         console.log('All changes synced');
+      } else if (msg_type === MessageSyncType.FullDoc) {
+        this.emit('fullDoc', [msg]);
+        console.log('Received new document');
       }
     });
 

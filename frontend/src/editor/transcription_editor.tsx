@@ -85,10 +85,8 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
     const provider = new AutomergeWebsocketProvider(
       `ws://localhost:8000/sync/documents/${documentId}/`,
     );
-    provider.on('update', (change: Uint8Array) => {
-      const [newDoc] = Automerge.applyChanges(currentDoc.current, [change], {
-        patchCallback: (x) => console.debug('automerge patches', x),
-      });
+    const applyNewDoc = (newDoc: Automerge.Doc<Document>) => {
+      console.log('applying doc', newDoc);
       setDoc(newDoc);
       currentDoc.current = newDoc;
       if (newDoc.paragraphs) {
@@ -104,8 +102,15 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
             });
         }
       }
+    };
+    provider.on('update', (change: Uint8Array) => {
+      const [newDoc] = Automerge.applyChanges(currentDoc.current, [change], {
+        patchCallback: (x) => console.debug('automerge patches', x),
+      });
+      applyNewDoc(newDoc);
     });
     provider.on('initalSyncComplete', () => setSyncComplete(true));
+    provider.on('fullDoc', (fullDoc: Uint8Array) => applyNewDoc(Automerge.load(fullDoc)));
   }, []);
 
   useEffect(() => {
