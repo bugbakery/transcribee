@@ -244,34 +244,35 @@ def align(
         trellis = get_trellis(emission, tokens)
         path = backtrack(trellis, emission, tokens)
 
-        char_segments = merge_repeats(path)
+        if path is not None:  # Don't touch para if we didn't find a path
+            char_segments = merge_repeats(path)
 
-        conversion_factor = (
-            (waveform_segment.size(1) / (trellis.size(0) - 1))
-            / settings.SAMPLE_RATE
-            * 1e3
-        )
-        for i, atom in enumerate(atoms):
-            (start, last_end), (end, next_start) = atom_index_to_timing_index[i]
+            conversion_factor = (
+                (waveform_segment.size(1) / (trellis.size(0) - 1))
+                / settings.SAMPLE_RATE
+                * 1e3
+            )
+            for i, atom in enumerate(atoms):
+                (start, last_end), (end, next_start) = atom_index_to_timing_index[i]
 
-            if start is None:
-                if last_end < 0:
-                    start_time = 0
+                if start is None:
+                    if last_end < 0:
+                        start_time = 0
+                    else:
+                        start_time = char_segments[last_end].end * conversion_factor
                 else:
-                    start_time = char_segments[last_end].end * conversion_factor
-            else:
-                start_time = char_segments[start].start * conversion_factor
+                    start_time = char_segments[start].start * conversion_factor
 
-            if end is None:
-                if next_start not in char_segments:
-                    end_time = t2 - t1
+                if end is None:
+                    if next_start not in char_segments:
+                        end_time = t2 - t1
+                    else:
+                        end_time = char_segments[next_start].start * conversion_factor
                 else:
-                    end_time = char_segments[next_start].start * conversion_factor
-            else:
-                end_time = char_segments[end].end * conversion_factor
+                    end_time = char_segments[end].end * conversion_factor
 
-            atom.start = start_time + (t1 * 1e3)
-            atom.end = end_time + (t1 * 1e3)
+                atom.start = start_time + (t1 * 1e3)
+                atom.end = end_time + (t1 * 1e3)
         if progress_callback is not None:
             progress_callback(
                 segment_end / MAX_DURATION,
