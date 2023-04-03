@@ -135,9 +135,12 @@ class Worker:
         ) as websocket:
             while True:
                 msg = await websocket.recv()
-                if msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
+                if msg[0] == SyncMessageType.CHANGE:
+                    automerge.apply_changes(doc, [msg[1:]])
+                elif msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
                     break
-                automerge.apply_changes(doc, [msg[1:]])
+                elif msg[0] == SyncMessageType.FULL_DOCUMENT:
+                    doc = automerge.load(msg[1:])
 
         await self._init_doc(document_id, doc)
         return doc

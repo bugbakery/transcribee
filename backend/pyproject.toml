@@ -17,6 +17,7 @@ dependencies = [
     "uvicorn[standard]>=0.20.0",
     "channels[daphne]>=4.0.0",
     "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
+    "automerge @ git+https://github.com/transcribee/automerge-py.git@2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed",
 ]
 requires-python = ">=3.10"
 readme = "README.md"

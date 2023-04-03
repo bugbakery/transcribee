@@ -45,6 +45,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "automerge"
+version = "0.1.1"
+git = "https://github.com/transcribee/automerge-py.git"
+ref = "2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed"
+revision = "2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed"
+summary = ""
+
+[[package]]
 name = "cffi"
 version = "1.15.1"
 summary = "Foreign Function Interface for Python calling C code."
@@ -333,7 +341,7 @@ dependencies = [
     "incremental>=21.3.0",
     "twisted-iocpsupport<2,>=1.0.2; platform_system == \"Windows\"",
     "typing-extensions>=3.6.5",
-    "zope.interface>=4.4.2",
+    "zope-interface>=4.4.2",
 ]
 
 [[package]]
@@ -432,7 +440,7 @@ version = "0.6.0"
 summary = "Python bindings for the Y-CRDT built from yrs (Rust)"
 
 [[package]]
-name = "zope.interface"
+name = "zope-interface"
 version = "5.5.2"
 requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 summary = "Interfaces for Python"
@@ -442,7 +450,7 @@ dependencies = [
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:1267cdcbd532091f01e3cdb65423b9c3b2b93eabf87f204262e21f798bc6c452"
+content_hash = "sha256:3ea023b871868a1e3903239da8284385990739ef66ecade1872c4f1164001962"
 
 [metadata.files]
 "anyio 3.6.2" = [
@@ -1017,7 +1025,7 @@ content_hash = "sha256:1267cdcbd532091f01e3cdb65423b9c3b2b93eabf87f204262e21f798
     {url = "https://files.pythonhosted.org/packages/f3/5a/794b3bb0f45404177c41d2b76437185a5f099fd8326cfe0ed4a273640d5c/y_py-0.6.0-cp39-cp39-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:a20a4d10c8f0ee2b6df265d182d0be0ecd2ba7348c0a20b9df7d4d39df895801"},
     {url = "https://files.pythonhosted.org/packages/f5/34/ffced96a5d2312c23af032c7abd5d8c9b33e5192249f1b968c30a5e2afb8/y_py-0.6.0-cp310-cp310-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:aaaec9718f8a23924c95294d41d87829b113bc9a606a3667dfb995afc45c9920"},
 ]
-"zope.interface 5.5.2" = [
+"zope-interface 5.5.2" = [
     {url = "https://files.pythonhosted.org/packages/01/3a/8e57724eeb9b75d366f0c11b24080c69e12f0b3bfe4dc771336f21271c99/zope.interface-5.5.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:d514c269d1f9f5cd05ddfed15298d6c418129f3f064765295659798349c43e6f"},
     {url = "https://files.pythonhosted.org/packages/01/45/9ff2b9281597da5fcf84995ca18cde71abf248c98bfc7c6bdee60af87dbb/zope.interface-5.5.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:5334e2ef60d3d9439c08baedaf8b84dc9bb9522d0dacbc10572ef5609ef8db6d"},
     {url = "https://files.pythonhosted.org/packages/05/0b/ff478275c63e1b910c0605b0fdbb004cdf6730d17169fffb2ebe6a10fc44/zope.interface-5.5.2-cp27-cp27m-win_amd64.whl", hash = "sha256:65c3c06afee96c654e590e046c4a24559e65b0a87dbff256cd4bd6f77e1a33f9"},

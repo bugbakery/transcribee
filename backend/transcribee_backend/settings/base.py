@@ -128,11 +128,14 @@ class Base(Configuration):
     ASGI_APPLICATION = "transcribee_backend.asgi.application"
 
     TRANSCRIBEE_WORKER_TIMEOUT = 10 * 60  # Timeout in seconds, 10 Minutes
-    # Time in milliseconds to wait after every message of the initial editor sync
-    TRANSCRIBEE_INITIAL_SYNC_SLOWDOWN = 0
     # Whether to serve the static files via django
     SELF_SERVE_STATIC = values.Value(default=True)
     # Signature salt to be used for signing media urls
     TRANSCRIBEE_MEDIA_SIGNATURE_SALT = values.Value(default="transcribee.media")
     # Valid time of signed urls, default: 60 min
     TRANSCRIBEE_MEDIA_SIGNATURE_MAX_AGE_SECONDS = values.Value(default=60 * 60)
+    # Whether to send a full document initially instead of replaying all changes
+    TRANSCRIBEE_INITIAL_SYNC_FULL_DOCUMENT = True
+    # Time in milliseconds to wait after every message of the initial editor sync
+    # Has no effect if TRANSCRIBEE_INITIAL_SYNC_FULL_DOCUMENT is set to True
+    TRANSCRIBEE_INITIAL_SYNC_SLOWDOWN = 0
