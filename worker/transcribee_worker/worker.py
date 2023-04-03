@@ -253,14 +253,14 @@ class Worker:
                         continue
                     para_start = para.children[0].start
                     para_end = para.children[-1].end
-                    speakers = set(para.additional_speakers)
+                    speakers = set(para.alternative_speakers)
                     for segment in document.diarization:
                         if segment.start <= para_end and segment.end >= para_start:
                             for speaker in segment.speakers:
                                 speakers.add(speaker)
 
-                    if set(para.additional_speakers) != speakers:
-                        para.additional_speakers = sorted(list(speakers))
+                    if set(para.alternative_speakers) != speakers:
+                        para.alternative_speakers = sorted(list(speakers))
                         if len(speakers) == 1:
                             para.speaker = list(speakers)[0]
 
