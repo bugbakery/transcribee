@@ -1,6 +1,6 @@
 import { paths } from './openapi-schema';
 import { ApiResponse, Fetcher, Middleware } from 'openapi-typescript-fetch';
-import useSwr from 'swr';
+import useSwr, { SWRConfiguration } from 'swr';
 
 export function storeAuthToken(token: string | undefined) {
   if (token) {
@@ -31,9 +31,13 @@ export function makeSwrHook<P, R>(
   id: string,
   fn: (params: P, req?: RequestInit | undefined) => Promise<ApiResponse<R>>,
 ) {
-  return (params: P) =>
-    useSwr([id, params], async () => {
-      const response = await fn(params);
-      return response.data;
-    });
+  return (params: P, options?: Partial<SWRConfiguration>) =>
+    useSwr(
+      [id, params],
+      async () => {
+        const response = await fn(params);
+        return response.data;
+      },
+      options,
+    );
 }

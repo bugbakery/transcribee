@@ -2,7 +2,14 @@ import clsx from 'clsx';
 import { cloneElement, ReactElement, ReactNode, useState } from 'react';
 import { usePopper } from 'react-popper';
 
-export function Popup({ children, button }: { children?: ReactNode; button: ReactElement }) {
+export function Popup({
+  children,
+  button,
+  ...props
+}: { children?: ReactNode; button: ReactElement } & React.DetailedHTMLProps<
+  React.HTMLAttributes<HTMLDivElement>,
+  HTMLDivElement
+>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
 
@@ -37,6 +44,7 @@ export function Popup({ children, button }: { children?: ReactNode; button: Reac
 
       {show ? (
         <div
+          {...props}
           className={clsx(
             'p-4',
             'bg-white',
@@ -44,6 +52,7 @@ export function Popup({ children, button }: { children?: ReactNode; button: Reac
             'border-2',
             'shadow-brutal',
             'rounded-lg',
+            props.className,
           )}
           style={styles.popper}
           ref={setPopperElement}
