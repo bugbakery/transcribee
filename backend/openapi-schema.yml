@@ -138,6 +138,26 @@ paths:
           description: ''
       tags:
       - api
+  /api/v1/documents/{id}/tasks/:
+    get:
+      operationId: tasksTask
+      description: ''
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ''
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+      tags:
+      - api
   /api/v1/users/me/:
     get:
       operationId: meUserCreate
@@ -435,30 +455,6 @@ components:
       required:
       - name
       - audio_file
-    UserCreate:
-      type: object
-      properties:
-        username:
-          type: string
-        password:
-          type: string
-      required:
-      - username
-      - password
-    UnauthenticatedError:
-      type: object
-      properties:
-        detail:
-          type: string
-      required:
-      - detail
-    ForbiddenError:
-      type: object
-      properties:
-        detail:
-          type: string
-      required:
-      - detail
     Task:
       type: object
       properties:
@@ -502,9 +498,37 @@ components:
         completion_data:
           type: object
           readOnly: true
+        dependency:
+          type: array
+          items:
+            type: string
       required:
       - document
       - task_type
+    UserCreate:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+      - username
+      - password
+    UnauthenticatedError:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    ForbiddenError:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
     ValidationError:
       type: object
       properties:
