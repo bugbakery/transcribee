@@ -15,6 +15,9 @@ export interface paths {
     delete: operations["destroyDocument"];
     patch: operations["partialUpdateDocument"];
   };
+  "/api/v1/documents/{id}/tasks/": {
+    get: operations["tasksTask"];
+  };
   "/api/v1/users/me/": {
     get: operations["meUserCreate"];
   };
@@ -57,16 +60,6 @@ export interface components {
       /** Format: date-time */
       changed_at?: string;
     };
-    UserCreate: {
-      username: string;
-      password: string;
-    };
-    UnauthenticatedError: {
-      detail: string;
-    };
-    ForbiddenError: {
-      detail: string;
-    };
     Task: {
       /** Format: uuid */
       id?: string;
@@ -84,6 +77,17 @@ export interface components {
       /** Format: date-time */
       completed_at?: string | null;
       completion_data?: Record<string, never>;
+      dependency?: (string)[];
+    };
+    UserCreate: {
+      username: string;
+      password: string;
+    };
+    UnauthenticatedError: {
+      detail: string;
+    };
+    ForbiddenError: {
+      detail: string;
     };
     ValidationError: {
       errors: Record<string, never>;
@@ -200,6 +204,20 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["Document"];
+        };
+      };
+    };
+  };
+  tasksTask: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      200: {
+        content: {
+          "application/json": components["schemas"]["Task"];
         };
       };
     };

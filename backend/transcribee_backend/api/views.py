@@ -54,6 +54,20 @@ class DocumentViewSet(viewsets.ModelViewSet):
         align_task.dependency.add(diar_task)
         align_task.dependency.add(transcribe_task)
 
+    @action(
+        detail=True,
+        methods=["get"],
+        permission_classes=[IsAuthenticated],
+        serializer_class=TaskSerializer,
+    )
+    def tasks(self, request, pk):
+        document = get_object_or_404(Document.objects.filter(user=request.user), pk=pk)
+        tasks = Task.objects.filter(document=document)
+        serializer_context = {"document_queryset": document}
+        return Response(
+            TaskSerializer(tasks, many=True, context=serializer_context).data
+        )
+
     serializer_class = DocumentSerializer
     permission_classes = [IsAuthenticated]
 

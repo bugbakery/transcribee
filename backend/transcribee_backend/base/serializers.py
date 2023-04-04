@@ -39,7 +39,10 @@ class WorkerSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
-        document_queryset = kwargs["context"].pop("document_queryset")
+        if "context" in "document_queryset":
+            document_queryset = kwargs["context"].pop("document_queryset")
+        else:
+            document_queryset = Document.objects.none()
         super().__init__(*args, **kwargs)
         self.fields["document"].queryset = document_queryset
 
@@ -56,6 +59,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "assigned_at",
             "completed_at",
             "completion_data",
+            "dependency",
         )
         read_only_fields = (
             "assigned_worker",
