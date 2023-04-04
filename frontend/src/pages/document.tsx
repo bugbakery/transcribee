@@ -6,6 +6,7 @@ import { AppContainer } from '../components/app';
 import { IconButton } from '../components/button';
 import { TranscriptionEditor } from '../editor/transcription_editor';
 import { PlayerBar } from '../editor/player';
+import { WorkerStatus } from '../editor/worker_status';
 
 export function DocumentPage({ params }: RouteComponentProps<{ documentId: string }>) {
   const { data } = useGetDocument({ id: params.documentId });
@@ -24,6 +25,7 @@ export function DocumentPage({ params }: RouteComponentProps<{ documentId: strin
         </TopBarPart>
 
         <TopBarPart>
+          <WorkerStatus documentId={params.documentId} />
           <MeButton />
         </TopBarPart>
       </TopBar>
