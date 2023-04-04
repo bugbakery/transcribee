@@ -1168,11 +1168,11 @@ summary = "A built-package format for Python"
 
 [[package]]
 name = "whispercpp"
-version = "0.0.post125+gc3063b8"
+version = "0.0.post126+gff61fab"
 requires_python = ">=3.8"
 git = "https://github.com/transcribee/whispercpp.git"
 ref = "pajowu/wip"
-revision = "c3063b8179243a7135991cfe032d80561be96d63"
+revision = "ff61fab0bc3203b7c02938c564926b7f80239a9d"
 summary = "whispercpp: Pybind11 bindings for whisper.cpp"
 
 [[package]]
