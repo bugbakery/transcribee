@@ -33,6 +33,7 @@ export function Popup({
 >) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
+  const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
 
   const { styles, attributes, update } = usePopper(referenceElement, popperElement, {
     placement: 'bottom',
@@ -48,6 +49,12 @@ export function Popup({
         name: 'offset',
         options: {
           offset: [0, 8],
+        },
+      },
+      {
+        name: 'arrow',
+        options: {
+          element: arrowElement,
         },
       },
     ],
@@ -87,13 +94,16 @@ export function Popup({
             'border-2',
             'shadow-brutal',
             'rounded-lg',
+            'relative',
             props.className,
           )}
+          id="pop"
           style={styles.popper}
           ref={setPopperElement}
           {...attributes.popper}
         >
           {children}
+          <div ref={setArrowElement} style={styles.arrow} id="arrow" />
         </div>
       ) : (
         <></>

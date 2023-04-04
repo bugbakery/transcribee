@@ -4,15 +4,51 @@
 
 
 @keyframes rainbow_animation {
-    0% { color: #db0000; }
-    15% { color: #f1b500; }
-    45% { color: #00bd2c; }
-    60% { color: #00b9b3; }
-    75% { color: #0091ff; }
-    90% { color: #b405a5; }
-    100% { color: #db0000; }
+    0% {
+        color: #db0000;
+    }
+
+    15% {
+        color: #f1b500;
+    }
+
+    45% {
+        color: #00bd2c;
+    }
+
+    60% {
+        color: #00b9b3;
+    }
+
+    75% {
+        color: #0091ff;
+    }
+
+    90% {
+        color: #b405a5;
+    }
+
+    100% {
+        color: #db0000;
+    }
 }
 
 .animate-rainbow {
     animation: rainbow_animation 6s linear infinite;
+}
+
+
+#pop #arrow {
+    top: -7px;
+}
+
+#pop #arrow::before {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    background-color: white;
+    content: '';
+    transform: translateX(-6px) rotate(45deg);
+    border-left: 2px black solid;
+    border-top: 2px black solid;
 }
