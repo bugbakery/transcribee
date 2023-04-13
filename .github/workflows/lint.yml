@@ -18,6 +18,8 @@ jobs:
 
       - name: setup nix and direnv
         uses: JRMurr/direnv-nix-action@v4.1.0
+        with:
+          cache-store: "false" # turned out to be faster without the cache
 
       - name: install backend dependencies
         run: pdm install -p backend/
