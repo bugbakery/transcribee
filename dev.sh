@@ -6,7 +6,7 @@
 
 set -euxo pipefail
 
-./packaging/dev_prepare.sh
+./packaging/install_dependencies.sh
 
 echo -e "\033[1m# setting up backend:\033[0m\n"
 pdm run -p backend/ manage migrate

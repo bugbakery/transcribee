@@ -22,11 +22,8 @@ jobs:
           cache-store: "false" # turned out to be faster without the cache
           nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
-      - name: install backend dependencies
-        run: pdm install -p backend/
-
-      - name: install frontend dependencies
-        run: pnpm --prefix frontend/ i
+      - name: install dependencies
+        run: ./packaging/install_dependencies.sh
 
       - name: cache pre-commit env
         uses: actions/cache@v3
