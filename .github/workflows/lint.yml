@@ -16,11 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: cachix/install-nix-action@v20
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-
-      - uses: HatsuneMiku3939/direnv-action@v1
+      - name: setup nix and direnv
+        uses: JRMurr/direnv-nix-action@v4.1.0
 
       - name: install backend dependencies
         run: pdm install -p backend/
