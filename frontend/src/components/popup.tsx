@@ -95,15 +95,32 @@ export function Popup({
             'shadow-brutal',
             'rounded-lg',
             'relative',
+            'z-10',
             props.className,
           )}
-          id="pop"
           style={styles.popper}
           ref={setPopperElement}
           {...attributes.popper}
         >
           {children}
-          <div ref={setArrowElement} style={styles.arrow} id="arrow" />
+          <div
+            ref={setArrowElement}
+            style={styles.arrow}
+            className={clsx(
+              'top-[-7px]',
+              'before:absolute',
+              'before:w-[11px]',
+              'before:h-[11px]',
+              'before:bg-white',
+              "before:content-['']",
+              'before:translate-x-[-6px]',
+              'before:rotate-45',
+              'before:border-l-2',
+              'before:border-t-2',
+              'before:border-solid',
+              'before:border-black',
+            )}
+          />
         </div>
       ) : (
         <></>
