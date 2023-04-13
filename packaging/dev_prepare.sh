@@ -6,14 +6,19 @@
 
 set -euxo pipefail
 
+echo -e "\033[1m# installing dependencies:\033[0m\n"
+
+# So Ctrl+C kills all runnning commands
+trap 'kill 0' SIGINT
+
+pdm install -p backend/ &
+pdm install -p worker/ &
+pnpm --prefix frontend/ install &
+
+# Wait until all install commands are finished
+wait
+
 echo -e "\033[1m# setting up backend:\033[0m\n"
-pdm install -p backend/
 pdm run -p backend/ manage migrate
 pdm run -p backend/ manage create_superuser_if_not_exists --user test --pass test
 pdm run -p backend/ manage create_worker --token dev_worker --name "Development Worker"
-
-echo -e "\n\n\033[1m# setting up worker:\033[0m\n"
-pdm install -p worker/
-
-echo -e "\n\n\033[1m# setting up frontend:\033[0m\n"
-pnpm --prefix frontend/ install
