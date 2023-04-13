@@ -6,6 +6,20 @@ module.exports = {
       boxShadow: {
         brutal: '5px 5px #000',
       },
+      keyframes: {
+        rainbow: {
+          '0%': { color: '#db0000' },
+          '15%': { color: '#f1b500' },
+          '45%': { color: '#00bd2c' },
+          '60%': { color: '#00b9b3' },
+          '75%': { color: '#0091ff' },
+          '90%': { color: '#b405a5' },
+          '100%': { color: '#db0000' },
+        },
+      },
+      animation: {
+        rainbow: 'rainbow 6s linear infinite;',
+      },
     },
     fontFamily: {
       sans: [
