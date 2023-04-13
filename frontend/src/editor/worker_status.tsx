@@ -36,7 +36,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
 
   const yPositionsText = data?.map((_, i) => i * 40 + 20);
   const yPositionsCircles = data?.map((_, i) => i * 40 + 14);
-  const pointX = 20;
+  const pointX = 30;
   const strokeProps = {
     strokeWidth: 3,
     fill: 'transparent',
@@ -66,7 +66,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
                 const dependencyIndex = data?.findIndex((task) => task?.id == dependency);
                 const dependencyY = yPositionsCircles[dependencyIndex];
 
-                const curvature = dependencyIndex == i - 1 ? 10 : 20;
+                const curvature = (i - dependencyIndex) * 10;
                 const curvX = pointX - curvature;
 
                 const path = `
@@ -93,7 +93,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
           return (
             <>
               <circle cx={pointX} cy={ourY} r="4" fill={getColor(task)} />
-              <text key={task?.id} x={30} y={yPositionsText[i]} fill={getColor(task)}>
+              <text key={task?.id} x={pointX + 10} y={yPositionsText[i]} fill={getColor(task)}>
                 {task?.task_type} {`(${formatProgress(task)})`}
               </text>
             </>
