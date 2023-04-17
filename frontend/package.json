@@ -46,6 +46,7 @@
     "vite": "^4.1.4"
   },
   "dependencies": {
+    "@audapolis/webvtt-writer": "^1.0.6",
     "@automerge/automerge": "file:deps/automerge-2.0.2.tgz",
     "@fontsource/inter": "^4.5.15",
     "@popperjs/core": "^2.11.7",

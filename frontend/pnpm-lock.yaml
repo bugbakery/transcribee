@@ -4,6 +4,7 @@ overrides:
   '@automerge/automerge-wasm': file:deps/automerge-wasm-0.1.25.tgz
 
 specifiers:
+  '@audapolis/webvtt-writer': ^1.0.6
   '@automerge/automerge': file:deps/automerge-2.0.2.tgz
   '@fontsource/inter': ^4.5.15
   '@popperjs/core': ^2.11.7
@@ -47,6 +48,7 @@ specifiers:
   yjs: ^13.5.48
 
 dependencies:
+  '@audapolis/webvtt-writer': 1.0.6
   '@automerge/automerge': file:deps/automerge-2.0.2.tgz
   '@fontsource/inter': 4.5.15
   '@popperjs/core': 2.11.7
@@ -92,6 +94,10 @@ devDependencies:
   vite: 4.1.4
 
 packages:
+
+  /@audapolis/webvtt-writer/1.0.6:
+    resolution: {integrity: sha512-puzL9RmqNylJJLmKAs02Qzmy448KqKqNXx0AdFEbvpxpa/Mfy1J0T693J3DhtK0llw8dNCrKv68GYav+2plSYg==}
+    dev: false
 
   /@babel/runtime/7.21.0:
     resolution: {integrity: sha512-xwII0//EObnq89Ji5AKYQaRYiW/nZ3llSv29d49IuxPhKbtJoLP+9QUUZ4nVragQVtaVGeZrpB+ZtG/Pdy/POw==}
