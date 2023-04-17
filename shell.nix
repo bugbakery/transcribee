@@ -18,8 +18,12 @@ let
     doCheck = false;
   });
 
+  # no CC env is needed on macOS otherwise some imports are not resolved when building native dependencies
+  env = (if pkgs.stdenv.isDarwin then pkgs.stdenvNoCC else pkgs.stdenv);
 in
-pkgs.mkShell {
+env.mkDerivation {
+  name = "nix-shell";
+
   buildInputs = with pkgs; [
     overmind
     pre-commit
