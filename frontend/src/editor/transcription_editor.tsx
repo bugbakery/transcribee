@@ -6,6 +6,9 @@ import { AutomergeWebsocketProvider } from './automerge_websocket_provider';
 import { useDebugMode } from '../debugMode';
 
 import { Document, Paragraph } from './types';
+import { SecondaryButton } from '../components/button';
+import { generateWebVtt } from '../utils/export/webvtt';
+import { downloadTextAsFile } from '../utils/download_text_as_file';
 
 const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -126,12 +129,27 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
   }, []);
 
   return (
-    <div className={syncComplete ? '' : 'blur'}>
-      <Slate editor={editor} value={value} onChange={setValue}>
-        <Editable renderElement={(props) => renderElement(props, doc)} renderLeaf={renderLeaf} />
-      </Slate>
+    <>
+      <div className="flex justify-end w-full">
+        <SecondaryButton
+          className="my-4"
+          onClick={() => {
+            const vtt = generateWebVtt(doc);
+            downloadTextAsFile('document.vtt', 'text/vtt', vtt.toString());
+          }}
+        >
+          Export as WebVTT
+        </SecondaryButton>
+      </div>
+      <div className={syncComplete ? '' : 'blur'}>
+        <Slate editor={editor} value={value} onChange={setValue}>
+          <Editable renderElement={(props) => renderElement(props, doc)} renderLeaf={renderLeaf} />
+        </Slate>
 
-      <Suspense>{debugMode && <LazyDebugPanel editor={editor} value={value} doc={doc} />}</Suspense>
-    </div>
+        <Suspense>
+          {debugMode && <LazyDebugPanel editor={editor} value={value} doc={doc} />}
+        </Suspense>
+      </div>
+    </>
   );
 }
