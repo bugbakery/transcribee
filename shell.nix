@@ -30,8 +30,8 @@ pkgs.mkShell {
 
     nodePackages.pnpm
 
-    # required by whispercpp
-    bazel_6
+    # required by whispercppy
+    cmake
 
     # required by pre-commit
     git

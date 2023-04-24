@@ -14,7 +14,6 @@ dependencies = [
     "numpy>=1.23.5",
     "librosa>=0.10.0",
     "pydantic[dotenv]>=1.10.7",
-    "whispercpp @ git+https://github.com/transcribee/whispercpp.git@pajowu/wip",
     "transformers>=4.26.1",
     "torchaudio==0.13.1",
     "torch==1.13.1",
@@ -23,6 +22,7 @@ dependencies = [
     "pyannote-audio @ git+https://github.com/pyannote/pyannote-audio.git@develop",
     "torchvision==0.14.1",
     "hmmlearn @ git+https://github.com/hmmlearn/hmmlearn@e22127765b0ca70d01976df2a369667756b8445e",             # hmmlearn version which actually compiled 🙃. Needs to be specified here instead of in pdm.resolution.overrides because pdm crashes otherwise 🙃🙃
+    "whispercppy>=0.0.2",
     "lightning-lite>=1.8.6",
 ]
 

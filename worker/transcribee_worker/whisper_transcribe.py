@@ -6,7 +6,7 @@ import requests
 from numpy.typing import NDArray
 from transcribee_proto.document import Atom, Paragraph
 from transcribee_worker.config import settings
-from whispercpp import api
+from whispercppy import api
 
 
 def get_model_file(model_name: str):
