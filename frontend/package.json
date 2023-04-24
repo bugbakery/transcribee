@@ -70,8 +70,7 @@
     "vite-plugin-wasm": "^3.2.2",
     "wavesurfer-react": "^2.2.2",
     "wavesurfer.js": "^6.6.2",
-    "wouter": "^2.10.0",
-    "yjs": "^13.5.48"
+    "wouter": "^2.10.0"
   },
   "pnpm": {
     "overrides": {
