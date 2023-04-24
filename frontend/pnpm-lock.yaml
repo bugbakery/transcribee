@@ -47,7 +47,6 @@ specifiers:
   wavesurfer-react: ^2.2.2
   wavesurfer.js: ^6.6.2
   wouter: ^2.10.0
-  yjs: ^13.5.48
 
 dependencies:
   '@audapolis/webvtt-writer': 1.0.6
@@ -75,7 +74,6 @@ dependencies:
   wavesurfer-react: 2.2.2_wavesurfer.js@6.6.2
   wavesurfer.js: 6.6.2
   wouter: 2.10.0_react@18.2.0
-  yjs: 13.5.48
 
 devDependencies:
   '@tailwindcss/forms': 0.5.3_tailwindcss@3.2.7
@@ -3026,12 +3024,6 @@ packages:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
     dev: true
-
-  /yjs/13.5.48:
-    resolution: {integrity: sha512-RFUqe1UQa1iKfQ9wZkZQP33iEBBSTz6sW3S5CWzHEe0JVksOi8AzspSTvQk5VskoJj4HzMUYgaNcPrE0MqJ8xQ==}
-    dependencies:
-      lib0: 0.2.63
-    dev: false
 
   /yocto-queue/0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
