@@ -27,7 +27,7 @@ jobs:
 
       - name: setup temp directories
         run: |
-          export TMPDIR="/home/runner/work/"
+          export TMPDIR=$HOME/temp/
           mkdir -p "$TMPDIR"
 
       - name: dry-run nix-shell
