@@ -20,6 +20,7 @@ jobs:
         uses: JRMurr/direnv-nix-action@v4.1.0
         with:
           cache-store: "false" # turned out to be faster without the cache
+          nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
       - name: install backend dependencies
         run: pdm install -p backend/

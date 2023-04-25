@@ -5,7 +5,8 @@ let
   pkgs = import
     (fetchTarball {
       name = "nixpkgs-unstable-new-enough-pdm";
-      url = "https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz";
+      url = "https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz"; # keep in sync with .github/workflows/lint.yml
+
     })
     { };
   pdm = pkgs.pdm.overridePythonAttrs (old: rec {
