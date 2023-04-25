@@ -29,6 +29,7 @@ jobs:
         run: |
           export TMPDIR=$HOME/temp/
           mkdir -p "$TMPDIR"
+          echo "TMPDIR=$(echo $TMPDIR)" >> $GITHUB_ENV
 
       - name: dry-run nix-shell
         run: nix-shell --pure --keep TMPDIR --run "true"
