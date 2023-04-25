@@ -3,7 +3,6 @@ from typing import List, Optional, SupportsFloat, SupportsInt
 
 import torch
 from pyannote.audio import Pipeline
-from pyannote.core.json import dumps
 from transcribee_proto.document import Segment
 
 from .config import settings
@@ -64,7 +63,7 @@ def diarize(audio, progress_callback) -> List[Segment]:
 
     logging.info("Running diarization")
     diarization = pipeline(audio, hook=_hook)
-    logging.info("Diarization Result %s", dumps(diarization))
+    logging.info(f"Diarization Result {diarization}")
 
     segments = []
     for turn, _, speaker in diarization.itertracks(yield_label=True):
