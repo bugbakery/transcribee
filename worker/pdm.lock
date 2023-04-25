@@ -489,6 +489,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "lightning-fabric"
+version = "2.0.2"
+requires_python = ">=3.8"
+summary = "UNKNOWN"
+dependencies = [
+    "fsspec[http]>2021.06.0",
+    "lightning-utilities>=0.7.0",
+    "numpy>=1.17.2",
+    "packaging>=17.1",
+    "torch>=1.11.0",
+    "typing-extensions>=4.0.0",
+]
+
+[[package]]
 name = "lightning-lite"
 version = "1.8.6"
 requires_python = ">=3.7"
@@ -1307,7 +1321,7 @@ dependencies = [
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:f2c3d9fcde5d34783dab37c972f84568fcd6e110210ef968436bd917462db363"
+content_hash = "sha256:b905c196c07c7b090098fabd3910c45203293cf9d76fc991b12d5f0a70692255"
 
 [metadata.files]
 "aiohttp 3.8.4" = [
@@ -2005,6 +2019,10 @@ content_hash = "sha256:f2c3d9fcde5d34783dab37c972f84568fcd6e110210ef968436bd9174
 "lightning-cloud 0.5.34" = [
     {url = "https://files.pythonhosted.org/packages/43/3c/a34e1baddaeeda640707f31a78a50a1a1d9f5d3e4125440d2aa0f0081f21/lightning_cloud-0.5.34.tar.gz", hash = "sha256:fa37940ec0289d5beb05de26082ebdaf0d0bf50de960108945b60ea107861957"},
     {url = "https://files.pythonhosted.org/packages/48/d9/b36d6ef64bd9dc9f5c6624a480b418c86879e5631546b3a9a916a98af141/lightning_cloud-0.5.34-py3-none-any.whl", hash = "sha256:978d2f14bec9cfb0a565d9a1324190929d087b83eaaaa0ea6627270028f38535"},
+]
+"lightning-fabric 2.0.2" = [
+    {url = "https://files.pythonhosted.org/packages/ad/54/a519d0fe9e8e62e92d2063546c7b7f53ad5a07e6d6718bf6dd1431532167/lightning-fabric-2.0.2.tar.gz", hash = "sha256:80ae6bd0bced2da9137dd4099d64eb4cca085ed21a0715a2038a6a973fe359d2"},
+    {url = "https://files.pythonhosted.org/packages/b8/d8/347726bc5a55a776411ab44e4b4f2ab42b11f200cd68b8a1c96e6135a4fa/lightning_fabric-2.0.2-py3-none-any.whl", hash = "sha256:22c29cfe3a670732b96e5b67aa9aacb673c84ca6d20c2c53d8962c0a5a05d928"},
 ]
 "lightning-lite 1.8.6" = [
     {url = "https://files.pythonhosted.org/packages/06/24/2c295867eb738d6edee7456705c3ba1e38823bb75ed3ec16dec560e81bc1/lightning_lite-1.8.6-py3-none-any.whl", hash = "sha256:73cc62c79178704d71316acbcb8f71a58aefc35f58635932558ef1f0e51f088b"},
