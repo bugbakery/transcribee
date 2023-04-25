@@ -22,6 +22,20 @@ jobs:
           cache-store: "false" # turned out to be faster without the cache
           nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
+      - name: Setup backend pypackages cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            backend/__pypackages__/
+          key: ${{ runner.os }}-pypackages-${{ hashFiles('backend/pdm.lock') }}
+
+      - name: Setup worker pypackages cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            worker/__pypackages__/
+          key: ${{ runner.os }}-pypackages-${{ hashFiles('worker/pdm.lock') }}
+
       - name: install dependencies
         run: ./packaging/install_dependencies.sh
 
