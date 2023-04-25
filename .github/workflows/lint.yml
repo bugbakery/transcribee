@@ -31,12 +31,14 @@ jobs:
           export TMPDIR=/home/runner/work
 
       - name: dry-run nix-shell
-        run: nix-shell --pure --run "true"
+        run: nix-shell --pure --keep TMPDIR --run "true"
 
       - run: df -h
 
+      - run: nix-shell --pure --keep TMPDIR --run "env"
+
       - name: install dependencies
-        run: nix-shell --pure --run "./packaging/install_dependencies.sh"
+        run: nix-shell --pure --keep TMPDIR --run "./packaging/install_dependencies.sh"
 
       - name: cache pre-commit env
         uses: actions/cache@v3
@@ -45,4 +47,4 @@ jobs:
           key: ${{ matrix.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: run pre-commit
-        run: nix-shell --pure --run "pre-commit run --show-diff-on-failure --color=always --all-files"
+        run: nix-shell --pure --keep TMPDIR --run "pre-commit run --show-diff-on-failure --color=always --all-files"
