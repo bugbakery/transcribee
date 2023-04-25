@@ -23,6 +23,12 @@ jobs:
 
       - run: pwd
       - run: df -h
+      - run: env
+
+      - name: setup temp directories
+        run: |
+          mkdir -p /home/runner/work
+          export TMPDIR=/home/runner/work
 
       - name: dry-run nix-shell
         run: nix-shell --pure --run "true"
