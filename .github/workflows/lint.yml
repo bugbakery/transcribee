@@ -16,14 +16,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: setup nix and direnv
-        uses: JRMurr/direnv-nix-action@v4.1.0
+      - name: setup nix
+        uses: cachix/install-nix-action@v20
         with:
-          cache-store: "false" # turned out to be faster without the cache
           nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
+      - name: dry-run nix-shell
+        run: nix-shell --pure --run "true"
+
       - name: install dependencies
-        run: ./packaging/install_dependencies.sh
+        run: nix-shell --pure --run "./packaging/install_dependencies.sh"
 
       - name: cache pre-commit env
         uses: actions/cache@v3
@@ -32,4 +34,4 @@ jobs:
           key: ${{ matrix.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: run pre-commit
-        run: pre-commit run --show-diff-on-failure --color=always --all-files
+        run: nix-shell --pure --run "pre-commit run --show-diff-on-failure --color=always --all-files"
