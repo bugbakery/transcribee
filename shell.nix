@@ -47,7 +47,10 @@ pkgs.mkShell {
   ] ++
 
   # accelerates whisper.cpp on M{1,2} Macs
-  (if !stdenv.isDarwin then [ ] else [
-    darwin.apple_sdk.frameworks.Accelerate
-  ]);
+  (lib.optional stdenv.isDarwin darwin.apple_sdk.frameworks.Accelerate);
+
+  # we need this hack to be able to build native python packages
+  shellHook = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+    export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
+  '';
 }
