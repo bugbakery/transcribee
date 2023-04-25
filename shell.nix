@@ -31,6 +31,8 @@ pkgs.mkShell {
 
     nodePackages.pnpm
 
+    libcxx
+
     # required by whispercppy
     cmake
 
@@ -50,4 +52,8 @@ pkgs.mkShell {
   (if !stdenv.isDarwin then [ ] else [
     darwin.apple_sdk.frameworks.Accelerate
   ]);
+
+  shellHook = '''' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+    export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
+  '';
 }
