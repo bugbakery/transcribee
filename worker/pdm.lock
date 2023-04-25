@@ -101,11 +101,12 @@ summary = "multi-library, cross-platform audio decoding"
 
 [[package]]
 name = "automerge"
-version = "0.1.1"
+version = "0.0.1"
+requires_python = ">=3.9,<4.0"
 git = "https://github.com/transcribee/automerge-py.git"
-ref = "2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed"
-revision = "2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed"
-summary = ""
+ref = "057303bd087401f12b166e2adb7161f0fcb3a9dc"
+revision = "057303bd087401f12b166e2adb7161f0fcb3a9dc"
+summary = "A python wrapper around the Automerge rust implementation"
 
 [[package]]
 name = "beautifulsoup4"
@@ -1321,7 +1322,7 @@ dependencies = [
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:b905c196c07c7b090098fabd3910c45203293cf9d76fc991b12d5f0a70692255"
+content_hash = "sha256:f86d98c3c1e7ede9c67eb89dac165a37c08506b081a0a828f8d48500166e32ae"
 
 [metadata.files]
 "aiohttp 3.8.4" = [
