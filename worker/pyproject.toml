@@ -20,7 +20,6 @@ dependencies = [
     "automerge @ git+https://github.com/transcribee/automerge-py.git@2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed",
     "websockets>=10.4",
     "pyannote-audio @ git+https://github.com/pyannote/pyannote-audio.git@c0b82d037a56f0565fcc20d04f741d5baf0f5215", # newest commit on the develop branch
-    "torchvision==0.14.1",
     "whispercppy>=0.0.2",
     "lightning-lite>=1.8.6",
     "sqlalchemy[asyncio]>=2.0.10",  # this is actually a transient dependency for pyannote-audio but without the [asyncio]. On m1 it does not require greenlet which causes non-reproduciable build failures in CI.
