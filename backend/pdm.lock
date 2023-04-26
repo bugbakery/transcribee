@@ -48,8 +48,8 @@ dependencies = [
 name = "automerge"
 version = "0.1.1"
 git = "https://github.com/transcribee/automerge-py.git"
-ref = "2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed"
-revision = "2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed"
+ref = "057303bd087401f12b166e2adb7161f0fcb3a9dc"
+revision = "057303bd087401f12b166e2adb7161f0fcb3a9dc"
 summary = ""
 
 [[package]]
@@ -448,7 +448,7 @@ dependencies = [
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:035d3e6cc945f7c8ba26664e419a451ea6161d6fe3ef28ff18be57b6510bd684"
+content_hash = "sha256:4923cf6b97edfa79f0b4a8a2adcb624eb75c56c8288d81c2ec2f7c61d28ef5d8"
 
 [metadata.files]
 "anyio 3.6.2" = [

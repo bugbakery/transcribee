@@ -16,7 +16,7 @@ dependencies = [
     "uvicorn[standard]>=0.20.0",
     "channels[daphne]>=4.0.0",
     "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
-    "automerge @ git+https://github.com/transcribee/automerge-py.git@2d12fa1306f01a3bc3eb33dd71ffe28f591d8fed",
+    "automerge @ git+https://github.com/transcribee/automerge-py.git@057303bd087401f12b166e2adb7161f0fcb3a9dc",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
@@ -32,10 +32,7 @@ manage = "python manage.py"
 
 
 [tool.pdm.dev-dependencies]
-dev = [
-    "pyyaml>=6.0",
-    "uritemplate>=4.1.1",
-]
+dev = ["pyyaml>=6.0", "uritemplate>=4.1.1"]
 [build-system]
 requires = ["pdm-pep517>=1.0"]
 build-backend = "pdm.pep517.api"
