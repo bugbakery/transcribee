@@ -47,8 +47,7 @@
   },
   "dependencies": {
     "@audapolis/webvtt-writer": "^1.0.6",
-    "@automerge/automerge": "file:deps/automerge-2.0.2.tgz",
-    "@automerge/automerge-wasm": "file:deps/automerge-wasm-0.1.25.tgz",
+    "@automerge/automerge": "^2.0.3",
     "@fontsource/inter": "^4.5.15",
     "@popperjs/core": "^2.11.7",
     "clsx": "^1.2.1",
@@ -71,11 +70,5 @@
     "wavesurfer-react": "^2.2.2",
     "wavesurfer.js": "^6.6.2",
     "wouter": "^2.10.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "@automerge/automerge-wasm": "file:deps/automerge-wasm-0.1.25.tgz",
-      "@automerge/automerge": "file:deps/automerge-2.0.2.tgz"
-    }
   }
 }
