@@ -1,5 +1,3 @@
-import { useEffect } from 'react';
-
 export type Text = {
   text: string;
   start?: number;
@@ -21,22 +19,9 @@ export type Document = {
 };
 
 // we fire this event when the user clicks on a word and we want the player to skip through it
-const TEXT_CLICK_EVENT = 'textClick';
+export const TEXT_CLICK_EVENT = 'textClick';
 export class TextClickEvent extends CustomEvent<{ text: Text }> {
   constructor(text: Text) {
     super(TEXT_CLICK_EVENT, { detail: { text } });
   }
-}
-export function useOnTextClick(callback: (text: Text) => void) {
-  useEffect(() => {
-    const listener = (e: Event) => {
-      const event = e as TextClickEvent;
-      callback(event.detail.text);
-    };
-
-    window.addEventListener(TEXT_CLICK_EVENT, listener);
-    () => {
-      window.removeEventListener(TEXT_CLICK_EVENT, listener);
-    };
-  }, [callback]);
 }
