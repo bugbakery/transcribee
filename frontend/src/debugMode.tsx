@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useEvent } from './utils/use_event';
 
 declare global {
   interface Window {
@@ -21,31 +22,20 @@ function isDebugMode() {
 
 window.debugMode = () => {
   const enableDebug = !isDebugMode();
-
   if (enableDebug) {
     localStorage.setItem(LOCAL_STORAGE_DEBUG_MODE, 'true');
   } else {
     localStorage.removeItem(LOCAL_STORAGE_DEBUG_MODE);
   }
-
-  const event = new DebugModeChangedEvent(enableDebug);
-  window.dispatchEvent(event);
+  window.dispatchEvent(new DebugModeChangedEvent(enableDebug));
 };
 
 export function useDebugMode() {
   const [debugModeEnabled, setDebugModeEnabled] = useState(isDebugMode());
 
-  useEffect(() => {
-    const listener = (e: Event) => {
-      const event = e as DebugModeChangedEvent;
-      setDebugModeEnabled(event.detail.enabled);
-    };
-
-    window.addEventListener(DEBUG_MODE_CHANGED_EVENT, listener);
-    () => {
-      window.removeEventListener(DEBUG_MODE_CHANGED_EVENT, listener);
-    };
-  }, []);
+  useEvent<DebugModeChangedEvent>(DEBUG_MODE_CHANGED_EVENT, (e) => {
+    setDebugModeEnabled(e.detail.enabled);
+  });
 
   return debugModeEnabled;
 }
