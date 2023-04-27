@@ -12,8 +12,6 @@ export type Paragraph = {
   children: Text[];
   speaker: number | null;
   alternative_speakers: number[];
-  start?: number;
-  end?: number;
   lang: string;
 };
 
