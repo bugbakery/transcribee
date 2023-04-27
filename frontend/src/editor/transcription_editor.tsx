@@ -10,6 +10,7 @@ import { Document, Paragraph } from './types';
 import { SecondaryButton } from '../components/button';
 import { generateWebVtt } from '../utils/export/webvtt';
 import { downloadTextAsFile } from '../utils/download_text_as_file';
+import { PlayerBar, startTimeToClassName } from './player';
 
 const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -56,9 +57,12 @@ function renderElement(
 }
 
 function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
-  const classes = [];
+  const classes = ['word'];
   if (leaf.conf != undefined && leaf.conf < 0.7) {
     classes.push('text-red-500');
+  }
+  if (leaf.start !== undefined) {
+    classes.push(startTimeToClassName(leaf.start));
   }
 
   return (
@@ -146,6 +150,7 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
       </div>
 
       <Suspense>{debugMode && <LazyDebugPanel editor={editor} value={value} />}</Suspense>
+      <PlayerBar documentId={documentId} documentContent={value} />
     </>
   );
 }
