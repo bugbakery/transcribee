@@ -42,40 +42,43 @@ export function PlayerBar({
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
-  useEffect(() => {
-    const progressCallback = () => {
-      const time = waveSurferRef.current?.getCurrentTime() || 0;
-      let startTimeOfElement = 0;
+  const progressCallback = useCallback(() => {
+    const time = waveSurferRef.current?.getCurrentTime() || 0;
+    let startTimeOfElement = 0;
 
-      // we loop from the back to the front to get the first element that is no longer too far
-      // (if no text is at the current time, we highlight the text before)
-      outer: for (let i = documentContent.length - 1; i >= 0; i--) {
-        const paragraph = documentContent[i];
-        if ('children' in paragraph) {
-          for (let j = paragraph.children.length - 1; j >= 0; j--) {
-            const word = paragraph.children[j];
-            if (word.start && word.start / 1000 <= time) {
-              startTimeOfElement = word.start;
-              break outer;
-            }
+    // we loop from the back to the front to get the first element that is no longer too far
+    // (if no text is at the current time, we highlight the text before)
+    outer: for (let i = documentContent.length - 1; i >= 0; i--) {
+      const paragraph = documentContent[i];
+      if ('children' in paragraph) {
+        for (let j = paragraph.children.length - 1; j >= 0; j--) {
+          const word = paragraph.children[j];
+          if (word.start && word.start / 1000 <= time) {
+            startTimeOfElement = word.start;
+            break outer;
           }
         }
       }
+    }
 
-      setCurrentElementStartTime(startTimeOfElement);
-    };
+    setCurrentElementStartTime(startTimeOfElement);
+  }, [documentContent]);
 
+  useEffect(() => {
     waveSurferRef.current?.on('seek', progressCallback);
     waveSurferRef.current?.on('audioprocess', progressCallback);
+    waveSurferRef.current?.drawer.on('click', progressCallback);
     return () => {
       waveSurferRef.current?.un('seek', progressCallback);
       waveSurferRef.current?.un('audioprocess', progressCallback);
+      waveSurferRef.current?.drawer.un('click', progressCallback);
     };
-  }, [waveSurferRef.current, documentContent]);
+  }, [waveSurferRef.current, progressCallback]);
 
   // skip to a timestamp if the user clicks on a word in the transcript. The corresponding event is
   // dispatched in transcription_editor.tsx
   useOnTextClick((text) => {
+    progressCallback();
     if (text.start) {
       waveSurferRef.current?.seekTo(text.start / 1000 / waveSurferRef.current.getDuration());
     }
