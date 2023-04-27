@@ -48,6 +48,7 @@
   "dependencies": {
     "@audapolis/webvtt-writer": "^1.0.6",
     "@automerge/automerge": "^2.0.3",
+    "@automerge/automerge-wasm": "^0.1.26",
     "@fontsource/inter": "^4.5.15",
     "@popperjs/core": "^2.11.7",
     "clsx": "^1.2.1",
