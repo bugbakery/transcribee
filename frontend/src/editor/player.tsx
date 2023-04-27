@@ -7,7 +7,8 @@ import WaveSurferType from 'wavesurfer.js';
 import { useGetDocument } from '../api/document';
 import { Descendant } from 'slate';
 import { CssRule } from '../utils/cssdom';
-import { useOnTextClick } from './types';
+import { TEXT_CLICK_EVENT, TextClickEvent } from './types';
+import { useEvent } from '../utils/use_event';
 
 export function PlayerBar({
   documentId,
@@ -77,10 +78,30 @@ export function PlayerBar({
 
   // skip to a timestamp if the user clicks on a word in the transcript. The corresponding event is
   // dispatched in transcription_editor.tsx
-  useOnTextClick((text) => {
+  useEvent<TextClickEvent>(TEXT_CLICK_EVENT, (e) => {
     progressCallback();
-    if (text.start) {
-      waveSurferRef.current?.seekTo(text.start / 1000 / waveSurferRef.current.getDuration());
+    if (e.detail.text.start) {
+      waveSurferRef.current?.seekTo(
+        e.detail.text.start / 1000 / waveSurferRef.current.getDuration(),
+      );
+    }
+  });
+
+  // bind the tab key to play / pause
+  const togglePlaying = () => {
+    if (waveSurferRef.current) {
+      if (!playing) {
+        waveSurferRef.current.play();
+      } else {
+        waveSurferRef.current.pause();
+      }
+    }
+  };
+  useEvent<KeyboardEvent>('keydown', (e) => {
+    if (e.key == 'Tab') {
+      togglePlaying();
+      e.stopPropagation();
+      e.preventDefault();
     }
   });
 
@@ -119,15 +140,7 @@ export function PlayerBar({
           icon={playing ? ImPause : ImPlay2}
           label="play / pause"
           size={28}
-          onClick={() => {
-            if (waveSurferRef.current) {
-              if (!playing) {
-                waveSurferRef.current.play();
-              } else {
-                waveSurferRef.current.pause();
-              }
-            }
-          }}
+          onClick={() => togglePlaying()}
         />
         <IconButton icon={ImForward3} label="forwards" />
 
