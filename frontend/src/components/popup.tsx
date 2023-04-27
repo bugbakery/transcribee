@@ -1,26 +1,13 @@
 import clsx from 'clsx';
-import { cloneElement, ReactElement, ReactNode, useEffect, useState } from 'react';
+import { cloneElement, ReactElement, ReactNode, useState } from 'react';
 import { usePopper } from 'react-popper';
+import { useEvent } from '../utils/use_event';
 
 const POPUP_OPEN_EVENT = 'popupOpen';
 class PopupOpenEvent extends CustomEvent<{ cause: HTMLElement }> {
   constructor(cause: HTMLElement) {
     super(POPUP_OPEN_EVENT, { detail: { cause } });
   }
-}
-
-function useOnPopupOpen(callback: (cause: HTMLElement) => void) {
-  useEffect(() => {
-    const listener = (e: Event) => {
-      const event = e as PopupOpenEvent;
-      callback(event.detail.cause);
-    };
-
-    window.addEventListener(POPUP_OPEN_EVENT, listener);
-    () => {
-      window.removeEventListener(POPUP_OPEN_EVENT, listener);
-    };
-  }, [callback]);
 }
 
 export function Popup({
@@ -60,8 +47,8 @@ export function Popup({
     ],
   });
   const [show, setShow] = useState(false);
-  useOnPopupOpen((cause) => {
-    if (cause != referenceElement) {
+  useEvent<PopupOpenEvent>(POPUP_OPEN_EVENT, (e) => {
+    if (e.detail.cause != referenceElement) {
       setShow(false);
     }
   });
@@ -73,8 +60,7 @@ export function Popup({
           if (!referenceElement) return;
 
           if (!show) {
-            const event = new PopupOpenEvent(referenceElement);
-            window.dispatchEvent(event);
+            window.dispatchEvent(new PopupOpenEvent(referenceElement));
             setShow(true);
           } else {
             setShow(false);
