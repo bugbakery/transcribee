@@ -44,13 +44,16 @@ pkgs.mkShell {
     libiconv
     rustc
     cargo
+    maturin
   ] ++
 
   # accelerates whisper.cpp on M{1,2} Macs
   (lib.optional stdenv.isDarwin darwin.apple_sdk.frameworks.Accelerate);
 
   # we need this hack to be able to build native python packages
-  shellHook = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+  shellHook = ''
+    export LD_LIBRARY_PATH=$LD_SEARCH_PATH:${pkgs.libsndfile.out}/lib
+  '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
     export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
   '';
 }
