@@ -7,6 +7,7 @@ import WaveSurferType from 'wavesurfer.js';
 import { useGetDocument } from '../api/document';
 import { Descendant } from 'slate';
 import { CssRule } from '../utils/cssdom';
+import { useOnTextClick } from './types';
 
 export function PlayerBar({
   documentId,
@@ -66,12 +67,19 @@ export function PlayerBar({
 
     waveSurferRef.current?.on('seek', progressCallback);
     waveSurferRef.current?.on('audioprocess', progressCallback);
-
     return () => {
       waveSurferRef.current?.un('seek', progressCallback);
       waveSurferRef.current?.un('audioprocess', progressCallback);
     };
   }, [waveSurferRef.current, documentContent]);
+
+  // skip to a timestamp if the user clicks on a word in the transcript. The corresponding event is
+  // dispatched in transcription_editor.tsx
+  useOnTextClick((text) => {
+    if (text.start) {
+      waveSurferRef.current?.seekTo(text.start / 1000 / waveSurferRef.current.getDuration());
+    }
+  });
 
   // if we don't know the path of the audio file yet, we can't start to render
   if (!audioFile) return <></>;
