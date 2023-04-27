@@ -3,6 +3,7 @@ import { IconButton } from '../components/button';
 import { Popup } from '../components/popup';
 import { BsRobot } from 'react-icons/bs';
 import clsx from 'clsx';
+import React from 'react';
 
 type Task = ReturnType<typeof useGetDocumentTasks>['data'][0];
 
@@ -57,7 +58,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
           const ourY = yPositionsCircles[i];
 
           return (
-            <>
+            <React.Fragment key={task.id}>
               {task?.dependencies?.map((dependency) => {
                 const dependencyIndex = data?.findIndex((task) => task?.id == dependency.id);
                 const dependencyY = yPositionsCircles[dependencyIndex];
@@ -80,19 +81,19 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
                   />
                 );
               })}
-            </>
+            </React.Fragment>
           );
         })}
         {data?.map((task, i) => {
           const ourY = yPositionsCircles[i];
 
           return (
-            <>
+            <React.Fragment key={task.id}>
               <circle cx={pointX} cy={ourY} r="4" fill={getColor(task)} />
-              <text key={task?.id} x={pointX + 10} y={yPositionsText[i]} fill={getColor(task)}>
+              <text x={pointX + 10} y={yPositionsText[i]} fill={getColor(task)}>
                 {task?.task_type} {`(${formatProgress(task)})`}
               </text>
-            </>
+            </React.Fragment>
           );
         })}
       </svg>
