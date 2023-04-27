@@ -6,7 +6,7 @@ import { withAutomergeDoc } from 'slate-automerge-doc';
 import { AutomergeWebsocketProvider } from './automerge_websocket_provider';
 import { useDebugMode } from '../debugMode';
 
-import { Document, Paragraph } from './types';
+import { Document, Paragraph, TextClickEvent } from './types';
 import { SecondaryButton } from '../components/button';
 import { generateWebVtt } from '../utils/export/webvtt';
 import { downloadTextAsFile } from '../utils/download_text_as_file';
@@ -66,7 +66,14 @@ function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Elemen
   }
 
   return (
-    <span {...attributes} className={classes.join(' ')}>
+    <span
+      {...attributes}
+      className={classes.join(' ')}
+      onClick={() => {
+        // this event is handeled in player.tsx to set the time when someone clicks a word
+        window.dispatchEvent(new TextClickEvent(leaf));
+      }}
+    >
       {children}
     </span>
   );
