@@ -45,3 +45,8 @@ build-backend = "pdm.pep517.api"
 
 [tool.pdm.resolution.overrides]
 soundfile = "0.11.0"
+
+[[tool.pdm.source]]
+type = "find_links"
+url = "https://download.pytorch.org/whl/cpu/torch_stable.html"
+name = "torch"
