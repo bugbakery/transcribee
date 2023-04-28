@@ -1,11 +1,12 @@
 import logging
+import mimetypes
 import shutil
 import tempfile
 import time
 import urllib.parse
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 import automerge
 import requests
@@ -70,24 +71,29 @@ class Worker:
             raise ValueError("`tmpdir` must be set")
         return self.tmpdir / filename
 
-    def get_document_audio_bytes(self, document: ApiDocument) -> Optional[bytes]:
+    def get_document_audio_bytes(
+        self, document: ApiDocument
+    ) -> Optional[Tuple[bytes, str]]:
         logging.debug(f"Getting audio. {document=}")
         if not document.media_files:
             return
         # TODO: smarter selection of used media (seperate tag?)
-        file_url = urllib.parse.urljoin(self.base_url, document.media_files[0].url)
+        media_file = document.media_files[0]
+        file_url = urllib.parse.urljoin(self.base_url, media_file.url)
         response = requests.get(file_url)
-        return response.content
+        return response.content, media_file.content_type
 
     def get_document_audio(self, document: ApiDocument) -> Optional[BytesIO]:
         b = self.get_document_audio_bytes(document=document)
         if b is not None:
-            return BytesIO(b)
+            return BytesIO(b[0])
 
     def get_document_audio_path(self, document: ApiDocument) -> Optional[Path]:
         b = self.get_document_audio_bytes(document=document)
         if b is not None:
-            path = self._get_tmpfile("doc_audio")
+            b, ct = b
+            extension = mimetypes.guess_extension(ct)
+            path = self._get_tmpfile(f"doc_audio.{extension}")
             with open(path, "wb") as f:
                 f.write(b)
             return path
@@ -225,12 +231,12 @@ class Worker:
         self._set_progress(task.id, "diarize", progress=1)
 
     async def align(self, task: AlignTask):
-        document_audio = self.get_document_audio(task.document)
+        document_audio = self.get_document_audio_path(task.document)
         if document_audio is None:
             raise ValueError(
                 f"Document {task.document} has no audio attached. Cannot align."
             )
-        audio = load_audio(document_audio)
+        audio = load_audio(str(document_audio))
         doc = await self.get_document_state(task.document.id)
         document = EditorDocument.parse_obj(automerge.dump(doc))
 
@@ -303,7 +309,6 @@ class Worker:
                 "timestamp": time.time(),
             }
         )
-        print(self._result_data["progress"][-1])
         self.keepalive(task_id, progress)
 
     async def run_task(self, mark_completed=True):
