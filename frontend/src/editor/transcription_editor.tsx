@@ -143,9 +143,9 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
             renderLeaf={renderLeaf}
           />
         </Slate>
-
-        <Suspense>{debugMode && <LazyDebugPanel editor={editor} value={value} />}</Suspense>
       </div>
+
+      <Suspense>{debugMode && <LazyDebugPanel editor={editor} value={value} />}</Suspense>
     </>
   );
 }
