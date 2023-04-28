@@ -151,7 +151,7 @@ def _transcription_work(
         )  # if False, feeds back already transcribed text back to the model
         .with_num_threads(4)
         .with_language(lang_code)
-        .with_max_segment_length(60)  # parameter stolen from whisper.cpp cli
+        .with_max_segment_length(0)  # Unlimited segment length
         .with_token_timestamps(True)
     )
     params.on_new_segment(handle_new_segment, (result_queue, loop))
