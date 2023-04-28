@@ -18,7 +18,7 @@ If you just want to try out `transcribee`, you need to go through the following 
    dependencies listed in the [`shell.nix`](../shell.nix) file by hand
    (but that might be more inconvenient).
 2. Run the dev script (this might take a long time as it downloads / compiles all the dependencies):
-   execute ```./dev.sh``` in the root folder of the `transcribee` repo.
+   execute `./packaging/dev.sh` in the root folder of the `transcribee` repo.
 3. Profit! You can now point your browser to [http://localhost:5173/](http://localhost:5173/) and
    interact with the running transcribee instance. An admin user with the username "admin" and the
    password "admin" is created for you.
@@ -48,10 +48,10 @@ the following steps:
 
 If you do more development on transcribee, you may wish to do the following things:
 
-* Install [`direnv`](https://direnv.net/) for automatically loading the nix-shell when you are in
+- Install [`direnv`](https://direnv.net/) for automatically loading the nix-shell when you are in
   the transcribee directory.
-* Install the [`pre-commit`](https://pre-commit.com/) hook so that your changes are automatically
-  linted before you commit them. Run: ```pre-commit install```
+- Install the [`pre-commit`](https://pre-commit.com/) hook so that your changes are automatically
+  linted before you commit them. Run: `pre-commit install`
 
 ## More!
 

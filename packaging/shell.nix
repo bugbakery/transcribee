@@ -20,6 +20,7 @@ let
   });
   ld_packages = [
     pkgs.file
+    pkgs.libsndfile.out
   ];
 
 in
@@ -58,10 +59,14 @@ pkgs.mkShell {
 
   # we need this hack to be able to build native python packages
   shellHook = ''
-    export LD_LIBRARY_PATH=$LD_SEARCH_PATH:${pkgs.libsndfile.out}/lib
+    # Some libraries are not found if not added directly to LD_LIBRARY_PATH / DYLD_LIBRARY_PATH (on darwin)
+    # However just adding them there is not enough, because macOS purges the DYLD_* variables in some conditions
+    # This means we have to set them again in some script (e.g. ./start_backend.sh) -> we need a "safe" env var to pass them to the script
+    export TRANSCRIBEE_DYLD_LIBRARY_PATH=${builtins.concatStringsSep ":" (map (x: x + "/lib") ld_packages)}
+    export LD_LIBRARY_PATH=$LD_SEARCH_PATH:$TRANSCRIBEE_DYLD_LIBRARY_PATH
   '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
     export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
-    export LD_LIBRARY_PATH=${builtins.concatStringsSep ":" (map (x: x + "/lib") ld_packages)}:$LD_LIBRARY_PATH
+    # `dyld` needs to find the libraries
     export DYLD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DYLD_LIBRARY_PATH
   '';
 }
