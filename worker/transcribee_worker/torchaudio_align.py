@@ -154,7 +154,7 @@ def align(
                     {"action": "loading model", "lang": lang},
                 )
             models_by_lang[lang] = load_model(
-                transcript.paragraphs[0].lang,
+                lang,
                 device,
             )
 
