@@ -2,22 +2,19 @@ import { useGetDocumentTasks } from '../api/document';
 import { IconButton } from '../components/button';
 import { Popup } from '../components/popup';
 import { BsRobot } from 'react-icons/bs';
-import { operations } from '../openapi-schema';
 import clsx from 'clsx';
 
-function formatProgress(
-  task?: operations['tasksTask']['responses']['200']['content']['application/json'],
-): string | undefined {
+type Task = ReturnType<typeof useGetDocumentTasks>['data'][0];
+
+function formatProgress(task?: Task): string | undefined {
   if (!task) return;
-  if (task.completed_at) return 'DONE';
+  if (task.is_completed) return 'DONE';
   else if (task.progress) return `${(task.progress * 100).toFixed(0)}%`;
   else if (task.assigned_at) return 'ASSIGNED';
   else return 'WAITING';
 }
 
-function getColor(
-  task?: operations['tasksTask']['responses']['200']['content']['application/json'],
-): string {
+function getColor(task?: Task): string {
   const str = formatProgress(task);
   return (
     (str &&
@@ -30,8 +27,7 @@ function getColor(
 }
 
 export function WorkerStatus({ documentId }: { documentId: string }) {
-  const { data: dataWrongType } = useGetDocumentTasks({ id: documentId }, { refreshInterval: 1 });
-  const data = dataWrongType as unknown as (typeof dataWrongType)[];
+  const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
   const isWorking = data?.some((task) => !task?.completed_at);
 
   const yPositionsText = data?.map((_, i) => i * 40 + 20);
@@ -62,8 +58,8 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
 
           return (
             <>
-              {task?.dependency?.map((dependency) => {
-                const dependencyIndex = data?.findIndex((task) => task?.id == dependency);
+              {task?.dependencies?.map((dependency) => {
+                const dependencyIndex = data?.findIndex((task) => task?.id == dependency.id);
                 const dependencyY = yPositionsCircles[dependencyIndex];
 
                 const curvature = (i - dependencyIndex) * 10;
@@ -77,7 +73,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
                 `;
                 return (
                   <path
-                    key={dependency}
+                    key={dependency.id}
                     d={path}
                     {...strokeProps}
                     stroke={getColor(data[dependencyIndex])}

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -12,12 +12,18 @@ class TaskType(str, enum.Enum):
     ALIGN = "ALIGN"
 
 
+class DocumentMedia(BaseModel):
+    url: str
+    content_type: str
+    tags: List[str]
+
+
 class Document(BaseModel):
     id: str
     name: str
-    audio_file: Optional[str]
     created_at: str
     changed_at: str
+    media_files: List[DocumentMedia]
 
 
 class TaskBase(BaseModel):
@@ -47,3 +53,11 @@ class AlignTask(TaskBase):
 
 
 AssignedTask = DiarizeTask | TranscribeTask | AlignTask
+
+
+class LoginResponse(BaseModel):
+    token: str
+
+
+class KeepaliveBody(BaseModel):
+    progress: Optional[float]

@@ -53,13 +53,13 @@ class Worker:
             self.task_types = [TaskType.DIARIZE, TaskType.ALIGN, TaskType.TRANSCRIBE]
 
     def _get_headers(self):
-        return {"Authorization": f"Worker {self.token}"}
+        return {"authorization": f"Worker {self.token}"}
 
     def claim_task(self) -> Optional[AssignedTask]:
         logging.info("Asking backend for new task")
         req = requests.post(
             f"{self.base_url}/claim_unassigned_task/",
-            params={"task_type": ",".join(self.task_types)},
+            params={"task_type": self.task_types},
             headers=self._get_headers(),
         )
         req.raise_for_status()
@@ -72,9 +72,10 @@ class Worker:
 
     def get_document_audio_bytes(self, document: ApiDocument) -> Optional[bytes]:
         logging.debug(f"Getting audio. {document=}")
-        if document.audio_file is None:
+        if not document.media_files:
             return
-        file_url = urllib.parse.urljoin(self.base_url, document.audio_file)
+        # TODO: smarter selection of used media (seperate tag?)
+        file_url = urllib.parse.urljoin(self.base_url, document.media_files[0].url)
         response = requests.get(file_url)
         return response.content
 
@@ -130,8 +131,9 @@ class Worker:
 
     async def get_document_state(self, document_id: str) -> automerge.Document:
         doc = automerge.init(EditorDocument)
+        params = urllib.parse.urlencode(self._get_headers())
         async with websockets.connect(
-            f"{self.websocket_base_url}documents/{document_id}/"
+            f"{self.websocket_base_url}{document_id}/?{params}"
         ) as websocket:
             while True:
                 msg = await websocket.recv()
@@ -146,8 +148,9 @@ class Worker:
         return doc
 
     async def send_change(self, document_id: str, change: bytes):
+        params = urllib.parse.urlencode(self._get_headers())
         async with websockets.connect(
-            f"{self.websocket_base_url}documents/{document_id}/"
+            f"{self.websocket_base_url}{document_id}/?{params}"
         ) as websocket:
             while True:
                 msg_type, *_ = await websocket.recv()

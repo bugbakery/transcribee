@@ -1,569 +1,706 @@
-openapi: 3.0.2
-info:
-  title: ''
-  version: ''
-paths:
-  /api/v1/documents/:
-    get:
-      operationId: listDocuments
-      description: ''
-      parameters: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Document'
-          description: ''
-      tags:
-      - api
-    post:
-      operationId: createDocument
-      description: ''
-      parameters: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Document'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Document'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Document'
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Document'
-          description: ''
-      tags:
-      - api
-  /api/v1/documents/{id}/:
-    get:
-      operationId: retrieveDocument
-      description: ''
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ''
-        schema:
-          type: string
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Document'
-          description: ''
-      tags:
-      - api
-    put:
-      operationId: updateDocument
-      description: ''
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ''
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Document'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Document'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Document'
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Document'
-          description: ''
-      tags:
-      - api
-    patch:
-      operationId: partialUpdateDocument
-      description: ''
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ''
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Document'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Document'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Document'
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Document'
-          description: ''
-      tags:
-      - api
-    delete:
-      operationId: destroyDocument
-      description: ''
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ''
-        schema:
-          type: string
-      responses:
-        '204':
-          description: ''
-      tags:
-      - api
-  /api/v1/documents/{id}/tasks/:
-    get:
-      operationId: tasksTask
-      description: ''
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ''
-        schema:
-          type: string
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-          description: ''
-      tags:
-      - api
-  /api/v1/users/me/:
-    get:
-      operationId: meUserCreate
-      description: ''
-      parameters: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserCreate'
-          description: ''
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthenticatedError'
-          description: ''
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenError'
-          description: ''
-      tags:
-      - api
-  /api/v1/tasks/:
-    get:
-      operationId: listTasks
-      description: ''
-      parameters: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Task'
-          description: ''
-      tags:
-      - api
-    post:
-      operationId: createTask
-      description: ''
-      parameters: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Task'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Task'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Task'
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-          description: ''
-      tags:
-      - api
-  /api/v1/tasks/{id}/:
-    get:
-      operationId: retrieveTask
-      description: ''
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ''
-        schema:
-          type: string
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-          description: ''
-      tags:
-      - api
-  /api/v1/users/:
-    post:
-      operationId: createUserCreate
-      description: ''
-      parameters: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserCreate'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/UserCreate'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/UserCreate'
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserCreate'
-          description: ''
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationError'
-          description: ''
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthenticatedError'
-          description: ''
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenError'
-          description: ''
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotFoundError'
-          description: ''
-      tags:
-      - api
-  /api/v1/users/login/:
-    post:
-      operationId: loginUserCreate
-      description: ''
-      parameters: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserCreate'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/UserCreate'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/UserCreate'
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Token'
-          description: ''
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationError'
-          description: ''
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnauthenticatedError'
-          description: ''
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ForbiddenError'
-          description: ''
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotFoundError'
-          description: ''
-      tags:
-      - api
-  /api/v1/tasks/claim_unassigned_task/:
-    post:
-      operationId: claimUnassignedTaskTask
-      description: ''
-      parameters: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Task'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Task'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Task'
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-          description: ''
-      tags:
-      - api
-  /api/v1/tasks/{id}/keepalive/:
-    post:
-      operationId: keepaliveKeepalive
-      description: ''
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ''
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Keepalive'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Keepalive'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Keepalive'
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Keepalive'
-          description: ''
-      tags:
-      - api
-  /api/v1/tasks/{id}/mark_completed/:
-    post:
-      operationId: markCompletedTaskComplete
-      description: ''
-      parameters:
-      - name: id
-        in: path
-        required: true
-        description: ''
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TaskComplete'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/TaskComplete'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/TaskComplete'
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskComplete'
-          description: ''
-      tags:
-      - api
 components:
   schemas:
-    Document:
-      type: object
+    AlignTask:
       properties:
-        id:
-          type: string
+        document_id:
           format: uuid
-          readOnly: true
-        name:
+          title: Document Id
           type: string
-          maxLength: 255
-        audio_file:
-          type: string
-          format: binary
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        changed_at:
-          type: string
-          format: date-time
-          readOnly: true
-      required:
-      - name
-      - audio_file
-    Task:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        document:
-          type: string
+        task_parameters:
+          title: Task Parameters
+          type: object
         task_type:
+          default: ALIGN
           enum:
-          - DIARIZE
-          - TRANSCRIBE
           - ALIGN
+          title: Task Type
+          type: string
+      required:
+      - task_parameters
+      - document_id
+      title: AlignTask
+      type: object
+    AssignedTaskResponse:
+      properties:
+        assigned_at:
+          format: date-time
+          title: Assigned At
+          type: string
+        assigned_worker:
+          $ref: '#/components/schemas/WorkerBase'
+        completed_at:
+          format: date-time
+          title: Completed At
+          type: string
+        dependencies:
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+          title: Dependencies
+          type: array
+        document:
+          $ref: '#/components/schemas/Document'
+        document_id:
+          format: uuid
+          title: Document Id
+          type: string
+        id:
+          format: uuid
+          title: Id
+          type: string
+        is_completed:
+          title: Is Completed
+          type: boolean
+        last_keepalive:
+          format: date-time
+          title: Last Keepalive
           type: string
         progress:
+          title: Progress
           type: number
-          readOnly: true
-          nullable: true
         task_parameters:
+          title: Task Parameters
           type: object
-          description: Task parameters like language, number of speakers, ...
-        assigned_worker:
-          type: string
-          readOnly: true
-          nullable: true
-        last_keepalive:
-          type: string
-          format: date-time
-          readOnly: true
-        assigned_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        completed_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        completion_data:
-          type: object
-          readOnly: true
-        dependency:
-          type: array
-          items:
-            type: string
+        task_type:
+          $ref: '#/components/schemas/TaskType'
       required:
-      - document
       - task_type
-    UserCreate:
+      - task_parameters
+      - document_id
+      - id
+      - document
+      - is_completed
+      - dependencies
+      - assigned_worker
+      - last_keepalive
+      title: AssignedTaskResponse
       type: object
+    Body_create_document_api_v1_documents__post:
       properties:
-        username:
+        file:
+          format: binary
+          title: File
           type: string
+        name:
+          title: Name
+          type: string
+      required:
+      - name
+      - file
+      title: Body_create_document_api_v1_documents__post
+      type: object
+    CreateUser:
+      properties:
         password:
+          title: Password
+          type: string
+        username:
+          title: Username
           type: string
       required:
       - username
       - password
-    UnauthenticatedError:
+      title: CreateUser
       type: object
+    DiarizeTask:
       properties:
-        detail:
+        document_id:
+          format: uuid
+          title: Document Id
           type: string
-      required:
-      - detail
-    ForbiddenError:
-      type: object
-      properties:
-        detail:
-          type: string
-      required:
-      - detail
-    ValidationError:
-      type: object
-      properties:
-        errors:
+        task_parameters:
+          title: Task Parameters
           type: object
-        non_field_errors:
+        task_type:
+          default: DIARIZE
+          enum:
+          - DIARIZE
+          title: Task Type
+          type: string
+      required:
+      - task_parameters
+      - document_id
+      title: DiarizeTask
+      type: object
+    Document:
+      properties:
+        changed_at:
+          title: Changed At
+          type: string
+        created_at:
+          title: Created At
+          type: string
+        id:
+          title: Id
+          type: string
+        media_files:
+          items:
+            $ref: '#/components/schemas/DocumentMedia'
+          title: Media Files
           type: array
+        name:
+          title: Name
+          type: string
+      required:
+      - id
+      - name
+      - created_at
+      - changed_at
+      - media_files
+      title: Document
+      type: object
+    DocumentMedia:
+      properties:
+        content_type:
+          title: Content Type
+          type: string
+        tags:
           items:
             type: string
-      required:
-      - errors
-      - non_field_errors
-    NotFoundError:
-      type: object
-      properties:
-        detail:
+          title: Tags
+          type: array
+        url:
+          title: Url
           type: string
       required:
-      - detail
-    Token:
+      - url
+      - content_type
+      - tags
+      title: DocumentMedia
       type: object
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          title: Detail
+          type: array
+      title: HTTPValidationError
+      type: object
+    KeepaliveBody:
+      properties:
+        progress:
+          title: Progress
+          type: number
+      title: KeepaliveBody
+      type: object
+    LoginResponse:
       properties:
         token:
+          title: Token
           type: string
       required:
       - token
-    Keepalive:
+      title: LoginResponse
       type: object
+    TaskResponse:
       properties:
+        assigned_at:
+          format: date-time
+          title: Assigned At
+          type: string
+        completed_at:
+          format: date-time
+          title: Completed At
+          type: string
+        dependencies:
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+          title: Dependencies
+          type: array
+        document:
+          $ref: '#/components/schemas/Document'
+        document_id:
+          format: uuid
+          title: Document Id
+          type: string
+        id:
+          format: uuid
+          title: Id
+          type: string
+        is_completed:
+          title: Is Completed
+          type: boolean
         progress:
+          title: Progress
           type: number
-    TaskComplete:
-      type: object
-      properties:
-        completion_data:
+        task_parameters:
+          title: Task Parameters
           type: object
+        task_type:
+          $ref: '#/components/schemas/TaskType'
       required:
-      - completion_data
+      - task_type
+      - task_parameters
+      - document_id
+      - id
+      - document
+      - is_completed
+      - dependencies
+      title: TaskResponse
+      type: object
+    TaskType:
+      description: An enumeration.
+      enum:
+      - DIARIZE
+      - TRANSCRIBE
+      - ALIGN
+      title: TaskType
+      type: string
+    TranscribeTask:
+      properties:
+        document_id:
+          format: uuid
+          title: Document Id
+          type: string
+        task_parameters:
+          $ref: '#/components/schemas/TranscribeTaskParameters'
+        task_type:
+          default: TRANSCRIBE
+          enum:
+          - TRANSCRIBE
+          title: Task Type
+          type: string
+      required:
+      - task_parameters
+      - document_id
+      title: TranscribeTask
+      type: object
+    TranscribeTaskParameters:
+      properties:
+        lang:
+          title: Lang
+          type: string
+        model:
+          title: Model
+          type: string
+      required:
+      - lang
+      - model
+      title: TranscribeTaskParameters
+      type: object
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+      type: object
+    WorkerBase:
+      properties:
+        last_seen:
+          format: date-time
+          title: Last Seen
+          type: string
+        name:
+          title: Name
+          type: string
+      required:
+      - name
+      title: WorkerBase
+      type: object
+info:
+  title: FastAPI
+  version: 0.1.0
+openapi: 3.0.2
+paths:
+  /:
+    get:
+      operationId: root__get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Root
+  /api/v1/documents/:
+    get:
+      operationId: list_documents_api_v1_documents__get
+      parameters:
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Document'
+                title: Response List Documents Api V1 Documents  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Documents
+    post:
+      operationId: create_document_api_v1_documents__post
+      parameters:
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_create_document_api_v1_documents__post'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Create Document
+  /api/v1/documents/{document_id}/:
+    get:
+      operationId: get_document_api_v1_documents__document_id___get
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Document
+  /api/v1/documents/{document_id}/tasks/:
+    get:
+      operationId: get_document_tasks_api_v1_documents__document_id__tasks__get
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TaskResponse'
+                title: Response Get Document Tasks Api V1 Documents  Document Id  Tasks  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Document Tasks
+  /api/v1/tasks/:
+    get:
+      operationId: list_tasks_api_v1_tasks__get
+      parameters:
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TaskResponse'
+                title: Response List Tasks Api V1 Tasks  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Tasks
+    post:
+      operationId: create_task_api_v1_tasks__post
+      parameters:
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DiarizeTask'
+              - $ref: '#/components/schemas/TranscribeTask'
+              - $ref: '#/components/schemas/AlignTask'
+              title: Task
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Create Task
+  /api/v1/tasks/claim_unassigned_task/:
+    post:
+      operationId: claim_unassigned_task_api_v1_tasks_claim_unassigned_task__post
+      parameters:
+      - in: query
+        name: task_type
+        required: true
+        schema:
+          items:
+            $ref: '#/components/schemas/TaskType'
+          type: array
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignedTaskResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Claim Unassigned Task
+  /api/v1/tasks/{task_id}/keepalive/:
+    post:
+      operationId: keepalive_api_v1_tasks__task_id__keepalive__post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeepaliveBody'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignedTaskResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Keepalive
+  /api/v1/tasks/{task_id}/mark_completed/:
+    post:
+      operationId: mark_completed_api_v1_tasks__task_id__mark_completed__post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignedTaskResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Mark Completed
+  /api/v1/users/create/:
+    post:
+      operationId: create_user_req_api_v1_users_create__post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Create User Req
+  /api/v1/users/login/:
+    post:
+      operationId: login_api_v1_users_login__post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Login
+  /api/v1/users/me/:
+    get:
+      operationId: read_user_api_v1_users_me__get
+      parameters:
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Read User
+  /media/{file}:
+    get:
+      operationId: serve_media_media__file__get
+      parameters:
+      - in: path
+        name: file
+        required: true
+        schema:
+          title: File
+          type: string
+      - in: query
+        name: X-Transcribee-Signature
+        required: true
+        schema:
+          title: X-Transcribee-Signature
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Serve Media

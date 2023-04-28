@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import { WaveSurfer, WaveForm } from 'wavesurfer-react';
 import WaveSurferType from 'wavesurfer.js';
 
-export function PlayerBar({ audioFile }: { audioFile: string | undefined }) {
+export function PlayerBar({ audioFile }: { audioFile: string | null }) {
   const [playing, setPlayingState] = useState(false);
   const waveSurferRef = useRef<WaveSurferType | undefined>();
   const setPlaying = (playing: boolean) => {

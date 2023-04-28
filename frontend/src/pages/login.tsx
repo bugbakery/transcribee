@@ -38,10 +38,12 @@ export function LoginPage() {
 
       if (e instanceof login.Error) {
         const error = e.getActualType();
-        if (error.status === 400) {
-          if (error.data.non_field_errors) {
-            message = error.data.non_field_errors.join(' ');
+        if (error.status === 422) {
+          if (error.data.detail) {
+            message = error.data.detail.map((x) => x.msg).join(' ');
           }
+        } else if (error.status === 403) {
+          message = 'Incorrect username or password.';
         }
       }
 

@@ -39,7 +39,7 @@ export function NewDocumentPage() {
       return;
     }
 
-    const response = await createDocument({ name: data.name, audio_file: data.audioFile[0] });
+    const response = await createDocument({ name: data.name, file: data.audioFile[0] });
 
     if (response.ok) {
       navigate('/');

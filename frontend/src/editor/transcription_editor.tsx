@@ -79,10 +79,12 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
     return withAutomergeDoc(editorWithReact, Automerge.init());
   }, [documentId]);
 
+  const url = new URL(`ws://localhost:8000/api/v1/documents/sync/${documentId}/`);
+  const authToken = localStorage.getItem('auth');
+  url.searchParams.append('authorization', `Token ${authToken}`);
+
   useEffect(() => {
-    const provider = new AutomergeWebsocketProvider(
-      `ws://localhost:8000/sync/documents/${documentId}/`,
-    );
+    const provider = new AutomergeWebsocketProvider(url.href);
 
     provider.on('initalSyncComplete', () => {
       setSyncComplete(true);

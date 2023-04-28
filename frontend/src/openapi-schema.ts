@@ -5,43 +5,57 @@
 
 
 export interface paths {
+  "/": {
+    /** Root */
+    get: operations["root__get"];
+  };
   "/api/v1/documents/": {
-    get: operations["listDocuments"];
-    post: operations["createDocument"];
+    /** List Documents */
+    get: operations["list_documents_api_v1_documents__get"];
+    /** Create Document */
+    post: operations["create_document_api_v1_documents__post"];
   };
-  "/api/v1/documents/{id}/": {
-    get: operations["retrieveDocument"];
-    put: operations["updateDocument"];
-    delete: operations["destroyDocument"];
-    patch: operations["partialUpdateDocument"];
+  "/api/v1/documents/{document_id}/": {
+    /** Get Document */
+    get: operations["get_document_api_v1_documents__document_id___get"];
   };
-  "/api/v1/documents/{id}/tasks/": {
-    get: operations["tasksTask"];
-  };
-  "/api/v1/users/me/": {
-    get: operations["meUserCreate"];
+  "/api/v1/documents/{document_id}/tasks/": {
+    /** Get Document Tasks */
+    get: operations["get_document_tasks_api_v1_documents__document_id__tasks__get"];
   };
   "/api/v1/tasks/": {
-    get: operations["listTasks"];
-    post: operations["createTask"];
-  };
-  "/api/v1/tasks/{id}/": {
-    get: operations["retrieveTask"];
-  };
-  "/api/v1/users/": {
-    post: operations["createUserCreate"];
-  };
-  "/api/v1/users/login/": {
-    post: operations["loginUserCreate"];
+    /** List Tasks */
+    get: operations["list_tasks_api_v1_tasks__get"];
+    /** Create Task */
+    post: operations["create_task_api_v1_tasks__post"];
   };
   "/api/v1/tasks/claim_unassigned_task/": {
-    post: operations["claimUnassignedTaskTask"];
+    /** Claim Unassigned Task */
+    post: operations["claim_unassigned_task_api_v1_tasks_claim_unassigned_task__post"];
   };
-  "/api/v1/tasks/{id}/keepalive/": {
-    post: operations["keepaliveKeepalive"];
+  "/api/v1/tasks/{task_id}/keepalive/": {
+    /** Keepalive */
+    post: operations["keepalive_api_v1_tasks__task_id__keepalive__post"];
   };
-  "/api/v1/tasks/{id}/mark_completed/": {
-    post: operations["markCompletedTaskComplete"];
+  "/api/v1/tasks/{task_id}/mark_completed/": {
+    /** Mark Completed */
+    post: operations["mark_completed_api_v1_tasks__task_id__mark_completed__post"];
+  };
+  "/api/v1/users/create/": {
+    /** Create User Req */
+    post: operations["create_user_req_api_v1_users_create__post"];
+  };
+  "/api/v1/users/login/": {
+    /** Login */
+    post: operations["login_api_v1_users_login__post"];
+  };
+  "/api/v1/users/me/": {
+    /** Read User */
+    get: operations["read_user_api_v1_users_me__get"];
+  };
+  "/media/{file}": {
+    /** Serve Media */
+    get: operations["serve_media_media__file__get"];
   };
 }
 
@@ -49,61 +63,210 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
-    Document: {
-      /** Format: uuid */
-      id?: string;
+    /** AlignTask */
+    AlignTask: {
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      /** Task Parameters */
+      task_parameters: Record<string, never>;
+      /**
+       * Task Type
+       * @default ALIGN
+       * @enum {string}
+       */
+      task_type?: "ALIGN";
+    };
+    /** AssignedTaskResponse */
+    AssignedTaskResponse: {
+      /**
+       * Assigned At
+       * Format: date-time
+       */
+      assigned_at?: string;
+      assigned_worker: components["schemas"]["WorkerBase"];
+      /**
+       * Completed At
+       * Format: date-time
+       */
+      completed_at?: string;
+      /** Dependencies */
+      dependencies: (components["schemas"]["TaskResponse"])[];
+      document: components["schemas"]["Document"];
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Is Completed */
+      is_completed: boolean;
+      /**
+       * Last Keepalive
+       * Format: date-time
+       */
+      last_keepalive: string;
+      /** Progress */
+      progress?: number;
+      /** Task Parameters */
+      task_parameters: Record<string, never>;
+      task_type: components["schemas"]["TaskType"];
+    };
+    /** Body_create_document_api_v1_documents__post */
+    Body_create_document_api_v1_documents__post: {
+      /**
+       * File
+       * Format: binary
+       */
+      file: string;
+      /** Name */
       name: string;
-      /** Format: binary */
-      audio_file: string;
-      /** Format: date-time */
-      created_at?: string;
-      /** Format: date-time */
-      changed_at?: string;
     };
-    Task: {
-      /** Format: uuid */
-      id?: string;
-      document: string;
-      /** @enum {string} */
-      task_type: "DIARIZE" | "TRANSCRIBE" | "ALIGN";
-      progress?: number | null;
-      /** @description Task parameters like language, number of speakers, ... */
-      task_parameters?: Record<string, never>;
-      assigned_worker?: string | null;
-      /** Format: date-time */
-      last_keepalive?: string;
-      /** Format: date-time */
-      assigned_at?: string | null;
-      /** Format: date-time */
-      completed_at?: string | null;
-      completion_data?: Record<string, never>;
-      dependency?: (string)[];
-    };
-    UserCreate: {
-      username: string;
+    /** CreateUser */
+    CreateUser: {
+      /** Password */
       password: string;
+      /** Username */
+      username: string;
     };
-    UnauthenticatedError: {
-      detail: string;
+    /** DiarizeTask */
+    DiarizeTask: {
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      /** Task Parameters */
+      task_parameters: Record<string, never>;
+      /**
+       * Task Type
+       * @default DIARIZE
+       * @enum {string}
+       */
+      task_type?: "DIARIZE";
     };
-    ForbiddenError: {
-      detail: string;
+    /** Document */
+    Document: {
+      /** Changed At */
+      changed_at: string;
+      /** Created At */
+      created_at: string;
+      /** Id */
+      id: string;
+      /** Media Files */
+      media_files: (components["schemas"]["DocumentMedia"])[];
+      /** Name */
+      name: string;
     };
-    ValidationError: {
-      errors: Record<string, never>;
-      non_field_errors: (string)[];
+    /** DocumentMedia */
+    DocumentMedia: {
+      /** Content Type */
+      content_type: string;
+      /** Tags */
+      tags: (string)[];
+      /** Url */
+      url: string;
     };
-    NotFoundError: {
-      detail: string;
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: (components["schemas"]["ValidationError"])[];
     };
-    Token: {
-      token: string;
-    };
-    Keepalive: {
+    /** KeepaliveBody */
+    KeepaliveBody: {
+      /** Progress */
       progress?: number;
     };
-    TaskComplete: {
-      completion_data: Record<string, never>;
+    /** LoginResponse */
+    LoginResponse: {
+      /** Token */
+      token: string;
+    };
+    /** TaskResponse */
+    TaskResponse: {
+      /**
+       * Assigned At
+       * Format: date-time
+       */
+      assigned_at?: string;
+      /**
+       * Completed At
+       * Format: date-time
+       */
+      completed_at?: string;
+      /** Dependencies */
+      dependencies: (components["schemas"]["TaskResponse"])[];
+      document: components["schemas"]["Document"];
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Is Completed */
+      is_completed: boolean;
+      /** Progress */
+      progress?: number;
+      /** Task Parameters */
+      task_parameters: Record<string, never>;
+      task_type: components["schemas"]["TaskType"];
+    };
+    /**
+     * TaskType
+     * @description An enumeration.
+     * @enum {string}
+     */
+    TaskType: "DIARIZE" | "TRANSCRIBE" | "ALIGN";
+    /** TranscribeTask */
+    TranscribeTask: {
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      task_parameters: components["schemas"]["TranscribeTaskParameters"];
+      /**
+       * Task Type
+       * @default TRANSCRIBE
+       * @enum {string}
+       */
+      task_type?: "TRANSCRIBE";
+    };
+    /** TranscribeTaskParameters */
+    TranscribeTaskParameters: {
+      /** Lang */
+      lang: string;
+      /** Model */
+      model: string;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+    };
+    /** WorkerBase */
+    WorkerBase: {
+      /**
+       * Last Seen
+       * Format: date-time
+       */
+      last_seen?: string;
+      /** Name */
+      name: string;
     };
   };
   responses: never;
@@ -117,295 +280,332 @@ export type external = Record<string, never>;
 
 export interface operations {
 
-  listDocuments: {
+  /** Root */
+  root__get: {
     responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+    };
+  };
+  /** List Documents */
+  list_documents_api_v1_documents__get: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
       200: {
         content: {
           "application/json": (components["schemas"]["Document"])[];
         };
       };
-    };
-  };
-  createDocument: {
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["Document"];
-        "application/x-www-form-urlencoded": components["schemas"]["Document"];
-        "multipart/form-data": components["schemas"]["Document"];
-      };
-    };
-    responses: {
-      201: {
+      /** @description Validation Error */
+      422: {
         content: {
-          "application/json": components["schemas"]["Document"];
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
   };
-  retrieveDocument: {
+  /** Create Document */
+  create_document_api_v1_documents__post: {
     parameters: {
-      path: {
-        id: string;
+      header: {
+        authorization: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_create_document_api_v1_documents__post"];
       };
     };
     responses: {
+      /** @description Successful Response */
       200: {
         content: {
           "application/json": components["schemas"]["Document"];
         };
       };
-    };
-  };
-  updateDocument: {
-    parameters: {
-      path: {
-        id: string;
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
       };
     };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["Document"];
-        "application/x-www-form-urlencoded": components["schemas"]["Document"];
-        "multipart/form-data": components["schemas"]["Document"];
+  };
+  /** Get Document */
+  get_document_api_v1_documents__document_id___get: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        document_id: string;
       };
     };
     responses: {
+      /** @description Successful Response */
       200: {
         content: {
           "application/json": components["schemas"]["Document"];
         };
       };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
   };
-  destroyDocument: {
+  /** Get Document Tasks */
+  get_document_tasks_api_v1_documents__document_id__tasks__get: {
     parameters: {
+      header: {
+        authorization: string;
+      };
       path: {
-        id: string;
+        document_id: string;
       };
     };
     responses: {
-      204: never;
-    };
-  };
-  partialUpdateDocument: {
-    parameters: {
-      path: {
-        id: string;
-      };
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["Document"];
-        "application/x-www-form-urlencoded": components["schemas"]["Document"];
-        "multipart/form-data": components["schemas"]["Document"];
-      };
-    };
-    responses: {
+      /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["Document"];
+          "application/json": (components["schemas"]["TaskResponse"])[];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
   };
-  tasksTask: {
+  /** List Tasks */
+  list_tasks_api_v1_tasks__get: {
     parameters: {
-      path: {
-        id: string;
+      header: {
+        authorization: string;
       };
     };
     responses: {
+      /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["Task"];
+          "application/json": (components["schemas"]["TaskResponse"])[];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
   };
-  meUserCreate: {
+  /** Create Task */
+  create_task_api_v1_tasks__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DiarizeTask"] | components["schemas"]["TranscribeTask"] | components["schemas"]["AlignTask"];
+      };
+    };
     responses: {
+      /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["UserCreate"];
+          "application/json": components["schemas"]["TaskResponse"];
         };
       };
-      401: {
+      /** @description Validation Error */
+      422: {
         content: {
-          "application/json": components["schemas"]["UnauthenticatedError"];
-        };
-      };
-      403: {
-        content: {
-          "application/json": components["schemas"]["ForbiddenError"];
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
   };
-  listTasks: {
+  /** Claim Unassigned Task */
+  claim_unassigned_task_api_v1_tasks_claim_unassigned_task__post: {
+    parameters: {
+      query: {
+        task_type: (components["schemas"]["TaskType"])[];
+      };
+      header: {
+        authorization: string;
+      };
+    };
     responses: {
+      /** @description Successful Response */
       200: {
         content: {
-          "application/json": (components["schemas"]["Task"])[];
+          "application/json": components["schemas"]["AssignedTaskResponse"];
         };
       };
-    };
-  };
-  createTask: {
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["Task"];
-        "application/x-www-form-urlencoded": components["schemas"]["Task"];
-        "multipart/form-data": components["schemas"]["Task"];
-      };
-    };
-    responses: {
-      201: {
+      /** @description Validation Error */
+      422: {
         content: {
-          "application/json": components["schemas"]["Task"];
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
   };
-  retrieveTask: {
+  /** Keepalive */
+  keepalive_api_v1_tasks__task_id__keepalive__post: {
     parameters: {
+      header: {
+        authorization: string;
+      };
       path: {
-        id: string;
+        task_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["KeepaliveBody"];
       };
     };
     responses: {
+      /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["Task"];
+          "application/json": components["schemas"]["AssignedTaskResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
   };
-  createUserCreate: {
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["UserCreate"];
-        "application/x-www-form-urlencoded": components["schemas"]["UserCreate"];
-        "multipart/form-data": components["schemas"]["UserCreate"];
-      };
-    };
-    responses: {
-      201: {
-        content: {
-          "application/json": components["schemas"]["UserCreate"];
-        };
-      };
-      400: {
-        content: {
-          "application/json": components["schemas"]["ValidationError"];
-        };
-      };
-      401: {
-        content: {
-          "application/json": components["schemas"]["UnauthenticatedError"];
-        };
-      };
-      403: {
-        content: {
-          "application/json": components["schemas"]["ForbiddenError"];
-        };
-      };
-      404: {
-        content: {
-          "application/json": components["schemas"]["NotFoundError"];
-        };
-      };
-    };
-  };
-  loginUserCreate: {
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["UserCreate"];
-        "application/x-www-form-urlencoded": components["schemas"]["UserCreate"];
-        "multipart/form-data": components["schemas"]["UserCreate"];
-      };
-    };
-    responses: {
-      201: {
-        content: {
-          "application/json": components["schemas"]["Token"];
-        };
-      };
-      400: {
-        content: {
-          "application/json": components["schemas"]["ValidationError"];
-        };
-      };
-      401: {
-        content: {
-          "application/json": components["schemas"]["UnauthenticatedError"];
-        };
-      };
-      403: {
-        content: {
-          "application/json": components["schemas"]["ForbiddenError"];
-        };
-      };
-      404: {
-        content: {
-          "application/json": components["schemas"]["NotFoundError"];
-        };
-      };
-    };
-  };
-  claimUnassignedTaskTask: {
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["Task"];
-        "application/x-www-form-urlencoded": components["schemas"]["Task"];
-        "multipart/form-data": components["schemas"]["Task"];
-      };
-    };
-    responses: {
-      201: {
-        content: {
-          "application/json": components["schemas"]["Task"];
-        };
-      };
-    };
-  };
-  keepaliveKeepalive: {
+  /** Mark Completed */
+  mark_completed_api_v1_tasks__task_id__mark_completed__post: {
     parameters: {
-      path: {
-        id: string;
+      header: {
+        authorization: string;
       };
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["Keepalive"];
-        "application/x-www-form-urlencoded": components["schemas"]["Keepalive"];
-        "multipart/form-data": components["schemas"]["Keepalive"];
+      path: {
+        task_id: string;
       };
     };
     responses: {
-      201: {
+      /** @description Successful Response */
+      200: {
         content: {
-          "application/json": components["schemas"]["Keepalive"];
+          "application/json": components["schemas"]["AssignedTaskResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
   };
-  markCompletedTaskComplete: {
-    parameters: {
-      path: {
-        id: string;
-      };
-    };
-    requestBody?: {
+  /** Create User Req */
+  create_user_req_api_v1_users_create__post: {
+    requestBody: {
       content: {
-        "application/json": components["schemas"]["TaskComplete"];
-        "application/x-www-form-urlencoded": components["schemas"]["TaskComplete"];
-        "multipart/form-data": components["schemas"]["TaskComplete"];
+        "application/json": components["schemas"]["CreateUser"];
       };
     };
     responses: {
-      201: {
+      /** @description Successful Response */
+      200: {
         content: {
-          "application/json": components["schemas"]["TaskComplete"];
+          "application/json": Record<string, never>;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Login */
+  login_api_v1_users_login__post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUser"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["LoginResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Read User */
+  read_user_api_v1_users_me__get: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Serve Media */
+  serve_media_media__file__get: {
+    parameters: {
+      query: {
+        "X-Transcribee-Signature": string;
+      };
+      path: {
+        file: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

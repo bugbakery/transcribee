@@ -18,6 +18,9 @@ let
     };
     doCheck = false;
   });
+  ld_packages = [
+    pkgs.file
+  ];
 
 in
 pkgs.mkShell {
@@ -45,6 +48,9 @@ pkgs.mkShell {
     rustc
     cargo
     maturin
+
+    # provides libmagic which is needed by python-magic in the worker
+    file
   ] ++
 
   # accelerates whisper.cpp on M{1,2} Macs
@@ -55,5 +61,7 @@ pkgs.mkShell {
     export LD_LIBRARY_PATH=$LD_SEARCH_PATH:${pkgs.libsndfile.out}/lib
   '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
     export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
+    export LD_LIBRARY_PATH=${builtins.concatStringsSep ":" (map (x: x + "/lib") ld_packages)}:$LD_LIBRARY_PATH
+    export DYLD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DYLD_LIBRARY_PATH
   '';
 }

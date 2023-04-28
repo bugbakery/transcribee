@@ -1,0 +1,5 @@
+# Database migrations
+
+This directory contains the `alembic`-database migrations and config files for transcribee.
+
+The migrations themself can be found in the `versions`-directory.
