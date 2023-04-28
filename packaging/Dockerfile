@@ -2,19 +2,19 @@ FROM nixos/nix
 
 RUN nix-channel --update
 
-RUN mkdir /app
+RUN mkdir -p /app/packaging
 
-COPY shell.nix /app/
+COPY packaging/shell.nix /app/packaging
 
 WORKDIR /app
 
-RUN nix-build shell.nix
+RUN nix-build packaging/shell.nix
 
 COPY . /app/
 
-RUN nix-shell shell.nix --command ./packaging/install_dependencies.sh
+RUN nix-shell packaging/shell.nix --command ./packaging/install_dependencies.sh
 
 EXPOSE 5173
 EXPOSE 8000
 
-ENTRYPOINT [ "nix-shell", "shell.nix", "--command", "/app/dev.sh" ]
+ENTRYPOINT [ "nix-shell", "packaging/shell.nix", "--command", "/app/dev.sh" ]
