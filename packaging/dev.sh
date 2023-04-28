@@ -14,4 +14,4 @@ pdm run -p backend/ create_user --user test --pass test
 pdm run -p backend/ create_worker --token dev_worker --name "Development Worker"
 
 echo -e "\n\n\033[1m# starting application:\033[0m\n"
-overmind start
+overmind start -f packaging/Procfile
