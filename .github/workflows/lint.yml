@@ -10,9 +10,9 @@ jobs:
   pre-commit:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        runner: [ubuntu-latest, macos-latest-xl]
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v3
 
