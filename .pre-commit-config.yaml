@@ -29,11 +29,11 @@ repos:
     hooks:
       - id: flake8
         exclude: ^backend/.*/migrations/.*$
-  - repo: local  # update openapi-schema of the backend
+  - repo: local # update openapi-schema of the backend
     hooks:
-      - id: django-openapi
-        name: django-openapi
-        entry: pdm run -p backend/ manage generateschema --file openapi-schema.yml
+      - id: backend-openapi
+        name: backend openapi
+        entry: pdm run -p backend/ generate_openapi --file openapi-schema.yml
         language: python
         files: backend/.*
         pass_filenames: false
@@ -53,12 +53,12 @@ repos:
         files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
         types: [file]
         args: ["-c", "frontend/.eslintrc.json", "--max-warnings", "0"]
-  - repo: local  # openapi-schema typescript from the openapi-schema of the backend
+  - repo: local # openapi-schema typescript from the openapi-schema of the backend
     hooks:
       - id: openapi-typescript
         name: openapi-typescript
         entry: pnpm --prefix frontend/ run generate-openapi
-        language: node
+        language: system
         files: backend/openapi-schema.yml
         pass_filenames: false
   - repo: local

@@ -16,14 +16,13 @@ The default development configuration uses a sqlite database in `db.sqlite3`. To
 database, run all migrations with
 
 ```shell
-pdm run manage migrate
+pdm run migrate
 ```
 
 To create a new admin user, you can now run:
 
 ```shell
-pdm run manage create_superuser_if_not_exists --user admin --pass admin
-
+pdm run create_user --user admin --pass admin
 ```
 
 Now you can start the development server with
@@ -32,12 +31,7 @@ Now you can start the development server with
 pdm run dev
 ```
 
-### Local Settings
-
-To change the settings locally, copy the `transcribee_backend/settings/local.py.example` to `transcribee_backend/settings/local.py.example` and change the `Dev`-Class in there.
-
 ## Deployment
 
 > **Warning**
-> The setup is not ready for production deployment yet. See the
-> [django deployment checklist](https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/)
+> The setup is not ready for production deployment yet.

@@ -9,8 +9,15 @@ import { PlayerBar } from '../editor/player';
 import { WorkerStatus } from '../editor/worker_status';
 
 export function DocumentPage({ params }: RouteComponentProps<{ documentId: string }>) {
-  const { data } = useGetDocument({ id: params.documentId });
+  const { data } = useGetDocument({ document_id: params.documentId });
   const [_location, navigate] = useLocation();
+
+  let mediaFile = null;
+  if (data) {
+    if (data.media_files.length > 0) {
+      mediaFile = data.media_files[0].url;
+    }
+  }
 
   return (
     <AppContainer>
@@ -31,7 +38,7 @@ export function DocumentPage({ params }: RouteComponentProps<{ documentId: strin
       </TopBar>
 
       <TranscriptionEditor documentId={params.documentId} />
-      <PlayerBar audioFile={data?.audio_file} />
+      <PlayerBar audioFile={mediaFile} />
     </AppContainer>
   );
 }

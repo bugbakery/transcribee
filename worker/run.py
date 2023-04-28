@@ -41,7 +41,7 @@ async def main():
 
     if args.websocket_base_url is None:
         sync_url = urllib.parse.urlparse(args.coordinator)
-        sync_url = sync_url._replace(path=sync_url.path + "/sync/")
+        sync_url = sync_url._replace(path=sync_url.path + "/api/v1/documents/sync/")
         assert sync_url.scheme in ["http", "https"]
         sync_url = sync_url._replace(
             scheme="ws" if sync_url.scheme == "http" else "wss"
