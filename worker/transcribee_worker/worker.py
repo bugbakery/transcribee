@@ -118,8 +118,8 @@ class Worker:
 
     async def _init_doc(self, document_id: str, doc: automerge.Document):
         with automerge.transaction(doc, "Initialize Document") as d:
-            if d.paragraphs is None:
-                d.paragraphs = []
+            if d.children is None:
+                d.children = []
             if d.diarization is None:
                 d.diarization = []
             if d.speaker_names is None:
@@ -244,7 +244,7 @@ class Worker:
         )
         for i, al_para in enumerate(aligned_para_iter):
             with automerge.transaction(doc, "Alignment") as d:
-                d_para = d.paragraphs[i]
+                d_para = d.children[i]
                 for d_atom, al_atom in zip(d_para.children, al_para.children):
                     d_atom.start = al_atom.start
                     d_atom.end = al_atom.end
@@ -257,7 +257,7 @@ class Worker:
 
         if document.diarization:
             with automerge.transaction(doc, "Assign Speakers") as d:
-                for para in d.paragraphs:
+                for para in d.children:
                     if len(para) == 0:
                         continue
                     para_start = para.children[0].start

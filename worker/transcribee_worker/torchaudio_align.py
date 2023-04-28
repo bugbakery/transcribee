@@ -141,7 +141,7 @@ def align(
 
     MAX_DURATION = audio.shape[1] / settings.SAMPLE_RATE
 
-    for paragraph in transcript.paragraphs:
+    for paragraph in transcript.children:
         lang = paragraph.lang
         atoms = paragraph.children
         if not atoms:

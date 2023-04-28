@@ -40,12 +40,12 @@ class Segment(BaseModel):
 class Document(BaseModel):
     diarization: Optional[List[Segment]]
     speaker_names: Optional[Mapping[int, str]]
-    paragraphs: List[Paragraph]
+    children: List[Paragraph]
 
     def iter_lang_blocks(self) -> Iterator[Tuple[str, List[Atom]]]:
         atoms = []
         lang = None
-        for paragraph in self.paragraphs:
+        for paragraph in self.children:
             if lang is None:
                 lang = paragraph.lang
                 atoms = paragraph.children
@@ -70,21 +70,21 @@ class Document(BaseModel):
         Returns:
             bool: True if the document does not contain at least one atom
         """
-        for paragraph in self.paragraphs:
+        for paragraph in self.children:
             for atom in paragraph.children:
                 return False
         return True
 
     def text(self) -> str:
-        return "".join(p.text() for p in self.paragraphs)
+        return "".join(p.text() for p in self.children)
 
     def start(self) -> None | float:
-        if len(self.paragraphs) > 0:
-            return self.paragraphs[0].start()
+        if len(self.children) > 0:
+            return self.children[0].start()
 
     def end(self) -> None | float:
-        if len(self.paragraphs) > 0:
-            return self.paragraphs[-1].end()
+        if len(self.children) > 0:
+            return self.children[-1].end()
 
     def iter_atoms(self) -> Iterator[Atom]:
-        return itertools.chain.from_iterable(p.children for p in self.paragraphs)
+        return itertools.chain.from_iterable(p.children for p in self.children)
