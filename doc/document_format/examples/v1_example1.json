@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "children": [
+    {
+      "children": [
+        {
+          "conf": 0.9073923230171204,
+          "conf_ts": 0.0,
+          "end": 0.32,
+          "start": 0.26,
+          "text": "Hallo"
+        },
+        {
+          "conf": 0.9674435257911682,
+          "conf_ts": 0.015162755735218525,
+          "end": 0.51,
+          "start": 0.32,
+          "text": " und"
+        }
+      ],
+      "lang": "de",
+      "speaker": "21de7861-ab42-46b5-965a-c09e1f2a1274",
+      "type": "paragraph"
+    },
+    {
+      "children": [
+        {
+          "conf": 0.978821337223053,
+          "conf_ts": 0.006001881789416075,
+          "end": 1.02,
+          "start": 0.51,
+          "text": " herzlich"
+        },
+        {
+          "conf": 0.7577217221260071,
+          "conf_ts": 0.009624416008591652,
+          "end": 1.66,
+          "start": 1.02,
+          "text": " willkommen"
+        }
+      ],
+      "lang": "de",
+      "speaker": null,
+      "type": "paragraph"
+    }
+  ],
+  "speaker_names": { "21de7861-ab42-46b5-965a-c09e1f2a1274": "Alex Example" }
+}
