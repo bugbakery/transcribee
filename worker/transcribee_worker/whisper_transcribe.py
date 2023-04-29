@@ -223,6 +223,43 @@ async def recombine_split_words(
         yield last_paragraph
 
 
+async def strict_sentence_paragraphs(
+    iter: AsyncIterator[Paragraph],
+) -> AsyncIterator[Paragraph]:
+
+    acc_paragraph = None
+    async for paragraph in iter:
+
+        # this function implements a kind of crude heuristic to seperate sentences
+        # https://www.quora.com/Do-all-living-languages-use-the-period-to-end-a-sentence
+        if paragraph.lang == "th":
+            sentence_endings = " "
+        else:
+            sentence_endings = [".", "?", "!", "。", "।", "෴", " ። ", "።", "။", ":"]
+
+        for i, atom in enumerate(paragraph.children):
+            if acc_paragraph is None:
+                acc_paragraph = Paragraph(children=[], lang=paragraph.lang)
+            acc_paragraph.children.append(atom)
+
+            # ignore something like 1. of May
+            number_dot = (
+                atom.text.endswith(".")
+                and acc_paragraph.children
+                and acc_paragraph.children[-1].text[-1].isnumeric()
+            )
+
+            if (
+                any(atom.text.endswith(ending) for ending in sentence_endings)
+                and not number_dot
+            ):
+                yield acc_paragraph
+                acc_paragraph = None
+
+    if acc_paragraph is not None:
+        yield acc_paragraph
+
+
 async def remove_leading_whitespace_from_paragraph(
     iter: AsyncIterator[Paragraph],
 ) -> AsyncIterator[Paragraph]:
@@ -236,6 +273,7 @@ async def transcribe_clean(
 ):
     chain = (
         recombine_split_words,
+        strict_sentence_paragraphs,
         remove_leading_whitespace_from_paragraph,
     )
     iter = transcribe(
