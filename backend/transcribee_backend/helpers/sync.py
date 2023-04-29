@@ -59,7 +59,6 @@ class DocumentSyncConsumer:
         await self._ws.send_bytes(bytes([SyncMessageType.CHANGE_BACKLOG_COMPLETE]))
         while True:
             msg = await self._msg_queue.get()
-            print("Got msg", msg)
             await self._ws.send_bytes(bytes([SyncMessageType.CHANGE]) + msg)
 
     async def run(self):
