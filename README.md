@@ -51,7 +51,7 @@ Creating a transcript with transcribee 🐝 is done with the following steps:
 
    Once you are happy with the transcript, you can export it.
 
-[^models]: At the moment we use whisper.cpp for transcription, Wav2Vec2 for realignment and pyannote-audio for speaker diarization.
+[^models]: At the moment we use whisper.cpp for transcription, Wav2Vec2 for realignment and speechbrain for speaker identification.
 [^editor]: The editor is based on slate with collaboration using the automerge CRDT.
 
 ## Acknowledgements

@@ -135,22 +135,6 @@ export interface components {
       /** Username */
       username: string;
     };
-    /** DiarizeTask */
-    DiarizeTask: {
-      /**
-       * Document Id
-       * Format: uuid
-       */
-      document_id: string;
-      /** Task Parameters */
-      task_parameters: Record<string, never>;
-      /**
-       * Task Type
-       * @default DIARIZE
-       * @enum {string}
-       */
-      task_type?: "DIARIZE";
-    };
     /** Document */
     Document: {
       /** Changed At */
@@ -187,6 +171,22 @@ export interface components {
     LoginResponse: {
       /** Token */
       token: string;
+    };
+    /** SpeakerIdentificationTask */
+    SpeakerIdentificationTask: {
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      /** Task Parameters */
+      task_parameters: Record<string, never>;
+      /**
+       * Task Type
+       * @default IDENTIFY_SPEAKERS
+       * @enum {string}
+       */
+      task_type?: "IDENTIFY_SPEAKERS";
     };
     /** TaskResponse */
     TaskResponse: {
@@ -226,7 +226,7 @@ export interface components {
      * @description An enumeration.
      * @enum {string}
      */
-    TaskType: "DIARIZE" | "TRANSCRIBE" | "ALIGN";
+    TaskType: "IDENTIFY_SPEAKERS" | "TRANSCRIBE" | "ALIGN";
     /** TranscribeTask */
     TranscribeTask: {
       /**
@@ -248,6 +248,18 @@ export interface components {
       lang: string;
       /** Model */
       model: string;
+    };
+    /** UnknownTask */
+    UnknownTask: {
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      /** Task Parameters */
+      task_parameters: Record<string, never>;
+      /** Task Type */
+      task_type: string;
     };
     /** ValidationError */
     ValidationError: {
@@ -421,7 +433,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["DiarizeTask"] | components["schemas"]["TranscribeTask"] | components["schemas"]["AlignTask"];
+        "application/json": components["schemas"]["SpeakerIdentificationTask"] | components["schemas"]["TranscribeTask"] | components["schemas"]["AlignTask"] | components["schemas"]["UnknownTask"];
       };
     };
     responses: {

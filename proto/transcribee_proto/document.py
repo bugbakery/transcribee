@@ -38,7 +38,6 @@ class Segment(BaseModel):
 
 
 class Document(BaseModel):
-    diarization: Optional[List[Segment]]
     speaker_names: Optional[Mapping[int, str]]
     children: List[Paragraph]
 

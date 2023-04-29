@@ -12,12 +12,12 @@ import automerge
 import requests
 import websockets
 from pydantic import parse_raw_as
-from transcribee_proto.api import AlignTask, AssignedTask, DiarizeTask
+from transcribee_proto.api import AlignTask, AssignedTask
 from transcribee_proto.api import Document as ApiDocument
-from transcribee_proto.api import TaskType, TranscribeTask
+from transcribee_proto.api import SpeakerIdentificationTask, TaskType, TranscribeTask
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
-from transcribee_worker.diarize import diarize
+from transcribee_worker.identify_speakers import identify_speakers
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
@@ -51,7 +51,11 @@ class Worker:
         if task_types is not None:
             self.task_types = task_types
         else:
-            self.task_types = [TaskType.DIARIZE, TaskType.ALIGN, TaskType.TRANSCRIBE]
+            self.task_types = [
+                TaskType.IDENTIFY_SPEAKERS,
+                TaskType.ALIGN,
+                TaskType.TRANSCRIBE,
+            ]
 
     def _get_headers(self):
         return {"authorization": f"Worker {self.token}"}
@@ -113,8 +117,8 @@ class Worker:
     async def perform_task(self, task: AssignedTask):
         logging.info(f"Running task: {task=}")
 
-        if task.task_type == TaskType.DIARIZE:
-            await self.diarize(task)
+        if task.task_type == TaskType.IDENTIFY_SPEAKERS:
+            await self.identify_speakers(task)
         elif task.task_type == TaskType.TRANSCRIBE:
             await self.transcribe(task)
         elif task.task_type == TaskType.ALIGN:
@@ -126,8 +130,6 @@ class Worker:
         with automerge.transaction(doc, "Initialize Document") as d:
             if d.children is None:
                 d.children = []
-            if d.diarization is None:
-                d.diarization = []
             if d.speaker_names is None:
                 d.speaker_names = {}
 
@@ -204,31 +206,27 @@ class Worker:
             if change is not None:
                 await self.send_change(task.document.id, change.bytes())
 
-    async def diarize(self, task: DiarizeTask):
+    async def identify_speakers(self, task: SpeakerIdentificationTask):
         document_audio = self.get_document_audio_path(task.document)
         if document_audio is None:
             raise ValueError(
-                f"Document {task.document} has no audio attached. Cannot diarize."
+                f"Document {task.document} has no audio attached. Cannot identify speakers."
             )
+        audio = load_audio(document_audio)
         doc = await self.get_document_state(task.document.id)
 
-        self._set_progress(task.id, "diarize", progress=0)
+        self._set_progress(task.id, "identify speakers", progress=0)
 
-        def progress_callback(progress, extra_data):
-            self._set_progress(
-                task.id, "diarize", progress=progress, extra_data=extra_data
-            )
+        def progress_callback(step: str, progress: float):
+            self._set_progress(task.id, step, progress=progress)
 
-        diarization = diarize(document_audio, progress_callback=progress_callback)
-        with automerge.transaction(doc, "Diarization") as d:
-            d.diarization = [x.dict() for x in diarization]
-            d.speaker_names = {}
-
+        with automerge.transaction(doc, "Speaker Identification") as d:
+            identify_speakers(audio, d, progress_callback)
         change = d.get_change()
         if change is not None:
             await self.send_change(task.document.id, change.bytes())
 
-        self._set_progress(task.id, "diarize", progress=1)
+        self._set_progress(task.id, "identify speakers", progress=1)
 
     async def align(self, task: AlignTask):
         document_audio = self.get_document_audio_path(task.document)
@@ -236,7 +234,7 @@ class Worker:
             raise ValueError(
                 f"Document {task.document} has no audio attached. Cannot align."
             )
-        audio = load_audio(str(document_audio))
+        audio = load_audio(document_audio)
         doc = await self.get_document_state(task.document.id)
         document = EditorDocument.parse_obj(automerge.dump(doc))
 
@@ -261,28 +259,6 @@ class Worker:
                 await self.send_change(task.document.id, change.bytes())
 
         document = EditorDocument.parse_obj(automerge.dump(doc))
-
-        if document.diarization:
-            with automerge.transaction(doc, "Assign Speakers") as d:
-                for para in d.children:
-                    if len(para) == 0:
-                        continue
-                    para_start = para.children[0].start
-                    para_end = para.children[-1].end
-                    speakers = set(para.alternative_speakers)
-                    for segment in document.diarization:
-                        if segment.start <= para_end and segment.end >= para_start:
-                            for speaker in segment.speakers:
-                                speakers.add(speaker)
-
-                    if set(para.alternative_speakers) != speakers:
-                        para.alternative_speakers = sorted(list(speakers))
-                        if len(speakers) == 1:
-                            para.speaker = list(speakers)[0]
-
-            change = d.get_change()
-            if change is not None:
-                await self.send_change(task.document.id, change.bytes())
 
     def mark_completed(self, task_id: str, additional_data: Optional[dict] = None):
         completion_data = {**self._result_data}

@@ -95,8 +95,8 @@ class AssignedTaskResponse(TaskResponse):
 
 
 # TODO: Better typing, combine with types from proto
-class DiarizeTask(TaskBase):
-    task_type: Literal[TaskType.DIARIZE] = TaskType.DIARIZE
+class SpeakerIdentificationTask(TaskBase):
+    task_type: Literal[TaskType.IDENTIFY_SPEAKERS] = TaskType.IDENTIFY_SPEAKERS
     task_parameters: Dict[str, Any]
 
 
@@ -115,4 +115,9 @@ class AlignTask(TaskBase):
     task_parameters: Dict[str, Any]
 
 
-CreateTask = DiarizeTask | TranscribeTask | AlignTask
+class UnknownTask(TaskBase):
+    task_type: str
+    task_parameters: Dict[str, Any]
+
+
+CreateTask = SpeakerIdentificationTask | TranscribeTask | AlignTask | UnknownTask
