@@ -13,14 +13,20 @@ jobs:
         os: [ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
+    env:
+      NIX_PATH: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: setup nix and direnv
+      - name: install nix
+        uses: nixbuild/nix-quick-install-action@v22
+
+      - name: setup direnv
         uses: JRMurr/direnv-nix-action@v4.1.0
         with:
+          install-nix: "false" # we already install nix
           cache-store: "false" # turned out to be faster without the cache
-          nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
       - name: Setup backend pypackages cache
         uses: actions/cache@v3
