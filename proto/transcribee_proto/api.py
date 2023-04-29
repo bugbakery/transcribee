@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 
 class TaskType(str, enum.Enum):
-    DIARIZE = "DIARIZE"
+    IDENTIFY_SPEAKERS = "IDENTIFY_SPEAKERS"
     TRANSCRIBE = "TRANSCRIBE"
     ALIGN = "ALIGN"
 
@@ -32,8 +32,8 @@ class TaskBase(BaseModel):
     task_type: TaskType
 
 
-class DiarizeTask(TaskBase):
-    task_type: Literal[TaskType.DIARIZE] = TaskType.DIARIZE
+class SpeakerIdentificationTask(TaskBase):
+    task_type: Literal[TaskType.IDENTIFY_SPEAKERS] = TaskType.IDENTIFY_SPEAKERS
     task_parameters: Dict[str, Any]
 
 
@@ -52,7 +52,7 @@ class AlignTask(TaskBase):
     task_parameters: Dict[str, Any]
 
 
-AssignedTask = DiarizeTask | TranscribeTask | AlignTask
+AssignedTask = SpeakerIdentificationTask | TranscribeTask | AlignTask
 
 
 class LoginResponse(BaseModel):

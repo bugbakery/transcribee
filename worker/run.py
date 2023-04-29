@@ -82,7 +82,7 @@ async def run(args, event: Event):
         base_url=f"{args.coordinator}/api/v1/tasks",
         websocket_base_url=args.websocket_base_url,
         token=args.token,
-        task_types=[TaskType.TRANSCRIBE, TaskType.ALIGN, TaskType.DIARIZE],
+        task_types=[TaskType.TRANSCRIBE, TaskType.ALIGN, TaskType.IDENTIFY_SPEAKERS],
     )
     while not event.is_set():
         try:

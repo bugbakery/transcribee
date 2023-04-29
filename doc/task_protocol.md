@@ -14,7 +14,7 @@ POST /api/v1/tasks/
 
 {
     "document": [ID],
-    "task_type": "DIARIZE",
+    "task_type": "IDENTIFY_SPEAKERS",
     "task_parameters":{"speaker_counter":42},
 }
 ```
@@ -36,7 +36,7 @@ If a task is available, the backend assigns the worker to the tasks and returns 
 If no task is available, the backend replies with a json `null`.
 
 ```
-POST /api/v1/tasks/claim_unassigned_task?task_type=DIARIZE,ALIGN
+POST /api/v1/tasks/claim_unassigned_task?task_type=IDENTIFY_SPEAKERS,ALIGN
 
 Authorize: Worker [TOKEN]
 ```
@@ -46,7 +46,7 @@ Reponse body:
 ```json
 {
     "document": [ID],
-    "task_type": "DIARIZE",
+    "task_type": "IDENTIFY_SPEAKERS",
     "task_parameters":{"speaker_counter":42},
 }
 ```

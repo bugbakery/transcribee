@@ -101,26 +101,6 @@ components:
       - password
       title: CreateUser
       type: object
-    DiarizeTask:
-      properties:
-        document_id:
-          format: uuid
-          title: Document Id
-          type: string
-        task_parameters:
-          title: Task Parameters
-          type: object
-        task_type:
-          default: DIARIZE
-          enum:
-          - DIARIZE
-          title: Task Type
-          type: string
-      required:
-      - task_parameters
-      - document_id
-      title: DiarizeTask
-      type: object
     Document:
       properties:
         changed_at:
@@ -192,6 +172,26 @@ components:
       - token
       title: LoginResponse
       type: object
+    SpeakerIdentificationTask:
+      properties:
+        document_id:
+          format: uuid
+          title: Document Id
+          type: string
+        task_parameters:
+          title: Task Parameters
+          type: object
+        task_type:
+          default: IDENTIFY_SPEAKERS
+          enum:
+          - IDENTIFY_SPEAKERS
+          title: Task Type
+          type: string
+      required:
+      - task_parameters
+      - document_id
+      title: SpeakerIdentificationTask
+      type: object
     TaskResponse:
       properties:
         assigned_at:
@@ -241,7 +241,7 @@ components:
     TaskType:
       description: An enumeration.
       enum:
-      - DIARIZE
+      - IDENTIFY_SPEAKERS
       - TRANSCRIBE
       - ALIGN
       title: TaskType
@@ -277,6 +277,24 @@ components:
       - lang
       - model
       title: TranscribeTaskParameters
+      type: object
+    UnknownTask:
+      properties:
+        document_id:
+          format: uuid
+          title: Document Id
+          type: string
+        task_parameters:
+          title: Task Parameters
+          type: object
+        task_type:
+          title: Task Type
+          type: string
+      required:
+      - task_type
+      - task_parameters
+      - document_id
+      title: UnknownTask
       type: object
     ValidationError:
       properties:
@@ -489,9 +507,10 @@ paths:
           application/json:
             schema:
               anyOf:
-              - $ref: '#/components/schemas/DiarizeTask'
+              - $ref: '#/components/schemas/SpeakerIdentificationTask'
               - $ref: '#/components/schemas/TranscribeTask'
               - $ref: '#/components/schemas/AlignTask'
+              - $ref: '#/components/schemas/UnknownTask'
               title: Task
         required: true
       responses:
