@@ -34,25 +34,19 @@ repos:
       - id: backend-openapi
         name: backend openapi
         entry: pdm run -p backend/ generate_openapi --file openapi-schema.yml
-        language: python
+        language: system
         files: backend/.*
         pass_filenames: false
 
   # frontend checks
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v8.35.0
+  - repo: local
     hooks:
       - id: eslint
-        additional_dependencies:
-          - eslint@8.35.0
-          - eslint-config-prettier@8.6.0
-          - eslint-plugin-import@2.27.5
-          - eslint-plugin-react@7.32.2
-          - "@typescript-eslint/eslint-plugin@5.54.0"
-          - "@typescript-eslint/parser@5.54.0"
+        name: eslint
+        entry: pnpm --prefix frontend/ run check:eslint
+        language: system
         files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
-        types: [file]
-        args: ["-c", "frontend/.eslintrc.json", "--max-warnings", "0"]
+        pass_filenames: false
   - repo: local # openapi-schema typescript from the openapi-schema of the backend
     hooks:
       - id: openapi-typescript
@@ -66,7 +60,7 @@ repos:
       - id: tsc
         name: tsc
         entry: pnpm --prefix frontend/ run check:tsc
-        language: node
+        language: system
         files: frontend/.*
         pass_filenames: false
   - repo: local
@@ -74,7 +68,7 @@ repos:
       - id: format
         name: format
         entry: pnpm --prefix frontend/ run format
-        language: node
+        language: system
         files: frontend/.*
         pass_filenames: false
   - repo: local
@@ -82,6 +76,6 @@ repos:
       - id: pnpm_test
         name: pnpm test
         entry: pnpm --prefix frontend/ run test:fast
-        language: node
+        language: system
         files: frontend/.*
         pass_filenames: false
