@@ -50,8 +50,8 @@ def validate_user_authorization(session: Session, authorization: str):
         raise HTTPException(status_code=401)
 
     try:
-        token_data = b64decode(token.encode()).decode()
-    except binascii.Error:
+        token_data = b64decode(token).decode()
+    except (UnicodeDecodeError, binascii.Error):
         raise HTTPException(status_code=400, detail="Invalid Token")
 
     if ":" not in token_data:
