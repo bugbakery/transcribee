@@ -39,14 +39,16 @@ function renderElement(
       <div className="mb-6 flex">
         <div contentEditable={false} className="w-48 mr-8">
           {getSpeakerName(element, doc)}
-          {' ['}
-          {para_start?.toFixed(0)}
-          {'→'}
-          {para_end?.toFixed(0)}
-          {'] '}
-          {element.lang}
+          <div className="text-slate-500">
+            {'['}
+            {para_start?.toFixed(0)}
+            {'→'}
+            {para_end?.toFixed(0)}
+            {'] '}
+            {element.lang}
+          </div>
         </div>
-        <div {...attributes} className="grow-1 basis-full">
+        <div {...attributes} className="grow-1 basis-full" lang={element.lang}>
           {children}
         </div>
       </div>
@@ -59,7 +61,7 @@ function renderElement(
 function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
   const classes = ['word'];
   if (leaf.conf != undefined && leaf.conf < 0.7) {
-    classes.push('text-red-500');
+    classes.push('text-red-600');
   }
   if (leaf.start !== undefined) {
     classes.push(startTimeToClassName(leaf.start));
