@@ -1,5 +1,5 @@
 *.pyc
 __pycache__/
-db.sqlite
+db.sqlite3
 storage/
 !storage/.gitkeep
