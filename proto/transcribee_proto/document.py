@@ -78,11 +78,11 @@ class Document(BaseModel):
     def text(self) -> str:
         return "".join(p.text() for p in self.children)
 
-    def start(self) -> None | float:
+    def start(self) -> Optional[float]:
         if len(self.children) > 0:
             return self.children[0].start()
 
-    def end(self) -> None | float:
+    def end(self) -> Optional[float]:
         if len(self.children) > 0:
             return self.children[-1].end()
 
