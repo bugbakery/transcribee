@@ -20,8 +20,8 @@ If you just want to try out `transcribee`, you need to go through the following 
 2. Run the dev script (this might take a long time as it downloads / compiles all the dependencies):
    execute `./packaging/dev.sh` in the root folder of the `transcribee` repo.
 3. Profit! You can now point your browser to [http://localhost:5173/](http://localhost:5173/) and
-   interact with the running transcribee instance. An admin user with the username "admin" and the
-   password "admin" is created for you.
+   interact with the running transcribee instance. An admin user with the username "test" and the
+   password "test" is created for you.
 
 ## Minimal setup (Docker)
 
@@ -32,8 +32,8 @@ the following steps:
 2. Build the docker container: `docker build -f packaging/Dockerfile -t transcribee:latest .`
 3. Run the docker container: `docker run -it -p 5173:5173 transcribee:latest`
 4. Profit! You can now point your browser to [http://localhost:5173/](http://localhost:5173/) and
-   interact with the running transcribee instance. An admin user with the username "admin" and the
-   password "admin" is created for you.
+   interact with the running transcribee instance. An admin user with the username "test" and the
+   password "test" is created for you.
 
 > **Note**
 > To use this setup for development, you can use the following command to bind-mount your code
