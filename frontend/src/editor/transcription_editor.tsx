@@ -41,9 +41,9 @@ function renderElement(
           {getSpeakerName(element, doc)}
           <div className="text-slate-500">
             {'['}
-            {para_start?.toFixed(0)}
+            {para_start?.toFixed(2)}
             {'→'}
-            {para_end?.toFixed(0)}
+            {para_end?.toFixed(2)}
             {'] '}
             {element.lang}
           </div>

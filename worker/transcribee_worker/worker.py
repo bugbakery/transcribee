@@ -243,7 +243,8 @@ class Worker:
         aligned_para_iter = align(
             document,
             audio,
-            extend_duration=500,
+            # TODO(robin): this seems like a weird place to hardcode this parameter
+            extend_duration=0.5,
             progress_callback=lambda progress, extra_data: self._set_progress(
                 task.id, "torchaudio aligner", progress, extra_data
             ),

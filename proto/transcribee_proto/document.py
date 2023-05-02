@@ -6,8 +6,8 @@ from pydantic import BaseModel, Field
 
 class Atom(BaseModel):
     text: str
-    start: float  # in ms
-    end: float  # in ms
+    start: float  # in seconds
+    end: float  # in seconds
     conf: float  # confidence ~ logit probability
     conf_ts: float  # timestamp confidence
 
@@ -22,18 +22,18 @@ class Paragraph(BaseModel):
     def text(self) -> str:
         return "".join(a.text for a in self.children)
 
-    def start(self) -> None | float:
+    def start(self) -> Optional[float]:
         if len(self.children) > 0:
             return self.children[0].start
 
-    def end(self) -> None | float:
+    def end(self) -> Optional[float]:
         if len(self.children) > 0:
             return self.children[-1].end
 
 
 class Segment(BaseModel):
-    start: float
-    end: float
+    start: float  # in seconds
+    end: float  # in seconds
     speakers: List[int]
 
 
