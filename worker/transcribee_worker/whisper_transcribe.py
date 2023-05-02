@@ -44,7 +44,7 @@ def _transcription_work(
     result_queue: asyncio.Queue,
     data: NDArray[Any],
     model_name: str,
-    lang_code,
+    lang_code: Optional[str],
     loop: asyncio.BaseEventLoop,
     progress_callback: Optional[Callable],
 ):
@@ -232,7 +232,7 @@ async def remove_leading_whitespace_from_paragraph(
 
 
 async def transcribe_clean(
-    data: NDArray, model_name: str, lang_code="en", progress_callback=None
+    data: NDArray, model_name: str, lang_code: str = "en", progress_callback=None
 ):
     chain = (
         recombine_split_words,
