@@ -54,7 +54,7 @@ export function PlayerBar({
       if ('children' in paragraph) {
         for (let j = paragraph.children.length - 1; j >= 0; j--) {
           const word = paragraph.children[j];
-          if (word.start && word.start / 1000 <= time) {
+          if (word.start && word.start <= time) {
             startTimeOfElement = word.start;
             break outer;
           }
@@ -81,9 +81,7 @@ export function PlayerBar({
   useEvent<TextClickEvent>(TEXT_CLICK_EVENT, (e) => {
     progressCallback();
     if (e.detail.text.start) {
-      waveSurferRef.current?.seekTo(
-        e.detail.text.start / 1000 / waveSurferRef.current.getDuration(),
-      );
+      waveSurferRef.current?.seekTo(e.detail.text.start / waveSurferRef.current.getDuration());
     }
   });
 

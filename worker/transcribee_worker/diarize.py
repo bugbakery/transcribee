@@ -68,8 +68,8 @@ def diarize(audio, progress_callback) -> List[Segment]:
     segments = []
     for turn, _, speaker in diarization.itertracks(yield_label=True):
         segment = Segment(
-            start=turn.start * 1000,
-            end=turn.end * 1000,
+            start=turn.start,
+            end=turn.end,
             speakers=[int(speaker.split("_")[1])],
         )
         segments.append(segment)

@@ -100,7 +100,7 @@ def align(
     transcript: Document,
     audio: np.ndarray | torch.Tensor,
     device="cpu",
-    extend_duration: float = 2000.0,
+    extend_duration: float = 0.5,  # seconds
     progress_callback: Optional[Callable[[Optional[float], Any], Any]] = None,
 ) -> Iterable[Paragraph]:
     """
@@ -204,8 +204,8 @@ def align(
 
             atom_index_to_timing_index.append((start_index, end_index))
 
-        start = atoms[0].start / 1e3
-        segment_end = atoms[-1].end / 1e3
+        start = atoms[0].start
+        segment_end = atoms[-1].end
 
         # if token level timestamps are disabled in the whisper layer
         # the timestamps are negative, so we don't know anything about
@@ -217,8 +217,8 @@ def align(
             segment_end = MAX_DURATION
 
         # pad according original timestamps
-        t1 = max(start - (extend_duration / 1e3), 0)
-        t2 = min(segment_end + (extend_duration / 1e3), MAX_DURATION)
+        t1 = max(start - extend_duration, 0)
+        t2 = min(segment_end + extend_duration, MAX_DURATION)
 
         waveform_segment = audio[
             :, int(t1 * settings.SAMPLE_RATE) : int(t2 * settings.SAMPLE_RATE)
@@ -248,10 +248,8 @@ def align(
             char_segments = merge_repeats(path)
 
             conversion_factor = (
-                (waveform_segment.size(1) / (trellis.size(0) - 1))
-                / settings.SAMPLE_RATE
-                * 1e3
-            )
+                waveform_segment.size(1) / (trellis.size(0) - 1)
+            ) / settings.SAMPLE_RATE
             for i, atom in enumerate(atoms):
                 (start, last_end), (end, next_start) = atom_index_to_timing_index[i]
 
@@ -271,8 +269,8 @@ def align(
                 else:
                     end_time = char_segments[end].end * conversion_factor
 
-                atom.start = start_time + (t1 * 1e3)
-                atom.end = end_time + (t1 * 1e3)
+                atom.start = start_time + t1
+                atom.end = end_time + t1
         if progress_callback is not None:
             progress_callback(
                 segment_end / MAX_DURATION,

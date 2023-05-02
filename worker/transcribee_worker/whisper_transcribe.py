@@ -114,10 +114,10 @@ def _transcription_work(
                     Atom(
                         text=text,
                         conf=conf,
-                        # 10·ms -> ms
-                        start=start * 10,
-                        # 10·ms -> ms
-                        end=end * 10,
+                        # 10·ms -> seconds
+                        start=start / 100,
+                        # 10·ms -> seconads
+                        end=end / 100,
                         conf_ts=conf_ts,
                     )
                 )
