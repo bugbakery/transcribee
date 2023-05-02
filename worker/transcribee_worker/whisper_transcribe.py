@@ -212,7 +212,7 @@ async def recombine_split_words(
             last_paragraph = paragraph
             continue
 
-        starts_with_whitespace = not paragraph.text()[:1].strip()
+        starts_with_whitespace = paragraph.text()[:1].isspace()
         if starts_with_whitespace:
             yield last_paragraph
             last_paragraph = paragraph
