@@ -16,6 +16,7 @@ export type Paragraph = {
 export type Document = {
   children: Paragraph[];
   speaker_names: Record<number, string>;
+  version: number;
 };
 
 // we fire this event when the user clicks on a word and we want the player to skip through it

@@ -40,6 +40,7 @@ class Segment(BaseModel):
 class Document(BaseModel):
     speaker_names: Optional[Mapping[int, str]]
     children: List[Paragraph]
+    version: int = 1
 
     def iter_lang_blocks(self) -> Iterator[Tuple[str, List[Atom]]]:
         atoms = []

@@ -11,6 +11,7 @@ import { SecondaryButton } from '../components/button';
 import { generateWebVtt } from '../utils/export/webvtt';
 import { downloadTextAsFile } from '../utils/download_text_as_file';
 import { PlayerBar, startTimeToClassName } from './player';
+import { useLocation } from 'wouter';
 
 const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -96,11 +97,17 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
   const authToken = localStorage.getItem('auth');
   url.searchParams.append('authorization', `Token ${authToken}`);
 
+  const [_location, navigate] = useLocation();
+
   useEffect(() => {
     const provider = new AutomergeWebsocketProvider(url.href);
 
     provider.on('initalSyncComplete', () => {
       setSyncComplete(true);
+      if (editor.doc.version !== 1) {
+        alert('The document is in an unsupported version.');
+        navigate('/');
+      }
     });
 
     provider.on('update', ({ change, remote }: { change: Uint8Array; remote: boolean }) => {
