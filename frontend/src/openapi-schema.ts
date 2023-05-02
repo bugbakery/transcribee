@@ -293,11 +293,6 @@ export interface operations {
   };
   /** List Documents */
   list_documents_api_v1_documents__get: {
-    parameters: {
-      header: {
-        authorization: string;
-      };
-    };
     responses: {
       /** @description Successful Response */
       200: {
@@ -305,21 +300,10 @@ export interface operations {
           "application/json": (components["schemas"]["Document"])[];
         };
       };
-      /** @description Validation Error */
-      422: {
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
   };
   /** Create Document */
   create_document_api_v1_documents__post: {
-    parameters: {
-      header: {
-        authorization: string;
-      };
-    };
     requestBody: {
       content: {
         "multipart/form-data": components["schemas"]["Body_create_document_api_v1_documents__post"];
@@ -343,9 +327,6 @@ export interface operations {
   /** Get Document */
   get_document_api_v1_documents__document_id___get: {
     parameters: {
-      header: {
-        authorization: string;
-      };
       path: {
         document_id: string;
       };
@@ -368,9 +349,6 @@ export interface operations {
   /** Get Document Tasks */
   get_document_tasks_api_v1_documents__document_id__tasks__get: {
     parameters: {
-      header: {
-        authorization: string;
-      };
       path: {
         document_id: string;
       };
@@ -392,11 +370,6 @@ export interface operations {
   };
   /** List Tasks */
   list_tasks_api_v1_tasks__get: {
-    parameters: {
-      header: {
-        authorization: string;
-      };
-    };
     responses: {
       /** @description Successful Response */
       200: {
@@ -404,21 +377,10 @@ export interface operations {
           "application/json": (components["schemas"]["TaskResponse"])[];
         };
       };
-      /** @description Validation Error */
-      422: {
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
   };
   /** Create Task */
   create_task_api_v1_tasks__post: {
-    parameters: {
-      header: {
-        authorization: string;
-      };
-    };
     requestBody: {
       content: {
         "application/json": components["schemas"]["DiarizeTask"] | components["schemas"]["TranscribeTask"] | components["schemas"]["AlignTask"];
@@ -565,22 +527,11 @@ export interface operations {
   };
   /** Read User */
   read_user_api_v1_users_me__get: {
-    parameters: {
-      header: {
-        authorization: string;
-      };
-    };
     responses: {
       /** @description Successful Response */
       200: {
         content: {
           "application/json": Record<string, never>;
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

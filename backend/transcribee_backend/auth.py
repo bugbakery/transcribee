@@ -4,9 +4,11 @@ import hashlib
 import hmac
 import os
 from base64 import b64decode, b64encode
-from typing import Tuple
+from typing import Optional, Tuple
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
+from fastapi.security.http import HTTPBase, HTTPBaseModel
+from fastapi.security.utils import get_authorization_scheme_param
 from sqlmodel import Session, select
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists
@@ -41,11 +43,8 @@ def generate_user_token(user: User):
     )
 
 
-def validate_user_authorization(session: Session, authorization: str):
-    if " " not in authorization:
-        raise HTTPException(status_code=401)
-
-    token_type, token = authorization.split(" ", maxsplit=1)
+def validate_user_authorization(session: Session, param: str):
+    token_type, token = get_authorization_scheme_param(param)
     if token_type != "Token":
         raise HTTPException(status_code=401)
 
@@ -66,11 +65,19 @@ def validate_user_authorization(session: Session, authorization: str):
     raise HTTPException(status_code=401)
 
 
-def get_user_token(
-    authorization: str = Header(),
-    session: Session = Depends(get_session),
-):
-    return validate_user_authorization(session, authorization)
+class TokenAuth(HTTPBase):
+    def __init__(self):
+        self.model = HTTPBaseModel(scheme="token")
+        self.scheme_name = "Token"
+
+    async def __call__(
+        self, request: Request, session: Session = Depends(get_session)
+    ) -> Optional[UserToken]:
+        authorization = request.headers.get("Authorization")
+        return validate_user_authorization(session, authorization)
+
+
+get_user_token = TokenAuth()
 
 
 def authorize_user(session: Session, username: str, password: str) -> User:

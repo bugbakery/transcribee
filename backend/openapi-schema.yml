@@ -312,6 +312,10 @@ components:
       - name
       title: WorkerBase
       type: object
+  securitySchemes:
+    Token:
+      scheme: token
+      type: http
 info:
   title: FastAPI
   version: 0.1.0
@@ -330,13 +334,6 @@ paths:
   /api/v1/documents/:
     get:
       operationId: list_documents_api_v1_documents__get
-      parameters:
-      - in: header
-        name: authorization
-        required: true
-        schema:
-          title: Authorization
-          type: string
       responses:
         '200':
           content:
@@ -347,22 +344,11 @@ paths:
                 title: Response List Documents Api V1 Documents  Get
                 type: array
           description: Successful Response
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+      security:
+      - Token: []
       summary: List Documents
     post:
       operationId: create_document_api_v1_documents__post
-      parameters:
-      - in: header
-        name: authorization
-        required: true
-        schema:
-          title: Authorization
-          type: string
       requestBody:
         content:
           multipart/form-data:
@@ -382,6 +368,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
+      security:
+      - Token: []
       summary: Create Document
   /api/v1/documents/{document_id}/:
     get:
@@ -393,12 +381,6 @@ paths:
         schema:
           format: uuid
           title: Document Id
-          type: string
-      - in: header
-        name: authorization
-        required: true
-        schema:
-          title: Authorization
           type: string
       responses:
         '200':
@@ -413,6 +395,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
+      security:
+      - Token: []
       summary: Get Document
   /api/v1/documents/{document_id}/tasks/:
     get:
@@ -424,12 +408,6 @@ paths:
         schema:
           format: uuid
           title: Document Id
-          type: string
-      - in: header
-        name: authorization
-        required: true
-        schema:
-          title: Authorization
           type: string
       responses:
         '200':
@@ -447,17 +425,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
+      security:
+      - Token: []
       summary: Get Document Tasks
   /api/v1/tasks/:
     get:
       operationId: list_tasks_api_v1_tasks__get
-      parameters:
-      - in: header
-        name: authorization
-        required: true
-        schema:
-          title: Authorization
-          type: string
       responses:
         '200':
           content:
@@ -468,22 +441,11 @@ paths:
                 title: Response List Tasks Api V1 Tasks  Get
                 type: array
           description: Successful Response
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+      security:
+      - Token: []
       summary: List Tasks
     post:
       operationId: create_task_api_v1_tasks__post
-      parameters:
-      - in: header
-        name: authorization
-        required: true
-        schema:
-          title: Authorization
-          type: string
       requestBody:
         content:
           application/json:
@@ -507,6 +469,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
+      security:
+      - Token: []
       summary: Create Task
   /api/v1/tasks/claim_unassigned_task/:
     post:
@@ -655,25 +619,14 @@ paths:
   /api/v1/users/me/:
     get:
       operationId: read_user_api_v1_users_me__get
-      parameters:
-      - in: header
-        name: authorization
-        required: true
-        schema:
-          title: Authorization
-          type: string
       responses:
         '200':
           content:
             application/json:
               schema: {}
           description: Successful Response
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+      security:
+      - Token: []
       summary: Read User
   /media/{file}:
     get:
