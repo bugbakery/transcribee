@@ -23,11 +23,17 @@ from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
 
 
-def ensure_timing_invariant(doc: EditorDocument):
+def ensure_atom_invariants(doc: EditorDocument):
     prev_atom = None
     for atom in doc.iter_atoms():
         if prev_atom is not None:
             assert prev_atom.start <= atom.start, f"{prev_atom} < {atom}"
+        assert (atom.start is None and atom.end is None) or (
+            atom.start is not None and atom.end is not None
+        )
+        if atom.start:
+            assert atom.start <= atom.end
+
         prev_atom = atom
 
 
@@ -247,6 +253,7 @@ class Worker:
                 task.id, "torchaudio aligner", progress, extra_data
             ),
         )
+
         for i, al_para in enumerate(aligned_para_iter):
             with automerge.transaction(doc, "Alignment") as d:
                 d_para = d.children[i]
