@@ -31,6 +31,10 @@ def ensure_timing_invariant(doc: EditorDocument):
         prev_atom = atom
 
 
+class UnsupportedDocumentVersion(Exception):
+    pass
+
+
 class Worker:
     base_url: str
     token: str
@@ -130,16 +134,26 @@ class Worker:
         else:
             raise ValueError(f"Invalid task type: '{task.task_type}'")
 
-    async def _init_doc(self, document_id: str, doc: automerge.Document):
-        with automerge.transaction(doc, "Initialize Document") as d:
-            if d.children is None:
-                d.children = []
-            if d.speaker_names is None:
-                d.speaker_names = {}
+    async def _preprocess_doc(self, document_id: str, doc: automerge.Document):
+        if doc.version is None:
+            if automerge.dump(doc) == {}:
+                with automerge.transaction(doc, "Initialize Document") as d:
+                    if d.children is None:
+                        d.children = []
+                    if d.speaker_names is None:
+                        d.speaker_names = {}
+                    d.version = 1
 
-        change = d.get_change()
-        if change is not None:
-            await self.send_change(document_id, change.bytes())
+                change = d.get_change()
+                if change is not None:
+                    await self.send_change(document_id, change.bytes())
+            else:
+                raise UnsupportedDocumentVersion()
+
+        if doc.version != 1:
+            raise UnsupportedDocumentVersion()
+
+        return doc
 
     async def get_document_state(self, document_id: str) -> automerge.Document:
         doc = automerge.init(EditorDocument)
@@ -156,7 +170,7 @@ class Worker:
                 elif msg[0] == SyncMessageType.FULL_DOCUMENT:
                     doc = automerge.load(msg[1:])
 
-        await self._init_doc(document_id, doc)
+        await self._preprocess_doc(document_id, doc)
         return doc
 
     async def send_change(self, document_id: str, change: bytes):
