@@ -15,8 +15,8 @@ export function generateWebVtt(doc: Document): WebVtt {
       continue;
     }
     const cue = new VttCue({
-      startTime: start / 1e3,
-      endTime: end / 1e3,
+      startTime: start,
+      endTime: end,
       payload: paragraph.children.map((x) => x.text).join(''),
     });
     vtt.add(cue);
