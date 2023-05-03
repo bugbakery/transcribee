@@ -23,7 +23,7 @@ dependencies = [
     "whispercppy>=0.0.2",
     "lightning-lite>=1.8.6",
     "lightning-fabric>=2.0.2",
-    "sqlalchemy[asyncio]>=2.0.10",  # sqlalchemy is a transient dependency for pyannote-audio but without the [asyncio]. On m1 it does not require greenlet which causes non-reproduciable build failures in CI.
+    "sqlalchemy[asyncio]>=2.0.10",                                                                                  # sqlalchemy is a transient dependency for pyannote-audio but without the [asyncio]. On m1 it does not require greenlet which causes non-reproduciable build failures in CI.
     "watchdog>=3.0.0",
 ]
 
@@ -35,6 +35,7 @@ license = { text = "AGPL-3.0" }
 dev = [
     "black>=23.1.0",
     "-e file:///${PROJECT_ROOT}/../proto#egg=transcribee-proto",
+    "inquirer>=3.1.3",
 ]
 
 [tool.pdm.scripts]
