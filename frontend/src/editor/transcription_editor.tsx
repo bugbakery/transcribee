@@ -154,6 +154,15 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
           <Editable
             renderElement={(props) => renderElement(props, editor.doc)}
             renderLeaf={renderLeaf}
+            onClick={() => {
+              const selection = document.getSelection();
+              if (
+                selection?.isCollapsed &&
+                selection.anchorNode?.parentElement?.parentElement?.classList.contains('word')
+              ) {
+                selection.anchorNode.parentElement.click();
+              }
+            }}
           />
         </Slate>
       </div>
