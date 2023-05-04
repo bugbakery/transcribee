@@ -24,6 +24,7 @@ dependencies = [
     "lightning-lite>=1.8.6",
     "lightning-fabric>=2.0.2",
     "sqlalchemy[asyncio]>=2.0.10",  # sqlalchemy is a transient dependency for pyannote-audio but without the [asyncio]. On m1 it does not require greenlet which causes non-reproduciable build failures in CI.
+    "watchdog>=3.0.0",
 ]
 
 requires-python = ">=3.10"
@@ -45,6 +46,7 @@ build-backend = "pdm.pep517.api"
 
 [tool.pdm.resolution.overrides]
 soundfile = "0.11.0"
+
 
 [[tool.pdm.source]]
 type = "find_links"
