@@ -48,7 +48,7 @@ If you want to write code or documentation, please take a look at our issues.
 We try to make them somewhat clear, but if you do not understand what an issue means, please ask us.
 We sometimes tag issues as "good first issue", these could be interesting if this is you first contribution.
 
-You can find instruction on how to set up a development environment in the [app/README.md](app/README.md) file.
+You can find instruction on how to set up a development environment in the [development setup document](doc/development_setup.md).
 
 If you have an issue that you understand and want to work on, feel free to do so. If you leave a short message in the issue thread, we can make sure that we do not have multiple people working on the same issue.
 
