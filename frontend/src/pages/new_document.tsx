@@ -169,7 +169,9 @@ export function NewDocumentPage() {
               )}
             </div>
             <div className="flex justify-between">
-              <SecondaryButton onClick={() => navigate(`/`)}>Cancel</SecondaryButton>
+              <SecondaryButton type="button" onClick={() => navigate(`/`)}>
+                Cancel
+              </SecondaryButton>
               <PrimaryButton type="submit">Create</PrimaryButton>
             </div>
           </div>
