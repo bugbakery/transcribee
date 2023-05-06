@@ -54,7 +54,7 @@ export function PlayerBar({
       if ('children' in paragraph) {
         for (let j = paragraph.children.length - 1; j >= 0; j--) {
           const word = paragraph.children[j];
-          if (word.start && word.start <= time) {
+          if (word.start && word.start - 1e-10 <= time) {
             startTimeOfElement = word.start;
             break outer;
           }
