@@ -144,7 +144,7 @@ export function PlayerBar({
 
         <div className="pl-4 flex-grow">
           <WaveSurfer onMount={handleWSMount}>
-            <WaveForm id="waveform" cursorColor="red"></WaveForm>
+            <WaveForm id="waveform" cursorColor="red" responsive={true}></WaveForm>
           </WaveSurfer>
         </div>
       </div>
