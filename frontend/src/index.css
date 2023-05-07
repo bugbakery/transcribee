@@ -1,3 +1,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+    --transcribee-word-highlight-color: lightgreen;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root{
+        --transcribee-word-highlight-color: green;
+    }
+}

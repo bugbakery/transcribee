@@ -112,8 +112,8 @@ export function PlayerBar({
       <CssRule
         css={`
           .${startTimeToClassName(currentElementStartTime)} {
-            background: lightgreen;
             border-radius: 3px;
+            background: var(--transcribee-word-highlight-color);
           }
         `}
       />
@@ -124,11 +124,11 @@ export function PlayerBar({
           'max-w-screen-xl height-8 my-2',
           'flex',
           'p-2',
-          'bg-white',
-          'border-black',
+          'bg-white dark:bg-neutral-900',
+          'border-black dark:border-neutral-200',
           'border-2',
           'shadow-brutal',
-          'shadow-slate-400',
+          'shadow-slate-400 dark:shadow-neutral-600',
           'rounded-lg',
           'items-center',
         )}

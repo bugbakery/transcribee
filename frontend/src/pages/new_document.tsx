@@ -61,7 +61,7 @@ export function NewDocumentPage() {
                 className={clsx(
                   'border-2',
                   'border-b-0',
-                  'border-black',
+                  'border-black dark:border-neutral-200',
                   'rounded-t',
                   'h-32',
                   'flex',
@@ -102,7 +102,7 @@ export function NewDocumentPage() {
                     'left-1',
                     'border-2',
                     'rounded',
-                    'border-black',
+                    'border-black dark:border-neutral-200',
                     'border-dashed',
                     'flex',
                     'items-center',
@@ -151,8 +151,8 @@ export function NewDocumentPage() {
               </div>
               <div
                 className={clsx(
-                  'bg-black',
-                  'text-white',
+                  'bg-black dark:bg-neutral-200',
+                  'text-white dark:text-black',
                   'text-sm',
                   'text-center',
                   'p-2',

@@ -2,6 +2,8 @@ import { Descendant, Editor, Transforms, Element } from 'slate';
 import * as Automerge from '@automerge/automerge';
 import { JSONTree } from 'react-json-tree';
 import { getBase16Theme } from 'react-base16-styling';
+import { SecondaryButton } from '../components/button';
+import { useMediaQuery } from 'react-responsive';
 
 export type DebugPanelProps = {
   value: Descendant[];
@@ -9,43 +11,38 @@ export type DebugPanelProps = {
 };
 
 export function DebugPanel({ value, editor }: DebugPanelProps) {
+  const systemPrefersDark = useMediaQuery({
+    query: '(prefers-color-scheme: dark)',
+  });
+
   return (
     <div className="fixed bottom-0 left-0 right-0 h-96 p-8">
-      <div className="w-full h-full p-4 text-sm bg-white border-black border-2 shadow-brutal rounded-lg overflow-auto">
-        <JSONTree data={value} theme={getBase16Theme('summerfruit:inverted')} />
+      <div className="w-full h-full p-4 text-sm bg-white dark:bg-black border-black dark:border-neutral-200 border-2 shadow-brutal rounded-lg overflow-auto">
+        <JSONTree
+          data={value}
+          theme={getBase16Theme(systemPrefersDark ? 'bright' : 'bright:inverted')}
+        />
       </div>
 
       <div className="absolute top-12 right-12 flex flex-col gap-2">
-        <Button
+        <SecondaryButton
           onClick={() => {
             const update = Automerge.save(editor.doc);
             console.log(update);
           }}
         >
           Log document to console
-        </Button>
-        <Button
+        </SecondaryButton>
+        <SecondaryButton
           onClick={() => {
             // exampleElement has to be copied so slate does not produce duplicate keys
             Transforms.insertNodes(editor, { ...exampleElement }, { at: [0] });
           }}
         >
           Insert elements
-        </Button>
+        </SecondaryButton>
       </div>
     </div>
-  );
-}
-
-function Button(props: JSX.IntrinsicElements['button']) {
-  return (
-    <button
-      className={
-        'py-2 px-4 border-2 border-black text-sm font-medium rounded-md hover:bg-slate-100 ' +
-        props.className
-      }
-      {...props}
-    />
   );
 }
 

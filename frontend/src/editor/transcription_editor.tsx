@@ -39,7 +39,7 @@ function renderElement(
       <div className="mb-6 flex">
         <div contentEditable={false} className="w-48 mr-8">
           {getSpeakerName(element, doc)}
-          <div className="text-slate-500">
+          <div className="text-slate-500 dark:text-neutral-400">
             {'['}
             {para_start?.toFixed(2)}
             {'→'}
@@ -61,7 +61,7 @@ function renderElement(
 function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
   const classes = ['word'];
   if (leaf.conf != undefined && leaf.conf < 0.7) {
-    classes.push('text-red-600');
+    classes.push('text-red-600 dark:text-red-500');
   }
   if (leaf.start !== undefined) {
     classes.push(startTimeToClassName(leaf.start));
