@@ -10,6 +10,7 @@ class TaskType(str, enum.Enum):
     IDENTIFY_SPEAKERS = "IDENTIFY_SPEAKERS"
     TRANSCRIBE = "TRANSCRIBE"
     ALIGN = "ALIGN"
+    REENCODE = "REENCODE"
 
 
 class DocumentMedia(BaseModel):
@@ -52,7 +53,12 @@ class AlignTask(TaskBase):
     task_parameters: Dict[str, Any]
 
 
-AssignedTask = SpeakerIdentificationTask | TranscribeTask | AlignTask
+class ReencodeTask(TaskBase):
+    task_type: Literal[TaskType.REENCODE] = TaskType.REENCODE
+    task_parameters: Dict[str, Any]
+
+
+AssignedTask = SpeakerIdentificationTask | TranscribeTask | AlignTask | ReencodeTask
 
 
 class LoginResponse(BaseModel):

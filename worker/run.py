@@ -54,9 +54,9 @@ def main():
 
         p, event = run_sync_in_process(args)
         for _ in watch(path):
+            logging.info("Source code change detected, reloading worker")
             event.set()
             p.join()
-            logging.info("Source code change detected, reloading worker")
             p, event = run_sync_in_process(args)
 
     else:
@@ -82,7 +82,12 @@ async def run(args, event: Event):
         base_url=f"{args.coordinator}/api/v1/tasks",
         websocket_base_url=args.websocket_base_url,
         token=args.token,
-        task_types=[TaskType.TRANSCRIBE, TaskType.ALIGN, TaskType.IDENTIFY_SPEAKERS],
+        task_types=[
+            TaskType.TRANSCRIBE,
+            TaskType.ALIGN,
+            TaskType.IDENTIFY_SPEAKERS,
+            TaskType.REENCODE,
+        ],
     )
     while not event.is_set():
         try:

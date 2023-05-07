@@ -18,7 +18,16 @@ export function PlayerBar({
   documentContent: Descendant[];
 }) {
   const { data } = useGetDocument({ document_id: documentId });
-  const audioFile = data?.media_files[0]?.url;
+  let audioFile = data?.media_files[0]?.url;
+  const audioElement = document.createElement('audio');
+  data?.media_files.forEach((media_file) => {
+    if (
+      media_file.tags.indexOf('original') == -1 &&
+      audioElement.canPlayType(media_file.content_type) == 'probably'
+    ) {
+      audioFile = media_file.url;
+    }
+  });
 
   // state for knowing which symbol we should display at the play / pause button
   const [playing, setPlayingState] = useState(false);

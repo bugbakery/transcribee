@@ -19,6 +19,10 @@ export interface paths {
     /** Get Document */
     get: operations["get_document_api_v1_documents__document_id___get"];
   };
+  "/api/v1/documents/{document_id}/add_media_file/": {
+    /** Add Media File */
+    post: operations["add_media_file_api_v1_documents__document_id__add_media_file__post"];
+  };
   "/api/v1/documents/{document_id}/tasks/": {
     /** Get Document Tasks */
     get: operations["get_document_tasks_api_v1_documents__document_id__tasks__get"];
@@ -117,6 +121,16 @@ export interface components {
       /** Task Parameters */
       task_parameters: Record<string, never>;
       task_type: components["schemas"]["TaskType"];
+    };
+    /** Body_add_media_file_api_v1_documents__document_id__add_media_file__post */
+    Body_add_media_file_api_v1_documents__document_id__add_media_file__post: {
+      /**
+       * File
+       * Format: binary
+       */
+      file: string;
+      /** Tags */
+      tags: (string)[];
     };
     /** Body_create_document_api_v1_documents__post */
     Body_create_document_api_v1_documents__post: {
@@ -226,7 +240,7 @@ export interface components {
      * @description An enumeration.
      * @enum {string}
      */
-    TaskType: "IDENTIFY_SPEAKERS" | "TRANSCRIBE" | "ALIGN";
+    TaskType: "IDENTIFY_SPEAKERS" | "TRANSCRIBE" | "ALIGN" | "REENCODE";
     /** TranscribeTask */
     TranscribeTask: {
       /**
@@ -360,6 +374,36 @@ export interface operations {
       };
       path: {
         document_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Document"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Add Media File */
+  add_media_file_api_v1_documents__document_id__add_media_file__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_add_media_file_api_v1_documents__document_id__add_media_file__post"];
       };
     };
     responses: {

@@ -17,6 +17,7 @@ from fastapi import (
 )
 from sqlmodel import Session, select
 from transcribee_backend.auth import (
+    get_authorized_worker,
     validate_user_authorization,
     validate_worker_authorization,
 )
@@ -33,6 +34,7 @@ from ..models import (
     Task,
     TaskType,
     UserToken,
+    Worker,
 )
 from .user import get_user_token
 
@@ -44,14 +46,20 @@ def now_tz_aware() -> datetime.datetime:
 
 
 def create_default_tasks_for_document(session: Session, document: Document):
+    reencode_task = Task(
+        task_type=TaskType.REENCODE,
+        task_parameters={},
+        document_id=document.id,
+    )
+    session.add(reencode_task)
+
     transcribe_task = Task(
         task_type=TaskType.TRANSCRIBE,
         task_parameters={"lang": "auto", "model": "base"},
         document_id=document.id,
+        dependencies=[reencode_task],
     )
     session.add(transcribe_task)
-    session.commit()
-    session.refresh(transcribe_task)
 
     align_task = Task(
         task_type=TaskType.ALIGN,
@@ -60,8 +68,6 @@ def create_default_tasks_for_document(session: Session, document: Document):
         dependencies=[transcribe_task],
     )
     session.add(align_task)
-    session.commit()
-    session.refresh(align_task)
 
     speaker_identification_task = Task(
         task_type=TaskType.IDENTIFY_SPEAKERS,
@@ -70,8 +76,6 @@ def create_default_tasks_for_document(session: Session, document: Document):
         dependencies=[align_task],
     )
     session.add(speaker_identification_task)
-    session.commit()
-    session.refresh(speaker_identification_task)
 
 
 @document_router.post("/")
@@ -89,8 +93,6 @@ async def create_document(
     )
 
     session.add(document)
-    session.commit()
-    session.refresh(document)
 
     stored_file = media_storage.store_file(file.file)
     file.file.seek(0)
@@ -104,15 +106,13 @@ async def create_document(
     )
 
     session.add(media_file)
-    session.commit()
-    session.refresh(media_file)
 
     tag = DocumentMediaTag(media_file_id=media_file.id, tag="original")
     session.add(tag)
-    session.commit()
-    session.refresh(tag)
 
     create_default_tasks_for_document(session, document)
+
+    session.commit()
     return document.as_api_document()
 
 
@@ -192,3 +192,42 @@ async def websocket_endpoint(
         document=document, websocket=websocket, session=session
     )
     await connection.run()
+
+
+@document_router.post("/{document_id}/add_media_file/")
+def add_media_file(
+    document_id: uuid.UUID,
+    tags: list[str] = Form(),
+    file: UploadFile = File(),
+    session: Session = Depends(get_session),
+    authorized_worker: Worker = Depends(get_authorized_worker),
+) -> ApiDocument:
+    statement = select(Task).where(
+        Task.document_id == document_id, Task.task_type == TaskType.REENCODE
+    )
+    task = session.exec(statement).one_or_none()
+    if task is None:
+        raise HTTPException(status_code=403)
+
+    if task.assigned_worker != authorized_worker:
+        raise HTTPException(status_code=403)
+
+    stored_file = media_storage.store_file(file.file)
+    file.file.seek(0)
+
+    media_file = DocumentMediaFile(
+        created_at=now_tz_aware(),
+        changed_at=now_tz_aware(),
+        document_id=task.document_id,
+        file=stored_file,
+        content_type=magic.from_descriptor(file.file.fileno(), mime=True),
+    )
+
+    session.add(media_file)
+
+    for tag_str in tags:
+        tag = DocumentMediaTag(media_file_id=media_file.id, tag=tag_str)
+        session.add(tag)
+
+    session.commit()
+    return media_file.document.as_api_document()
