@@ -4,10 +4,11 @@ import { Popup } from '../components/popup';
 import { BsRobot } from 'react-icons/bs';
 import clsx from 'clsx';
 import React from 'react';
+import { useMediaQuery } from 'react-responsive';
 
 type Task = ReturnType<typeof useGetDocumentTasks>['data'][0];
 
-function formatProgress(task?: Task): string | undefined {
+function formatProgress(task: Task | null): string | undefined {
   if (!task) return;
   if (task.is_completed) return 'DONE';
   else if (task.progress) return `${(task.progress * 100).toFixed(0)}%`;
@@ -15,19 +16,27 @@ function formatProgress(task?: Task): string | undefined {
   else return 'WAITING';
 }
 
-function getColor(task?: Task): string {
+function getColor(task: Task | null, dark: boolean): string {
   const str = formatProgress(task);
-  return (
-    (str &&
-      {
+  const color_map: Record<string, string> = dark
+    ? {
+        WAITING: '#ff9264',
+        DONE: '#db93bd',
+        DEFAULT: '#FFF',
+      }
+    : {
         WAITING: '#006d9b',
         DONE: '#246c42',
-      }[str]) ||
-    '#000'
-  );
+        DEFAULT: '#000',
+      };
+  return (str && color_map[str]) || color_map['DEFAULT'];
 }
 
 export function WorkerStatus({ documentId }: { documentId: string }) {
+  const systemPrefersDark = useMediaQuery({
+    query: '(prefers-color-scheme: dark)',
+  });
+
   const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
   const isWorking = data?.some((task) => !task?.completed_at);
 
@@ -41,7 +50,6 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
 
   return (
     <Popup
-      className="background-white"
       button={
         <IconButton
           icon={BsRobot}
@@ -77,7 +85,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
                     key={dependency.id}
                     d={path}
                     {...strokeProps}
-                    stroke={getColor(data[dependencyIndex])}
+                    stroke={getColor(data[dependencyIndex], systemPrefersDark)}
                   />
                 );
               })}
@@ -89,8 +97,8 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
 
           return (
             <React.Fragment key={task.id}>
-              <circle cx={pointX} cy={ourY} r="4" fill={getColor(task)} />
-              <text x={pointX + 10} y={yPositionsText[i]} fill={getColor(task)}>
+              <circle cx={pointX} cy={ourY} r="4" fill={getColor(task, systemPrefersDark)} />
+              <text x={pointX + 10} y={yPositionsText[i]} fill={getColor(task, systemPrefersDark)}>
                 {task?.task_type} {`(${formatProgress(task)})`}
               </text>
             </React.Fragment>
