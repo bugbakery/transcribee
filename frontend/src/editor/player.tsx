@@ -120,8 +120,8 @@ export function PlayerBar({
 
       <div
         className={clsx(
-          'fixed bottom-0',
-          'w-full max-w-screen-xl height-8 my-2',
+          'fixed bottom-0 inset-x-6 mx-auto',
+          'max-w-screen-xl height-8 my-2',
           'flex',
           'p-2',
           'bg-white',
