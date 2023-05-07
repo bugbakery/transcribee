@@ -22,7 +22,6 @@ if __name__ == "__main__":
         worker = Worker(name=args.name, token=args.token, last_seen=None)
         session.add(worker)
         session.commit()
-        session.refresh(worker)
         print(f"Worker with token {args.token} created")
     else:
         print(f"Worker with token {args.token} already exists")

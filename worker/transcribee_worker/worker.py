@@ -14,10 +14,17 @@ import websockets
 from pydantic import parse_raw_as
 from transcribee_proto.api import AlignTask, AssignedTask
 from transcribee_proto.api import Document as ApiDocument
-from transcribee_proto.api import SpeakerIdentificationTask, TaskType, TranscribeTask
+from transcribee_proto.api import (
+    ReencodeTask,
+    SpeakerIdentificationTask,
+    TaskType,
+    TranscribeTask,
+)
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
+from transcribee_worker.config import settings
 from transcribee_worker.identify_speakers import identify_speakers
+from transcribee_worker.reencode import reencode
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
@@ -65,6 +72,7 @@ class Worker:
                 TaskType.IDENTIFY_SPEAKERS,
                 TaskType.ALIGN,
                 TaskType.TRANSCRIBE,
+                TaskType.REENCODE,
             ]
 
     def _get_headers(self):
@@ -91,8 +99,11 @@ class Worker:
         logging.debug(f"Getting audio. {document=}")
         if not document.media_files:
             return
-        # TODO: smarter selection of used media (seperate tag?)
         media_file = document.media_files[0]
+        for mf in document.media_files:
+            if "profile:mp3" in mf.tags:
+                media_file = mf
+                break
         file_url = urllib.parse.urljoin(self.base_url, media_file.url)
         response = requests.get(file_url)
         response.raise_for_status()
@@ -137,6 +148,8 @@ class Worker:
             await self.transcribe(task)
         elif task.task_type == TaskType.ALIGN:
             await self.align(task)
+        elif task.task_type == TaskType.REENCODE:
+            await self.reencode(task)
         else:
             raise ValueError(f"Invalid task type: '{task.task_type}'")
 
@@ -266,6 +279,39 @@ class Worker:
                 await self.send_change(task.document.id, change.bytes())
 
         document = EditorDocument.parse_obj(automerge.dump(doc))
+
+    async def reencode(self, task: ReencodeTask):
+        document_audio = self.get_document_audio_path(task.document)
+        if document_audio is None:
+            raise ValueError(
+                f"Document {task.document} has no audio attached. Cannot reencode."
+            )
+
+        n_profiles = len(settings.REENCODE_PROFILES)
+        for i, (profile, parameters) in enumerate(settings.REENCODE_PROFILES.items()):
+            output_path = self._get_tmpfile(f"reencode_{profile}")
+            reencode(
+                document_audio,
+                output_path,
+                parameters,
+                lambda progress, extra_data: self._set_progress(
+                    task.id, "ffmpeg", (i + progress) / n_profiles, extra_data
+                ),
+            )
+
+            tags = [f"profile:{profile}"] + [f"{k}:{v}" for k, v in parameters.items()]
+
+            self.add_document_media_file(task, output_path, tags)
+
+    def add_document_media_file(self, task: AssignedTask, path: Path, tags: list[str]):
+        logging.debug(f"Replacing document audio for document {task.document.id=}")
+        req = requests.post(
+            f"{self.base_url}/../documents/{task.document.id}/add_media_file/",
+            files={"file": open(path, "rb")},
+            data=[("tags", tag) for tag in tags],
+            headers=self._get_headers(),
+        )
+        req.raise_for_status()
 
     def mark_completed(self, task_id: str, additional_data: Optional[dict] = None):
         completion_data = {**self._result_data}

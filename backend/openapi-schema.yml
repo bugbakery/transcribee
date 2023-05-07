@@ -74,6 +74,22 @@ components:
       - last_keepalive
       title: AssignedTaskResponse
       type: object
+    Body_add_media_file_api_v1_documents__document_id__add_media_file__post:
+      properties:
+        file:
+          format: binary
+          title: File
+          type: string
+        tags:
+          items:
+            type: string
+          title: Tags
+          type: array
+      required:
+      - tags
+      - file
+      title: Body_add_media_file_api_v1_documents__document_id__add_media_file__post
+      type: object
     Body_create_document_api_v1_documents__post:
       properties:
         file:
@@ -244,6 +260,7 @@ components:
       - IDENTIFY_SPEAKERS
       - TRANSCRIBE
       - ALIGN
+      - REENCODE
       title: TaskType
       type: string
     TranscribeTask:
@@ -432,6 +449,43 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Get Document
+  /api/v1/documents/{document_id}/add_media_file/:
+    post:
+      operationId: add_media_file_api_v1_documents__document_id__add_media_file__post
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_add_media_file_api_v1_documents__document_id__add_media_file__post'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Add Media File
   /api/v1/documents/{document_id}/tasks/:
     get:
       operationId: get_document_tasks_api_v1_documents__document_id__tasks__get
