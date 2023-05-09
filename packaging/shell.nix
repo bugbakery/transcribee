@@ -20,7 +20,6 @@ let
   });
   ld_packages = [
     pkgs.file
-    pkgs.libsndfile.out
   ];
 
 in
@@ -41,7 +40,6 @@ pkgs.mkShell {
     # required by pre-commit
     git
 
-    # required by librosa to open audio files
     ffmpeg
 
     # for automerge-py

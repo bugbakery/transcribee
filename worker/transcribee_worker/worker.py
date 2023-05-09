@@ -4,11 +4,11 @@ import shutil
 import tempfile
 import time
 import urllib.parse
-from io import BytesIO
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
 import automerge
+import numpy.typing as npt
 import requests
 import websockets
 from pydantic import parse_raw_as
@@ -88,20 +88,23 @@ class Worker:
         response.raise_for_status()
         return response.content, media_file.content_type
 
-    def get_document_audio(self, document: ApiDocument) -> Optional[BytesIO]:
-        b = self.get_document_audio_bytes(document=document)
-        if b is not None:
-            return BytesIO(b[0])
-
     def get_document_audio_path(self, document: ApiDocument) -> Optional[Path]:
         b = self.get_document_audio_bytes(document=document)
         if b is not None:
             b, ct = b
             extension = mimetypes.guess_extension(ct)
-            path = self._get_tmpfile(f"doc_audio.{extension}")
+            path = self._get_tmpfile(f"doc_audio{extension}")
             with open(path, "wb") as f:
                 f.write(b)
             return path
+
+    def load_document_audio(self, document: ApiDocument) -> Tuple[npt.NDArray, int]:
+        document_audio = self.get_document_audio_path(document)
+        if document_audio is None:
+            raise ValueError(
+                f"Document {document} has no audio attached. Cannot identify speakers."
+            )
+        return load_audio(document_audio)
 
     def keepalive(self, task_id: str, progress: Optional[float]):
         body = {}
@@ -169,15 +172,7 @@ class Worker:
             await websocket.send(change)
 
     async def transcribe(self, task: TranscribeTask):
-        if task.task_type != TaskType.TRANSCRIBE:
-            return
-
-        document_audio = self.get_document_audio(task.document)
-        if document_audio is None:
-            raise ValueError(
-                f"Document {task.document} has no audio attached. Cannot transcribe."
-            )
-        audio = load_audio(document_audio)
+        audio, _sr = self.load_document_audio(task.document)
 
         def progress_callback(_ctx, progress, _data):
             self._set_progress(task.id, "whisper", progress=progress / 100)
@@ -208,12 +203,7 @@ class Worker:
                 await self.send_change(task.document.id, change.bytes())
 
     async def identify_speakers(self, task: SpeakerIdentificationTask):
-        document_audio = self.get_document_audio_path(task.document)
-        if document_audio is None:
-            raise ValueError(
-                f"Document {task.document} has no audio attached. Cannot identify speakers."
-            )
-        audio = load_audio(document_audio)
+        audio, _sr = self.load_document_audio(task.document)
         doc = await self.get_document_state(task.document.id)
 
         self._set_progress(task.id, "identify speakers", progress=0)
@@ -230,12 +220,7 @@ class Worker:
         self._set_progress(task.id, "identify speakers", progress=1)
 
     async def align(self, task: AlignTask):
-        document_audio = self.get_document_audio_path(task.document)
-        if document_audio is None:
-            raise ValueError(
-                f"Document {task.document} has no audio attached. Cannot align."
-            )
-        audio = load_audio(document_audio)
+        audio, _sr = self.load_document_audio(task.document)
         doc = await self.get_document_state(task.document.id)
         document = EditorDocument.parse_obj(automerge.dump(doc))
 
