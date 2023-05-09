@@ -1,0 +1,4 @@
+# We use this .gitignore file to keep the directory but no contents.
+
+*
+!.gitignore
