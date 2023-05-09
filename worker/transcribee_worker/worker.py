@@ -85,6 +85,7 @@ class Worker:
         media_file = document.media_files[0]
         file_url = urllib.parse.urljoin(self.base_url, media_file.url)
         response = requests.get(file_url)
+        response.raise_for_status()
         return response.content, media_file.content_type
 
     def get_document_audio(self, document: ApiDocument) -> Optional[BytesIO]:
