@@ -23,6 +23,10 @@ export interface paths {
     /** Add Media File */
     post: operations["add_media_file_api_v1_documents__document_id__add_media_file__post"];
   };
+  "/api/v1/documents/{document_id}/set_duration/": {
+    /** Set Duration */
+    post: operations["set_duration_api_v1_documents__document_id__set_duration__post"];
+  };
   "/api/v1/documents/{document_id}/tasks/": {
     /** Get Document Tasks */
     get: operations["get_document_tasks_api_v1_documents__document_id__tasks__get"];
@@ -185,6 +189,11 @@ export interface components {
     LoginResponse: {
       /** Token */
       token: string;
+    };
+    /** SetDurationRequest */
+    SetDurationRequest: {
+      /** Duration */
+      duration: number;
     };
     /** SpeakerIdentificationTask */
     SpeakerIdentificationTask: {
@@ -421,6 +430,36 @@ export interface operations {
       };
     };
   };
+  /** Set Duration */
+  set_duration_api_v1_documents__document_id__set_duration__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetDurationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Document"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   /** Get Document Tasks */
   get_document_tasks_api_v1_documents__document_id__tasks__get: {
     parameters: {
@@ -558,6 +597,11 @@ export interface operations {
       };
       path: {
         task_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
       };
     };
     responses: {

@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from typing import List
+from typing import List, Optional
 
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 from transcribee_backend import media_storage
@@ -12,6 +12,7 @@ from .user import User
 
 class DocumentBase(SQLModel):
     name: str
+    duration: Optional[float] = None  # In seconds
 
 
 class Document(DocumentBase, table=True):

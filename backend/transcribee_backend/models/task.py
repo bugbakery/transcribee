@@ -50,6 +50,7 @@ class Task(TaskBase, table=True):
 
     is_completed: bool = Field(default=False)
     completed_at: Optional[datetime.datetime] = None
+    completion_data: Optional[Dict] = Field(sa_column=Column(JSON(), nullable=True))
 
     dependencies: List["Task"] = Relationship(
         back_populates="dependants",

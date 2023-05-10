@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import aliased
@@ -111,6 +111,7 @@ def keepalive(
 @task_router.post("/{task_id}/mark_completed/")
 def mark_completed(
     task_id: uuid.UUID,
+    completion_data: Dict,
     session: Session = Depends(get_session),
     authorized_worker: Worker = Depends(get_authorized_worker),
 ) -> Optional[AssignedTaskResponse]:
@@ -124,6 +125,7 @@ def mark_completed(
 
     task.is_completed = True
     task.completed_at = now_tz_aware()
+    task.completion_data = completion_data
     session.add(task)
     session.commit()
     return AssignedTaskResponse.from_orm(task)
