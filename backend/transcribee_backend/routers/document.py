@@ -14,6 +14,7 @@ from fastapi import (
     WebSocketException,
     status,
 )
+from pydantic import BaseModel
 from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, select
 from transcribee_backend.auth import (
@@ -232,3 +233,32 @@ def add_media_file(
 
     session.commit()
     return media_file.document.as_api_document()
+
+
+class SetDurationRequest(BaseModel):
+    duration: float
+
+
+@document_router.post("/{document_id}/set_duration/")
+def set_duration(
+    document_id: uuid.UUID,
+    body: SetDurationRequest,
+    session: Session = Depends(get_session),
+    authorized_worker: Worker = Depends(get_authorized_worker),
+) -> ApiDocument:
+    statement = select(Task).where(
+        Task.document_id == document_id, Task.task_type == TaskType.REENCODE
+    )
+    task = session.exec(statement).one_or_none()
+    if task is None:
+        raise HTTPException(status_code=403)
+
+    if task.assigned_worker != authorized_worker:
+        raise HTTPException(status_code=403)
+
+    doc = task.document
+    doc.duration = body.duration
+    session.add(doc)
+    session.commit()
+
+    return doc.as_api_document()

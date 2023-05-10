@@ -5,14 +5,17 @@ from typing import Callable
 import ffmpeg
 
 
+def get_duration(input_path: Path):
+    return float(ffmpeg.probe(input_path)["format"]["duration"])
+
+
 def reencode(
     input_path: Path,
     output_path: Path,
     output_params: dict[str, str],
     progress_callback: Callable[[float, dict[str, str]], None],
+    duration: float,
 ) -> float:
-    duration = float(ffmpeg.probe(input_path)["format"]["duration"])
-
     cmd: subprocess.Popen = (
         ffmpeg.input(input_path)
         .output(

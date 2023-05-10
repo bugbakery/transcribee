@@ -24,7 +24,7 @@ from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
 from transcribee_worker.config import settings
 from transcribee_worker.identify_speakers import identify_speakers
-from transcribee_worker.reencode import reencode
+from transcribee_worker.reencode import get_duration, reencode
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
@@ -287,21 +287,36 @@ class Worker:
                 f"Document {task.document} has no audio attached. Cannot reencode."
             )
 
+        duration = get_duration(document_audio)
+        self.set_duration(task, duration)
+
         n_profiles = len(settings.REENCODE_PROFILES)
         for i, (profile, parameters) in enumerate(settings.REENCODE_PROFILES.items()):
             output_path = self._get_tmpfile(f"reencode_{profile}")
-            reencode(
+            duration = reencode(
                 document_audio,
                 output_path,
                 parameters,
                 lambda progress, extra_data: self._set_progress(
                     task.id, "ffmpeg", (i + progress) / n_profiles, extra_data
                 ),
+                duration,
             )
 
             tags = [f"profile:{profile}"] + [f"{k}:{v}" for k, v in parameters.items()]
 
             self.add_document_media_file(task, output_path, tags)
+
+    def set_duration(self, task: AssignedTask, duration: float):
+        logging.debug(
+            f"Setting audio duration for document {task.document.id=} {duration=}"
+        )
+        req = requests.post(
+            f"{self.base_url}/../documents/{task.document.id}/set_duration/",
+            json={"duration": duration},
+            headers=self._get_headers(),
+        )
+        req.raise_for_status()
 
     def add_document_media_file(self, task: AssignedTask, path: Path, tags: list[str]):
         logging.debug(f"Replacing document audio for document {task.document.id=}")

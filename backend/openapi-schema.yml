@@ -188,6 +188,15 @@ components:
       - token
       title: LoginResponse
       type: object
+    SetDurationRequest:
+      properties:
+        duration:
+          title: Duration
+          type: number
+      required:
+      - duration
+      title: SetDurationRequest
+      type: object
     SpeakerIdentificationTask:
       properties:
         document_id:
@@ -486,6 +495,43 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Add Media File
+  /api/v1/documents/{document_id}/set_duration/:
+    post:
+      operationId: set_duration_api_v1_documents__document_id__set_duration__post
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetDurationRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Set Duration
   /api/v1/documents/{document_id}/tasks/:
     get:
       operationId: get_document_tasks_api_v1_documents__document_id__tasks__get
@@ -666,6 +712,13 @@ paths:
         schema:
           title: Authorization
           type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Completion Data
+              type: object
+        required: true
       responses:
         '200':
           content:
