@@ -226,10 +226,8 @@ async def recombine_split_words(
 async def strict_sentence_paragraphs(
     iter: AsyncIterator[Paragraph],
 ) -> AsyncIterator[Paragraph]:
-
     acc_paragraph = None
     async for paragraph in iter:
-
         # this function implements a kind of crude heuristic to seperate sentences
         # https://www.quora.com/Do-all-living-languages-use-the-period-to-end-a-sentence
         if paragraph.lang == "th":
@@ -237,10 +235,9 @@ async def strict_sentence_paragraphs(
         else:
             sentence_endings = [".", "?", "!", "。", "।", "෴", " ። ", "።", "။", ":"]
 
-        for i, atom in enumerate(paragraph.children):
+        for atom in paragraph.children:
             if acc_paragraph is None:
                 acc_paragraph = Paragraph(children=[], lang=paragraph.lang)
-            acc_paragraph.children.append(atom)
 
             # ignore something like 1. of May
             number_dot = (
@@ -248,6 +245,8 @@ async def strict_sentence_paragraphs(
                 and acc_paragraph.children
                 and acc_paragraph.children[-1].text[-1].isnumeric()
             )
+
+            acc_paragraph.children.append(atom)
 
             if (
                 any(atom.text.endswith(ending) for ending in sentence_endings)
