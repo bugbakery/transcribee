@@ -7,8 +7,8 @@ export function useEvent<T extends Event>(type: string, callback: (e: T) => void
     };
 
     window.addEventListener(type, listener);
-    () => {
+    return () => {
       window.removeEventListener(type, listener);
     };
-  }, [callback]);
+  }, [type, callback]);
 }
