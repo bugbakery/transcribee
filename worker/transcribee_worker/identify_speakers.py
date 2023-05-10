@@ -30,10 +30,15 @@ def identify_speakers(
     segments = [
         (
             time_to_sample(child.children[0].start),
-            time_to_sample(child.children[-1].end),
+            max(
+                time_to_sample(child.children[-1].end),
+                # we always use at least 0.1s, otherwise the fingerprinting model explodes sometimes
+                time_to_sample(child.children[0].start + 0.1),
+            ),
         )
         for child in doc.children
     ]
+    # TODO: handle very short snippets
 
     classifier = EncoderClassifier.from_hparams(
         source="speechbrain/spkrec-ecapa-voxceleb",
