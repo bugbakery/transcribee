@@ -40,7 +40,7 @@ export function IconButton({
       title={label}
       aria-label={label}
       className={clsx(
-        'hover:bg-gray-200 dark:hover:bg-gray-700',
+        'hover:bg-gray-200 dark:hover:bg-neutral-700',
         'rounded-full',
         'p-2',
         props.className,

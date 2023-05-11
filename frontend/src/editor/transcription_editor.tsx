@@ -13,6 +13,9 @@ import { downloadTextAsFile } from '../utils/download_text_as_file';
 import { PlayerBar, startTimeToClassName } from './player';
 import { useLocation } from 'wouter';
 
+import { IoIosCreate, IoIosList, IoIosTrash } from 'react-icons/io';
+import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
+
 const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
 );
@@ -60,15 +63,40 @@ function renderElement(
   doc: Automerge.Doc<Document>,
 ): JSX.Element {
   if (element.type === 'paragraph') {
+    const changeSpeaker = () => {
+      alert('Not Implemented');
+    };
+    const renameSpeaker = () => {
+      alert('Not Implemented');
+    };
+    const unsetSpeaker = () => {
+      alert('Not Implemented');
+    };
     return (
       <div className="mb-6 flex">
-        <div contentEditable={false} className="w-48 mr-8">
-          {getSpeakerName(element, doc.speaker_names)}
-          <div className="text-slate-500 dark:text-neutral-400">
+        <div contentEditable={false} className="w-48 mr-2">
+          <Dropdown label={getSpeakerName(element, doc.speaker_names)}>
+            <DropdownSection>
+              <DropdownItem first icon={IoIosList} onClick={changeSpeaker}>
+                Change Speaker
+              </DropdownItem>
+              <DropdownItem icon={IoIosCreate} onClick={renameSpeaker}>
+                Rename Speaker
+              </DropdownItem>
+            </DropdownSection>
+            <DropdownSection>
+              <DropdownItem last icon={IoIosTrash} onClick={unsetSpeaker}>
+                Unset Speaker
+              </DropdownItem>
+            </DropdownSection>
+          </Dropdown>
+
+          <div className="px-3 text-slate-500 dark:text-neutral-400">
             {formatParagraphTimestamps(element)}
           </div>
-          <div className="text-slate-500 dark:text-neutral-400">{element.lang}</div>
+          <div className="px-3 text-slate-500 dark:text-neutral-400">{element.lang}</div>
         </div>
+
         <div {...attributes} className="grow-1 basis-full" lang={element.lang}>
           {children}
         </div>
