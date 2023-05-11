@@ -78,7 +78,7 @@ export function UserHomePage() {
             )}
           >
             {' '}
-            <AiOutlinePlus size="1.75rem" />
+            <AiOutlinePlus size={28} />
           </Link>
         </li>
       </ul>
