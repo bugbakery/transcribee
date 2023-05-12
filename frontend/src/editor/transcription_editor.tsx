@@ -6,15 +6,14 @@ import { withAutomergeDoc } from 'slate-automerge-doc';
 import { AutomergeWebsocketProvider } from './automerge_websocket_provider';
 import { useDebugMode } from '../debugMode';
 
-import { Document, Paragraph, TextClickEvent } from './types';
+import { TextClickEvent, Paragraph } from './types';
 import { SecondaryButton } from '../components/button';
 import { generateWebVtt } from '../utils/export/webvtt';
 import { downloadTextAsFile } from '../utils/download_text_as_file';
 import { PlayerBar, startTimeToClassName } from './player';
 import { useLocation } from 'wouter';
 
-import { IoIosCreate, IoIosList, IoIosTrash } from 'react-icons/io';
-import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
+import { SpeakerDropdown } from './speaker_dropdown';
 
 const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -48,59 +47,25 @@ function formatParagraphTimestamps(para: Paragraph): string {
   return `[${formattedTime(para_start)}\u200A\u2192\u200A${formattedTime(para_end)}]`;
 }
 
-function getSpeakerName(element: Paragraph, speaker_names: Record<string, string>): string {
-  if (element.speaker === null) {
-    return `Unknown`;
-  } else if (element.speaker in speaker_names) {
-    return speaker_names[element.speaker];
-  } else {
-    return `Unnamed Speaker (${element.speaker})`;
-  }
-}
-
-function renderElement(
-  { element, children, attributes }: RenderElementProps,
-  doc: Automerge.Doc<Document>,
-): JSX.Element {
+function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
   if (element.type === 'paragraph') {
-    const changeSpeaker = () => {
-      alert('Not Implemented');
-    };
-    const renameSpeaker = () => {
-      alert('Not Implemented');
-    };
-    const unsetSpeaker = () => {
-      alert('Not Implemented');
-    };
     return (
-      <div className="mb-6 flex">
-        <div contentEditable={false} className="w-48 mr-2">
-          <Dropdown label={getSpeakerName(element, doc.speaker_names)}>
-            <DropdownSection>
-              <DropdownItem first icon={IoIosList} onClick={changeSpeaker}>
-                Change Speaker
-              </DropdownItem>
-              <DropdownItem icon={IoIosCreate} onClick={renameSpeaker}>
-                Rename Speaker
-              </DropdownItem>
-            </DropdownSection>
-            <DropdownSection>
-              <DropdownItem last icon={IoIosTrash} onClick={unsetSpeaker}>
-                Unset Speaker
-              </DropdownItem>
-            </DropdownSection>
-          </Dropdown>
+      <>
+        <div className="mb-6 flex">
+          <div contentEditable={false} className="w-52 mr-2">
+            <SpeakerDropdown paragraph={element} />
 
-          <div className="px-3 text-slate-500 dark:text-neutral-400">
-            {formatParagraphTimestamps(element)}
+            <div className="px-3 text-slate-500 dark:text-neutral-400">
+              {formatParagraphTimestamps(element)}
+            </div>
+            <div className="px-3 text-slate-500 dark:text-neutral-400">{element.lang}</div>
           </div>
-          <div className="px-3 text-slate-500 dark:text-neutral-400">{element.lang}</div>
-        </div>
 
-        <div {...attributes} className="grow-1 basis-full" lang={element.lang}>
-          {children}
+          <div {...attributes} className="grow-1 basis-full" lang={element.lang}>
+            {children}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -207,7 +172,7 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
       <div className={syncComplete ? '' : 'blur'}>
         <Slate editor={editor} value={value} onChange={setValue}>
           <Editable
-            renderElement={(props) => renderElement(props, editor.doc)}
+            renderElement={(props) => renderElement(props)}
             renderLeaf={renderLeaf}
             onClick={() => {
               const selection = document.getSelection();
