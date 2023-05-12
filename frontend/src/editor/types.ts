@@ -8,14 +8,13 @@ export type Text = {
 export type Paragraph = {
   type: 'paragraph';
   children: Text[];
-  speaker: number | null;
-  alternative_speakers: number[];
+  speaker: string | null;
   lang: string;
 };
 
 export type Document = {
   children: Paragraph[];
-  speaker_names: Record<number, string>;
+  speaker_names: Record<string, string>;
   version: number;
 };
 
