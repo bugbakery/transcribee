@@ -8,7 +8,7 @@ import { PrimaryButton, SecondaryButton } from '../components/button';
 import { IoIosCreate, IoIosList, IoIosTrash } from 'react-icons/io';
 import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
 import { Input, Select } from '../components/form';
-import { showModal, Modal } from '../components/modal';
+import { showModal, Modal, ModalProps } from '../components/modal';
 
 function getSpeakerName(element: Paragraph, speaker_names: Record<string, string>): string {
   if (!element.speaker) {
@@ -26,13 +26,14 @@ function SelectSpeakerModal({
   onNewSpeaker,
   onClose,
   selected,
+  ...props
 }: {
   doc: Automerge.Doc<Document>;
   onSpeakerSelected: (speakerId: string) => void;
   onNewSpeaker: (speakerName: string) => void;
   onClose: () => void;
   selected?: string;
-}) {
+} & Omit<ModalProps, 'label'>) {
   const NEW_SPEAKER_OPTION = '__new_speaker';
 
   const [speakerId, setSpeakerId] = useState<string | null>(null);
@@ -57,7 +58,7 @@ function SelectSpeakerModal({
   }
 
   return (
-    <Modal onClose={onClose} label="Select Speaker">
+    <Modal {...props} onClose={onClose} label="Select Speaker">
       <form
         className="flex flex-col gap-6"
         onSubmit={(e) => {
@@ -112,15 +113,16 @@ function SpeakerNameModal({
   selectedCallback,
   onClose,
   initialValue,
+  ...props
 }: {
   selectedCallback: (speakerName: string) => void;
   onClose: () => void;
   initialValue: string;
-}) {
+} & Omit<ModalProps, 'label'>) {
   const [value, setValue] = useState(initialValue);
 
   return (
-    <Modal onClose={onClose} label="Rename Speaker">
+    <Modal {...props} onClose={onClose} label="Rename Speaker">
       <form
         className="flex flex-col gap-6"
         onSubmit={(e) => {
