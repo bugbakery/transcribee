@@ -1,4 +1,3 @@
-import datetime
 import uuid
 from typing import List
 
@@ -15,6 +14,7 @@ from fastapi import (
     WebSocketException,
     status,
 )
+from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, select
 from transcribee_backend.auth import (
     validate_user_authorization,
@@ -22,6 +22,7 @@ from transcribee_backend.auth import (
 )
 from transcribee_backend.db import get_session
 from transcribee_backend.helpers.sync import DocumentSyncConsumer
+from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.task import TaskResponse
 from transcribee_proto.api import Document as ApiDocument
 
@@ -37,10 +38,6 @@ from ..models import (
 from .user import get_user_token
 
 document_router = APIRouter()
-
-
-def now_tz_aware() -> datetime.datetime:
-    return datetime.datetime.now(datetime.timezone.utc)
 
 
 def create_default_tasks_for_document(session: Session, document: Document):
@@ -121,7 +118,11 @@ def list_documents(
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
 ) -> List[ApiDocument]:
-    statement = select(Document).where(Document.user == token.user)
+    statement = (
+        select(Document)
+        .where(Document.user == token.user)
+        .order_by(desc(Document.changed_at), Document.id)
+    )
     results = session.exec(statement)
     return [doc.as_api_document() for doc in results]
 

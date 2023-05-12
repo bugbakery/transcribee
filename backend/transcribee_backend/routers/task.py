@@ -9,6 +9,7 @@ from sqlmodel import Session, col, or_, select
 from transcribee_backend.auth import get_authorized_worker
 from transcribee_backend.config import settings
 from transcribee_backend.db import get_session
+from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_proto.api import KeepaliveBody
 
 from ..models import (
@@ -22,7 +23,6 @@ from ..models import (
     UserToken,
     Worker,
 )
-from .document import now_tz_aware
 from .user import get_user_token
 
 task_router = APIRouter()
