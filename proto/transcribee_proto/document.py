@@ -1,7 +1,7 @@
 import itertools
 from typing import Iterator, List, Literal, Mapping, Optional, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class Atom(BaseModel):
@@ -14,8 +14,7 @@ class Atom(BaseModel):
 
 class Paragraph(BaseModel):
     type: Literal["paragraph"] = "paragraph"
-    speaker: Optional[int] = None
-    alternative_speakers: List[int] = Field(default_factory=list)
+    speaker: Optional[str] = None
     children: List[Atom]
     lang: str
 
@@ -29,12 +28,6 @@ class Paragraph(BaseModel):
     def end(self) -> Optional[float]:
         if len(self.children) > 0:
             return self.children[-1].end
-
-
-class Segment(BaseModel):
-    start: float  # in seconds
-    end: float  # in seconds
-    speakers: List[int]
 
 
 class Document(BaseModel):

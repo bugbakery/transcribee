@@ -17,15 +17,13 @@ const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
 );
 
-function getSpeakerName(element: Paragraph, speaker_names: Record<number, string>): string {
-  if (element.speaker === null && element.alternative_speakers.length > 0) {
-    return `Unknown (${element.alternative_speakers.length} possible speakers)`;
-  } else if (element.speaker === null) {
+function getSpeakerName(element: Paragraph, speaker_names: Record<string, string>): string {
+  if (element.speaker === null) {
     return `Unknown`;
   } else if (element.speaker in speaker_names) {
     return speaker_names[element.speaker];
   } else {
-    return `Speaker ${element.speaker + 1}`;
+    return `Unnamed Speaker (${element.speaker})`;
   }
 }
 
@@ -39,7 +37,7 @@ function renderElement(
     return (
       <div className="mb-6 flex">
         <div contentEditable={false} className="w-48 mr-8">
-          {getSpeakerName(element, doc)}
+          {getSpeakerName(element, doc.speaker_names)}
           <div className="text-slate-500 dark:text-neutral-400">
             {'['}
             {para_start?.toFixed(2)}

@@ -73,7 +73,7 @@ def identify_speakers(
     label_map = {}
     for label in clustering.labels_:
         if label not in label_map:
-            label_map[label] = len(label_map)
+            label_map[label] = str(len(label_map))
 
     for para, label in zip(doc.children, clustering.labels_):
         para.speaker = label_map[label]
