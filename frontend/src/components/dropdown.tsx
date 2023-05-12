@@ -30,11 +30,14 @@ export function DropdownItem({
   icon,
   first,
   last,
+  disabled = false,
   ...props
-}: { icon?: IconType; first?: boolean; last?: boolean } & React.DetailedHTMLProps<
-  React.HTMLAttributes<HTMLButtonElement>,
-  HTMLButtonElement
->) {
+}: {
+  icon?: IconType;
+  first?: boolean;
+  last?: boolean;
+  disabled?: boolean;
+} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLButtonElement>, HTMLButtonElement>) {
   const Icon = icon;
   return (
     <button
@@ -46,9 +49,11 @@ export function DropdownItem({
         'hover:bg-gray-200 dark:hover:bg-neutral-700',
         first ? 'rounded-t-md' : '',
         last ? 'rounded-b-md' : '',
+        disabled ? 'text-slate-500 dark:text-neutral-400' : '',
       )}
       role="menuitem"
       type="button"
+      disabled={disabled}
     >
       {Icon ? <Icon className="pr-2" size={'2em'} /> : <></>}
       {children}
@@ -73,7 +78,19 @@ export function Dropdown({
   });
 
   return (
-    <div ref={setReferenceElement}>
+    <div
+      ref={setReferenceElement}
+      onClick={() => {
+        if (!referenceElement) return;
+
+        if (!show) {
+          window.dispatchEvent(new DropdownOpenEvent(referenceElement));
+          setShow(true);
+        } else {
+          setShow(false);
+        }
+      }}
+    >
       <button
         type="button"
         className={clsx(
@@ -87,16 +104,6 @@ export function Dropdown({
         )}
         aria-expanded={show}
         aria-haspopup="true"
-        onClick={() => {
-          if (!referenceElement) return;
-
-          if (!show) {
-            window.dispatchEvent(new DropdownOpenEvent(referenceElement));
-            setShow(true);
-          } else {
-            setShow(false);
-          }
-        }}
       >
         <div className="flex-grow break-all text-start">{label}</div>
         <div className={clsx('flex text-slate-500 dark:text-neutral-400')}>
@@ -116,7 +123,7 @@ export function Dropdown({
           'border-black dark:border-neutral-200',
           'rounded-lg',
           'divide-y divide-black dark:divide-neutral-200',
-          'transition-scale duration-100 origin-top-right',
+          'transition-scale duration-100 origin-top-left',
           show ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
         )}
         aria-hidden={!show}

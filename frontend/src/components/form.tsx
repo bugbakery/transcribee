@@ -28,3 +28,15 @@ export const Input = primitiveWithClassname('input', [
   'dark:bg-neutral-900',
   'dark:focus:ring-blue-400 dark:focus:border-blue-400',
 ]);
+
+export const Select = primitiveWithClassname('select', [
+  'block',
+  'w-full',
+  'form-input',
+  'rounded',
+  'border-2',
+  'border-black dark:border-neutral-200',
+  'mt-0.5',
+  'dark:bg-neutral-900',
+  'dark:focus:ring-blue-400 dark:focus:border-blue-400',
+]);
