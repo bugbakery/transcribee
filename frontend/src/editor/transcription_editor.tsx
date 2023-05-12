@@ -17,6 +17,34 @@ const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
 );
 
+export function formattedTime(sec: number | undefined): string {
+  if (sec === undefined) {
+    return 'unknown';
+  }
+  const subseconds = Math.floor((sec % 1) * 10)
+    .toString()
+    .padStart(1, '0');
+  const seconds = Math.floor(sec % 60)
+    .toString()
+    .padStart(2, '0');
+  const minutes = Math.floor((sec / 60) % 60)
+    .toString()
+    .padStart(2, '0');
+  const hours = Math.floor(sec / 60 / 60)
+    .toString()
+    .padStart(2, '0');
+  if (Math.floor(sec / 60 / 60) > 0) {
+    return `${hours}:${minutes}:${seconds}.${subseconds}`;
+  }
+  return `${minutes}:${seconds}.${subseconds}`;
+}
+
+function formatParagraphTimestamps(para: Paragraph): string {
+  const para_start = para.children[0].start;
+  const para_end = para.children[para.children.length - 1].end;
+  return `[${formattedTime(para_start)}\u200A\u2192\u200A${formattedTime(para_end)}]`;
+}
+
 function getSpeakerName(element: Paragraph, speaker_names: Record<string, string>): string {
   if (element.speaker === null) {
     return `Unknown`;
@@ -32,20 +60,14 @@ function renderElement(
   doc: Automerge.Doc<Document>,
 ): JSX.Element {
   if (element.type === 'paragraph') {
-    const para_start = element.children[0].start;
-    const para_end = element.children[element.children.length - 1].end;
     return (
       <div className="mb-6 flex">
         <div contentEditable={false} className="w-48 mr-8">
           {getSpeakerName(element, doc.speaker_names)}
           <div className="text-slate-500 dark:text-neutral-400">
-            {'['}
-            {para_start?.toFixed(2)}
-            {'→'}
-            {para_end?.toFixed(2)}
-            {'] '}
-            {element.lang}
+            {formatParagraphTimestamps(element)}
           </div>
+          <div className="text-slate-500 dark:text-neutral-400">{element.lang}</div>
         </div>
         <div {...attributes} className="grow-1 basis-full" lang={element.lang}>
           {children}
