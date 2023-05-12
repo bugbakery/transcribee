@@ -5,6 +5,7 @@ from typing import Callable
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlmodel import Session, select
 from starlette.websockets import WebSocketState
+from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_proto.sync import SyncMessageType
 
 from ..models import Document, DocumentUpdate
@@ -93,5 +94,9 @@ class DocumentSyncConsumer:
     async def on_message(self, message: bytes):
         update = DocumentUpdate(change_bytes=message, document_id=self._doc.id)
         self._session.add(update)
+
+        self._doc.changed_at = now_tz_aware()
+        self._session.add(self._doc)
+
         self._session.commit()
         await sync_manager.broadcast(str(self._doc.id), message)
