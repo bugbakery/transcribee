@@ -10,7 +10,7 @@ import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown'
 import { Input, Select } from '../components/form';
 import { showModal, Modal, ModalProps } from '../components/modal';
 
-function getSpeakerName(element: Paragraph, speaker_names: Record<string, string>): string {
+export function getSpeakerName(element: Paragraph, speaker_names: Record<string, string>): string {
   if (!element.speaker) {
     return `Unknown Speaker`;
   } else if (element.speaker in speaker_names) {

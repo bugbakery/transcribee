@@ -8,13 +8,14 @@ import { useDebugMode } from '../debugMode';
 
 import { TextClickEvent } from './types';
 import { SecondaryButton } from '../components/button';
-import { generateWebVtt } from '../utils/export/webvtt';
-import { downloadTextAsFile } from '../utils/download_text_as_file';
 import { PlayerBar, startTimeToClassName } from './player';
 import { useLocation } from 'wouter';
 
 import { SpeakerDropdown } from './speaker_dropdown';
 import clsx from 'clsx';
+import { showModal } from '../components/modal';
+import { WebvttExportModal } from './webvtt_export';
+import { canGenerateVtt } from '../utils/export/webvtt';
 
 const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -165,10 +166,10 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
       <div className="flex justify-end w-full">
         <SecondaryButton
           className="my-4"
-          onClick={() => {
-            const vtt = generateWebVtt(Automerge.toJS(editor.doc));
-            downloadTextAsFile('document.vtt', 'text/vtt', vtt.toString());
-          }}
+          onClick={() =>
+            showModal(<WebvttExportModal editor={editor} onClose={() => showModal(null)} />)
+          }
+          disabled={editor.doc.children === undefined || !canGenerateVtt(editor.doc.children)}
         >
           Export as WebVTT
         </SecondaryButton>
