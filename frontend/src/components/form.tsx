@@ -1,16 +1,25 @@
 import { ReactNode } from 'react';
 import { primitiveWithClassname } from '../styled';
+import clsx from 'clsx';
 
 export type FormControlProps = {
   label: string;
   error?: string;
   children: ReactNode;
+  disabled?: boolean;
 };
 
-export function FormControl({ label, error, children }: FormControlProps) {
+export function FormControl({ label, error, disabled, children }: FormControlProps) {
   return (
     <label className="block">
-      <span className="text-sm font-medium">{label}</span>
+      <span
+        className={clsx(
+          'text-sm font-medium',
+          disabled ? 'text-slate-400 dark:text-neutral-500' : '',
+        )}
+      >
+        {label}
+      </span>
       {children}
       {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
     </label>
@@ -27,7 +36,42 @@ export const Input = primitiveWithClassname('input', [
   'mt-0.5',
   'dark:bg-neutral-900',
   'dark:focus:ring-blue-400 dark:focus:border-blue-400',
+  'disabled:border-slate-400 disabled:dark:border-neutral-500 disabled:text-slate-400 disabled:dark:text-neutral-500',
 ]);
+
+export function Checkbox({
+  label,
+  disabled,
+  ...props
+}: { label: string } & React.HTMLProps<HTMLInputElement>): JSX.Element {
+  return (
+    <label
+      className={clsx(
+        'w-full flex items-center text-start',
+        disabled ? 'text-slate-500 dark:text-neutral-400' : '',
+      )}
+    >
+      <input
+        type="checkbox"
+        {...props}
+        className={clsx(
+          'form-input',
+          'rounded',
+          'border-2',
+          'border-black dark:border-neutral-200',
+          'mr-3',
+          'p-2',
+          'dark:bg-neutral-900',
+          'dark:focus:ring-blue-400 dark:focus:border-blue-400',
+          'disabled:border-slate-500 disabled:dark:border-neutral-400',
+          props.className,
+        )}
+        disabled={disabled}
+      />
+      {label}
+    </label>
+  );
+}
 
 export const Select = primitiveWithClassname('select', [
   'block',
