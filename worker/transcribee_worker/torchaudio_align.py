@@ -5,13 +5,14 @@ Authors (among others): C. Max Bain
 """
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, AsyncIterable, Callable, Optional
 
 import numpy as np
 import torch
 import torchaudio
 from transcribee_proto.document import Document, Paragraph
 from transcribee_worker.config import settings
+from transcribee_worker.util import async_task
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
 LANGUAGES_WITHOUT_SPACES = ["ja", "zh"]
@@ -102,7 +103,7 @@ def align(
     device="cpu",
     extend_duration: float = 0.5,  # seconds
     progress_callback: Optional[Callable[[Optional[float], Any], Any]] = None,
-) -> Iterable[Paragraph]:
+) -> AsyncIterable[Paragraph]:
     """
     Force align phoneme recognition predictions to known transcription
 
@@ -126,157 +127,165 @@ def align(
     Wav2Vec2 model are assigned timings to cover the end of the previous until the start
     of the next Atom with timings.
     """
-    if transcript.is_empty():
-        return transcript
 
-    models_by_lang = {}
+    def work(queue, audio):
+        if transcript.is_empty():
+            return transcript
 
-    if progress_callback is not None:
-        progress_callback(0, {"action": "converting audio"})
+        models_by_lang = {}
 
-    if not torch.is_tensor(audio):
-        audio = torch.from_numpy(audio)
-    if len(audio.shape) == 1:
-        audio = audio.unsqueeze(0)
+        if progress_callback is not None:
+            progress_callback(0, {"action": "converting audio"})
 
-    MAX_DURATION = audio.shape[1] / settings.SAMPLE_RATE
+        if not torch.is_tensor(audio):
+            audio = torch.from_numpy(audio)
+        if len(audio.shape) == 1:
+            audio = audio.unsqueeze(0)
 
-    for paragraph in transcript.children:
-        lang = paragraph.lang
-        atoms = paragraph.children
-        if not atoms:
-            continue
+        MAX_DURATION = audio.shape[1] / settings.SAMPLE_RATE
 
-        if lang not in models_by_lang:
+        for paragraph in transcript.children:
+            lang = paragraph.lang
+            atoms = paragraph.children
+            if not atoms:
+                continue
+
+            if lang not in models_by_lang:
+                if progress_callback is not None:
+                    progress_callback(
+                        None,
+                        {"action": "loading model", "lang": lang},
+                    )
+                models_by_lang[lang] = load_model(
+                    lang,
+                    device,
+                )
+
+            model, align_model_metadata = models_by_lang[lang]
+
+            model_dictionary = align_model_metadata["dictionary"]
+            model_type = align_model_metadata["type"]
+
+            # every character has
+            # - a token index
+            # - a start
+            # - a stop
+
+            # from the ctc model we only get the starts and stops for certain characters
+            # for the rest we need to invent them
+            #
+            # For each atom we look at the time for the first and the last character.
+            # If we have timings for these use them for the atom timing
+            # If not use timing from adjacent characters
+            #
+            # We also fold word seperators into the Atoms (as whisper generates them as part of the
+            # Atoms).
+            # We might want to consider not counting the word separator to the timing of a atom.
+
+            atom_index_to_timing_index = []
+            tokens = []
+
+            for atom in atoms:
+                start_index = None
+                end_index = None
+
+                for i, c in enumerate(atom.text):
+                    # TODO(robin): this is stupid hardcoding, lets do this better
+                    if c == " ":
+                        c = "|"
+
+                    c = c.lower()
+
+                    idx = None
+                    if c in model_dictionary:
+                        idx = len(tokens)
+                        tokens.append(model_dictionary[c])
+
+                    if i == 0:
+                        start_index = (idx, len(tokens) - 1 if idx is None else 2)
+                    if (i + 1) == len(atom.text):
+                        end_index = (idx, len(tokens))
+
+                atom_index_to_timing_index.append((start_index, end_index))
+
+            start = atoms[0].start
+            segment_end = atoms[-1].end
+
+            # if token level timestamps are disabled in the whisper layer
+            # the timestamps are negative, so we don't know anything about
+            # the timing and have to consider the full text
+            if start < 0:
+                start = 0
+
+            if segment_end < 0:
+                segment_end = MAX_DURATION
+
+            # pad according original timestamps
+            t1 = max(start - extend_duration, 0)
+            t2 = min(segment_end + extend_duration, MAX_DURATION)
+
+            waveform_segment = audio[
+                :, int(t1 * settings.SAMPLE_RATE) : int(t2 * settings.SAMPLE_RATE)
+            ]
+
             if progress_callback is not None:
                 progress_callback(
-                    None,
-                    {"action": "loading model", "lang": lang},
+                    start / MAX_DURATION,
+                    {"action": "interference", "start": t1, "end": t2},
                 )
-            models_by_lang[lang] = load_model(
-                lang,
-                device,
-            )
 
-        model, align_model_metadata = models_by_lang[lang]
+            with torch.inference_mode():
+                if model_type == "torchaudio":
+                    emissions, _ = model(waveform_segment.to(device))
+                elif model_type == "huggingface":
+                    emissions = model(waveform_segment.to(device)).logits
+                else:
+                    raise NotImplementedError(
+                        f"Align model of type {model_type} not supported."
+                    )
+                emissions = torch.log_softmax(emissions, dim=-1)
+            emission = emissions[0].cpu().detach()
 
-        model_dictionary = align_model_metadata["dictionary"]
-        model_type = align_model_metadata["type"]
+            trellis = get_trellis(emission, tokens)
+            path = backtrack(trellis, emission, tokens)
 
-        # every character has
-        # - a token index
-        # - a start
-        # - a stop
+            if path is not None:  # Don't touch para if we didn't find a path
+                char_segments = merge_repeats(path)
 
-        # from the ctc model we only get the starts and stops for certain characters
-        # for the rest we need to invent them
-        #
-        # For each atom we look at the time for the first and the last character.
-        # If we have timings for these use them for the atom timing
-        # If not use timing from adjacent characters
-        #
-        # We also fold word seperators into the Atoms (as whisper generates them as part of the
-        # Atoms). We might want to consider not counting the word separator to the timing of a atom
+                conversion_factor = (
+                    waveform_segment.size(1) / (trellis.size(0) - 1)
+                ) / settings.SAMPLE_RATE
+                for i, atom in enumerate(atoms):
+                    (start, last_end), (end, next_start) = atom_index_to_timing_index[i]
 
-        atom_index_to_timing_index = []
-        tokens = []
+                    if start is None:
+                        if last_end < 0:
+                            start_time = 0
+                        else:
+                            start_time = char_segments[last_end].end * conversion_factor
+                    else:
+                        start_time = char_segments[start].start * conversion_factor
 
-        for atom in atoms:
-            start_index = None
-            end_index = None
+                    if end is None:
+                        if next_start not in char_segments:
+                            end_time = t2 - t1
+                        else:
+                            end_time = (
+                                char_segments[next_start].start * conversion_factor
+                            )
+                    else:
+                        end_time = char_segments[end].end * conversion_factor
 
-            for i, c in enumerate(atom.text):
-                # TODO(robin): this is stupid hardcoding, lets do this better
-                if c == " ":
-                    c = "|"
-
-                c = c.lower()
-
-                idx = None
-                if c in model_dictionary:
-                    idx = len(tokens)
-                    tokens.append(model_dictionary[c])
-
-                if i == 0:
-                    start_index = (idx, len(tokens) - 1 if idx is None else 2)
-                if (i + 1) == len(atom.text):
-                    end_index = (idx, len(tokens))
-
-            atom_index_to_timing_index.append((start_index, end_index))
-
-        start = atoms[0].start
-        segment_end = atoms[-1].end
-
-        # if token level timestamps are disabled in the whisper layer
-        # the timestamps are negative, so we don't know anything about
-        # the timing and have to consider the full text
-        if start < 0:
-            start = 0
-
-        if segment_end < 0:
-            segment_end = MAX_DURATION
-
-        # pad according original timestamps
-        t1 = max(start - extend_duration, 0)
-        t2 = min(segment_end + extend_duration, MAX_DURATION)
-
-        waveform_segment = audio[
-            :, int(t1 * settings.SAMPLE_RATE) : int(t2 * settings.SAMPLE_RATE)
-        ]
-
-        if progress_callback is not None:
-            progress_callback(
-                start / MAX_DURATION, {"action": "interference", "start": t1, "end": t2}
-            )
-
-        with torch.inference_mode():
-            if model_type == "torchaudio":
-                emissions, _ = model(waveform_segment.to(device))
-            elif model_type == "huggingface":
-                emissions = model(waveform_segment.to(device)).logits
-            else:
-                raise NotImplementedError(
-                    f"Align model of type {model_type} not supported."
+                    atom.start = start_time + t1
+                    atom.end = end_time + t1
+            if progress_callback is not None:
+                progress_callback(
+                    segment_end / MAX_DURATION,
+                    {"action": "finished paragraph", "start": t1, "end": t2},
                 )
-            emissions = torch.log_softmax(emissions, dim=-1)
-        emission = emissions[0].cpu().detach()
+            queue.submit(paragraph)
 
-        trellis = get_trellis(emission, tokens)
-        path = backtrack(trellis, emission, tokens)
-
-        if path is not None:  # Don't touch para if we didn't find a path
-            char_segments = merge_repeats(path)
-
-            conversion_factor = (
-                waveform_segment.size(1) / (trellis.size(0) - 1)
-            ) / settings.SAMPLE_RATE
-            for i, atom in enumerate(atoms):
-                (start, last_end), (end, next_start) = atom_index_to_timing_index[i]
-
-                if start is None:
-                    if last_end < 0:
-                        start_time = 0
-                    else:
-                        start_time = char_segments[last_end].end * conversion_factor
-                else:
-                    start_time = char_segments[start].start * conversion_factor
-
-                if end is None:
-                    if next_start not in char_segments:
-                        end_time = t2 - t1
-                    else:
-                        end_time = char_segments[next_start].start * conversion_factor
-                else:
-                    end_time = char_segments[end].end * conversion_factor
-
-                atom.start = start_time + t1
-                atom.end = end_time + t1
-        if progress_callback is not None:
-            progress_callback(
-                segment_end / MAX_DURATION,
-                {"action": "finished paragraph", "start": t1, "end": t2},
-            )
-        yield paragraph
+    return async_task(work, audio)
 
 
 """
