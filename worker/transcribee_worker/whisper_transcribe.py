@@ -1,11 +1,11 @@
-import asyncio
 import logging
-from typing import Any, AsyncIterator, Callable, Optional, Tuple
+from typing import Any, AsyncIterator, Callable, Optional
 
 import requests
 from numpy.typing import NDArray
 from transcribee_proto.document import Atom, Paragraph
 from transcribee_worker.config import settings
+from transcribee_worker.util import SubmissionQueue, async_task
 from whispercppy import api
 
 
@@ -34,26 +34,20 @@ def get_context(model_name: str) -> api.Context:
     return ctx
 
 
-class TranscriptionWorkDoneToken:
-    pass
-
-
 # TODO(robin): this currently filters all special tokens
 # recovery of multilingual text could be hard if we keep this filtering
 def _transcription_work(
-    result_queue: asyncio.Queue,
+    queue: SubmissionQueue,
     data: NDArray[Any],
     model_name: str,
     lang_code: Optional[str],
-    loop: asyncio.BaseEventLoop,
     progress_callback: Optional[Callable],
 ):
     def handle_new_segment(
         ctx: api.Context,
         n_new: int,
-        result_queue_and_loop: Tuple[asyncio.Queue, asyncio.BaseEventLoop],
+        queue: SubmissionQueue,
     ):
-        result_queue, loop = result_queue_and_loop
         segment = ctx.full_n_segments() - n_new
 
         rest_token_bytes = b""
@@ -127,8 +121,7 @@ def _transcription_work(
                 lang=lang,
             )
 
-            # asyncio.Queue is not threadsafe, so we need to use the *_threadsafe functions
-            loop.call_soon_threadsafe(result_queue.put_nowait, paragraph)
+            queue.submit(paragraph)
             segment += 1
 
     ctx = get_context(model_name)
@@ -154,53 +147,18 @@ def _transcription_work(
         .with_max_segment_length(0)  # Unlimited segment length
         .with_token_timestamps(True)
     )
-    params.on_new_segment(handle_new_segment, (result_queue, loop))
+    params.on_new_segment(handle_new_segment, queue)
     if progress_callback is not None:
         params.on_progress(progress_callback, None)
     ctx.full(params, data)
 
-    return TranscriptionWorkDoneToken()
 
-
-async def transcribe(
+def transcribe(
     data: NDArray, model_name: str, lang_code="en", progress_callback=None
 ) -> AsyncIterator[Paragraph]:
-    loop = asyncio.get_running_loop()
-    results_queue = asyncio.Queue()
-
-    transcription_work = loop.run_in_executor(
-        None,
-        _transcription_work,
-        results_queue,
-        data,
-        model_name,
-        lang_code,
-        loop,
-        progress_callback,
+    return async_task(
+        _transcription_work, data, model_name, lang_code, progress_callback
     )
-
-    pending = {asyncio.create_task(results_queue.get()), transcription_work}
-
-    run = True
-    while run:
-        done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        for fut in done:
-            value = fut.result()
-            if isinstance(value, TranscriptionWorkDoneToken):
-                run = False
-            else:
-                yield value
-
-                while not results_queue.empty():
-                    yield results_queue.get_nowait()
-
-        # If we are still running, `transcription_work` cannot have returend, i.e. we got an
-        # element from the results queue. -> We need to add a new `results_queue.get`-Task
-        if run:
-            pending.add(asyncio.create_task(results_queue.get()))
-
-    for task in pending:
-        task.cancel()
 
 
 async def recombine_split_words(
@@ -275,11 +233,13 @@ async def transcribe_clean(
         strict_sentence_paragraphs,
         remove_leading_whitespace_from_paragraph,
     )
-    iter = transcribe(
-        data=data,
-        model_name=model_name,
-        lang_code=lang_code,
-        progress_callback=progress_callback,
+    iter = aiter(
+        transcribe(
+            data=data,
+            model_name=model_name,
+            lang_code=lang_code,
+            progress_callback=progress_callback,
+        )
     )
     for elem in chain:
         iter = elem(iter)

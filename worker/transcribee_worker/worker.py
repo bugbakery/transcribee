@@ -1,16 +1,12 @@
 import logging
 import mimetypes
-import shutil
 import tempfile
 import time
-import urllib.parse
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
 import automerge
 import numpy.typing as npt
-import requests
-import websockets
 from pydantic import parse_raw_as
 from transcribee_proto.api import AlignTask, AssignedTask
 from transcribee_proto.api import Document as ApiDocument
@@ -21,12 +17,12 @@ from transcribee_proto.api import (
     TranscribeTask,
 )
 from transcribee_proto.document import Document as EditorDocument
-from transcribee_proto.sync import SyncMessageType
+from transcribee_worker.api_client import ApiClient
 from transcribee_worker.config import settings
 from transcribee_worker.identify_speakers import identify_speakers
 from transcribee_worker.reencode import get_duration, reencode
 from transcribee_worker.torchaudio_align import align
-from transcribee_worker.util import load_audio
+from transcribee_worker.util import aenumerate, load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
 
 
@@ -44,10 +40,6 @@ def ensure_atom_invariants(doc: EditorDocument):
         prev_atom = atom
 
 
-class UnsupportedDocumentVersion(Exception):
-    pass
-
-
 class Worker:
     base_url: str
     token: str
@@ -61,9 +53,7 @@ class Worker:
         token: str,
         task_types: Optional[list[TaskType]] = None,
     ):
-        self.base_url = base_url
-        self.websocket_base_url = websocket_base_url
-        self.token = token
+        self.api_client = ApiClient(base_url, websocket_base_url, token)
         self.tmpdir = None
         if task_types is not None:
             self.task_types = task_types
@@ -75,17 +65,11 @@ class Worker:
                 TaskType.REENCODE,
             ]
 
-    def _get_headers(self):
-        return {"authorization": f"Worker {self.token}"}
-
     def claim_task(self) -> Optional[AssignedTask]:
         logging.info("Asking backend for new task")
-        req = requests.post(
-            f"{self.base_url}/claim_unassigned_task/",
-            params={"task_type": self.task_types},
-            headers=self._get_headers(),
+        req = self.api_client.post(
+            "tasks/claim_unassigned_task/", params={"task_type": self.task_types}
         )
-        req.raise_for_status()
         return parse_raw_as(Optional[AssignedTask], req.text)
 
     def _get_tmpfile(self, filename: str) -> Path:
@@ -104,9 +88,7 @@ class Worker:
             if "profile:mp3" in mf.tags:
                 media_file = mf
                 break
-        file_url = urllib.parse.urljoin(self.base_url, media_file.url)
-        response = requests.get(file_url)
-        response.raise_for_status()
+        response = self.api_client.get(media_file.url)
         return response.content, media_file.content_type
 
     def get_document_audio_path(self, document: ApiDocument) -> Optional[Path]:
@@ -119,25 +101,20 @@ class Worker:
                 f.write(b)
             return path
 
-    def load_document_audio(self, document: ApiDocument) -> Tuple[npt.NDArray, int]:
+    def load_document_audio(self, document: ApiDocument) -> npt.NDArray:
         document_audio = self.get_document_audio_path(document)
         if document_audio is None:
             raise ValueError(
                 f"Document {document} has no audio attached. Cannot identify speakers."
             )
-        return load_audio(document_audio)
+        return load_audio(document_audio)[0]
 
     def keepalive(self, task_id: str, progress: Optional[float]):
         body = {}
         if progress is not None:
             body["progress"] = progress
         logging.debug(f"Sending keepalive for {task_id=}: {body=}")
-        req = requests.post(
-            f"{self.base_url}/{task_id}/keepalive/",
-            json=body,
-            headers=self._get_headers(),
-        )
-        req.raise_for_status()
+        self.api_client.post(f"tasks/{task_id}/keepalive/", json=body)
 
     async def perform_task(self, task: AssignedTask):
         logging.info(f"Running task: {task=}")
@@ -153,132 +130,66 @@ class Worker:
         else:
             raise ValueError(f"Invalid task type: '{task.task_type}'")
 
-    async def _preprocess_doc(self, document_id: str, doc: automerge.Document):
-        if doc.version is None:
-            if automerge.dump(doc) == {}:
-                with automerge.transaction(doc, "Initialize Document") as d:
-                    if d.children is None:
-                        d.children = []
-                    if d.speaker_names is None:
-                        d.speaker_names = {}
-                    d.version = 1
-
-                change = d.get_change()
-                if change is not None:
-                    await self.send_change(document_id, change.bytes())
-            else:
-                raise UnsupportedDocumentVersion()
-
-        if doc.version != 1:
-            raise UnsupportedDocumentVersion()
-
-        return doc
-
-    async def get_document_state(self, document_id: str) -> automerge.Document:
-        doc = automerge.init(EditorDocument)
-        params = urllib.parse.urlencode(self._get_headers())
-        async with websockets.connect(
-            f"{self.websocket_base_url}{document_id}/?{params}"
-        ) as websocket:
-            while True:
-                msg = await websocket.recv()
-                if msg[0] == SyncMessageType.CHANGE:
-                    automerge.apply_changes(doc, [msg[1:]])
-                elif msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
-                    break
-                elif msg[0] == SyncMessageType.FULL_DOCUMENT:
-                    doc = automerge.load(msg[1:])
-
-        await self._preprocess_doc(document_id, doc)
-        return doc
-
-    async def send_change(self, document_id: str, change: bytes):
-        params = urllib.parse.urlencode(self._get_headers())
-        async with websockets.connect(
-            f"{self.websocket_base_url}{document_id}/?{params}"
-        ) as websocket:
-            while True:
-                msg_type, *_ = await websocket.recv()
-                if msg_type == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
-                    break
-
-            await websocket.send(change)
-
     async def transcribe(self, task: TranscribeTask):
-        audio, _sr = self.load_document_audio(task.document)
+        audio = self.load_document_audio(task.document)
 
         def progress_callback(_ctx, progress, _data):
             self._set_progress(task.id, "whisper", progress=progress / 100)
 
-        doc = await self.get_document_state(task.document.id)
+        async with self.api_client.document(task.document.id) as doc:
+            async with doc.transaction("Reset Document") as d:
+                d.children = []
 
-        with automerge.transaction(doc, "Reset Document") as d:
-            d.children = []
-
-        change = d.get_change()
-        if change is not None:
-            await self.send_change(task.document.id, change.bytes())
-
-        async for paragraph in transcribe_clean(
-            audio,
-            task.task_parameters.model,
-            task.task_parameters.lang,
-            progress_callback,
-        ):
-            with automerge.transaction(doc, "Automatic Transcription") as d:
-                p = paragraph.dict()
-                for c in p["children"]:
-                    c["text"] = automerge.Text(c["text"])
-                d.children.append(p)
-
-            change = d.get_change()
-            if change is not None:
-                await self.send_change(task.document.id, change.bytes())
+            async for paragraph in transcribe_clean(
+                audio,
+                task.task_parameters.model,
+                task.task_parameters.lang,
+                progress_callback,
+            ):
+                async with doc.transaction("Automatic Transcription") as d:
+                    p = paragraph.dict()
+                    for c in p["children"]:
+                        c["text"] = automerge.Text(c["text"])
+                    d.children.append(p)
 
     async def identify_speakers(self, task: SpeakerIdentificationTask):
-        audio, _sr = self.load_document_audio(task.document)
-        doc = await self.get_document_state(task.document.id)
-
-        self._set_progress(task.id, "identify speakers", progress=0)
+        audio = self.load_document_audio(task.document)
 
         def progress_callback(step: str, progress: float):
             self._set_progress(task.id, step, progress=progress)
 
-        with automerge.transaction(doc, "Speaker Identification") as d:
-            identify_speakers(audio, d, progress_callback)
-        change = d.get_change()
-        if change is not None:
-            await self.send_change(task.document.id, change.bytes())
+        async with self.api_client.document(task.document.id) as doc:
+            self._set_progress(task.id, "identify speakers", progress=0)
+
+            async with doc.transaction("Speaker Identification") as d:
+                await identify_speakers(audio, d, progress_callback)
 
         self._set_progress(task.id, "identify speakers", progress=1)
 
     async def align(self, task: AlignTask):
-        audio, _sr = self.load_document_audio(task.document)
-        doc = await self.get_document_state(task.document.id)
-        document = EditorDocument.parse_obj(automerge.dump(doc))
+        audio = self.load_document_audio(task.document)
 
-        aligned_para_iter = align(
-            document,
-            audio,
-            # TODO(robin): this seems like a weird place to hardcode this parameter
-            extend_duration=0.5,
-            progress_callback=lambda progress, extra_data: self._set_progress(
-                task.id, "torchaudio aligner", progress, extra_data
-            ),
-        )
+        async with self.api_client.document(task.document.id) as doc:
+            # TODO(robin): #perf: avoid this copy
+            document = EditorDocument.parse_obj(automerge.dump(doc.doc))
 
-        for i, al_para in enumerate(aligned_para_iter):
-            with automerge.transaction(doc, "Alignment") as d:
-                d_para = d.children[i]
-                for d_atom, al_atom in zip(d_para.children, al_para.children):
-                    d_atom.start = al_atom.start
-                    d_atom.end = al_atom.end
-
-            change = d.get_change()
-            if change is not None:
-                await self.send_change(task.document.id, change.bytes())
-
-        document = EditorDocument.parse_obj(automerge.dump(doc))
+            aligned_para_iter = aiter(
+                align(
+                    document,
+                    audio,
+                    # TODO(robin): this seems like a weird place to hardcode this parameter
+                    extend_duration=0.5,
+                    progress_callback=lambda progress, extra_data: self._set_progress(
+                        task.id, "torchaudio aligner", progress, extra_data
+                    ),
+                )
+            )
+            async for i, al_para in aenumerate(aligned_para_iter):
+                async with doc.transaction("Alignment") as d:
+                    d_para = d.children[i]
+                    for d_atom, al_atom in zip(d_para.children, al_para.children):
+                        d_atom.start = al_atom.start
+                        d_atom.end = al_atom.end
 
     async def reencode(self, task: ReencodeTask):
         document_audio = self.get_document_audio_path(task.document)
@@ -293,7 +204,7 @@ class Worker:
         n_profiles = len(settings.REENCODE_PROFILES)
         for i, (profile, parameters) in enumerate(settings.REENCODE_PROFILES.items()):
             output_path = self._get_tmpfile(f"reencode_{profile}")
-            duration = reencode(
+            await reencode(
                 document_audio,
                 output_path,
                 parameters,
@@ -311,22 +222,17 @@ class Worker:
         logging.debug(
             f"Setting audio duration for document {task.document.id=} {duration=}"
         )
-        req = requests.post(
-            f"{self.base_url}/../documents/{task.document.id}/set_duration/",
-            json={"duration": duration},
-            headers=self._get_headers(),
+        self.api_client.post(
+            f"documents/{task.document.id}/set_duration/", json={"duration": duration}
         )
-        req.raise_for_status()
 
     def add_document_media_file(self, task: AssignedTask, path: Path, tags: list[str]):
         logging.debug(f"Replacing document audio for document {task.document.id=}")
-        req = requests.post(
-            f"{self.base_url}/../documents/{task.document.id}/add_media_file/",
+        self.api_client.post(
+            f"documents/{task.document.id}/add_media_file/",
             files={"file": open(path, "rb")},
             data=[("tags", tag) for tag in tags],
-            headers=self._get_headers(),
         )
-        req.raise_for_status()
 
     def mark_completed(self, task_id: str, additional_data: Optional[dict] = None):
         completion_data = {**self._result_data}
@@ -336,12 +242,7 @@ class Worker:
             "completion_data": completion_data if completion_data is not None else {}
         }
         logging.debug(f"Marking task as completed {task_id=} {body=}")
-        req = requests.post(
-            f"{self.base_url}/{task_id}/mark_completed/",
-            json=body,
-            headers=self._get_headers(),
-        )
-        req.raise_for_status()
+        self.api_client.post(f"tasks/{task_id}/mark_completed/", json=body)
 
     def _set_progress(
         self, task_id: str, step: str, progress: Optional[float], extra_data: Any = None
@@ -357,26 +258,24 @@ class Worker:
         self.keepalive(task_id, progress)
 
     async def run_task(self, mark_completed=True):
-        self.tmpdir = Path(tempfile.mkdtemp())
         task = self.claim_task()
-
         no_work = False
         self._result_data = {"progress": []}
 
         try:
             if task is not None:
-                task_result = await self.perform_task(task)
-                logging.info(f"Worker returned: {task_result=}")
-                if mark_completed:
-                    self.mark_completed(task.id, {"result": task_result})
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    self.tmpdir = Path(tmpdir)
+                    task_result = await self.perform_task(task)
+                    logging.info(f"Worker returned: {task_result=}")
+                    if mark_completed:
+                        self.mark_completed(task.id, {"result": task_result})
+                self.tmpdir = None
             else:
                 logging.info("Got no task, not running worker")
                 no_work = True
         except Exception as exc:
             logging.warning("Worker failed with exception", exc_info=exc)
 
-        logging.debug(f"Cleaning tmpdir '{self.tmpdir}'")
-        shutil.rmtree(self.tmpdir)
-        self.tmpdir = None
         logging.debug("run_task() done :)")
         return no_work
