@@ -31,6 +31,9 @@ class Document(DocumentBase, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     media_files: List["DocumentMediaFile"] = Relationship()
+    updates: List["DocumentUpdate"] = Relationship(
+        sa_relationship_kwargs={"cascade": "all,delete"}
+    )
 
     def as_api_document(self) -> ApiDocument:
         return ApiDocument(
@@ -67,7 +70,9 @@ class DocumentMediaFile(DocumentMediaFileBase, table=True):
 
     file: str
     content_type: str
-    tags: List["DocumentMediaTag"] = Relationship()
+    tags: List["DocumentMediaTag"] = Relationship(
+        sa_relationship_kwargs={"cascade": "all,delete"}
+    )
 
     def as_api_media_file(self) -> ApiDocumentMedia:
         return ApiDocumentMedia(
@@ -101,4 +106,4 @@ class DocumentUpdate(DocumentUpdateBase, table=True):
         nullable=False,
     )
     document_id: uuid.UUID = Field(foreign_key="document.id")
-    document: Document = Relationship()
+    document: Document = Relationship(back_populates="updates")

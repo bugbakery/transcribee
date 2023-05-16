@@ -38,6 +38,9 @@ notebooks = [
 dev = [
     "-e file:///${PROJECT_ROOT}/../proto#egg=transcribee-proto",
     "pyyaml>=6.0",
+    "pytest>=7.3.1",
+    "httpx>=0.24.0",
+    "pytest-alembic>=0.10.4",
 ]
 
 [tool.pdm.scripts]
@@ -48,6 +51,7 @@ makemigrations = "alembic revision --autogenerate -m"
 create_user = "scripts/create_user.py"
 create_worker = "scripts/create_worker.py"
 generate_openapi = "python -m scripts.generate_openapi"
+test = "pytest tests/"
 
 [build-system]
 requires = ["pdm-pep517>=1.0"]

@@ -428,6 +428,35 @@ paths:
           description: Validation Error
       summary: Create Document
   /api/v1/documents/{document_id}/:
+    delete:
+      operationId: delete_document_api_v1_documents__document_id___delete
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Delete Document
     get:
       operationId: get_document_api_v1_documents__document_id___get
       parameters:

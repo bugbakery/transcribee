@@ -2,7 +2,8 @@ import datetime
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 
-from sqlmodel import JSON, Column, Field, Relationship, SQLModel
+from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel
+from sqlmodel.sql.sqltypes import GUID
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import TaskType
 from typing_extensions import Self
@@ -24,8 +25,15 @@ class TaskDependency(SQLModel, table=True):
         index=True,
         nullable=False,
     )
-    dependent_task_id: uuid.UUID = Field(foreign_key="task.id", unique=False)
-    dependant_on_id: uuid.UUID = Field(foreign_key="task.id", unique=False)
+
+    dependent_task_id: uuid.UUID = Field(
+        sa_column=Column(GUID, ForeignKey("task.id", ondelete="CASCADE")),
+        unique=False,
+    )
+    dependant_on_id: uuid.UUID = Field(
+        sa_column=Column(GUID, ForeignKey("task.id", ondelete="CASCADE")),
+        unique=False,
+    )
 
 
 class Task(TaskBase, table=True):
@@ -35,7 +43,10 @@ class Task(TaskBase, table=True):
         index=True,
         nullable=False,
     )
-    document_id: uuid.UUID = Field(foreign_key="document.id")
+    document_id: uuid.UUID = Field(
+        sa_column=Column(GUID, ForeignKey("document.id", ondelete="CASCADE")),
+        unique=False,
+    )
     document: Document = Relationship()
 
     progress: Optional[float] = None

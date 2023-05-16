@@ -11,3 +11,7 @@
         --transcribee-word-highlight-color: green;
     }
 }
+
+.break-word {
+    word-break: break-word;
+}

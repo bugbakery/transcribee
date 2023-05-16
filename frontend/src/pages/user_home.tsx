@@ -1,13 +1,15 @@
 import { Link } from 'wouter';
 import clsx from 'clsx';
 
-import { useListDocuments } from '../api/document';
+import { deleteDocument, useListDocuments } from '../api/document';
 import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
 import { AppContainer } from '../components/app';
 import { AiOutlinePlus } from 'react-icons/ai';
+import { IoMdTrash } from 'react-icons/io';
+import { IconButton } from '../components/button';
 
 export function UserHomePage() {
-  const { data } = useListDocuments({});
+  const { data, mutate } = useListDocuments({});
 
   return (
     <AppContainer>
@@ -38,7 +40,9 @@ export function UserHomePage() {
               <Link
                 to={`document/${doc.id}`}
                 className={clsx(
-                  'block',
+                  'w-full h-full',
+                  'flex flex-col',
+                  'items-stretch justify-between',
                   'p-4',
                   'aspect-square',
                   'bg-white dark:bg-neutral-900',
@@ -49,8 +53,23 @@ export function UserHomePage() {
                   'hover:shadow-lg',
                   'hover:scale-105',
                   'transition-all',
+                  'break-word',
                 )}
               >
+                <IconButton
+                  label={'Delete Document'}
+                  icon={IoMdTrash}
+                  className={clsx('self-end -m-2')}
+                  size={28}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // TODO: Replace with modal
+                    if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
+                      // mutate marks the document list as stale, so SWR refreshes it
+                      deleteDocument({ document_id: doc.id }).then(() => mutate());
+                    }
+                  }}
+                />
                 {doc.name}
               </Link>
             </li>
