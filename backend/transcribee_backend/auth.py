@@ -9,7 +9,7 @@ from typing import Tuple
 from fastapi import Depends, Header, HTTPException
 from sqlmodel import Session, select
 from transcribee_backend.db import get_session
-from transcribee_backend.exceptions import UserAlreadyExists
+from transcribee_backend.exceptions import UserAlreadyExists, UserDoesNotExist
 from transcribee_backend.models import User, UserToken, Worker
 
 
@@ -123,3 +123,15 @@ def create_user(session: Session, username: str, password: str) -> User:
     session.commit()
     session.refresh(user)
     return user
+
+
+def change_user_password(session: Session, username: str, new_password: str) -> User:
+    statement = select(User).where(User.username == username)
+    results = session.exec(statement)
+    existing_user = results.one_or_none()
+    if existing_user is None:
+        raise UserDoesNotExist()
+    existing_user.password_salt, existing_user.password_hash = pw_hash(new_password)
+    session.add(existing_user)
+    session.commit()
+    return existing_user

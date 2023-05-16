@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 from typing import List
 
 import magic
@@ -22,6 +23,7 @@ from transcribee_backend.auth import (
     validate_user_authorization,
     validate_worker_authorization,
 )
+from transcribee_backend.config import settings
 from transcribee_backend.db import get_session
 from transcribee_backend.helpers.sync import DocumentSyncConsumer
 from transcribee_backend.helpers.time import now_tz_aware
@@ -146,6 +148,32 @@ def get_document(
     document: Document = Depends(get_document_from_url),
 ) -> ApiDocument:
     return document.as_api_document()
+
+
+@document_router.delete("/{document_id}/")
+def delete_document(
+    token: UserToken = Depends(get_user_token),
+    document: Document = Depends(get_document_from_url),
+    session: Session = Depends(get_session),
+) -> None:
+    paths_to_delete: List[Path] = []
+    media_files = select(DocumentMediaFile).where(
+        DocumentMediaFile.document == document
+    )
+
+    for media_file in session.exec(media_files):
+        paths_to_delete.append(settings.storage_path / media_file.file)
+        session.delete(media_file)
+
+    session.delete(document)
+    session.commit()
+
+    for path in paths_to_delete:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return
 
 
 @document_router.get("/{document_id}/tasks/")
