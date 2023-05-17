@@ -129,7 +129,7 @@ export function PlayerBar({
 
       <div
         className={clsx(
-          'fixed bottom-0 inset-x-6 mx-auto',
+          'fixed bottom-0 inset-x-6 mx-auto z-50',
           'max-w-screen-xl height-8 my-2',
           'flex',
           'p-2',
@@ -157,7 +157,6 @@ export function PlayerBar({
           </WaveSurfer>
         </div>
       </div>
-      <div className="pb-20" />
     </>
   );
 }

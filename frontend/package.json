@@ -62,6 +62,7 @@
     "react-json-tree": "^0.18.0",
     "react-popper": "^2.3.0",
     "react-responsive": "^9.0.2",
+    "react-use-measure": "^2.1.1",
     "slate": "^0.94.0",
     "slate-automerge-doc": "github:transcribee/slate-automerge-doc",
     "slate-react": "^0.94.0",

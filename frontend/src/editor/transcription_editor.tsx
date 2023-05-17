@@ -14,6 +14,7 @@ import { PlayerBar, startTimeToClassName } from './player';
 import { useLocation } from 'wouter';
 
 import { SpeakerDropdown } from './speaker_dropdown';
+import clsx from 'clsx';
 
 const LazyDebugPanel = lazy(() =>
   import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -52,7 +53,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
     return (
       <>
         <div className="mb-6 flex">
-          <div contentEditable={false} className="w-52 mr-2">
+          <div contentEditable={false} className="w-56 mr-2">
             <SpeakerDropdown paragraph={element} />
 
             <div className="px-3 text-slate-500 dark:text-neutral-400">
@@ -169,7 +170,8 @@ export function TranscriptionEditor({ documentId }: { documentId: string }) {
           Export as WebVTT
         </SecondaryButton>
       </div>
-      <div className={syncComplete ? '' : 'blur'}>
+
+      <div className={clsx(syncComplete || 'blur', 'pb-40')}>
         <Slate editor={editor} value={value} onChange={setValue}>
           <Editable
             renderElement={(props) => renderElement(props)}

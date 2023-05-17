@@ -1,8 +1,9 @@
 import clsx from 'clsx';
 import { ReactNode, useState } from 'react';
 import { useEvent } from '../utils/use_event';
+import useMeasure from 'react-use-measure';
 
-import { IoIosArrowDown, IoIosArrowUp } from 'react-icons/io';
+import { IoIosArrowDown } from 'react-icons/io';
 import { IconType } from 'react-icons';
 
 const DROPDOWN_OPEN_EVENT = 'dropdownOpen';
@@ -20,7 +21,7 @@ export function DropdownSection({
   HTMLDivElement
 >) {
   return (
-    <div {...props} className="block" role="none">
+    <div {...props} className="block py-1.5" role="none">
       {children}
     </div>
   );
@@ -28,14 +29,10 @@ export function DropdownSection({
 export function DropdownItem({
   children,
   icon,
-  first,
-  last,
   disabled = false,
   ...props
 }: {
   icon?: IconType;
-  first?: boolean;
-  last?: boolean;
   disabled?: boolean;
 } & React.DetailedHTMLProps<React.HTMLAttributes<HTMLButtonElement>, HTMLButtonElement>) {
   const Icon = icon;
@@ -45,17 +42,16 @@ export function DropdownItem({
       className={clsx(
         'flex items-center',
         'w-full',
-        'px-4 py-2',
+        'px-3 py-1',
+        'rounded-none',
         'hover:bg-gray-200 dark:hover:bg-neutral-700',
-        first ? 'rounded-t-md' : '',
-        last ? 'rounded-b-md' : '',
         disabled ? 'text-slate-500 dark:text-neutral-400' : '',
       )}
       role="menuitem"
       type="button"
       disabled={disabled}
     >
-      {Icon ? <Icon className="pr-2" size={'2em'} /> : <></>}
+      {Icon ? <Icon className="pr-2" size={'1.75em'} /> : <></>}
       {children}
     </button>
   );
@@ -69,6 +65,7 @@ export function Dropdown({
   HTMLDivElement
 >) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
+  const [setMeasureReference, bounds] = useMeasure();
   const [show, setShow] = useState(false);
 
   useEvent<DropdownOpenEvent>(DROPDOWN_OPEN_EVENT, (e) => {
@@ -79,7 +76,10 @@ export function Dropdown({
 
   return (
     <div
-      ref={setReferenceElement}
+      ref={(ref) => {
+        setReferenceElement(ref);
+        setMeasureReference(ref);
+      }}
       onClick={() => {
         if (!referenceElement) return;
 
@@ -94,39 +94,38 @@ export function Dropdown({
       <button
         type="button"
         className={clsx(
-          '-mt-1.5',
+          '-mt-1',
           'inline-flex items-stretch',
           'w-full rounded-lg',
           'text-sm font-semibold',
           'hover:bg-gray-200 dark:hover:bg-neutral-700',
-          'group',
-          'px-3 py-2',
+          show && 'bg-gray-200 dark:bg-neutral-700',
+          'pl-2 py-1',
         )}
         aria-expanded={show}
         aria-haspopup="true"
       >
-        <div className="flex-grow break-all text-start">{label}</div>
-        <div className={clsx('flex text-slate-500 dark:text-neutral-400')}>
-          {show ? (
-            <IoIosArrowUp className="self-center" />
-          ) : (
-            <IoIosArrowDown className="self-center" />
-          )}
+        <div className={clsx('flex text-slate-500 dark:text-neutral-400 pr-1')}>
+          <IoIosArrowDown
+            className={clsx('self-center transition-all duration-100', show || '-rotate-90')}
+          />
         </div>
+        <div className="flex-grow break-all text-start">{label}</div>
       </button>
       <div
         {...props}
         className={clsx(
           'absolute left-0 z-10 mt-1',
           'bg-white dark:bg-neutral-900',
-          'border-2',
-          'border-black dark:border-neutral-200',
+          'border-2 border-black dark:border-neutral-200',
+          'shadow-brutal shadow-slate-400 dark:shadow-neutral-600',
           'rounded-lg',
           'divide-y divide-black dark:divide-neutral-200',
           'transition-scale duration-100 origin-top-left',
           show ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
         )}
         aria-hidden={!show}
+        style={{ minWidth: bounds.width }}
       >
         {children}
       </div>
