@@ -6,10 +6,40 @@ import { IconButton } from '../components/button';
 import { TranscriptionEditor } from '../editor/transcription_editor';
 import { WorkerStatus } from '../editor/worker_status';
 import { useGetDocument } from '../api/document';
+import { TbFileExport } from 'react-icons/tb';
+import { canGenerateVtt } from '../utils/export/webvtt';
+import { Suspense, lazy, useState } from 'react';
+import { PlayerBar } from '../editor/player';
+import { useDebugMode } from '../debugMode';
+import clsx from 'clsx';
+import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_editor';
+import { WebvttExportModal } from '../editor/webvtt_export';
+import { showModal } from '../components/modal';
 
-export function DocumentPage({ params }: RouteComponentProps<{ documentId: string }>) {
-  const { data } = useGetDocument({ document_id: params.documentId });
+const LazyDebugPanel = lazy(() =>
+  import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
+);
+
+export function DocumentPage({
+  params: { documentId },
+}: RouteComponentProps<{ documentId: string }>) {
+  const { data } = useGetDocument({ document_id: documentId });
   const [_location, navigate] = useLocation();
+  const debugMode = useDebugMode();
+
+  const [syncComplete, setSyncComplete] = useState<boolean>(false);
+  const url = new URL(`ws://localhost:8000/api/v1/documents/sync/${documentId}/`);
+  const authToken = localStorage.getItem('auth');
+  url.searchParams.append('authorization', `Token ${authToken}`);
+  const editor = useAutomergeWebsocketEditor(url, {
+    onInitialSyncComplete: () => {
+      setSyncComplete(true);
+      if (editor.doc.version !== 1) {
+        alert('The document is in an unsupported version.');
+        navigate('/');
+      }
+    },
+  });
 
   return (
     <AppContainer>
@@ -22,14 +52,24 @@ export function DocumentPage({ params }: RouteComponentProps<{ documentId: strin
           />
           <TopBarTitle>{data?.name}</TopBarTitle>
         </TopBarPart>
-
         <TopBarPart>
-          <WorkerStatus documentId={params.documentId} />
+          <IconButton
+            icon={TbFileExport}
+            label={'export...'}
+            onClick={() => {
+              showModal(<WebvttExportModal editor={editor} onClose={() => showModal(null)} />);
+            }}
+            disabled={editor.doc.children === undefined || !canGenerateVtt(editor.doc.children)}
+          />
+          <WorkerStatus documentId={documentId} />
           <MeButton />
         </TopBarPart>
       </TopBar>
 
-      <TranscriptionEditor documentId={params.documentId} />
+      <TranscriptionEditor editor={editor} className={clsx({ blur: !syncComplete })} />
+      <PlayerBar documentId={documentId} editor={editor} />
+
+      <Suspense>{debugMode && <LazyDebugPanel editor={editor} />}</Suspense>
     </AppContainer>
   );
 }

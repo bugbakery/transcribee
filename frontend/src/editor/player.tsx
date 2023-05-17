@@ -5,18 +5,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { WaveSurfer, WaveForm } from 'wavesurfer-react';
 import WaveSurferType from 'wavesurfer.js';
 import { useGetDocument } from '../api/document';
-import { Descendant } from 'slate';
 import { CssRule } from '../utils/cssdom';
 import { TEXT_CLICK_EVENT, TextClickEvent } from './types';
 import { useEvent } from '../utils/use_event';
+import { Editor } from 'slate';
 
-export function PlayerBar({
-  documentId,
-  documentContent,
-}: {
-  documentId: string;
-  documentContent: Descendant[];
-}) {
+export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument({ document_id: documentId });
   let audioFile = data?.media_files[0]?.url;
   const audioElement = document.createElement('audio');
@@ -56,10 +50,12 @@ export function PlayerBar({
     const time = waveSurferRef.current?.getCurrentTime() || 0;
     let startTimeOfElement = 0;
 
+    if (!editor.doc.children) return;
+
     // we loop from the back to the front to get the first element that is no longer too far
     // (if no text is at the current time, we highlight the text before)
-    outer: for (let i = documentContent.length - 1; i >= 0; i--) {
-      const paragraph = documentContent[i];
+    outer: for (let i = editor.doc.children.length - 1; i >= 0; i--) {
+      const paragraph = editor.doc.children[i];
       if ('children' in paragraph) {
         for (let j = paragraph.children.length - 1; j >= 0; j--) {
           const word = paragraph.children[j];
@@ -72,7 +68,7 @@ export function PlayerBar({
     }
 
     setCurrentElementStartTime(startTimeOfElement);
-  }, [documentContent]);
+  }, [editor.doc]);
 
   useEffect(() => {
     waveSurferRef.current?.on('seek', progressCallback);

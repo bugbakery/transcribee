@@ -1,25 +1,10 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { createEditor, Descendant } from 'slate';
-import { withReact, Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
-import * as Automerge from '@automerge/automerge';
-import { withAutomergeDoc } from 'slate-automerge-doc';
-import { AutomergeWebsocketProvider } from './automerge_websocket_provider';
-import { useDebugMode } from '../debugMode';
-
-import { TextClickEvent } from './types';
-import { SecondaryButton } from '../components/button';
-import { PlayerBar, startTimeToClassName } from './player';
-import { useLocation } from 'wouter';
-
+import { Editor } from 'slate';
+import { Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
+import { useEvent } from '../utils/use_event';
+import { TextClickEvent } from './types';
+import { startTimeToClassName } from './player';
 import clsx from 'clsx';
-import { showModal } from '../components/modal';
-import { WebvttExportModal } from './webvtt_export';
-import { canGenerateVtt } from '../utils/export/webvtt';
-
-const LazyDebugPanel = lazy(() =>
-  import('./debug_panel').then((module) => ({ default: module.DebugPanel })),
-);
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
@@ -100,101 +85,45 @@ function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Elemen
   );
 }
 
-export function TranscriptionEditor({ documentId }: { documentId: string }) {
-  const debugMode = useDebugMode();
-  const [value, setValue] = useState<Descendant[]>([]);
-  const [syncComplete, setSyncComplete] = useState<boolean>(false);
-
-  const editor = useMemo(() => {
-    const baseEditor = createEditor();
-    const editorWithReact = withReact(baseEditor);
-    return withAutomergeDoc(editorWithReact, Automerge.init());
-  }, [documentId]);
-
-  const url = new URL(`ws://localhost:8000/api/v1/documents/sync/${documentId}/`);
-  const authToken = localStorage.getItem('auth');
-  url.searchParams.append('authorization', `Token ${authToken}`);
-
-  const [_location, navigate] = useLocation();
-
-  useEffect(() => {
-    const provider = new AutomergeWebsocketProvider(url.href);
-
-    provider.on('initalSyncComplete', () => {
-      setSyncComplete(true);
-      if (editor.doc.version !== 1) {
-        alert('The document is in an unsupported version.');
-        navigate('/');
-      }
-    });
-
-    provider.on('update', ({ change, remote }: { change: Uint8Array; remote: boolean }) => {
-      if (!remote) return;
-
-      // skip own changes
-      // TODO: filter own changes in backend?
-      if (Automerge.decodeChange(change).actor == Automerge.getActorId(editor.doc)) return;
-
-      const [newDoc] = Automerge.applyChanges(editor.doc, [change]);
-      editor.setDoc(newDoc);
-    });
-
-    provider.on('fullDoc', (fullDoc: Uint8Array) => editor.setDoc(Automerge.load(fullDoc)));
-
-    editor.onDocChange = (newDoc) => {
-      const lastChange = Automerge.getLastLocalChange(newDoc);
-      if (lastChange) {
-        provider.emit('update', [{ change: lastChange, remote: false }]);
-      }
-    };
-  }, [editor]);
-
-  useEffect(() => {
-    const preventCtrlS = (e: KeyboardEvent) => {
-      const ctrlOrCmd = window.navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey;
-      if (ctrlOrCmd && e.key === 's') {
-        e.preventDefault();
-        console.log('CommandOrControl + S prevented – we automatically save the document anyways');
-      }
-    };
-    document.addEventListener('keydown', preventCtrlS);
-    return () => document.removeEventListener('keydown', preventCtrlS);
-  }, []);
+export function TranscriptionEditor({
+  editor,
+  ...props
+}: {
+  editor: Editor;
+} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
+  // prevent ctrl+s
+  useEvent('keydown', (e: KeyboardEvent) => {
+    const ctrlOrCmd = window.navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey;
+    if (ctrlOrCmd && e.key === 's') {
+      e.preventDefault();
+      console.log('CommandOrControl + S prevented – we automatically save the document anyways');
+    }
+  });
 
   return (
-    <>
-      <div className="flex justify-end w-full">
-        <SecondaryButton
-          className="my-4"
-          onClick={() =>
-            showModal(<WebvttExportModal editor={editor} onClose={() => showModal(null)} />)
-          }
-          disabled={editor.doc.children === undefined || !canGenerateVtt(editor.doc.children)}
-        >
-          Export as WebVTT
-        </SecondaryButton>
-      </div>
-
-      <div className={clsx(syncComplete || 'blur', 'pb-40')}>
-        <Slate editor={editor} value={value} onChange={setValue}>
-          <Editable
-            renderElement={(props) => renderElement(props)}
-            renderLeaf={renderLeaf}
-            onClick={() => {
-              const selection = document.getSelection();
-              if (
-                selection?.isCollapsed &&
-                selection.anchorNode?.parentElement?.parentElement?.classList.contains('word')
-              ) {
-                selection.anchorNode.parentElement.click();
-              }
-            }}
-          />
-        </Slate>
-      </div>
-
-      <Suspense>{debugMode && <LazyDebugPanel editor={editor} value={value} />}</Suspense>
-      <PlayerBar documentId={documentId} documentContent={value} />
-    </>
+    <div {...props} className={clsx('pb-40', props.className)}>
+      <Slate
+        editor={editor}
+        value={
+          [
+            /* the value is actually managed by the editor object */
+          ]
+        }
+      >
+        <Editable
+          renderElement={(props) => renderElement(props)}
+          renderLeaf={renderLeaf}
+          onClick={() => {
+            const selection = document.getSelection();
+            if (
+              selection?.isCollapsed &&
+              selection.anchorNode?.parentElement?.parentElement?.classList.contains('word')
+            ) {
+              selection.anchorNode.parentElement.click();
+            }
+          }}
+        />
+      </Slate>
+    </div>
   );
 }
