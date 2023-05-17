@@ -8,6 +8,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': 'http://127.0.0.1:8000',
+      '/api/v1/documents/sync': { target: 'http://127.0.0.1:8000', ws: true },
     },
   },
   plugins: [topLevelAwait(), wasm()],
