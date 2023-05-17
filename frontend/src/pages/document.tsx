@@ -28,7 +28,10 @@ export function DocumentPage({
   const debugMode = useDebugMode();
 
   const [syncComplete, setSyncComplete] = useState<boolean>(false);
-  const url = new URL(`ws://localhost:8000/api/v1/documents/sync/${documentId}/`);
+
+  const url = new URL(`/api/v1/documents/sync/${documentId}/`, window.location.href);
+  url.protocol = url.protocol.replace('http', 'ws');
+
   const authToken = localStorage.getItem('auth');
   url.searchParams.append('authorization', `Token ${authToken}`);
   const editor = useAutomergeWebsocketEditor(url, {
