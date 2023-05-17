@@ -88,12 +88,9 @@ export function useAutomergeWebsocketEditor(
       if (lastChange && wsRef.current) {
         wsRef.current.send(lastChange);
       }
-      if (onDocChange) {
-        onDocChange(newDoc);
-      }
+      onDocChange && onDocChange(newDoc);
     };
   }, [editor]);
-
 
   return editor;
 }

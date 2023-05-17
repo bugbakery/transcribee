@@ -225,7 +225,7 @@ export function SpeakerDropdown({ paragraph }: { paragraph: Paragraph }) {
   const unsetSpeaker = () => setSpeaker(editor, elementPath, null);
 
   return (
-    <Dropdown label={getSpeakerName(paragraph, editor.doc.speaker_names)}>
+    <Dropdown label={getSpeakerName(paragraph, editor.doc.speaker_names)} className="pr-4">
       <DropdownSection>
         <DropdownItem icon={IoIosList} onClick={changeSpeaker}>
           Change Speaker

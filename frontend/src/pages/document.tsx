@@ -16,6 +16,7 @@ import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_edito
 import { WebvttExportModal } from '../editor/webvtt_export';
 import { showModal } from '../components/modal';
 import { Tooltip } from '../components/tooltip';
+import { SpeakerColorsProvider } from '../editor/speaker_colors';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -78,7 +79,9 @@ export function DocumentPage({
         </TopBarPart>
       </TopBar>
 
-      <TranscriptionEditor editor={editor} className={clsx({ blur: !syncComplete })} />
+      <SpeakerColorsProvider editor={editor}>
+        <TranscriptionEditor editor={editor} className={clsx({ blur: !syncComplete })} />
+      </SpeakerColorsProvider>
       <PlayerBar documentId={documentId} editor={editor} />
 
       <Suspense>{debugMode && <LazyDebugPanel editor={editor} />}</Suspense>

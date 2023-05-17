@@ -5,6 +5,8 @@ import { useEvent } from '../utils/use_event';
 import { TextClickEvent } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
+import { useContext } from 'react';
+import { SpeakerColorsContext } from './speaker_colors';
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
@@ -28,6 +30,7 @@ export function formattedTime(sec: number | undefined): string {
 
 function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
   const startAtom = element.children[0];
+  const speakerColors = useContext(SpeakerColorsContext);
 
   if (element.type === 'paragraph') {
     return (
@@ -49,6 +52,10 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
             >
               {formattedTime(startAtom.start)}
             </div>
+            <div
+              className="absolute right-0 top-0 w-2 h-full rounded-md mr-1 -mt-0.5"
+              style={element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}}
+            />
           </div>
 
           <div {...attributes} className="grow-1 basis-full" lang={element.lang}>
