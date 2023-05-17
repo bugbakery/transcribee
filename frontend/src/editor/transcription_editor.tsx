@@ -7,6 +7,7 @@ import { startTimeToClassName } from './player';
 import clsx from 'clsx';
 import { useContext } from 'react';
 import { SpeakerColorsContext } from './speaker_colors';
+import { useMediaQuery } from '../utils/use_media_query';
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
@@ -58,7 +59,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
             />
           </div>
 
-          <div {...attributes} className="grow-1 basis-full" lang={element.lang}>
+          <div {...attributes} className="grow-1 basis-full" lang={element.lang} spellCheck={false}>
             {children}
           </div>
         </div>
@@ -71,12 +72,17 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
 
 function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
   const classes = ['word'];
-  if (leaf.conf != undefined && leaf.conf < 0.7) {
-    classes.push('text-red-600 dark:text-red-500');
-  }
   if (leaf.start !== undefined) {
     classes.push(startTimeToClassName(leaf.start));
   }
+
+  const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+
+  const color = !leaf.conf
+    ? undefined
+    : systemPrefersDark
+    ? `hsl(0, 100%, ${Math.min(leaf.conf * 50 + 50, 100)}%)`
+    : `hsl(0, 100%, ${Math.min((1 - leaf.conf) * 100, 45)}%)`;
 
   return (
     <span
@@ -86,6 +92,7 @@ function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Elemen
         // this event is handeled in player.tsx to set the time when someone clicks a word
         window.dispatchEvent(new TextClickEvent(leaf));
       }}
+      style={{ color }}
     >
       {children}
     </span>
