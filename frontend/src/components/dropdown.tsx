@@ -76,6 +76,7 @@ export function Dropdown({
 
   return (
     <div
+      {...props}
       ref={(ref) => {
         setReferenceElement(ref);
         setMeasureReference(ref);
@@ -113,7 +114,6 @@ export function Dropdown({
         <div className="flex-grow break-all text-start">{label}</div>
       </button>
       <div
-        {...props}
         className={clsx(
           'absolute left-0 z-10 mt-1',
           'bg-white dark:bg-neutral-900',
