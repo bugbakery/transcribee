@@ -37,7 +37,11 @@ export function DocumentPage({
   const editor = useAutomergeWebsocketEditor(url, {
     onInitialSyncComplete: () => {
       setSyncComplete(true);
-      if (editor.doc.version !== 1) {
+      const isNewDocument =
+        editor.doc.version === undefined &&
+        editor.doc.children === undefined &&
+        editor.doc.speaker_names === undefined;
+      if (!isNewDocument && editor.doc.version !== 1) {
         alert('The document is in an unsupported version.');
         navigate('/');
       }
