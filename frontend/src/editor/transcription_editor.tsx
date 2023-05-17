@@ -6,7 +6,7 @@ import { withAutomergeDoc } from 'slate-automerge-doc';
 import { AutomergeWebsocketProvider } from './automerge_websocket_provider';
 import { useDebugMode } from '../debugMode';
 
-import { TextClickEvent, Paragraph } from './types';
+import { TextClickEvent } from './types';
 import { SecondaryButton } from '../components/button';
 import { generateWebVtt } from '../utils/export/webvtt';
 import { downloadTextAsFile } from '../utils/download_text_as_file';
@@ -24,9 +24,7 @@ export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
     return 'unknown';
   }
-  const subseconds = Math.floor((sec % 1) * 10)
-    .toString()
-    .padStart(1, '0');
+
   const seconds = Math.floor(sec % 60)
     .toString()
     .padStart(2, '0');
@@ -37,15 +35,9 @@ export function formattedTime(sec: number | undefined): string {
     .toString()
     .padStart(2, '0');
   if (Math.floor(sec / 60 / 60) > 0) {
-    return `${hours}:${minutes}:${seconds}.${subseconds}`;
+    return `${hours}:${minutes}:${seconds}`;
   }
-  return `${minutes}:${seconds}.${subseconds}`;
-}
-
-function formatParagraphTimestamps(para: Paragraph): string {
-  const para_start = para.children[0].start;
-  const para_end = para.children[para.children.length - 1].end;
-  return `[${formattedTime(para_start)}\u200A\u2192\u200A${formattedTime(para_end)}]`;
+  return `${minutes}:${seconds}`;
 }
 
 function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
@@ -53,13 +45,18 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
     return (
       <>
         <div className="mb-6 flex">
-          <div contentEditable={false} className="w-56 mr-2">
-            <SpeakerDropdown paragraph={element} />
+          <div
+            contentEditable={false}
+            className="w-16 mr-2 -ml-20 hidden 2xl:block text-slate-500 dark:text-neutral-400 font-mono"
+          >
+            {formattedTime(element.children[0].start)}
+          </div>
 
-            <div className="px-3 text-slate-500 dark:text-neutral-400">
-              {formatParagraphTimestamps(element)}
+          <div contentEditable={false} className="w-56 mr-2 relative">
+            <SpeakerDropdown paragraph={element} />
+            <div className="mr-2 ml-7 2xl:hidden text-slate-500 dark:text-neutral-400 font-mono">
+              {formattedTime(element.children[0].start)}
             </div>
-            <div className="px-3 text-slate-500 dark:text-neutral-400">{element.lang}</div>
           </div>
 
           <div {...attributes} className="grow-1 basis-full" lang={element.lang}>
