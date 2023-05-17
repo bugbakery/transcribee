@@ -1,16 +1,11 @@
-import { Descendant, Editor, Transforms, Element } from 'slate';
+import { Transforms, Element, Editor } from 'slate';
 import * as Automerge from '@automerge/automerge';
 import { JSONTree } from 'react-json-tree';
 import { getBase16Theme } from 'react-base16-styling';
 import { SecondaryButton } from '../components/button';
 import { useMediaQuery } from 'react-responsive';
 
-export type DebugPanelProps = {
-  value: Descendant[];
-  editor: Editor;
-};
-
-export function DebugPanel({ value, editor }: DebugPanelProps) {
+export function DebugPanel({ editor }: { editor: Editor }) {
   const systemPrefersDark = useMediaQuery({
     query: '(prefers-color-scheme: dark)',
   });
@@ -19,7 +14,7 @@ export function DebugPanel({ value, editor }: DebugPanelProps) {
     <div className="fixed bottom-0 left-0 right-0 h-96 p-8">
       <div className="w-full h-full p-4 text-sm bg-white dark:bg-black border-black dark:border-neutral-200 border-2 shadow-brutal rounded-lg overflow-auto">
         <JSONTree
-          data={value}
+          data={editor.doc}
           theme={getBase16Theme(systemPrefersDark ? 'bright' : 'bright:inverted')}
         />
       </div>
