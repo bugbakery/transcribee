@@ -1,8 +1,8 @@
-import { Editor } from 'slate';
+import { Editor, Transforms } from 'slate';
 import { Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
-import { TextClickEvent } from './types';
+import { Paragraph, TextClickEvent } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
 import { useContext } from 'react';
@@ -71,9 +71,19 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
 }
 
 function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
+  const parent: Paragraph = children.props.parent;
+  const myIndex = parent.children.findIndex((x) => x.start == leaf.start);
+  let wordStartIndex = myIndex;
+  for (
+    ;
+    wordStartIndex > 0 && !parent.children[wordStartIndex].text.startsWith(' ');
+    wordStartIndex--
+  );
+  const wordStart = parent.children[wordStartIndex];
+
   const classes = ['word'];
-  if (leaf.start !== undefined) {
-    classes.push(startTimeToClassName(leaf.start));
+  if (wordStart?.start !== undefined) {
+    classes.push(startTimeToClassName(wordStart.start));
   }
 
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
@@ -123,6 +133,15 @@ export function TranscriptionEditor({
             /* the value is actually managed by the editor object */
           ]
         }
+        onChange={() => {
+          // set the confidence of manually edited nodes to 1.0
+          const hasChanged = editor.operations.some(
+            (op) => op.type == 'insert_text' || op.type == 'remove_text',
+          );
+          if (hasChanged) {
+            Transforms.setNodes(editor, { conf: 1.0 }, { match: (n) => 'conf' in n });
+          }
+        }}
       >
         <Editable
           renderElement={(props) => renderElement(props)}
