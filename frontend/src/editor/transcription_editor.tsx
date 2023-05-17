@@ -41,6 +41,8 @@ export function formattedTime(sec: number | undefined): string {
 }
 
 function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
+  const startAtom = element.children[0];
+
   if (element.type === 'paragraph') {
     return (
       <>
@@ -48,14 +50,18 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
           <div
             contentEditable={false}
             className="w-16 mr-2 -ml-20 hidden 2xl:block text-slate-500 dark:text-neutral-400 font-mono"
+            onClick={() => window.dispatchEvent(new TextClickEvent(startAtom))}
           >
-            {formattedTime(element.children[0].start)}
+            {formattedTime(startAtom.start)}
           </div>
 
           <div contentEditable={false} className="w-56 mr-2 relative">
             <SpeakerDropdown paragraph={element} />
-            <div className="mr-2 ml-7 2xl:hidden text-slate-500 dark:text-neutral-400 font-mono">
-              {formattedTime(element.children[0].start)}
+            <div
+              className="mr-2 ml-7 2xl:hidden text-slate-500 dark:text-neutral-400 font-mono"
+              onClick={() => window.dispatchEvent(new TextClickEvent(startAtom))}
+            >
+              {formattedTime(startAtom.start)}
             </div>
           </div>
 
