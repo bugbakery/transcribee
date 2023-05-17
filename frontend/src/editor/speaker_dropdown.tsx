@@ -12,11 +12,11 @@ import { showModal, Modal, ModalProps } from '../components/modal';
 
 function getSpeakerName(element: Paragraph, speaker_names: Record<string, string>): string {
   if (!element.speaker) {
-    return `Unknown`;
+    return `Unknown Speaker`;
   } else if (element.speaker in speaker_names) {
     return speaker_names[element.speaker];
   } else {
-    return `Unnamed Speaker (${element.speaker})`;
+    return `Unnamed Speaker ${element.speaker}`;
   }
 }
 
@@ -227,7 +227,7 @@ export function SpeakerDropdown({ paragraph }: { paragraph: Paragraph }) {
   return (
     <Dropdown label={getSpeakerName(paragraph, editor.doc.speaker_names)}>
       <DropdownSection>
-        <DropdownItem first icon={IoIosList} onClick={changeSpeaker}>
+        <DropdownItem icon={IoIosList} onClick={changeSpeaker}>
           Change Speaker
         </DropdownItem>
         <DropdownItem
@@ -240,7 +240,6 @@ export function SpeakerDropdown({ paragraph }: { paragraph: Paragraph }) {
       </DropdownSection>
       <DropdownSection>
         <DropdownItem
-          last
           icon={IoIosTrash}
           onClick={unsetSpeaker}
           disabled={paragraph.speaker === null || paragraph.speaker === undefined}
