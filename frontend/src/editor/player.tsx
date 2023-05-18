@@ -9,6 +9,7 @@ import { CssRule } from '../utils/cssdom';
 import { TEXT_CLICK_EVENT, TextClickEvent } from './types';
 import { useEvent } from '../utils/use_event';
 import { Editor } from 'slate';
+import { useButtonHoldRepeat } from '../utils/button_hooks';
 
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument({ document_id: documentId });
@@ -108,6 +109,16 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
     }
   });
 
+  const backwardLongPressProps = useButtonHoldRepeat({
+    repeatingAction: () => waveSurferRef.current?.skipBackward(1),
+    onShortClick: () => waveSurferRef.current?.skipBackward(2),
+  });
+
+  const forwardLongPressProps = useButtonHoldRepeat({
+    repeatingAction: () => waveSurferRef.current?.skipForward(1),
+    onShortClick: () => waveSurferRef.current?.skipForward(2),
+  });
+
   // if we don't know the path of the audio file yet, we can't start to render
   if (!audioFile) return <></>;
 
@@ -142,11 +153,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           icon={ImBackward2}
           iconClassName="-translate-x-0.5"
           label="backwards"
-          onClick={() => {
-            if (waveSurferRef.current) {
-              waveSurferRef.current.skipBackward(2);
-            }
-          }}
+          {...backwardLongPressProps}
         />
         <IconButton
           icon={playing ? ImPause : ImPlay2}
@@ -158,11 +165,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           icon={ImForward3}
           iconClassName="translate-x-0.5"
           label="forwards"
-          onClick={() => {
-            if (waveSurferRef.current) {
-              waveSurferRef.current.skipForward(2);
-            }
-          }}
+          {...forwardLongPressProps}
         />
 
         <div className="pl-4 flex-grow">
@@ -175,6 +178,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   );
 }
 
+// helper function to create class names for highlighting words when clicking on the transcript
 export function startTimeToClassName(startTime: number) {
   return `start-${startTime.toFixed(3).replace('.', '')}`;
 }
