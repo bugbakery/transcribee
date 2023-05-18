@@ -4,7 +4,7 @@ import { Popup } from '../components/popup';
 import { BsRobot } from 'react-icons/bs';
 import clsx from 'clsx';
 import React from 'react';
-import { useMediaQuery } from 'react-responsive';
+import { useMediaQuery } from '../utils/use_media_query';
 
 type Task = ReturnType<typeof useGetDocumentTasks>['data'][0];
 
@@ -33,9 +33,7 @@ function getColor(task: Task | null, dark: boolean): string {
 }
 
 export function WorkerStatus({ documentId }: { documentId: string }) {
-  const systemPrefersDark = useMediaQuery({
-    query: '(prefers-color-scheme: dark)',
-  });
+  const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
 
   const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
   const isWorking = data?.some((task) => !task?.completed_at);
