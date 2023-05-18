@@ -21,7 +21,7 @@ export function WebvttExportModal({
   const [includeWordTimings, setIncludeWordTimings] = useState(false);
   const [limitLineLength, setLimitLineLength] = useState(false);
   const [maxLineLength, setMaxLineLength] = useState(60);
-  const [format, setFormat] = useState('srt' as SubtitleFormat);
+  const [format, setFormat] = useState('vtt' as SubtitleFormat);
 
   return (
     <Modal {...props} onClose={onClose} label="Export as WebVTT">
