@@ -36,7 +36,6 @@ notebooks = [
 
 [tool.pdm.dev-dependencies]
 dev = [
-    "-e file:///${PROJECT_ROOT}/../proto#egg=transcribee-proto",
     "pyyaml>=6.0",
     "pytest>=7.3.1",
     "httpx>=0.24.0",
