@@ -138,14 +138,32 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           'items-center',
         )}
       >
-        <IconButton icon={ImBackward2} iconClassName="-translate-x-0.5" label="backwards" />
+        <IconButton
+          icon={ImBackward2}
+          iconClassName="-translate-x-0.5"
+          label="backwards"
+          onClick={() => {
+            if (waveSurferRef.current) {
+              waveSurferRef.current.skipBackward(2);
+            }
+          }}
+        />
         <IconButton
           icon={playing ? ImPause : ImPlay2}
           label="play / pause"
           size={28}
           onClick={() => togglePlaying()}
         />
-        <IconButton icon={ImForward3} iconClassName="translate-x-0.5" label="forwards" />
+        <IconButton
+          icon={ImForward3}
+          iconClassName="translate-x-0.5"
+          label="forwards"
+          onClick={() => {
+            if (waveSurferRef.current) {
+              waveSurferRef.current.skipForward(2);
+            }
+          }}
+        />
 
         <div className="pl-4 flex-grow">
           <WaveSurfer onMount={handleWSMount}>
