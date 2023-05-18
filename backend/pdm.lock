@@ -1053,7 +1053,6 @@ summary = "Traitlets Python configuration system"
 name = "transcribee-proto"
 version = "0.1.0"
 requires_python = ">=3.10"
-editable = true
 path = "../proto"
 summary = "common python code & datatypes in the transcribee open-source transcription platform"
 dependencies = [
@@ -1156,7 +1155,7 @@ summary = "Jupyter interactive widgets for Jupyter Notebook"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:58d106d4d249e6c334e5ffa6cdcda32a3c36a8ab377aa8fd8e6aea21de3cb294"
+content_hash = "sha256:4dc212b0007adde67c12d91e916e77082d9c5ef98c0da38b6cd3b23f156009b3"
 
 [metadata.files]
 "alembic 1.9.4" = [
