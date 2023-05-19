@@ -9,7 +9,6 @@ from multiprocessing import Event, Process
 from pathlib import Path
 
 import requests.exceptions
-from transcribee_proto.api import TaskType
 from transcribee_worker.config import settings
 from watchfiles import watch
 
@@ -82,12 +81,6 @@ async def run(args, event: Event):
         base_url=f"{args.coordinator}/api/v1/tasks",
         websocket_base_url=args.websocket_base_url,
         token=args.token,
-        task_types=[
-            TaskType.TRANSCRIBE,
-            TaskType.ALIGN,
-            TaskType.IDENTIFY_SPEAKERS,
-            TaskType.REENCODE,
-        ],
     )
     while not event.is_set():
         try:
