@@ -17,22 +17,24 @@ class NotAuthorized(Exception):
     pass
 
 
-def pw_hash(pw: str) -> Tuple[bytes, bytes]:
+def pw_hash(pw: str, N=14) -> Tuple[bytes, bytes]:
     salt = os.urandom(16)
-    pw_hash = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt, 500000)
+    pw_hash = hashlib.scrypt(pw.encode(), salt=salt, n=1 << N, r=8, p=1)
     return salt, pw_hash
 
 
-def pw_cmp(salt, hash, pw) -> bool:
+def pw_cmp(salt, hash, pw, N=14) -> bool:
     return hmac.compare_digest(
-        hash, hashlib.pbkdf2_hmac("sha256", pw.encode(), salt, 500000)
+        hash, hashlib.scrypt(pw.encode(), salt=salt, n=1 << N, r=8, p=1)
     )
 
 
 def generate_user_token(user: User):
     raw_token = b64encode(os.urandom(32)).decode()
-    salt, hash = pw_hash(raw_token)
     token = b64encode(f"{user.username}:{raw_token}".encode()).decode()
+    salt, hash = pw_hash(
+        raw_token, N=5
+    )  # We can use a much lower N here since we do not need to protect against weak passwords
     return token, UserToken(
         user_id=user.id,
         token_hash=hash,
@@ -60,7 +62,7 @@ def validate_user_authorization(session: Session, authorization: str):
     statement = select(UserToken).join(User).where(User.username == username)
     results = session.exec(statement)
     for token in results:
-        if pw_cmp(salt=token.token_salt, hash=token.token_hash, pw=provided_token):
+        if pw_cmp(salt=token.token_salt, hash=token.token_hash, pw=provided_token, N=5):
             return token
 
     raise HTTPException(status_code=401)
