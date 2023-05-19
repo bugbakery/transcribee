@@ -8,13 +8,14 @@ import { WorkerStatus } from '../editor/worker_status';
 import { useGetDocument } from '../api/document';
 import { TbFileExport } from 'react-icons/tb';
 import { canGenerateVtt } from '../utils/export/webvtt';
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { PlayerBar } from '../editor/player';
 import { useDebugMode } from '../debugMode';
 import clsx from 'clsx';
 import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_editor';
 import { WebvttExportModal } from '../editor/webvtt_export';
 import { showModal } from '../components/modal';
+import { Tooltip } from '../components/tooltip';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -48,6 +49,8 @@ export function DocumentPage({
     },
   });
 
+  const canGenVtt = useMemo(() => canGenerateVtt(editor.doc.children), [editor.doc]);
+
   return (
     <AppContainer>
       <TopBar>
@@ -60,14 +63,16 @@ export function DocumentPage({
           <TopBarTitle>{data?.name}</TopBarTitle>
         </TopBarPart>
         <TopBarPart>
-          <IconButton
-            icon={TbFileExport}
-            label={'export...'}
-            onClick={() => {
-              showModal(<WebvttExportModal editor={editor} onClose={() => showModal(null)} />);
-            }}
-            disabled={editor.doc.children === undefined || !canGenerateVtt(editor.doc.children)}
-          />
+          <Tooltip tooltipText={canGenVtt.reason}>
+            <IconButton
+              icon={TbFileExport}
+              label={'export...'}
+              onClick={() => {
+                showModal(<WebvttExportModal editor={editor} onClose={() => showModal(null)} />);
+              }}
+              disabled={!canGenVtt.canGenerate}
+            />
+          </Tooltip>
           <WorkerStatus documentId={documentId} />
           <MeButton />
         </TopBarPart>

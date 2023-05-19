@@ -11,7 +11,13 @@ function atomToString(item: Text, includeWordTimings: boolean): string {
   }
 }
 
-export function canGenerateVtt(paras: Paragraph[]): boolean {
+export function canGenerateVtt(paras: Paragraph[] | undefined): {
+  canGenerate: boolean;
+  reason: string;
+} {
+  if (paras === undefined) {
+    return { canGenerate: false, reason: 'No document content' };
+  }
   for (const para of paras) {
     let start = false;
     let end = false;
@@ -24,10 +30,16 @@ export function canGenerateVtt(paras: Paragraph[]): boolean {
       }
     }
     if (!start || !end) {
-      return false;
+      return {
+        canGenerate: false,
+        reason: 'Missing timings for at least one atom',
+      };
     }
   }
-  return true;
+  return {
+    canGenerate: true,
+    reason: '',
+  };
 }
 
 function paragraphToCues(
