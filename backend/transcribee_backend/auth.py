@@ -31,10 +31,10 @@ def pw_cmp(salt, hash, pw, N=14) -> bool:
 
 def generate_user_token(user: User):
     raw_token = b64encode(os.urandom(32)).decode()
-    token = b64encode(f"{user.username}:{raw_token}".encode()).decode()
     salt, hash = pw_hash(
         raw_token, N=5
     )  # We can use a much lower N here since we do not need to protect against weak passwords
+    token = b64encode(f"{user.id}:{raw_token}".encode()).decode()
     return token, UserToken(
         user_id=user.id,
         token_hash=hash,
@@ -58,8 +58,8 @@ def validate_user_authorization(session: Session, authorization: str):
 
     if ":" not in token_data:
         raise HTTPException(status_code=400, detail="Invalid Token")
-    username, provided_token = token_data.split(":", maxsplit=1)
-    statement = select(UserToken).join(User).where(User.username == username)
+    user_id, provided_token = token_data.split(":", maxsplit=1)
+    statement = select(UserToken).where(UserToken.user_id == user_id)
     results = session.exec(statement)
     for token in results:
         if pw_cmp(salt=token.token_salt, hash=token.token_hash, pw=provided_token, N=5):
