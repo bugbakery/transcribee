@@ -10,6 +10,7 @@ from fastapi import Depends, Header, HTTPException
 from sqlmodel import Session, select
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists, UserDoesNotExist
+from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models import User, UserToken, Worker
 
 
@@ -39,7 +40,7 @@ def generate_user_token(user: User):
         user_id=user.id,
         token_hash=hash,
         token_salt=salt,
-        valid_until=datetime.datetime.now() + datetime.timedelta(days=7),
+        valid_until=now_tz_aware() + datetime.timedelta(days=7),
     )
 
 
@@ -59,7 +60,9 @@ def validate_user_authorization(session: Session, authorization: str):
     if ":" not in token_data:
         raise HTTPException(status_code=400, detail="Invalid Token")
     user_id, provided_token = token_data.split(":", maxsplit=1)
-    statement = select(UserToken).where(UserToken.user_id == user_id)
+    statement = select(UserToken).where(
+        UserToken.user_id == user_id, UserToken.valid_until >= now_tz_aware()
+    )
     results = session.exec(statement)
     for token in results:
         if pw_cmp(salt=token.token_salt, hash=token.token_hash, pw=provided_token, N=5):
