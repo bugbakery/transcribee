@@ -1,17 +1,10 @@
 import clsx from 'clsx';
 import { ReactNode, useState } from 'react';
-import { useEvent } from '../utils/use_event';
 import useMeasure from 'react-use-measure';
 
 import { IoIosArrowDown } from 'react-icons/io';
 import { IconType } from 'react-icons';
-
-const DROPDOWN_OPEN_EVENT = 'dropdownOpen';
-class DropdownOpenEvent extends CustomEvent<{ cause: HTMLElement }> {
-  constructor(cause: HTMLElement) {
-    super(DROPDOWN_OPEN_EVENT, { detail: { cause } });
-  }
-}
+import { useOnBlur } from '../utils/use_blur';
 
 export function DropdownSection({
   children,
@@ -76,11 +69,8 @@ export function Dropdown({
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [setMeasureReference, bounds] = useMeasure();
   const [show, setShow] = useState(false);
-
-  useEvent<DropdownOpenEvent>(DROPDOWN_OPEN_EVENT, (e) => {
-    if (e.detail.cause != referenceElement) {
-      setShow(false);
-    }
+  useOnBlur(referenceElement, () => {
+    setShow(false);
   });
 
   const inverseDirection = expandTop ? 'bottom' : 'top';
@@ -93,14 +83,7 @@ export function Dropdown({
         setMeasureReference(ref);
       }}
       onClick={() => {
-        if (!referenceElement) return;
-
-        if (!show) {
-          window.dispatchEvent(new DropdownOpenEvent(referenceElement));
-          setShow(true);
-        } else {
-          setShow(false);
-        }
+        setShow((s) => !s);
       }}
       className={clsx('relative', props.className)}
     >

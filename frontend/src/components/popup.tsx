@@ -1,14 +1,7 @@
 import clsx from 'clsx';
 import { cloneElement, ReactElement, ReactNode, useState } from 'react';
 import { usePopper } from 'react-popper';
-import { useEvent } from '../utils/use_event';
-
-const POPUP_OPEN_EVENT = 'popupOpen';
-class PopupOpenEvent extends CustomEvent<{ cause: HTMLElement }> {
-  constructor(cause: HTMLElement) {
-    super(POPUP_OPEN_EVENT, { detail: { cause } });
-  }
-}
+import { useOnBlur } from '../utils/use_blur';
 
 export function Popup({
   children,
@@ -47,10 +40,8 @@ export function Popup({
     ],
   });
   const [show, setShow] = useState(false);
-  useEvent<PopupOpenEvent>(POPUP_OPEN_EVENT, (e) => {
-    if (e.detail.cause != referenceElement) {
-      setShow(false);
-    }
+  useOnBlur(referenceElement, () => {
+    setShow(false);
   });
 
   return (
@@ -60,7 +51,6 @@ export function Popup({
           if (!referenceElement) return;
 
           if (!show) {
-            window.dispatchEvent(new PopupOpenEvent(referenceElement));
             setShow(true);
           } else {
             setShow(false);

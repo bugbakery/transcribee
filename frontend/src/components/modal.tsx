@@ -1,4 +1,4 @@
-import { cloneElement, useEffect, useRef, useState } from 'react';
+import { cloneElement, useRef, useState } from 'react';
 import { useEvent } from '../utils/use_event';
 import { Dialog, DialogTitle } from './dialog';
 import clsx from 'clsx';
@@ -54,15 +54,11 @@ export type ModalProps = {
 
 export function Modal({ children, onClose, label, transitionClassName, ...props }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>();
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key == 'Escape') {
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  useEvent<KeyboardEvent>('keydown', (e) => {
+    if (e.key == 'Escape') {
+      onClose();
+    }
+  });
 
   return (
     <div
