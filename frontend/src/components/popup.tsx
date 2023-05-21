@@ -60,48 +60,50 @@ export function Popup({
         },
       })}
 
-      {show ? (
+      <div
+        {...props}
+        className={clsx(
+          'p-4',
+          'bg-white dark:bg-neutral-900',
+          'border-black dark:border-neutral-200',
+          'border-2',
+          'shadow-brutal',
+          'shadow-slate-400 dark:shadow-neutral-600',
+          'rounded-lg',
+          'relative',
+          'z-10',
+          'transition-scale duration-100 origin-top',
+          show ? 'opacity-100' : 'opacity-0 pointer-events-none',
+          props.className,
+        )}
+        aria-hidden={!show}
+        style={{
+          ...styles.popper,
+          transform: `${styles.popper.transform || ''} ${show ? 'scale(100%)' : 'scale(75%)'}`,
+        }}
+        ref={setPopperElement}
+        {...attributes.popper}
+      >
+        {children}
         <div
-          {...props}
+          ref={setArrowElement}
+          style={styles.arrow}
           className={clsx(
-            'p-4',
-            'bg-white dark:bg-neutral-900',
-            'border-black dark:border-neutral-200',
-            'border-2',
-            'shadow-brutal',
-            'shadow-slate-400 dark:shadow-neutral-600',
-            'rounded-lg',
-            'relative',
-            'z-10',
-            props.className,
+            'top-[-7px]',
+            'before:absolute',
+            'before:w-[11px]',
+            'before:h-[11px]',
+            'before:bg-white dark:before:bg-neutral-900',
+            "before:content-['']",
+            'before:translate-x-[-6px]',
+            'before:rotate-45',
+            'before:border-l-2',
+            'before:border-t-2',
+            'before:border-solid',
+            'before:border-black dark:before:border-neutral-200',
           )}
-          style={styles.popper}
-          ref={setPopperElement}
-          {...attributes.popper}
-        >
-          {children}
-          <div
-            ref={setArrowElement}
-            style={styles.arrow}
-            className={clsx(
-              'top-[-7px]',
-              'before:absolute',
-              'before:w-[11px]',
-              'before:h-[11px]',
-              'before:bg-white dark:before:bg-neutral-900',
-              "before:content-['']",
-              'before:translate-x-[-6px]',
-              'before:rotate-45',
-              'before:border-l-2',
-              'before:border-t-2',
-              'before:border-solid',
-              'before:border-black dark:before:border-neutral-200',
-            )}
-          />
-        </div>
-      ) : (
-        <></>
-      )}
+        />
+      </div>
     </div>
   );
 }
