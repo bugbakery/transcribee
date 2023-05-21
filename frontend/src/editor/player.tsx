@@ -10,6 +10,7 @@ import { TEXT_CLICK_EVENT, TextClickEvent } from './types';
 import { useEvent } from '../utils/use_event';
 import { Editor } from 'slate';
 import { useButtonHoldRepeat } from '../utils/button_hooks';
+import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
 
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument({ document_id: documentId });
@@ -173,6 +174,8 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
             <WaveForm id="waveform" cursorColor="red" barWidth={2} normalize responsive={true} />
           </WaveSurfer>
         </div>
+
+        <PlaybackSpeedDropdown onChange={(v) => waveSurferRef.current?.setPlaybackRate(v)} />
       </div>
     </>
   );
@@ -181,4 +184,36 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 // helper function to create class names for highlighting words when clicking on the transcript
 export function startTimeToClassName(startTime: number) {
   return `start-${startTime.toFixed(3).replace('.', '')}`;
+}
+
+function PlaybackSpeedDropdown({ onChange }: { onChange: (v: number) => void }) {
+  const possibleRates = [0.5, 0.7, 1.0, 1.2, 1.5, 1.7, 2.0];
+
+  const [value, setValue] = useState(1.0);
+
+  return (
+    <Dropdown
+      label={<span className="tabular-nums">{value.toFixed(1)}&times;</span>}
+      arrow={false}
+      expandTop={true}
+      expandOn={true}
+      buttonClassName="py-2.5"
+      className="shadow-none ml-1"
+    >
+      <DropdownSection>
+        {possibleRates.map((r) => (
+          <DropdownItem
+            key={r}
+            onClick={() => {
+              onChange(r);
+              setValue(r);
+            }}
+            className="tabular-nums text-sm font-semibold"
+          >
+            {r.toFixed(1)}
+          </DropdownItem>
+        ))}
+      </DropdownSection>
+    </Dropdown>
+  );
 }
