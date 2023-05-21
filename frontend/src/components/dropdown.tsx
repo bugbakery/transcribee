@@ -46,6 +46,7 @@ export function DropdownItem({
         'rounded-none',
         'hover:bg-gray-200 dark:hover:bg-neutral-700',
         disabled ? 'text-slate-500 dark:text-neutral-400' : '',
+        props.className,
       )}
       role="menuitem"
       type="button"
@@ -59,11 +60,19 @@ export function DropdownItem({
 export function Dropdown({
   children,
   label,
+  expandTop = false,
+  expandOn = false,
+  arrow = true,
+  buttonClassName = '',
   ...props
-}: { children?: ReactNode; label: string } & React.DetailedHTMLProps<
-  React.HTMLAttributes<HTMLDivElement>,
-  HTMLDivElement
->) {
+}: {
+  children?: ReactNode;
+  label: ReactNode;
+  expandTop?: boolean;
+  arrow?: boolean;
+  expandOn?: boolean;
+  buttonClassName?: string;
+} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [setMeasureReference, bounds] = useMeasure();
   const [show, setShow] = useState(false);
@@ -73,6 +82,8 @@ export function Dropdown({
       setShow(false);
     }
   });
+
+  const inverseDirection = expandTop ? 'bottom' : 'top';
 
   return (
     <div
@@ -91,37 +102,42 @@ export function Dropdown({
           setShow(false);
         }
       }}
+      className={clsx('relative', props.className)}
     >
       <button
         type="button"
         className={clsx(
-          '-mt-1',
           'inline-flex items-stretch',
           'w-full rounded-lg',
           'text-sm font-semibold',
           'hover:bg-gray-200 dark:hover:bg-neutral-700',
           show && 'bg-gray-200 dark:bg-neutral-700',
-          'pl-2 py-1',
+          'px-2 py-1',
+          buttonClassName,
         )}
         aria-expanded={show}
         aria-haspopup="true"
       >
-        <div className={clsx('flex text-slate-500 dark:text-neutral-400 pr-1')}>
-          <IoIosArrowDown
-            className={clsx('self-center transition-all duration-100', show || '-rotate-90')}
-          />
-        </div>
+        {arrow && (
+          <div className={clsx('flex text-slate-500 dark:text-neutral-400 px-1')}>
+            <IoIosArrowDown
+              className={clsx('self-center transition-all duration-100', show || '-rotate-90')}
+            />
+          </div>
+        )}
         <div className="flex-grow break-all text-start">{label}</div>
       </button>
       <div
         className={clsx(
-          'absolute left-0 z-10 mt-1',
+          'absolute left-0 z-10 my-1',
+          `${inverseDirection}-${expandOn ? '0' : 'full'}`,
           'bg-white dark:bg-neutral-900',
           'border-2 border-black dark:border-neutral-200',
           'shadow-brutal shadow-slate-400 dark:shadow-neutral-600',
           'rounded-lg',
           'divide-y divide-black dark:divide-neutral-200',
-          'transition-scale duration-100 origin-top-left',
+          'transition-scale duration-100',
+          `origin-${inverseDirection}`,
           show ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
         )}
         aria-hidden={!show}
