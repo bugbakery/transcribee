@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import { IconButton } from '../components/button';
-import { ImPause, ImPlay2, ImForward3, ImBackward2 } from 'react-icons/im';
+import { ImPause, ImPlay2, ImBackward2 } from 'react-icons/im';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WaveSurfer, WaveForm } from 'wavesurfer-react';
 import WaveSurferType from 'wavesurfer.js';
@@ -162,8 +162,8 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           onClick={() => togglePlaying()}
         />
         <IconButton
-          icon={ImForward3}
-          iconClassName="translate-x-0.5"
+          icon={ImBackward2}
+          iconClassName="translate-x-0.5 rotate-180"
           label="forwards"
           {...forwardLongPressProps}
         />
