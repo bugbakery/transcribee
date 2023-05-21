@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Editor, createEditor } from 'slate';
 import { withReact } from 'slate-react';
 import { withAutomergeDoc } from 'slate-automerge-doc';
@@ -18,10 +18,21 @@ export function useAutomergeWebsocketEditor(
 ): Editor {
   const debug = useDebugMode();
 
+  // this is a hack to force a react tree rerender on changes of the document
+  const [_generation, setGeneration] = useState(0);
+
   const editor = useMemo(() => {
     const baseEditor = createEditor();
     const editorWithReact = withReact(baseEditor);
-    return withAutomergeDoc(editorWithReact, Automerge.init());
+    const editorWithAutomerge = withAutomergeDoc(editorWithReact, Automerge.init());
+
+    const onDocChange = editorWithAutomerge.onDocChange;
+    editorWithAutomerge.onDocChange = (...args) => {
+      setGeneration((n) => n + 1);
+      onDocChange && onDocChange(...args);
+    };
+
+    return editorWithAutomerge;
   }, [url.toString()]);
 
   const wsRef = useRef<ReconnectingWebSocket | null>(null);
