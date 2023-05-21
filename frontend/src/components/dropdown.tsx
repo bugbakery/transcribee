@@ -5,6 +5,7 @@ import useMeasure from 'react-use-measure';
 import { IoIosArrowDown } from 'react-icons/io';
 import { IconType } from 'react-icons';
 import { useOnBlur } from '../utils/use_blur';
+import { useStateDelayed } from '../utils/use_state_delayed';
 
 export function DropdownSection({
   children,
@@ -68,7 +69,8 @@ export function Dropdown({
 } & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [setMeasureReference, bounds] = useMeasure();
-  const [show, setShow] = useState(false);
+
+  const [show, setShow] = useStateDelayed(false);
   useOnBlur(referenceElement, () => {
     setShow(false);
   });
@@ -83,7 +85,7 @@ export function Dropdown({
         setMeasureReference(ref);
       }}
       onClick={() => {
-        setShow((s) => !s);
+        setShow(!show.now);
       }}
       className={clsx('relative', props.className)}
     >
@@ -94,17 +96,17 @@ export function Dropdown({
           'w-full rounded-lg',
           'text-sm font-semibold',
           'hover:bg-gray-200 dark:hover:bg-neutral-700',
-          show && 'bg-gray-200 dark:bg-neutral-700',
+          show.now && 'bg-gray-200 dark:bg-neutral-700',
           'px-2 py-1',
           buttonClassName,
         )}
-        aria-expanded={show}
+        aria-expanded={show.now}
         aria-haspopup="true"
       >
         {arrow && (
           <div className={clsx('flex text-slate-500 dark:text-neutral-400 px-1')}>
             <IoIosArrowDown
-              className={clsx('self-center transition-all duration-100', show || '-rotate-90')}
+              className={clsx('self-center transition-all duration-100', show.now || '-rotate-90')}
             />
           </div>
         )}
@@ -121,12 +123,12 @@ export function Dropdown({
           'divide-y divide-black dark:divide-neutral-200',
           'transition-scale duration-100',
           `origin-${inverseDirection}`,
-          show ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
+          show.late ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
         )}
         aria-hidden={!show}
         style={{ minWidth: bounds.width }}
       >
-        {children}
+        {show.prolonged && children}
       </div>
     </div>
   );
