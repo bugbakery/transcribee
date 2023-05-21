@@ -10,7 +10,6 @@ import { TEXT_CLICK_EVENT, TextClickEvent } from './types';
 import { useEvent } from '../utils/use_event';
 import { Editor } from 'slate';
 import { useButtonHoldRepeat } from '../utils/button_hooks';
-import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
 
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument({ document_id: documentId });
@@ -192,28 +191,27 @@ function PlaybackSpeedDropdown({ onChange }: { onChange: (v: number) => void }) 
   const [value, setValue] = useState(1.0);
 
   return (
-    <Dropdown
-      label={<span className="tabular-nums">{value.toFixed(1)}&times;</span>}
-      arrow={false}
-      expandTop={true}
-      expandOn={true}
-      buttonClassName="py-2.5"
-      className="shadow-none ml-1"
+    <select
+      value={value.toFixed(1)}
+      className={clsx(
+        'tabular-nums text-sm font-semibold',
+        'p-2 ml-2 rounded-lg',
+        'appearance-none bg-none border-none focus:ring-0',
+        'hover:bg-gray-200',
+        'dark:bg-transparent dark:hover:bg-neutral-700',
+      )}
+      onChange={(v) => {
+        const r = parseFloat(v.target.value);
+        console.log(r);
+        onChange(r);
+        setValue(r);
+      }}
     >
-      <DropdownSection>
-        {possibleRates.map((r) => (
-          <DropdownItem
-            key={r}
-            onClick={() => {
-              onChange(r);
-              setValue(r);
-            }}
-            className="tabular-nums text-sm font-semibold"
-          >
-            {r.toFixed(1)}
-          </DropdownItem>
-        ))}
-      </DropdownSection>
-    </Dropdown>
+      {possibleRates.map((r) => (
+        <option key={r} value={r.toFixed(1)}>
+          {r.toFixed(1)}&times;
+        </option>
+      ))}
+    </select>
   );
 }
