@@ -70,12 +70,19 @@ export function useAutomergeWebsocketEditor(
     };
   }, [editor]);
 
-  editor.onDocChange = (newDoc) => {
-    const lastChange = Automerge.getLastLocalChange(newDoc);
-    if (lastChange && wsRef.current) {
-      wsRef.current.send(lastChange);
-    }
-  };
+  useEffect(() => {
+    const onDocChange = editor.onDocChange;
+    editor.onDocChange = (newDoc) => {
+      const lastChange = Automerge.getLastLocalChange(newDoc);
+      if (lastChange && wsRef.current) {
+        wsRef.current.send(lastChange);
+      }
+      if (onDocChange) {
+        onDocChange(newDoc);
+      }
+    };
+  }, [editor]);
+
 
   return editor;
 }
