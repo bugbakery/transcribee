@@ -45,7 +45,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
             {formattedTime(startAtom.start)}
           </div>
 
-          <div contentEditable={false} className="w-56 mr-2 relative">
+          <div contentEditable={false} className="w-60 mr-2 relative">
             <SpeakerDropdown paragraph={element} />
             <div
               className="mr-2 ml-7 2xl:hidden text-slate-500 dark:text-neutral-400 font-mono"
