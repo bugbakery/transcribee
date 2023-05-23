@@ -45,6 +45,60 @@ from .user import get_user_token
 document_router = APIRouter()
 
 
+def get_document_from_url(
+    document_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    token: UserToken = Depends(get_user_token),
+) -> Document:
+    """
+    Get the current document from the `document_id` url parameter, ensuring that the authorized user
+    is allowed to access the document.
+    """
+    statement = select(Document).where(
+        Document.id == document_id, Document.user_id == token.user_id
+    )
+    doc = session.exec(statement).one_or_none()
+    if doc is not None:
+        return doc
+    else:
+        raise HTTPException(status_code=404)
+
+
+def ws_get_document_from_url(
+    document_id: uuid.UUID,
+    authorization: str = Query(),
+    session: Session = Depends(get_session),
+):
+    """
+    Get the current document from a websocket url (using the `document_id` url parameter), ensuring
+    that an authorization query parameter is set and the user / worker can acccess the document.
+    """
+    statement = select(Document).where(Document.id == document_id)
+    document = session.exec(statement).one_or_none()
+    if document is None:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+
+    try:
+        user_token = validate_user_authorization(session, authorization)
+    except HTTPException:
+        user_token = None
+
+    try:
+        worker = validate_worker_authorization(session, authorization)
+    except HTTPException:
+        worker = None
+
+    if user_token is not None and user_token.user_id == document.user_id:
+        return document
+    if worker is not None:
+        statement = select(Task).where(
+            Task.assigned_worker_id == worker.id, Task.document_id == document.id
+        )
+        if session.exec(statement.limit(1)).one_or_none() is not None:
+            return document
+    raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+
+
 def create_default_tasks_for_document(session: Session, document: Document):
     reencode_task = Task(
         task_type=TaskType.REENCODE,
@@ -130,18 +184,6 @@ def list_documents(
     return [doc.as_api_document() for doc in results]
 
 
-def get_document_from_url(
-    document_id: uuid.UUID,
-    session: Session = Depends(get_session),
-) -> Document:
-    statement = select(Document).where(Document.id == document_id)
-    doc = session.exec(statement).one_or_none()
-    if doc is not None:
-        return doc
-    else:
-        raise HTTPException(status_code=404)
-
-
 @document_router.get("/{document_id}/")
 def get_document(
     token: UserToken = Depends(get_user_token),
@@ -186,36 +228,10 @@ def get_document_tasks(
     return [TaskResponse.from_orm(x) for x in session.exec(statement)]
 
 
-def can_access_document(
-    authorization: str = Query(),
-    document: Document = Depends(get_document_from_url),
-    session: Session = Depends(get_session),
-):
-    try:
-        user_token = validate_user_authorization(session, authorization)
-    except HTTPException:
-        user_token = None
-
-    try:
-        worker = validate_worker_authorization(session, authorization)
-    except HTTPException:
-        worker = None
-
-    if user_token is not None and user_token.user_id == document.user_id:
-        return document
-    if worker is not None:
-        statement = select(Task).where(
-            Task.assigned_worker_id == worker.id, Task.document_id == document.id
-        )
-        if session.exec(statement.limit(1)).one_or_none() is not None:
-            return document
-    raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
-
-
 @document_router.websocket("/sync/{document_id}/")
 async def websocket_endpoint(
     websocket: WebSocket,
-    document: Document = Depends(can_access_document),
+    document: Document = Depends(ws_get_document_from_url),
     session: Session = Depends(get_session),
 ):
     connection = DocumentSyncConsumer(
