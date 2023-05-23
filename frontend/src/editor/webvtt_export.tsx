@@ -24,7 +24,7 @@ export function WebvttExportModal({
   const [format, setFormat] = useState('vtt' as SubtitleFormat);
 
   return (
-    <Modal {...props} onClose={onClose} label="Export as WebVTT">
+    <Modal {...props} onClose={onClose} label="Export as …">
       <form
         className="flex flex-col gap-6"
         onSubmit={(e) => {
