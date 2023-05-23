@@ -103,8 +103,7 @@ export interface components {
        */
       completed_at?: string;
       /** Dependencies */
-      dependencies: (components["schemas"]["TaskResponse"])[];
-      document: components["schemas"]["Document"];
+      dependencies: (string)[];
       /**
        * Document Id
        * Format: uuid
@@ -226,8 +225,7 @@ export interface components {
        */
       completed_at?: string;
       /** Dependencies */
-      dependencies: (components["schemas"]["TaskResponse"])[];
-      document: components["schemas"]["Document"];
+      dependencies: (string)[];
       /**
        * Document Id
        * Format: uuid

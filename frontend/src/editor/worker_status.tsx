@@ -66,7 +66,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
           return (
             <React.Fragment key={task.id}>
               {task?.dependencies?.map((dependency) => {
-                const dependencyIndex = data?.findIndex((task) => task?.id == dependency.id);
+                const dependencyIndex = data?.findIndex((task) => task?.id == dependency);
                 const dependencyY = yPositionsCircles[dependencyIndex];
 
                 const curvature = (i - dependencyIndex) * 10;
@@ -80,7 +80,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
                 `;
                 return (
                   <path
-                    key={dependency.id}
+                    key={dependency}
                     d={path}
                     {...strokeProps}
                     stroke={getColor(data[dependencyIndex], systemPrefersDark)}

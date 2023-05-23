@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Literal, Optional
 
 from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel
 from sqlmodel.sql.sqltypes import GUID
-from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import TaskType
 from typing_extensions import Self
 
@@ -85,20 +84,18 @@ class Task(TaskBase, table=True):
 
 class TaskResponse(TaskBase):
     id: uuid.UUID
-    document: ApiDocument
     progress: Optional[float]
     is_completed: bool
     completed_at: Optional[datetime.datetime] = None
     assigned_at: Optional[datetime.datetime] = None
-    dependencies: List["TaskResponse"]
+    dependencies: List[uuid.UUID]
 
     @classmethod
     def from_orm(cls, task: Task) -> Self:
         return super().from_orm(
             task,
             update={
-                "document": task.document.as_api_document(),
-                "dependencies": [TaskResponse.from_orm(x) for x in task.dependencies],
+                "dependencies": [x.id for x in task.dependencies],
             },
         )
 
