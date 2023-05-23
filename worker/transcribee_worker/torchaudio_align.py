@@ -5,13 +5,14 @@ Authors (among others): C. Max Bain
 """
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, AsyncIterable, Callable, Optional
+from typing import Any, AsyncIterable, Optional
 
 import numpy as np
 import torch
 import torchaudio
 from transcribee_proto.document import Document, Paragraph
 from transcribee_worker.config import settings
+from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import async_task
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
@@ -100,9 +101,9 @@ def interpolate_nans(x, method="nearest"):
 def align(
     transcript: Document,
     audio: np.ndarray | torch.Tensor,
+    progress_callback: Optional[ProgressCallbackType] = None,
     device="cpu",
     extend_duration: float = 0.5,  # seconds
-    progress_callback: Optional[Callable[[Optional[float], Any], Any]] = None,
 ) -> AsyncIterable[Paragraph]:
     """
     Force align phoneme recognition predictions to known transcription
@@ -128,14 +129,17 @@ def align(
     of the next Atom with timings.
     """
 
+    def callback(progress: float, step: str = "", extra_data: Any = None):
+        if progress_callback is not None:
+            progress_callback(progress=progress, step=step, extra_data=extra_data)
+
     def work(queue, audio):
         if transcript.is_empty():
             return transcript
 
         models_by_lang = {}
 
-        if progress_callback is not None:
-            progress_callback(0, {"action": "converting audio"})
+        callback(progress=0, step="converting audio")
 
         if not torch.is_tensor(audio):
             audio = torch.from_numpy(audio)
@@ -151,11 +155,7 @@ def align(
                 continue
 
             if lang not in models_by_lang:
-                if progress_callback is not None:
-                    progress_callback(
-                        None,
-                        {"action": "loading model", "lang": lang},
-                    )
+                callback(progress=0, step="loading model", extra_data={"lang": lang})
                 models_by_lang[lang] = load_model(
                     lang,
                     device,
@@ -228,11 +228,11 @@ def align(
                 :, int(t1 * settings.SAMPLE_RATE) : int(t2 * settings.SAMPLE_RATE)
             ]
 
-            if progress_callback is not None:
-                progress_callback(
-                    start / MAX_DURATION,
-                    {"action": "interference", "start": t1, "end": t2},
-                )
+            callback(
+                progress=start / MAX_DURATION,
+                step="inference",
+                extra_data={"start": t1, "end": t2},
+            )
 
             with torch.inference_mode():
                 if model_type == "torchaudio":
@@ -278,11 +278,11 @@ def align(
 
                     atom.start = start_time + t1
                     atom.end = end_time + t1
-            if progress_callback is not None:
-                progress_callback(
-                    segment_end / MAX_DURATION,
-                    {"action": "finished paragraph", "start": t1, "end": t2},
-                )
+            callback(
+                progress=segment_end / MAX_DURATION,
+                step="finished paragraph",
+                extra_data={"start": t1, "end": t2},
+            )
             queue.submit(paragraph)
 
     return async_task(work, audio)

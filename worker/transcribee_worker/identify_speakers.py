@@ -1,5 +1,4 @@
 import logging
-from typing import Callable
 
 import numpy as np
 import numpy.typing as npt
@@ -7,15 +6,16 @@ import torch
 from sklearn.cluster import AgglomerativeClustering
 from speechbrain.pretrained import EncoderClassifier
 from transcribee_proto.document import Document
+from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import alist, async_task
 
 from .config import settings
 
 
 async def identify_speakers(
-    audio: npt.NDArray, doc: Document, progress_callback: Callable[[str, float], None]
+    audio: npt.NDArray, doc: Document, progress_callback: ProgressCallbackType
 ):
-    def work(queue):
+    def work(_queue):
         logging.info("Running Speaker Identification")
 
         if len(doc.children) == 0:
@@ -51,14 +51,17 @@ async def identify_speakers(
 
         embeddings = []
         for i, (start, end) in enumerate(segments):
-            progress_callback("generating speaker embeddings", i / (len(segments) + 1))
+            progress_callback(
+                step="generating speaker embeddings", progress=i / (len(segments) + 1)
+            )
             wav = audio[start:end]
             wav_tensor = torch.tensor(wav[np.newaxis, :])
             embedding = classifier.encode_batch(wav_tensor)
             embeddings.append(embedding[0, 0].detach().numpy())
 
         progress_callback(
-            "clustering speaker embeddings", len(segments) / (len(segments) + 1)
+            step="clustering speaker embeddings",
+            progress=len(segments) / (len(segments) + 1),
         )
         clustering = AgglomerativeClustering(
             compute_full_tree=True,
