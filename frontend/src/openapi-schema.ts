@@ -104,6 +104,7 @@ export interface components {
       completed_at?: string;
       /** Dependencies */
       dependencies: (string)[];
+      document: components["schemas"]["Document"];
       /**
        * Document Id
        * Format: uuid

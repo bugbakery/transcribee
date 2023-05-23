@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel
 from sqlmodel.sql.sqltypes import GUID
+from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import TaskType
 from typing_extensions import Self
 
@@ -91,18 +92,26 @@ class TaskResponse(TaskBase):
     dependencies: List[uuid.UUID]
 
     @classmethod
-    def from_orm(cls, task: Task) -> Self:
+    def from_orm(cls, task: Task, update={}) -> Self:
         return super().from_orm(
             task,
-            update={
-                "dependencies": [x.id for x in task.dependencies],
-            },
+            update={"dependencies": [x.id for x in task.dependencies], **update},
         )
 
 
 class AssignedTaskResponse(TaskResponse):
     assigned_worker: WorkerBase
+    document: ApiDocument
     last_keepalive: datetime.datetime
+
+    @classmethod
+    def from_orm(cls, task: Task) -> Self:
+        return super().from_orm(
+            task,
+            update={
+                "document": task.document.as_api_document(),
+            },
+        )
 
 
 # TODO: Better typing, combine with types from proto
