@@ -170,7 +170,14 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
         <div className="pl-4 flex-grow">
           <WaveSurfer onMount={handleWSMount}>
-            <WaveForm id="waveform" cursorColor="red" barWidth={2} normalize responsive={true} />
+            <WaveForm
+              id="waveform"
+              cursorColor="red"
+              barWidth={2}
+              normalize
+              responsive={true}
+              hideScrollbar={true}
+            />
           </WaveSurfer>
         </div>
 
