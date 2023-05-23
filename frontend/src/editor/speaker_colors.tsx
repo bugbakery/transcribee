@@ -4,8 +4,22 @@ import { Editor } from 'slate';
 export const SpeakerColorsContext = React.createContext<Record<string, string>>({});
 
 function getColor(n: number) {
-  const hue = 230 + n * 137.5; // https://en.wikipedia.org/wiki/Golden_angle
-  return `hsl(${hue}, ${Math.min(70 + n * 10, 100)}%, 75%)`;
+  // palette is "Qualitative-Safe" from https://carto.com/carto-colors/
+  const palette = [
+    '#88CCEE',
+    '#CC6677',
+    '#DDCC77',
+    '#117733',
+    '#332288',
+    '#AA4499',
+    '#44AA99',
+    '#999933',
+    '#882255',
+    '#661100',
+    '#6699CC',
+    '#888888',
+  ];
+  return palette[n % palette.length];
 }
 
 export function SpeakerColorsProvider({
