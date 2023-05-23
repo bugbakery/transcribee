@@ -164,6 +164,13 @@ components:
       - tags
       title: DocumentMedia
       type: object
+    DocumentUpdate:
+      properties:
+        name:
+          title: Name
+          type: string
+      title: DocumentUpdate
+      type: object
     HTTPValidationError:
       properties:
         detail:
@@ -486,6 +493,42 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Get Document
+    patch:
+      operationId: update_document_api_v1_documents__document_id___patch
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Update Document
   /api/v1/documents/{document_id}/add_media_file/:
     post:
       operationId: add_media_file_api_v1_documents__document_id__add_media_file__post

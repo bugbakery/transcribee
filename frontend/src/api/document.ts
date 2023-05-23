@@ -19,3 +19,8 @@ export const deleteDocument = fetcher
   .path('/api/v1/documents/{document_id}/')
   .method('delete')
   .create();
+
+export const updateDocument = fetcher
+  .path('/api/v1/documents/{document_id}/')
+  .method('patch', 'application/json')
+  .create();

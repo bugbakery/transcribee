@@ -1,11 +1,12 @@
 import { RouteComponentProps, useLocation } from 'wouter';
 import { IoIosArrowBack } from 'react-icons/io';
+import { ImPencil } from 'react-icons/im';
 import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
 import { AppContainer } from '../components/app';
-import { IconButton } from '../components/button';
+import { IconButton, PrimaryButton, SecondaryButton } from '../components/button';
 import { TranscriptionEditor } from '../editor/transcription_editor';
 import { WorkerStatus } from '../editor/worker_status';
-import { useGetDocument } from '../api/document';
+import { updateDocument, useGetDocument } from '../api/document';
 import { TbFileExport } from 'react-icons/tb';
 import { canGenerateVtt } from '../utils/export/webvtt';
 import { Suspense, lazy, useMemo, useState } from 'react';
@@ -18,15 +19,54 @@ import { showModal } from '../components/modal';
 import { Tooltip } from '../components/tooltip';
 import { SpeakerColorsProvider } from '../editor/speaker_colors';
 import { Version } from '../common/version';
+import { Input } from '../components/form';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
 );
 
+function DocumentTitle({
+  name,
+  onSubmit,
+}: {
+  name: string;
+  onSubmit: (event: React.FormEvent) => Promise<void>;
+}) {
+  const [editable, setEditable] = useState(false);
+
+  if (editable) {
+    return (
+      <form
+        className="flex flex-row space-x-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setEditable(false);
+          onSubmit(e);
+        }}
+      >
+        <TopBarTitle>
+          <Input autoFocus name="document_name" defaultValue={name} />
+        </TopBarTitle>
+        <SecondaryButton type="button" onClick={() => setEditable(false)}>
+          Cancel
+        </SecondaryButton>
+        <PrimaryButton type="submit">Save</PrimaryButton>
+      </form>
+    );
+  } else {
+    return (
+      <>
+        <TopBarTitle>{name}</TopBarTitle>
+        <IconButton icon={ImPencil} label="edit name" onClick={() => setEditable(true)} />
+      </>
+    );
+  }
+}
+
 export function DocumentPage({
   params: { documentId },
 }: RouteComponentProps<{ documentId: string }>) {
-  const { data } = useGetDocument({ document_id: documentId });
+  const { data, mutate } = useGetDocument({ document_id: documentId });
   const [_location, navigate] = useLocation();
   const debugMode = useDebugMode();
 
@@ -62,7 +102,17 @@ export function DocumentPage({
             label="back to document gallery"
             onClick={() => navigate('/')}
           />
-          <TopBarTitle>{data?.name}</TopBarTitle>
+          <DocumentTitle
+            name={data?.name}
+            onSubmit={async (e) => {
+              const target = e.target as typeof e.target & {
+                document_name: { value: string };
+              };
+              const name = target.document_name.value;
+              await updateDocument({ document_id: documentId, name: name });
+              mutate({ ...data, name: name });
+            }}
+          />
         </TopBarPart>
         <TopBarPart>
           <Tooltip tooltipText={canGenVtt.reason}>

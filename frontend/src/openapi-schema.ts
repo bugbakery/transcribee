@@ -20,6 +20,8 @@ export interface paths {
     get: operations["get_document_api_v1_documents__document_id___get"];
     /** Delete Document */
     delete: operations["delete_document_api_v1_documents__document_id___delete"];
+    /** Update Document */
+    patch: operations["update_document_api_v1_documents__document_id___patch"];
   };
   "/api/v1/documents/{document_id}/add_media_file/": {
     /** Add Media File */
@@ -176,6 +178,11 @@ export interface components {
       tags: (string)[];
       /** Url */
       url: string;
+    };
+    /** DocumentUpdate */
+    DocumentUpdate: {
+      /** Name */
+      name?: string;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -416,6 +423,36 @@ export interface operations {
       200: {
         content: {
           "application/json": Record<string, never>;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Update Document */
+  update_document_api_v1_documents__document_id___patch: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DocumentUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Document"];
         };
       };
       /** @description Validation Error */
