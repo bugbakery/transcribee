@@ -126,7 +126,6 @@ def create_user(session: Session, username: str, password: str) -> User:
     user = User(username=username, password_hash=hash, password_salt=salt)
     session.add(user)
     session.commit()
-    session.refresh(user)
     return user
 
 

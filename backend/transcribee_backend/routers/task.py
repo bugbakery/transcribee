@@ -37,7 +37,6 @@ def create_task(
     db_task = Task.from_orm(task)
     session.add(db_task)
     session.commit()
-    session.refresh(db_task)
     return TaskResponse.from_orm(db_task)
 
 
