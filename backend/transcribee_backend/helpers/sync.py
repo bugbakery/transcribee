@@ -1,8 +1,10 @@
 import asyncio
 from asyncio import Queue
 from typing import Callable
+from collections import defaultdict
+import logging
 
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from sqlmodel import Session, select
 from starlette.websockets import WebSocketState
 from transcribee_backend.helpers.time import now_tz_aware
@@ -13,18 +15,16 @@ from ..models import Document, DocumentUpdate
 
 class DocumentSyncManager:
     def __init__(self):
-        self.handlers: dict[str, set[Callable]] = {}
+        self.handlers: defaultdict[str, set[Callable]] = defaultdict(set)
 
-    async def broadcast(self, channel: str, message: bytes):
+    async def broadcast(self, channel: str, message: bytes | str):
         for handler in self.handlers[channel]:
             await handler(channel, message)
 
     def subscribe(self, channel: str, handler: Callable):
-        self.handlers.setdefault(channel, set())
         self.handlers[channel].add(handler)
 
-    def unsubscribe(self, channel: str, handler):
-        self.handlers.setdefault(channel, set())
+    def unsubscribe(self, channel: str, handler: Callable):
         self.handlers[channel].remove(handler)
 
 
@@ -37,21 +37,29 @@ class DocumentSyncConsumer:
         self._ws = websocket
         self._session = session
         self._subscribed = set()
-        self._msg_queue = Queue()
+        self._msg_queue_sync = Queue()
+        self._msg_queue_presence = Queue()
 
     def subscribe(self, channel: str):
         self._subscribed.add(channel)
         sync_manager.subscribe(channel, self.handle_incoming_broadcast)
 
-    async def handle_incoming_broadcast(self, channel: str, message: bytes):
+    async def handle_incoming_broadcast(self, channel: str, message: bytes | str):
         if channel in self._subscribed:
-            await self._msg_queue.put(message)
+            if isinstance(message, bytes):
+                await self._msg_queue_sync.put(message)
+            else:
+                await self._msg_queue_presence.put(message)
 
     async def listener(self):
         while True:
-            await self.on_message(await self._ws.receive_bytes())
+            message = await self._ws.receive()
+            if "text" in message:
+                await self.on_presence_message(message["text"])
+            else:
+                await self.on_sync_message(message["bytes"])
 
-    async def broadcast_sender(self):
+    async def broadcast_sender_sync(self):
         statement = select(DocumentUpdate).where(DocumentUpdate.document == self._doc)
         for update in self._session.exec(statement):
             await self._ws.send_bytes(
@@ -59,22 +67,30 @@ class DocumentSyncConsumer:
             )
         await self._ws.send_bytes(bytes([SyncMessageType.CHANGE_BACKLOG_COMPLETE]))
         while True:
-            msg = await self._msg_queue.get()
+            msg = await self._msg_queue_sync.get()
             await self._ws.send_bytes(bytes([SyncMessageType.CHANGE]) + msg)
+
+    async def broadcast_sender_presence(self):
+        while True:
+            msg = await self._msg_queue_presence.get()
+            await self._ws.send_text(msg)
 
     async def run(self):
         await self._ws.accept()
         self.subscribe(str(self._doc.id))
         pending = {
             asyncio.create_task(self.listener()),
-            asyncio.create_task(self.broadcast_sender()),
+            # asyncio.create_task(self.listener_presence()),
+            asyncio.create_task(self.broadcast_sender_sync()),
+            asyncio.create_task(self.broadcast_sender_presence()),
         }
         while pending:
             done, pending = await asyncio.wait(
                 pending, return_when=asyncio.FIRST_COMPLETED
             )
             for d in done:
-                if d.exception() and isinstance(d.exception(), WebSocketDisconnect):
+                if d.exception():#  and isinstance(d.exception(), WebSocketDisconnect):
+                    logging.error(f"exception: {d.exception()!r}")
                     for task in pending:
                         task.cancel()
                     pending = set()
@@ -91,7 +107,7 @@ class DocumentSyncConsumer:
         if channel == str(self._doc.id):
             await self._ws.send_bytes(message)
 
-    async def on_message(self, message: bytes):
+    async def on_sync_message(self, message: bytes):
         update = DocumentUpdate(change_bytes=message, document_id=self._doc.id)
         self._session.add(update)
 
@@ -100,3 +116,24 @@ class DocumentSyncConsumer:
 
         self._session.commit()
         await sync_manager.broadcast(str(self._doc.id), message)
+
+    async def on_presence_message(self, message: str):
+        await sync_manager.broadcast(str(self._doc.id), message)
+
+
+# class PresenceManager:
+#     def __init__(self):
+#         self.connections: defaultdict[str, set[Callable]] = defaultdict(set)
+
+#     async def broadcast(self, channel: str, message: bytes):
+#         await asyncio.wait(
+#             websocket.send_bytes(message) for websocket in self.connections[channel]
+#         )
+
+#     def subscribe(self, channel: str, websocket: WebSocket):
+#         self.connections[channel].add(websocket)
+
+#     def unsubscribe(self, channel: str, websocket: WebSocket):
+#         self.connections[channel].remove(websocket)
+
+# presence_manager = PresenceManager()

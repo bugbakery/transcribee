@@ -1,10 +1,11 @@
-import { Editor } from 'slate';
+import { Editor, NodeEntry } from 'slate';
 import { Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
 import { TextClickEvent } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
+import { useCallback, useEffect } from 'react';
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {

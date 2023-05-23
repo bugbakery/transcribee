@@ -229,7 +229,7 @@ def get_document_tasks(
 
 
 @document_router.websocket("/sync/{document_id}/")
-async def websocket_endpoint(
+async def sync_websocket_endpoint(
     websocket: WebSocket,
     document: Document = Depends(ws_get_document_from_url),
     session: Session = Depends(get_session),
