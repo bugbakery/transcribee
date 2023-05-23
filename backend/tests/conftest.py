@@ -2,6 +2,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
@@ -25,27 +26,37 @@ def settings_with_tmpdir():
 
 
 @pytest.fixture
-def client(memory_session: Session):
+def app_with_memory_session(memory_session: Session):
     def get_session_override():
         return memory_session
 
     app.dependency_overrides[get_session] = get_session_override
 
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
+    yield app
+
+    del app.dependency_overrides[get_session]
 
 
 @pytest.fixture
-def logged_in_client(memory_session: Session, auth_token):
-    def get_session_override():
-        return memory_session
+def client(app_with_memory_session: FastAPI):
+    client = TestClient(app_with_memory_session)
+    return client
 
-    app.dependency_overrides[get_session] = get_session_override
 
-    client = TestClient(app, headers={"Authorization": f"Token {auth_token}"})
-    yield client
-    app.dependency_overrides.clear()
+@pytest.fixture
+def logged_in_client(app_with_memory_session: FastAPI, auth_token: str):
+    client = TestClient(
+        app_with_memory_session, headers={"Authorization": f"Token {auth_token}"}
+    )
+    return client
+
+
+@pytest.fixture
+def logged_in_client_user_2(app_with_memory_session: FastAPI, auth_token_user_2: str):
+    client = TestClient(
+        app_with_memory_session, headers={"Authorization": f"Token {auth_token_user_2}"}
+    )
+    return client
 
 
 @pytest.fixture
@@ -94,6 +105,28 @@ def user(memory_session: Session):
 @pytest.fixture
 def auth_token(user: User, memory_session: Session):
     user_token, db_token = generate_user_token(user)
+    memory_session.add(db_token)
+    memory_session.commit()
+    return user_token
+
+
+@pytest.fixture
+def user_2(memory_session: Session):
+    username = "test_user_2"
+    password = "test_user_2_pass"
+    try:
+        user = create_user(session=memory_session, username=username, password=password)
+    except UserAlreadyExists:
+        user = change_user_password(
+            session=memory_session, username=username, new_password=password
+        )
+
+    return user
+
+
+@pytest.fixture
+def auth_token_user_2(user_2: User, memory_session: Session):
+    user_token, db_token = generate_user_token(user_2)
     memory_session.add(db_token)
     memory_session.commit()
     return user_token
