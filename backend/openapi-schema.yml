@@ -38,6 +38,8 @@ components:
             type: string
           title: Dependencies
           type: array
+        document:
+          $ref: '#/components/schemas/Document'
         document_id:
           format: uuid
           title: Document Id
@@ -69,6 +71,7 @@ components:
       - is_completed
       - dependencies
       - assigned_worker
+      - document
       - last_keepalive
       title: AssignedTaskResponse
       type: object
