@@ -8,8 +8,6 @@ from transcribee_proto.api import DocumentMedia as ApiDocumentMedia
 
 from transcribee_backend import media_storage
 
-from .user import User
-
 
 class DocumentBase(SQLModel):
     name: str
@@ -24,7 +22,7 @@ class Document(DocumentBase, table=True):
         nullable=False,
     )
     user_id: uuid.UUID = Field(foreign_key="user.id")
-    user: User = Relationship()
+    user: "User" = Relationship()
     created_at: datetime.datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
@@ -33,6 +31,9 @@ class Document(DocumentBase, table=True):
     )
     media_files: List["DocumentMediaFile"] = Relationship()
     updates: List["DocumentUpdate"] = Relationship(
+        sa_relationship_kwargs={"cascade": "all,delete"}
+    )
+    share_tokens: List["DocumentShareToken"] = Relationship(
         sa_relationship_kwargs={"cascade": "all,delete"}
     )
 
@@ -108,3 +109,41 @@ class DocumentUpdate(DocumentUpdateBase, table=True):
     )
     document_id: uuid.UUID = Field(foreign_key="document.id")
     document: Document = Relationship(back_populates="updates")
+
+
+class DocumentShareTokenResponse(SQLModel):
+    id: uuid.UUID
+    name: str
+    valid_until: Optional[datetime.datetime]
+    document_id: uuid.UUID
+
+
+class DocumentShareToken(SQLModel, table=True):
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    name: str = "Unnamed Share Token"
+    document_id: uuid.UUID = Field(foreign_key="document.id")
+    document: Document = Relationship(back_populates="share_tokens")
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    user: "User" = Relationship(back_populates="share_tokens")
+    token_hash: bytes
+    token_salt: bytes
+    valid_until: Optional[datetime.datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+
+    def to_response(self):
+        return DocumentShareTokenResponse(
+            id=self.id,
+            document_id=self.document_id,
+            valid_until=self.valid_until,
+            name=self.name,
+        )
+
+
+# needs to be at end to break circular import
+from .user import User  # noqa: E402

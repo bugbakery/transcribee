@@ -12,3 +12,10 @@ export const Dialog = primitiveWithClassname('div', [
 ]);
 
 export const DialogTitle = primitiveWithClassname('h2', 'font-bold text-lg mb-4');
+
+export const DialogSeparator = primitiveWithClassname('hr', [
+  'my-6',
+  'bg-black dark:bg-neutral-200',
+  'h-0.5 border-0',
+  '-m-6',
+]);

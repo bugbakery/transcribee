@@ -8,9 +8,11 @@ import { AiOutlinePlus } from 'react-icons/ai';
 import { IoMdTrash } from 'react-icons/io';
 import { IconButton } from '../components/button';
 import { Version } from '../common/version';
+import { useAuthData } from '../utils/auth';
 
 export function UserHomePage() {
   const { data, mutate } = useListDocuments({});
+  const { isLoggedIn } = useAuthData();
 
   return (
     <AppContainer>
@@ -19,9 +21,7 @@ export function UserHomePage() {
           <TopBarTitle>transcribee</TopBarTitle>
         </TopBarPart>
 
-        <TopBarPart>
-          <MeButton />
-        </TopBarPart>
+        <TopBarPart>{isLoggedIn && <MeButton />}</TopBarPart>
       </TopBar>
 
       <ul

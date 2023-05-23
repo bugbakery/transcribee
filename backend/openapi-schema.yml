@@ -109,6 +109,19 @@ components:
       - new_password
       title: ChangePasswordRequest
       type: object
+    CreateShareToken:
+      properties:
+        name:
+          title: Name
+          type: string
+        valid_until:
+          format: date-time
+          title: Valid Until
+          type: string
+      required:
+      - name
+      title: CreateShareToken
+      type: object
     CreateUser:
       properties:
         password:
@@ -167,6 +180,29 @@ components:
       - content_type
       - tags
       title: DocumentMedia
+      type: object
+    DocumentShareTokenResponse:
+      properties:
+        document_id:
+          format: uuid
+          title: Document Id
+          type: string
+        id:
+          format: uuid
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        valid_until:
+          format: date-time
+          title: Valid Until
+          type: string
+      required:
+      - id
+      - name
+      - document_id
+      title: DocumentShareTokenResponse
       type: object
     DocumentUpdate:
       properties:
@@ -238,6 +274,15 @@ components:
       required:
       - duration
       title: SetDurationRequest
+      type: object
+    ShareDocumentResponse:
+      properties:
+        share_token:
+          title: Share Token
+          type: string
+      required:
+      - share_token
+      title: ShareDocumentResponse
       type: object
     SpeakerIdentificationTask:
       properties:
@@ -640,6 +685,114 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Set Duration
+  /api/v1/documents/{document_id}/share_tokens/:
+    get:
+      operationId: list_share_tokens_api_v1_documents__document_id__share_tokens__get
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/DocumentShareTokenResponse'
+                title: Response List Share Tokens Api V1 Documents  Document Id  Share
+                  Tokens  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Share Tokens
+    post:
+      operationId: share_api_v1_documents__document_id__share_tokens__post
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShareToken'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareDocumentResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Share
+  /api/v1/documents/{document_id}/share_tokens/{token_id}/:
+    delete:
+      operationId: delete_share_tokens_api_v1_documents__document_id__share_tokens__token_id___delete
+      parameters:
+      - in: path
+        name: token_id
+        required: true
+        schema:
+          format: uuid
+          title: Token Id
+          type: string
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Delete Share Tokens
   /api/v1/documents/{document_id}/tasks/:
     get:
       operationId: get_document_tasks_api_v1_documents__document_id__tasks__get

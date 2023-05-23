@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from typing import List
 
 from pydantic import BaseModel, ConstrainedStr
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
@@ -18,6 +19,9 @@ class User(UserBase, table=True):
     )
     password_hash: bytes
     password_salt: bytes
+    share_tokens: List["DocumentShareToken"] = Relationship(
+        sa_relationship_kwargs={"cascade": "all,delete"}
+    )
 
 
 class CreateUser(UserBase):
@@ -51,3 +55,7 @@ class PasswordConstrainedStr(ConstrainedStr):
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: PasswordConstrainedStr
+
+
+# needs to be at end to break circular import
+from .document import DocumentShareToken  # noqa: E402

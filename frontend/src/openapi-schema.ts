@@ -35,6 +35,16 @@ export interface paths {
     /** Set Duration */
     post: operations["set_duration_api_v1_documents__document_id__set_duration__post"];
   };
+  "/api/v1/documents/{document_id}/share_tokens/": {
+    /** List Share Tokens */
+    get: operations["list_share_tokens_api_v1_documents__document_id__share_tokens__get"];
+    /** Share */
+    post: operations["share_api_v1_documents__document_id__share_tokens__post"];
+  };
+  "/api/v1/documents/{document_id}/share_tokens/{token_id}/": {
+    /** Delete Share Tokens */
+    delete: operations["delete_share_tokens_api_v1_documents__document_id__share_tokens__token_id___delete"];
+  };
   "/api/v1/documents/{document_id}/tasks/": {
     /** Get Document Tasks */
     get: operations["get_document_tasks_api_v1_documents__document_id__tasks__get"];
@@ -159,6 +169,16 @@ export interface components {
       /** Old Password */
       old_password: string;
     };
+    /** CreateShareToken */
+    CreateShareToken: {
+      /** Name */
+      name: string;
+      /**
+       * Valid Until
+       * Format: date-time
+       */
+      valid_until?: string;
+    };
     /** CreateUser */
     CreateUser: {
       /** Password */
@@ -187,6 +207,26 @@ export interface components {
       tags: (string)[];
       /** Url */
       url: string;
+    };
+    /** DocumentShareTokenResponse */
+    DocumentShareTokenResponse: {
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /**
+       * Valid Until
+       * Format: date-time
+       */
+      valid_until?: string;
     };
     /** DocumentUpdate */
     DocumentUpdate: {
@@ -228,6 +268,11 @@ export interface components {
     SetDurationRequest: {
       /** Duration */
       duration: number;
+    };
+    /** ShareDocumentResponse */
+    ShareDocumentResponse: {
+      /** Share Token */
+      share_token: string;
     };
     /** SpeakerIdentificationTask */
     SpeakerIdentificationTask: {
@@ -538,6 +583,87 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["Document"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** List Share Tokens */
+  list_share_tokens_api_v1_documents__document_id__share_tokens__get: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": (components["schemas"]["DocumentShareTokenResponse"])[];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Share */
+  share_api_v1_documents__document_id__share_tokens__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateShareToken"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ShareDocumentResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Delete Share Tokens */
+  delete_share_tokens_api_v1_documents__document_id__share_tokens__token_id___delete: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        token_id: string;
+        document_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
         };
       };
       /** @description Validation Error */

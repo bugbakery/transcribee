@@ -67,7 +67,7 @@ export function Modal({
   return (
     <div
       {...props}
-      className={clsx('relative z-10')}
+      className={clsx('relative z-50')}
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"

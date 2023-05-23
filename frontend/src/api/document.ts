@@ -24,3 +24,19 @@ export const updateDocument = fetcher
   .path('/api/v1/documents/{document_id}/')
   .method('patch', 'application/json')
   .create();
+
+export const shareDocument = fetcher
+  .path('/api/v1/documents/{document_id}/share_tokens/')
+  .method('post', 'application/json')
+  .create();
+
+export const listShareTokens = fetcher
+  .path('/api/v1/documents/{document_id}/share_tokens/')
+  .method('get')
+  .create();
+export const useListShareTokens = makeSwrHook('listShareTokens', listShareTokens);
+
+export const deleteShareToken = fetcher
+  .path('/api/v1/documents/{document_id}/share_tokens/{token_id}/')
+  .method('delete')
+  .create();

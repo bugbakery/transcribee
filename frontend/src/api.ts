@@ -10,12 +10,26 @@ export function storeAuthToken(token: string | undefined) {
   }
 }
 
-const authMiddleware: Middleware = async (url, init, next) => {
-  const headers = new Headers(init.headers);
-
+export function getDocumentAuth(): string | undefined {
+  const shareToken = getShareToken();
+  if (shareToken) {
+    return `Share ${shareToken}`;
+  }
   const authToken = localStorage.getItem('auth');
   if (authToken) {
-    headers.set('Authorization', `Token ${authToken}`);
+    return `Token ${authToken}`;
+  }
+}
+
+export function getShareToken(): string | null {
+  return new URL(location.href).searchParams.get('share_token');
+}
+
+const authMiddleware: Middleware = async (url, init, next) => {
+  const headers = new Headers(init.headers);
+  const auth = getDocumentAuth();
+  if (auth) {
+    headers.set('Authorization', auth);
   }
 
   return next(url, { ...init, headers: headers });
