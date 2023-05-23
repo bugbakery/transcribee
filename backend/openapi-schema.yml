@@ -34,11 +34,10 @@ components:
           type: string
         dependencies:
           items:
-            $ref: '#/components/schemas/TaskResponse'
+            format: uuid
+            type: string
           title: Dependencies
           type: array
-        document:
-          $ref: '#/components/schemas/Document'
         document_id:
           format: uuid
           title: Document Id
@@ -67,7 +66,6 @@ components:
       - task_parameters
       - document_id
       - id
-      - document
       - is_completed
       - dependencies
       - assigned_worker
@@ -229,11 +227,10 @@ components:
           type: string
         dependencies:
           items:
-            $ref: '#/components/schemas/TaskResponse'
+            format: uuid
+            type: string
           title: Dependencies
           type: array
-        document:
-          $ref: '#/components/schemas/Document'
         document_id:
           format: uuid
           title: Document Id
@@ -258,7 +255,6 @@ components:
       - task_parameters
       - document_id
       - id
-      - document
       - is_completed
       - dependencies
       title: TaskResponse
