@@ -29,11 +29,19 @@ repos:
     hooks:
       - id: flake8
         exclude: ^backend/.*/migrations/.*$
-  - repo: local # update openapi-schema of the backend
+  - repo: local
     hooks:
       - id: backend-openapi
-        name: backend openapi
+        name: update openapi-schema of the backend
         entry: pdm run -p backend/ generate_openapi --file openapi-schema.yml
+        language: system
+        files: backend/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: backend-tests
+        name: run backend tests
+        entry: pdm run -p backend/ test
         language: system
         files: backend/.*
         pass_filenames: false
