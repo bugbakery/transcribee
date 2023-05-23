@@ -1,4 +1,4 @@
-import { Editor, Transforms } from 'slate';
+import { Editor, Transforms, Range } from 'slate';
 import { Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
@@ -146,13 +146,19 @@ export function TranscriptionEditor({
         <Editable
           renderElement={(props) => renderElement(props)}
           renderLeaf={renderLeaf}
-          onClick={() => {
-            const selection = document.getSelection();
+          onClick={(e) => {
+            const { selection } = editor;
+
+            // fire a text click event when selection is changed by clicking outside of a text node
+            // e.g. by clicking at the blank space on the right of a paragraph
             if (
-              selection?.isCollapsed &&
-              selection.anchorNode?.parentElement?.parentElement?.classList.contains('word')
+              selection &&
+              Range.isCollapsed(selection) &&
+              e.target instanceof HTMLElement &&
+              e.target.isContentEditable
             ) {
-              selection.anchorNode.parentElement.click();
+              const [leaf] = editor.leaf(selection.anchor);
+              window.dispatchEvent(new TextClickEvent(leaf));
             }
           }}
         />
