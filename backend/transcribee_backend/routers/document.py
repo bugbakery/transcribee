@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import magic
 from fastapi import (
@@ -306,3 +306,22 @@ def set_duration(
     session.commit()
 
     return doc.as_api_document()
+
+
+class DocumentUpdate(BaseModel):
+    name: Optional[str] = None
+
+
+@document_router.patch("/{document_id}/")
+def update_document(
+    update: DocumentUpdate,
+    document: Document = Depends(get_document_from_url),
+    session: Session = Depends(get_session),
+) -> ApiDocument:
+    update = update.dict(exclude_unset=True)
+    for key, value in update.items():
+        setattr(document, key, value)
+    session.add(document)
+    session.commit()
+
+    return document.as_api_document()
