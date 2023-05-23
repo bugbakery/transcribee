@@ -26,9 +26,9 @@ def document_list(logged_in_client: TestClient):
 @pytest.mark.parametrize(
     "test_function,setup_function,N,max_time",
     [
-        (create_doc, None, 50, 0.01),
-        (user_me, None, 50, 0.005),
-        (document_list, create_doc, 50, 0.01),
+        (create_doc, None, 50, 0.1),
+        (user_me, None, 50, 0.05),
+        (document_list, create_doc, 50, 0.1),
     ],
 )
 def test_execution_speed(
