@@ -22,6 +22,7 @@ from transcribee_worker.config import settings
 from transcribee_worker.identify_speakers import identify_speakers
 from transcribee_worker.reencode import get_duration, reencode
 from transcribee_worker.torchaudio_align import align
+from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import aenumerate, load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
 
@@ -119,22 +120,28 @@ class Worker:
     async def perform_task(self, task: AssignedTask):
         logging.info(f"Running task: {task=}")
 
+        def progress_callback(*, progress, step="", extra_data=None):
+            step = f"{task.task_type}:{step}"
+            self._set_progress(task.id, step, progress=progress, extra_data=extra_data)
+
+        progress_callback(progress=0)
         if task.task_type == TaskType.IDENTIFY_SPEAKERS:
-            await self.identify_speakers(task)
+            await self.identify_speakers(task, progress_callback)
         elif task.task_type == TaskType.TRANSCRIBE:
-            await self.transcribe(task)
+            await self.transcribe(task, progress_callback)
         elif task.task_type == TaskType.ALIGN:
-            await self.align(task)
+            await self.align(task, progress_callback)
         elif task.task_type == TaskType.REENCODE:
-            await self.reencode(task)
+            await self.reencode(task, progress_callback)
         else:
             raise ValueError(f"Invalid task type: '{task.task_type}'")
 
-    async def transcribe(self, task: TranscribeTask):
-        audio = self.load_document_audio(task.document)
+        progress_callback(progress=1)
 
-        def progress_callback(_ctx, progress, _data):
-            self._set_progress(task.id, "whisper", progress=progress / 100)
+    async def transcribe(
+        self, task: TranscribeTask, progress_callback: ProgressCallbackType
+    ):
+        audio = self.load_document_audio(task.document)
 
         async with self.api_client.document(task.document.id) as doc:
             async with doc.transaction("Reset Document") as d:
@@ -152,21 +159,16 @@ class Worker:
                         c["text"] = automerge.Text(c["text"])
                     d.children.append(p)
 
-    async def identify_speakers(self, task: SpeakerIdentificationTask):
+    async def identify_speakers(
+        self, task: SpeakerIdentificationTask, progress_callback: ProgressCallbackType
+    ):
         audio = self.load_document_audio(task.document)
 
-        def progress_callback(step: str, progress: float):
-            self._set_progress(task.id, step, progress=progress)
-
         async with self.api_client.document(task.document.id) as doc:
-            self._set_progress(task.id, "identify speakers", progress=0)
-
             async with doc.transaction("Speaker Identification") as d:
                 await identify_speakers(audio, d, progress_callback)
 
-        self._set_progress(task.id, "identify speakers", progress=1)
-
-    async def align(self, task: AlignTask):
+    async def align(self, task: AlignTask, progress_callback: ProgressCallbackType):
         audio = self.load_document_audio(task.document)
 
         async with self.api_client.document(task.document.id) as doc:
@@ -177,11 +179,9 @@ class Worker:
                 align(
                     document,
                     audio,
+                    progress_callback,
                     # TODO(robin): this seems like a weird place to hardcode this parameter
                     extend_duration=0.5,
-                    progress_callback=lambda progress, extra_data: self._set_progress(
-                        task.id, "torchaudio aligner", progress, extra_data
-                    ),
                 )
             )
             async for i, al_para in aenumerate(aligned_para_iter):
@@ -191,7 +191,9 @@ class Worker:
                         d_atom.start = al_atom.start
                         d_atom.end = al_atom.end
 
-    async def reencode(self, task: ReencodeTask):
+    async def reencode(
+        self, task: ReencodeTask, progress_callback: ProgressCallbackType
+    ):
         document_audio = self.get_document_audio_path(task.document)
         if document_audio is None:
             raise ValueError(
@@ -208,8 +210,8 @@ class Worker:
                 document_audio,
                 output_path,
                 parameters,
-                lambda progress, extra_data: self._set_progress(
-                    task.id, "ffmpeg", (i + progress) / n_profiles, extra_data
+                lambda progress, extra_data: progress_callback(
+                    progress=(i + progress) / n_profiles, extra_data=extra_data
                 ),
                 duration,
             )

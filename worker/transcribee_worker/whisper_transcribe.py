@@ -1,10 +1,11 @@
 import logging
-from typing import Any, AsyncIterator, Callable, Optional
+from typing import Any, AsyncIterator, Optional
 
 import requests
 from numpy.typing import NDArray
 from transcribee_proto.document import Atom, Paragraph
 from transcribee_worker.config import settings
+from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import SubmissionQueue, async_task
 from whispercppy import api
 
@@ -41,7 +42,7 @@ def _transcription_work(
     data: NDArray[Any],
     model_name: str,
     lang_code: Optional[str],
-    progress_callback: Optional[Callable],
+    progress_callback: Optional[ProgressCallbackType],
 ):
     def handle_new_segment(
         ctx: api.Context,
@@ -149,7 +150,10 @@ def _transcription_work(
     )
     params.on_new_segment(handle_new_segment, queue)
     if progress_callback is not None:
-        params.on_progress(progress_callback, None)
+        params.on_progress(
+            lambda _ctx, progress, _data: progress_callback(progress=progress / 100),
+            None,
+        )
     ctx.full(params, data)
 
 

@@ -1,8 +1,8 @@
 import subprocess
 from pathlib import Path
-from typing import Callable
 
 import ffmpeg
+from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import alist, async_task
 
 
@@ -14,7 +14,7 @@ async def reencode(
     input_path: Path,
     output_path: Path,
     output_params: dict[str, str],
-    progress_callback: Callable[[float, dict[str, str]], None],
+    progress_callback: ProgressCallbackType,
     duration: float,
 ):
     def work(_):
@@ -43,8 +43,8 @@ async def reencode(
                     out_time_ms = int(progress_dict["out_time_ms"])
                     out_time_s = out_time_ms / 1e6
                     progress_callback(
-                        out_time_s / duration,
-                        progress_dict,
+                        progress=out_time_s / duration,
+                        extra_data=progress_dict,
                     )
                 progress_dict = {}
 
