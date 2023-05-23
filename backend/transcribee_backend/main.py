@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from transcribee_backend.routers.document import document_router
 from transcribee_backend.routers.task import task_router
 from transcribee_backend.routers.user import user_router
@@ -17,6 +18,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware)
 
 
 app.include_router(user_router, prefix="/api/v1/users")
