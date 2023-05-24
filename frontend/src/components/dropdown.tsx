@@ -57,6 +57,7 @@ export function Dropdown({
   expandTop = false,
   expandOn = false,
   arrow = true,
+  dropdownClassName = '',
   buttonClassName = '',
   ...props
 }: {
@@ -65,8 +66,9 @@ export function Dropdown({
   expandTop?: boolean;
   arrow?: boolean;
   expandOn?: boolean;
+  dropdownClassName?: string;
   buttonClassName?: string;
-} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
+} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLButtonElement>, HTMLButtonElement>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [setMeasureReference, bounds] = useMeasure();
 
@@ -79,7 +81,6 @@ export function Dropdown({
 
   return (
     <div
-      {...props}
       ref={(ref) => {
         setReferenceElement(ref);
         setMeasureReference(ref);
@@ -90,6 +91,7 @@ export function Dropdown({
       className={clsx('relative', props.className)}
     >
       <button
+        {...props}
         type="button"
         className={clsx(
           'inline-flex items-stretch',
@@ -124,9 +126,10 @@ export function Dropdown({
           'transition-scale duration-100',
           `origin-${inverseDirection}`,
           show.late ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
+          dropdownClassName,
         )}
         aria-hidden={!show}
-        style={{ minWidth: bounds.width }}
+        style={{ width: bounds.width }}
       >
         {show.prolonged && children}
       </div>

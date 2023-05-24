@@ -35,34 +35,51 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
 
   if (element.type === 'paragraph') {
     return (
-      <>
-        <div className="mb-6 flex">
-          <div
-            contentEditable={false}
-            className="w-16 mr-2 -ml-20 hidden 2xl:block text-slate-500 dark:text-neutral-400 font-mono"
-            onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
-          >
-            {formattedTime(startAtom.start)}
-          </div>
+      <div className="contents order-0">
+        <div
+          contentEditable={false}
+          className={clsx(
+            'w-2 mr-2 h-full rounded-md row-span-2',
+            'md:ml-1 md:col-start-2',
+            'xl:row-span-1 xl:col-start-3',
+          )}
+          style={element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}}
+        />
 
-          <div contentEditable={false} className="w-60 mr-2 relative">
-            <SpeakerDropdown paragraph={element} />
-            <div
-              className="mr-2 ml-7 2xl:hidden text-slate-500 dark:text-neutral-400 font-mono"
-              onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
-            >
-              {formattedTime(startAtom.start)}
-            </div>
-            <div
-              className="absolute right-0 top-0 w-2 h-full rounded-md mr-1 -mt-0.5"
-              style={element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}}
-            />
-          </div>
-          <div {...attributes} className="grow-1 basis-full" lang={element.lang} spellCheck={false}>
-            {children}
-          </div>
+        <div
+          contentEditable={false}
+          className="text-slate-500 dark:text-neutral-400 font-mono md:col-start-1"
+          onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
+        >
+          {formattedTime(startAtom.start)}
         </div>
-      </>
+
+        <div
+          {...attributes}
+          className={clsx(
+            'grow-1 basis-full col-span-2',
+            'md:col-span-1 md:row-span-2 md:col-start-3',
+            'xl:row-span-1 xl:col-start-4',
+          )}
+          lang={element.lang}
+          spellCheck={false}
+        >
+          {children}
+        </div>
+
+        <SpeakerDropdown
+          contentEditable={false}
+          paragraph={element}
+          buttonClassName={clsx(
+            'max-w-none break-all text-neutral-400 relative top-0.5',
+            'md:max-w-[200px] md:text-neutral-600 md:col-start-1',
+            'xl:col-start-2',
+          )}
+          className="md:-ml-2.5 xl:ml-0"
+        />
+
+        <div className="mb-3 col-span-3 xl:col-span-4" />
+      </div>
     );
   }
 
@@ -181,6 +198,12 @@ export function TranscriptionEditor({
                 window.dispatchEvent(new SeekToEvent(leaf.start));
               }
             }}
+            className={clsx(
+              'grid grid-flow-row-dense items-start grid-cols-[max-content_min-content_1fr]',
+              'md:auto-rows-[24px_auto_auto]',
+              'xl:auto-rows-auto xl:grid-cols-[min-content_max-content_min-content_1fr]',
+              '2xl:-ml-20',
+            )}
           />
         </SpeakerColorsProvider>
       </Slate>

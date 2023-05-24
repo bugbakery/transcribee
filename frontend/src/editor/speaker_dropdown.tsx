@@ -10,6 +10,7 @@ import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown'
 import { Input, Select } from '../components/form';
 import { useSpeakerName, useSpeakerNames } from '../utils/document';
 import { showModal, Modal, ModalProps } from '../components/modal';
+import clsx from 'clsx';
 
 function SelectSpeakerModal({
   editor,
@@ -161,66 +162,79 @@ function changeSpeakerName(editor: Editor, speakerId: string, speakerName: strin
   editor.setDoc(newDoc);
 }
 
-export const SpeakerDropdown = memo(({ paragraph }: { paragraph: Paragraph }) => {
-  const speaker = paragraph.speaker;
-  const editor: Editor = useSlateStatic();
-  const speakerName = useSpeakerName(speaker);
-  const changeSpeaker = useCallback(() => {
-    showModal(
-      <SelectSpeakerModal
-        editor={editor}
-        selected={speaker}
-        onClose={() => showModal(null)}
-        onSpeakerSelected={(speakerId) => setSpeaker(editor, paragraph, speakerId)}
-        onNewSpeaker={(speakerName) => {
-          const speakerId = addNewSpeaker(editor, speakerName);
-          setSpeaker(editor, paragraph, speakerId);
-        }}
-      />,
-    );
-  }, [speaker, paragraph, editor]);
-
-  const renameSpeaker = useCallback(() => {
-    if (speaker !== null && speaker !== undefined) {
+export const SpeakerDropdown = memo(
+  ({
+    paragraph,
+    ...props
+  }: { paragraph: Paragraph } & Omit<React.ComponentProps<typeof Dropdown>, 'label'>) => {
+    const speaker = paragraph.speaker;
+    const editor: Editor = useSlateStatic();
+    const speakerName = useSpeakerName(speaker);
+    const changeSpeaker = useCallback(() => {
       showModal(
-        <SpeakerNameModal
+        <SelectSpeakerModal
+          editor={editor}
+          selected={speaker}
           onClose={() => showModal(null)}
-          initialValue={speakerName}
-          selectedCallback={(speakerName: string) => {
-            changeSpeakerName(editor, speaker, speakerName);
+          onSpeakerSelected={(speakerId) => setSpeaker(editor, paragraph, speakerId)}
+          onNewSpeaker={(speakerName) => {
+            const speakerId = addNewSpeaker(editor, speakerName);
+            setSpeaker(editor, paragraph, speakerId);
           }}
         />,
       );
-    }
-  }, [speaker, speakerName, editor]);
+    }, [speaker, paragraph, editor]);
 
-  const unsetSpeaker = useCallback(() => setSpeaker(editor, paragraph, null), [editor, paragraph]);
+    const renameSpeaker = useCallback(() => {
+      if (speaker !== null && speaker !== undefined) {
+        showModal(
+          <SpeakerNameModal
+            onClose={() => showModal(null)}
+            initialValue={speakerName}
+            selectedCallback={(speakerName: string) => {
+              changeSpeakerName(editor, speaker, speakerName);
+            }}
+          />,
+        );
+      }
+    }, [speaker, speakerName, editor]);
 
-  return (
-    <Dropdown label={speakerName} className="pr-4">
-      <DropdownSection>
-        <DropdownItem icon={IoIosList} onClick={changeSpeaker}>
-          Change Speaker
-        </DropdownItem>
-        <DropdownItem
-          icon={IoIosCreate}
-          onClick={renameSpeaker}
-          disabled={speaker === null || speaker === undefined}
-        >
-          Rename Speaker
-        </DropdownItem>
-      </DropdownSection>
-      <DropdownSection>
-        <DropdownItem
-          icon={IoIosTrash}
-          onClick={unsetSpeaker}
-          disabled={speaker === null || speaker === undefined}
-        >
-          Unset Speaker
-        </DropdownItem>
-      </DropdownSection>
-    </Dropdown>
-  );
-});
+    const unsetSpeaker = useCallback(
+      () => setSpeaker(editor, paragraph, null),
+      [editor, paragraph],
+    );
+
+    return (
+      <Dropdown
+        {...props}
+        className={clsx('pr-4', props.className)}
+        dropdownClassName={'min-w-[190px]'}
+        label={speakerName}
+      >
+        <DropdownSection>
+          <DropdownItem icon={IoIosList} onClick={changeSpeaker}>
+            Change Speaker
+          </DropdownItem>
+          <DropdownItem
+            icon={IoIosCreate}
+            onClick={renameSpeaker}
+            disabled={speaker === null || speaker === undefined}
+          >
+            Rename Speaker
+          </DropdownItem>
+        </DropdownSection>
+        <DropdownSection>
+          <DropdownItem
+            icon={IoIosTrash}
+            onClick={unsetSpeaker}
+            disabled={speaker === null || speaker === undefined}
+          >
+            Unset Speaker
+          </DropdownItem>
+        </DropdownSection>
+      </Dropdown>
+    );
+  },
+);
 
 SpeakerDropdown.displayName = 'SpeakerDropdown';
