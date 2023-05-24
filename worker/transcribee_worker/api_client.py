@@ -41,4 +41,8 @@ class ApiClient:
         async with websockets.connect(
             f"{self.websocket_base_url}{id}/?{params}"
         ) as websocket:
-            yield await SyncedDocument.create(websocket)
+            doc = await SyncedDocument.create(websocket)
+            try:
+                yield doc
+            finally:
+                doc.stop()
