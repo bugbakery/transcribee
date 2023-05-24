@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { cloneElement, ReactElement, ReactNode, useState } from 'react';
 import { usePopper } from 'react-popper';
-import { useOnBlur } from '../utils/use_blur';
+import { useOnClickOutside } from '../utils/use_on_click_outside';
 import { useStateDelayed } from '../utils/use_state_delayed';
 
 export function Popup({
@@ -41,7 +41,7 @@ export function Popup({
     ],
   });
   const [show, setShow] = useStateDelayed(false);
-  useOnBlur(referenceElement, () => {
+  useOnClickOutside(referenceElement, () => {
     setShow(false);
   });
 
