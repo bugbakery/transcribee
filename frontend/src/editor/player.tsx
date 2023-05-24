@@ -177,6 +177,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
               normalize
               responsive={true}
               hideScrollbar={true}
+              backend="MediaElement"
             />
           </WaveSurfer>
         </div>
