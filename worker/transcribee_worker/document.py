@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -23,6 +24,8 @@ class SyncedDocument:
         self.conn = connection
         self.doc = await self._get_document_state()
         await self._preprocess_doc()
+        self._discard_messages_task = asyncio.create_task(self._discard_messages())
+        self._stop = asyncio.Event()
         return self
 
     @asynccontextmanager
@@ -32,6 +35,22 @@ class SyncedDocument:
         change = d.get_change()
         if change is not None:
             await self._send_change(change)
+
+    async def _discard_messages(self):
+        pending = [self._stop.wait(), self.conn.recv()]
+        while True:
+            done, pending = await asyncio.wait(
+                pending, return_when=asyncio.FIRST_COMPLETED
+            )
+            if self._stop.is_set():
+                for task in pending:
+                    task.cancel()
+                    return
+            else:
+                pending.add(self.conn.recv())
+
+    def stop(self):
+        self._stop.set()
 
     async def _preprocess_doc(self):
         if self.doc.version is None:
@@ -52,12 +71,13 @@ class SyncedDocument:
         doc = automerge.init(EditorDocument)
         while True:
             msg = await self.conn.recv()
-            if msg[0] == SyncMessageType.CHANGE:
-                automerge.apply_changes(doc, [msg[1:]])
-            elif msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
-                break
-            elif msg[0] == SyncMessageType.FULL_DOCUMENT:
-                doc = automerge.load(msg[1:])
+            if isinstance(msg, bytes):
+                if msg[0] == SyncMessageType.CHANGE:
+                    automerge.apply_changes(doc, [msg[1:]])
+                elif msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
+                    break
+                elif msg[0] == SyncMessageType.FULL_DOCUMENT:
+                    doc = automerge.load(msg[1:])
 
         return doc
 
