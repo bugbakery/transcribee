@@ -4,7 +4,7 @@ import useMeasure from 'react-use-measure';
 
 import { IoIosArrowDown } from 'react-icons/io';
 import { IconType } from 'react-icons';
-import { useOnBlur } from '../utils/use_blur';
+import { useOnClickOutside } from '../utils/use_on_click_outside';
 import { useStateDelayed } from '../utils/use_state_delayed';
 
 export function DropdownSection({
@@ -71,7 +71,7 @@ export function Dropdown({
   const [setMeasureReference, bounds] = useMeasure();
 
   const [show, setShow] = useStateDelayed(false);
-  useOnBlur(referenceElement, () => {
+  useOnClickOutside(referenceElement, () => {
     setShow(false);
   });
 
