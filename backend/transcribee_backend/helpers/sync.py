@@ -53,10 +53,10 @@ class DocumentSyncConsumer:
 
     async def broadcast_sender(self):
         statement = select(DocumentUpdate).where(DocumentUpdate.document == self._doc)
+        message = bytes([SyncMessageType.FULL_DOCUMENT])
         for update in self._session.exec(statement):
-            await self._ws.send_bytes(
-                bytes([SyncMessageType.CHANGE]) + update.change_bytes
-            )
+            message += update.change_bytes
+        await self._ws.send_bytes(message)
         await self._ws.send_bytes(bytes([SyncMessageType.CHANGE_BACKLOG_COMPLETE]))
         while True:
             msg = await self._msg_queue.get()
