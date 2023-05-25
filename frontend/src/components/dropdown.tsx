@@ -2,7 +2,6 @@ import clsx from 'clsx';
 import { ReactNode, useState } from 'react';
 import useMeasure from 'react-use-measure';
 
-import { IoIosArrowDown } from 'react-icons/io';
 import { IconType } from 'react-icons';
 import { useOnClickOutside } from '../utils/use_on_click_outside';
 import { useStateDelayed } from '../utils/use_state_delayed';
@@ -96,7 +95,7 @@ export function Dropdown({
         className={clsx(
           'inline-flex items-stretch',
           'w-full rounded-lg',
-          'text-sm font-semibold',
+          'text-sm text-left font-semibold',
           'hover:bg-gray-200 dark:hover:bg-neutral-700',
           show.now && 'bg-gray-200 dark:bg-neutral-700',
           'px-2 py-1',
