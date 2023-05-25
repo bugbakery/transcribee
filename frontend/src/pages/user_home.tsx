@@ -7,6 +7,7 @@ import { AppContainer } from '../components/app';
 import { AiOutlinePlus } from 'react-icons/ai';
 import { IoMdTrash } from 'react-icons/io';
 import { IconButton } from '../components/button';
+import { Version } from '../common/version';
 
 export function UserHomePage() {
   const { data, mutate } = useListDocuments({});
@@ -101,6 +102,8 @@ export function UserHomePage() {
           </Link>
         </li>
       </ul>
+
+      <Version />
     </AppContainer>
   );
 }
