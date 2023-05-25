@@ -1,8 +1,8 @@
 import { primitiveWithClassname } from '../styled';
 import { IconType } from 'react-icons';
 import clsx from 'clsx';
-import { ComponentProps } from 'react';
 import { LoadingSpinner } from './loading_spinner';
+import { ComponentProps } from 'react';
 
 export const PrimaryButton = primitiveWithClassname('button', [
   'bg-black dark:bg-neutral-200',
@@ -59,7 +59,7 @@ export function IconButton({
   size?: number;
   iconClassName?: string;
   iconAfter?: boolean;
-} & React.DetailedHTMLProps<React.ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>) {
+} & ComponentProps<'button'>) {
   const Icon = icon;
 
   return (

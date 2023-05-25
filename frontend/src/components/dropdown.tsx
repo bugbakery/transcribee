@@ -1,18 +1,16 @@
 import clsx from 'clsx';
-import { ReactNode, useState } from 'react';
+import { ComponentProps, ReactNode, useState } from 'react';
 import useMeasure from 'react-use-measure';
 
 import { IconType } from 'react-icons';
 import { useOnClickOutside } from '../utils/use_on_click_outside';
 import { useStateDelayed } from '../utils/use_state_delayed';
+import { IoIosArrowDown } from 'react-icons/io';
 
 export function DropdownSection({
   children,
   ...props
-}: { children?: ReactNode } & React.DetailedHTMLProps<
-  React.HTMLAttributes<HTMLDivElement>,
-  HTMLDivElement
->) {
+}: { children?: ReactNode } & ComponentProps<'div'>) {
   return (
     <div {...props} className="block py-1.5" role="none">
       {children}
@@ -27,7 +25,7 @@ export function DropdownItem({
 }: {
   icon?: IconType;
   disabled?: boolean;
-} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLButtonElement>, HTMLButtonElement>) {
+} & ComponentProps<'button'>) {
   const Icon = icon;
   return (
     <button
@@ -67,7 +65,7 @@ export function Dropdown({
   expandOn?: boolean;
   dropdownClassName?: string;
   buttonClassName?: string;
-} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLButtonElement>, HTMLButtonElement>) {
+} & ComponentProps<'button'>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [setMeasureReference, bounds] = useMeasure();
 

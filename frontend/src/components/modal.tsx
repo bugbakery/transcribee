@@ -1,4 +1,4 @@
-import { cloneElement, useRef, useState } from 'react';
+import { ComponentProps, cloneElement, useRef, useState } from 'react';
 import { useEvent } from '../utils/use_event';
 import { Dialog, DialogTitle } from './dialog';
 import clsx from 'clsx';
@@ -50,7 +50,7 @@ export type ModalProps = {
   onClose: () => void;
   label: string;
   transitionClassName?: string;
-} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
+} & ComponentProps<'div'>;
 
 export function Modal({ children, onClose, label, transitionClassName, ...props }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>();

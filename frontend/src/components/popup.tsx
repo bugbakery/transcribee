@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { cloneElement, ReactElement, ReactNode, useState } from 'react';
+import { cloneElement, ComponentProps, ReactElement, ReactNode, useState } from 'react';
 import { usePopper } from 'react-popper';
 import { useOnClickOutside } from '../utils/use_on_click_outside';
 import { useStateDelayed } from '../utils/use_state_delayed';
@@ -8,10 +8,7 @@ export function Popup({
   children,
   button,
   ...props
-}: { children?: ReactNode; button: ReactElement } & React.DetailedHTMLProps<
-  React.HTMLAttributes<HTMLDivElement>,
-  HTMLDivElement
->) {
+}: { children?: ReactNode; button: ReactElement } & ComponentProps<'div'>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
   const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);

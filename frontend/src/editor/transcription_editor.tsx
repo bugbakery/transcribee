@@ -5,7 +5,7 @@ import { useEvent } from '../utils/use_event';
 import { SeekToEvent } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
-import { useContext, useCallback, memo } from 'react';
+import { ComponentProps, useContext, useCallback, memo } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 
@@ -134,7 +134,7 @@ export function TranscriptionEditor({
   ...props
 }: {
   editor: Editor;
-} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
+} & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   // prevent ctrl+s
   useEvent('keydown', (e: KeyboardEvent) => {

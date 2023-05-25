@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { useEffect, useState } from 'react';
+import React, { ComponentProps, useEffect, useState } from 'react';
 import { usePopper } from 'react-popper';
 import { Placement } from '@popperjs/core';
 import { useStateDelayed } from '../utils/use_state_delayed';
@@ -15,7 +15,7 @@ export function Tooltip({
   tooltipText: React.ReactNode;
   placements?: Placement;
   fallbackPlacements?: Placement[];
-} & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
+} & ComponentProps<'div'>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
   const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
