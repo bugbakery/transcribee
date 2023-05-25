@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react';
+import { ComponentProps, memo, useState, useCallback } from 'react';
 import { Editor } from 'slate';
 import { useSlateStatic, ReactEditor } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
@@ -166,7 +166,7 @@ export const SpeakerDropdown = memo(
   ({
     paragraph,
     ...props
-  }: { paragraph: Paragraph } & Omit<React.ComponentProps<typeof Dropdown>, 'label'>) => {
+  }: { paragraph: Paragraph } & Omit<ComponentProps<typeof Dropdown>, 'label'>) => {
     const speaker = paragraph.speaker;
     const editor: Editor = useSlateStatic();
     const speakerName = useSpeakerName(speaker);
