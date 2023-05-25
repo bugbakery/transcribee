@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 /*
  * this is a utility that can be used in popups / dropdowns / ... if one wants to use transitions
@@ -22,16 +22,19 @@ export function useStateDelayed(
   const [now, setNow] = useState(initial);
   const [prolonged, setProlonged] = useState(initial);
   const [late, setLate] = useState(initial);
+  const timeout = useRef<number | null>(null);
 
   const set = (next: boolean) => {
     if (next) {
       setNow(true);
       setProlonged(true);
-      setTimeout(() => setLate(true), config.late);
+      if (timeout.current != null) clearTimeout(timeout.current);
+      timeout.current = setTimeout(() => setLate(true), config.late);
     } else {
       setNow(false);
-      setTimeout(() => setProlonged(false), config.prolong);
       setLate(false);
+      if (timeout.current != null) clearTimeout(timeout.current);
+      timeout.current = setTimeout(() => setProlonged(false), config.prolong);
     }
   };
 
