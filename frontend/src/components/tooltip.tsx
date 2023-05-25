@@ -90,6 +90,7 @@ export function Tooltip({
             'rounded-lg',
             'relative',
             'z-10',
+            'group',
           )}
           style={styles.popper}
           ref={setPopperElement}
@@ -100,18 +101,22 @@ export function Tooltip({
             ref={setArrowElement}
             style={styles.arrow}
             className={clsx(
-              'top-[-7px]',
               'before:absolute',
               'before:w-[11px]',
               'before:h-[11px]',
               'before:bg-white dark:before:bg-neutral-900',
               "before:content-['']",
               'before:translate-x-[-6px]',
-              'before:rotate-45',
               'before:border-l-2',
               'before:border-t-2',
               'before:border-solid',
               'before:border-black dark:before:border-neutral-200',
+
+              'group-data-[popper-placement=bottom]:top-[-7px]',
+              'group-data-[popper-placement=bottom]:before:rotate-[45deg]',
+
+              'group-data-[popper-placement=top]:bottom-[4px]',
+              'group-data-[popper-placement=top]:before:rotate-[225deg]',
             )}
           />
         </div>
