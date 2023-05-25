@@ -8,6 +8,7 @@ import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input } from '../components/form';
 import { PrimaryButton } from '../components/button';
 import { AppCenter } from '../components/app';
+import { Version } from '../common/version';
 
 type FieldValues = {
   username: string;
@@ -79,6 +80,8 @@ export function LoginPage() {
           </div>
         </form>
       </Dialog>
+
+      <Version />
     </AppCenter>
   );
 }

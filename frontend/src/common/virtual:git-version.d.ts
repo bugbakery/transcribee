@@ -1,0 +1,19 @@
+declare module 'virtual:git-version' {
+  export interface Commit {
+    countSinceStart: number;
+    date: string;
+    hash: string;
+  }
+
+  export interface Version {
+    branch: string;
+    diffShort: string;
+    lastCommit: Commit;
+    lastCommitOnMain: Commit;
+    date: string;
+  }
+
+  let version: Version;
+  // eslint-disable-next-line import/no-default-export
+  export default version;
+}

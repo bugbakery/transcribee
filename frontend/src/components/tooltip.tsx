@@ -1,26 +1,31 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import { usePopper } from 'react-popper';
+import { Placement } from '@popperjs/core';
 
 export function Tooltip({
   children,
   tooltipText,
+  placements = 'bottom',
+  fallbackPlacements = ['top'],
   ...props
 }: {
   children?: React.ReactNode;
-  tooltipText: string;
+  tooltipText: React.ReactNode;
+  placements?: Placement;
+  fallbackPlacements?: Placement[];
 } & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
   const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
 
   const { styles, attributes } = usePopper(referenceElement, popperElement, {
-    placement: 'bottom',
+    placement: placements,
     modifiers: [
       {
         name: 'flip',
         options: {
-          fallbackPlacements: ['top'],
+          fallbackPlacements: fallbackPlacements,
           flipVariations: true,
         },
       },
