@@ -415,7 +415,6 @@ dependencies = [
 name = "transcribee-proto"
 version = "0.1.0"
 requires_python = ">=3.10"
-editable = true
 path = "../proto"
 summary = "common python code & datatypes in the transcribee open-source transcription platform"
 dependencies = [
@@ -479,7 +478,7 @@ summary = "Python bindings for whisper.cpp"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:8271d38bc0f5920055d0dc8395a67d07d1a2c93612c1dc4bde6cfbc2bb9cb61f"
+content_hash = "sha256:8382dbf1cc912934a27f4651076dd323a2a55a0935685186c8ea38e056c7bc7b"
 
 [metadata.files]
 "ansicon 1.89.0" = [
