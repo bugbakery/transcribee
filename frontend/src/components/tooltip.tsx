@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import { usePopper } from 'react-popper';
 import { Placement } from '@popperjs/core';
+import { useStateDelayed } from '../utils/use_state_delayed';
 
 export function Tooltip({
   children,
@@ -44,7 +45,7 @@ export function Tooltip({
     ],
   });
 
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useStateDelayed(false);
 
   useEffect(() => {
     if (referenceElement === null) {
@@ -75,11 +76,10 @@ export function Tooltip({
   }, [referenceElement]);
 
   return (
-    <div ref={setReferenceElement}>
+    <div {...props} ref={setReferenceElement}>
       {children}
-      {show && tooltipText ? (
+      {show.prolonged && tooltipText ? (
         <div
-          {...props}
           className={clsx(
             'p-4',
             'bg-white dark:bg-neutral-900',
