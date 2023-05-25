@@ -71,14 +71,14 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
           contentEditable={false}
           paragraph={element}
           buttonClassName={clsx(
-            'max-w-none break-all text-neutral-400 relative top-0.5',
+            'max-w-none break-all text-neutral-400 relative',
             'md:max-w-[200px] md:text-neutral-600 md:col-start-1',
             'xl:col-start-2',
           )}
-          className="md:-ml-2.5 xl:ml-0"
+          className="md:-ml-2 xl:ml-1"
         />
 
-        <div className="mb-3 col-span-3 xl:col-span-4" />
+        <div className="mb-6 col-span-3 xl:col-span-4" />
       </div>
     );
   }
