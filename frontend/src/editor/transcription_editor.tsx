@@ -43,6 +43,14 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
 
   const editor = useSlateStatic();
   const idx = ReactEditor.findPath(editor, element)[0];
+  let currentSpeakerEndIdx = 0;
+  for (
+    currentSpeakerEndIdx = idx;
+    currentSpeakerEndIdx < editor.doc.children.length;
+    currentSpeakerEndIdx++
+  ) {
+    if (editor.doc.children[currentSpeakerEndIdx].speaker != element.speaker) break;
+  }
 
   let portalNode = document.getElementById('meta-portal');
   if (portalNode == null) {
@@ -58,7 +66,15 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
   }
 
   const metaInformation = (
-    <div className="contents" style={{ '--element-idx': idx } as CSSProperties}>
+    <div
+      className="contents"
+      style={
+        {
+          '--element-idx': idx,
+          '--current-speaker-end-idx': currentSpeakerEndIdx,
+        } as CSSProperties
+      }
+    >
       {/* speaker color indicator */}
       <div
         contentEditable={false}
@@ -66,8 +82,10 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
           ...(element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}),
         }}
         className={clsx(
-          'w-2 mr-2 h-full rounded-md row-span-2',
-          'row-start-[calc(var(--element-idx)*3+1)] col-start-2',
+          'w-2 mr-2 h-full rounded-md',
+          'row-start-[calc(var(--element-idx)*3+1)]',
+          'row-end-[calc(var(--current-speaker-end-idx)*3)]',
+          'col-start-2',
           'md:col-start-3',
           'xl:mr-4',
         )}
@@ -104,7 +122,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
       />
 
       {/* helper for bottom padding */}
-      <div className={clsx('mb-6', 'row-start-[calc(var(--element-idx)*3+3)]')} />
+      <div className={clsx('mb-6 md:mb-2 xl:mb-3', 'row-start-[calc(var(--element-idx)*3+3)]')} />
     </div>
   );
 
