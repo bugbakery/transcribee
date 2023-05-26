@@ -1,6 +1,5 @@
 import { RouteComponentProps, useLocation } from 'wouter';
 import { IoIosArrowBack } from 'react-icons/io';
-import { ImPencil } from 'react-icons/im';
 import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
 import { AppContainer } from '../components/app';
 import { IconButton, PrimaryButton, SecondaryButton } from '../components/button';
@@ -20,45 +19,58 @@ import { Tooltip } from '../components/tooltip';
 import { SpeakerColorsProvider } from '../editor/speaker_colors';
 import { Version } from '../common/version';
 import { Input } from '../components/form';
+import { BiPencil } from 'react-icons/bi';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
 );
 
-function DocumentTitle({
-  name,
-  onSubmit,
-}: {
-  name: string;
-  onSubmit: (event: React.FormEvent) => Promise<void>;
-}) {
+function DocumentTitle({ name, onChange }: { name: string; onChange: (newTitle: string) => void }) {
   const [editable, setEditable] = useState(false);
 
   if (editable) {
     return (
       <form
         className="flex flex-row space-x-2"
-        onSubmit={async (e) => {
+        onSubmit={(e) => {
           e.preventDefault();
           setEditable(false);
-          onSubmit(e);
+
+          const target = e.target as typeof e.target & { title: { value: string } };
+          onChange(target.title.value);
         }}
       >
-        <TopBarTitle>
-          <Input autoFocus name="document_name" defaultValue={name} />
-        </TopBarTitle>
-        <SecondaryButton type="button" onClick={() => setEditable(false)}>
+        <Input
+          autoFocus
+          name="title"
+          defaultValue={name}
+          className="py-0 px-4 text-xl font-bold min-w-0 !mt-0"
+          onKeyDown={(e) => {
+            if (e.key == 'Escape') setEditable(false);
+          }}
+        />
+        <SecondaryButton type="button" onClick={() => setEditable(false)} className="py-0">
           Cancel
         </SecondaryButton>
-        <PrimaryButton type="submit">Save</PrimaryButton>
+        <PrimaryButton type="submit" className="py-0">
+          Save
+        </PrimaryButton>
       </form>
     );
   } else {
     return (
-      <>
-        <TopBarTitle>{name}</TopBarTitle>
-        <IconButton icon={ImPencil} label="edit name" onClick={() => setEditable(true)} />
-      </>
+      <div>
+        <IconButton
+          icon={BiPencil}
+          label="edit document title"
+          onClick={() => setEditable(true)}
+          iconAfter={true}
+          iconClassName="inline-block -mt-1"
+          className="rounded-xl px-4 py-1"
+        >
+          <TopBarTitle className="mr-3 inline-block">{name}</TopBarTitle>
+        </IconButton>
+      </div>
     );
   }
 }
@@ -104,13 +116,14 @@ export function DocumentPage({
           />
           <DocumentTitle
             name={data?.name}
-            onSubmit={async (e) => {
-              const target = e.target as typeof e.target & {
-                document_name: { value: string };
-              };
-              const name = target.document_name.value;
-              await updateDocument({ document_id: documentId, name: name });
-              mutate({ ...data, name: name });
+            onChange={(newTitle) => {
+              mutate({ ...data, name: newTitle });
+              updateDocument({ document_id: documentId, name: newTitle })
+                .catch((e) => {
+                  console.error(e);
+                  mutate(data);
+                }) // reset to old name
+                .then(() => mutate());
             }}
           />
         </TopBarPart>

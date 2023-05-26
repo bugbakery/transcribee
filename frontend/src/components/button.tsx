@@ -51,12 +51,14 @@ export function IconButton({
   label,
   size,
   iconClassName,
+  iconAfter = false,
   ...props
 }: {
   icon: IconType;
   label: string;
   size?: number;
   iconClassName?: string;
+  iconAfter?: boolean;
 } & React.DetailedHTMLProps<React.ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>) {
   const Icon = icon;
 
@@ -72,7 +74,9 @@ export function IconButton({
         props.className,
       )}
     >
+      {iconAfter && props.children}
       <Icon className={iconClassName} size={size || 20} />
+      {!iconAfter && props.children}
     </button>
   );
 }
