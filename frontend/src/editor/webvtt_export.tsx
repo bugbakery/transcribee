@@ -1,6 +1,6 @@
 import { ChangeEvent, useState } from 'react';
 import * as Automerge from '@automerge/automerge';
-import { AutomergeEditor } from 'slate-automerge-doc';
+import { Editor } from 'slate';
 
 import { PrimaryButton, SecondaryButton } from '../components/button';
 import { Checkbox, FormControl, Input, Select } from '../components/form';
@@ -15,7 +15,7 @@ export function WebvttExportModal({
   ...props
 }: {
   onClose: () => void;
-  editor: AutomergeEditor;
+  editor: Editor;
 } & Omit<ModalProps, 'label'>) {
   const [includeSpeakerNames, setIncludeSpeakerNames] = useState(true);
   const [includeWordTimings, setIncludeWordTimings] = useState(false);

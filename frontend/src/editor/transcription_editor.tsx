@@ -1,4 +1,4 @@
-import { Editor, Transforms, Range } from 'slate';
+import { Editor, Transforms, Range, Operation } from 'slate';
 import { Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
@@ -58,7 +58,6 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
               style={element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}}
             />
           </div>
-
           <div {...attributes} className="grow-1 basis-full" lang={element.lang} spellCheck={false}>
             {children}
           </div>
@@ -126,7 +125,7 @@ export function TranscriptionEditor({
         onChange={() => {
           // set the confidence of manually edited nodes to 1.0
           const hasChanged = editor.operations.some(
-            (op) => op.type == 'insert_text' || op.type == 'remove_text',
+            (op: Operation) => op.type == 'insert_text' || op.type == 'remove_text',
           );
           if (hasChanged) {
             Transforms.setNodes(editor, { conf: 1.0 }, { match: (n) => 'conf' in n });

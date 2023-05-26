@@ -83,7 +83,7 @@ repos:
     hooks:
       - id: pnpm_test
         name: pnpm test
-        entry: pnpm --prefix frontend/ run test:fast
+        entry: pnpm --prefix frontend/ run test
         language: system
         files: frontend/.*
         pass_filenames: false

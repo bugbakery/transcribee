@@ -5,7 +5,7 @@ import { AutomergeEditor } from 'slate-automerge-doc';
 
 declare module 'slate' {
   interface CustomTypes {
-    Editor: BaseEditor & ReactEditor & AutomergeEditor & { doc: Document };
+    Editor: BaseEditor & ReactEditor & AutomergeEditor<Document>;
     Element: Paragraph;
     Text: Text;
   }

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Editor, createEditor } from 'slate';
 import { withReact } from 'slate-react';
 import { withAutomergeDoc } from 'slate-automerge-doc';
-import * as Automerge from '@automerge/automerge';
+import { unstable as Automerge } from '@automerge/automerge';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { useDebugMode } from '../debugMode';
+import { Document } from './types';
+import { migrateDocument } from '../document';
 
 enum MessageSyncType {
   Change = 1,
@@ -18,29 +20,27 @@ export function useAutomergeWebsocketEditor(
 ): Editor {
   const debug = useDebugMode();
 
-  // this is a hack to force a react tree rerender on changes of the document
-  const [_generation, setGeneration] = useState(0);
-
   const editor = useMemo(() => {
     const baseEditor = createEditor();
     const editorWithReact = withReact(baseEditor);
     const editorWithAutomerge = withAutomergeDoc(editorWithReact, Automerge.init());
-
-    const onDocChange = editorWithAutomerge.onDocChange;
-    editorWithAutomerge.onDocChange = (...args) => {
-      setGeneration((n) => n + 1);
-      onDocChange && onDocChange(...args);
-    };
-
     return editorWithAutomerge;
   }, [url.toString()]);
 
   const wsRef = useRef<ReconnectingWebSocket | null>(null);
+
+  function sendDocChange(newDoc: Document) {
+    const lastChange = Automerge.getLastLocalChange(newDoc);
+    if (lastChange && wsRef.current) {
+      wsRef.current.send(lastChange);
+    }
+  }
+
   useEffect(() => {
     const ws = new ReconnectingWebSocket(url.toString(), [], { debug });
     const start = Date.now();
-    let initialMessages: Uint8Array[] = [];
     let initialSync = true;
+    let doc = Automerge.init();
 
     const onMessage = async (event: MessageEvent) => {
       const msg_data = new Uint8Array(await event.data.arrayBuffer());
@@ -52,21 +52,24 @@ export function useAutomergeWebsocketEditor(
         if (Automerge.decodeChange(msg).actor == Automerge.getActorId(editor.doc)) return;
 
         if (initialSync) {
-          initialMessages.push(msg);
+          const [newDoc] = Automerge.applyChanges(doc, [msg]);
+          doc = newDoc;
         } else {
           const [newDoc] = Automerge.applyChanges(editor.doc, [msg]);
           editor.setDoc(newDoc);
         }
       } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
-        const [newDoc] = Automerge.applyChanges(editor.doc, initialMessages);
-        editor.setDoc(newDoc);
-        console.log(`All changes synced in ${(Date.now() - start) / 1000} s`);
         initialSync = false;
-        initialMessages = [];
+        console.log(`All changes synced in ${(Date.now() - start) / 1000} s`);
+
+        const migratedDoc = migrateDocument(doc as Automerge.Doc<Document>);
+        sendDocChange(migratedDoc);
+        editor.setDoc(migratedDoc);
         onInitialSyncComplete();
       } else if (msg_type === MessageSyncType.FullDoc) {
         console.log('Received new document');
-        editor.setDoc(Automerge.load(msg));
+        doc = Automerge.load(msg);
+        console.log('Loaded new document');
       }
     };
     ws.addEventListener('message', (msg) => {
@@ -82,14 +85,8 @@ export function useAutomergeWebsocketEditor(
   }, [editor]);
 
   useEffect(() => {
-    const onDocChange = editor.onDocChange;
-    editor.onDocChange = (newDoc) => {
-      const lastChange = Automerge.getLastLocalChange(newDoc);
-      if (lastChange && wsRef.current) {
-        wsRef.current.send(lastChange);
-      }
-      onDocChange && onDocChange(newDoc);
-    };
+    editor.addDocChangeListener(sendDocChange);
+    return () => editor.removeDocChangeListener(sendDocChange);
   }, [editor]);
 
   return editor;

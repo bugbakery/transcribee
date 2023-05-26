@@ -32,7 +32,8 @@ If doing so, it MUST follow the migration instructions described in the newer fi
 
 The remaining content of the document are as described in the version-specific specifications:
 
-- [Version `1`](./document_format_v1.md)
+- [Version `1`](./document_format_v1.md): Initial version
+- [Version `2`](./document_format_v2.md): Specifies serialization of the document format to a automerge document
 
 ## Examples
 
