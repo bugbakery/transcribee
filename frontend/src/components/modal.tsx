@@ -46,13 +46,17 @@ export function ModalHolder(): JSX.Element {
 
 export const ModalTitle = DialogTitle;
 
-export type ModalProps = {
+export function Modal({
+  children,
+  onClose,
+  label,
+  transitionClassName,
+  ...props
+}: {
   onClose: () => void;
   label: string;
   transitionClassName?: string;
-} & ComponentProps<'div'>;
-
-export function Modal({ children, onClose, label, transitionClassName, ...props }: ModalProps) {
+} & ComponentProps<'div'>) {
   const dialogRef = useRef<HTMLDivElement>();
   useEvent<KeyboardEvent>('keydown', (e) => {
     if (e.key == 'Escape') {

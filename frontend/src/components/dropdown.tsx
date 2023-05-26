@@ -65,7 +65,7 @@ export function Dropdown({
   expandOn?: boolean;
   dropdownClassName?: string;
   buttonClassName?: string;
-} & ComponentProps<'button'>) {
+} & ComponentProps<'div'>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [setMeasureReference, bounds] = useMeasure();
 
@@ -78,6 +78,7 @@ export function Dropdown({
 
   return (
     <div
+      {...props}
       ref={(ref) => {
         setReferenceElement(ref);
         setMeasureReference(ref);
@@ -88,7 +89,6 @@ export function Dropdown({
       className={clsx('relative', props.className)}
     >
       <button
-        {...props}
         type="button"
         className={clsx(
           'inline-flex items-stretch',
