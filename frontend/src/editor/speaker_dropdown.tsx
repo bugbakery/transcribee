@@ -1,105 +1,41 @@
-import { ComponentProps, memo, useState, useCallback } from 'react';
+import { ComponentProps, useContext, useCallback } from 'react';
 import { Editor } from 'slate';
-import { useSlateStatic, ReactEditor } from 'slate-react';
+import { ReactEditor, useSlate } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
 
 import { Document, Paragraph } from './types';
 import { PrimaryButton, SecondaryButton } from '../components/button';
-import { IoIosCreate, IoIosList, IoIosTrash } from 'react-icons/io';
+import { IoIosAdd, IoIosCreate, IoIosTrash } from 'react-icons/io';
 import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
-import { Input, Select } from '../components/form';
-import { useSpeakerName, useSpeakerNames } from '../utils/document';
+import { Input } from '../components/form';
+import { getSpeakerName, useSpeakerNames } from '../utils/document';
 import { showModal, Modal } from '../components/modal';
-import clsx from 'clsx';
+import { SpeakerColorsContext } from './speaker_colors';
 
-function SelectSpeakerModal({
+function SpeakerNamesSection({
   editor,
   onSpeakerSelected,
-  onNewSpeaker,
-  onClose,
-  selected,
   ...props
 }: {
   editor: Editor;
   onSpeakerSelected: (speakerId: string) => void;
-  onNewSpeaker: (speakerName: string) => void;
-  onClose: () => void;
-  selected: string | null;
-} & Omit<ComponentProps<typeof Modal>, 'label'>) {
-  const NEW_SPEAKER_OPTION = '__new_speaker';
-
-  const [speakerId, setSpeakerId] = useState<string | null>(null);
-  const [speakerName, setSpeakerName] = useState<string>('');
-
+} & ComponentProps<typeof DropdownSection>) {
+  const speakerColors = useContext(SpeakerColorsContext);
   const speakerNames = useSpeakerNames(editor);
 
-  if (speakerId === null && selected !== null && selected in speakerNames) {
-    setSpeakerId(selected);
-  } else if (speakerId === null && Object.keys(speakerNames).length > 0) {
-    setSpeakerId(Object.keys(speakerNames)[0]);
-  } else if (speakerId === null && Object.keys(speakerNames).length === 0) {
-    setSpeakerId(NEW_SPEAKER_OPTION);
-  }
-
-  const setSpeakerNameFromEvent = useCallback(
-    (e: React.FormEvent<HTMLInputElement>) => {
-      const target = e.target as typeof e.target & { value: string };
-      setSpeakerName(target.value);
-    },
-    [setSpeakerName],
-  );
-
   return (
-    <Modal {...props} onClose={onClose} label="Select Speaker">
-      <form
-        className="flex flex-col gap-6"
-        onSubmit={useCallback(
-          (e: React.SyntheticEvent) => {
-            e.preventDefault();
-            if (speakerId === NEW_SPEAKER_OPTION) {
-              onClose();
-              onNewSpeaker(speakerName);
-            } else if (speakerId !== null) {
-              onClose();
-              onSpeakerSelected(speakerId);
-            }
-          },
-          [speakerId, speakerName],
-        )}
-      >
-        <Select
-          autoFocus
-          value={speakerId !== null ? speakerId : undefined}
-          onChange={useCallback((e: React.SyntheticEvent) => {
-            const target = e.target as typeof e.target & { value: string };
-            setSpeakerId(target.value);
-          }, [])}
-        >
-          {Object.entries(speakerNames).map(([k, v]) => (
-            <option value={k} key={k}>
-              {v}
-            </option>
-          ))}
-          <option value={NEW_SPEAKER_OPTION}>New Speaker</option>
-        </Select>
-        {speakerId === NEW_SPEAKER_OPTION ? (
-          <Input
-            autoFocus
-            name="speaker_name"
-            value={speakerName}
-            onChange={setSpeakerNameFromEvent}
+    <DropdownSection {...props}>
+      {Object.entries(speakerNames).map(([k, v]) => (
+        <DropdownItem key={k} onClick={() => onSpeakerSelected(k)}>
+          <span
+            className="w-2 h-6 min-h-full ml-1.5 mr-3.5 rounded-xl"
+            style={{ background: speakerColors[k] }}
           />
-        ) : (
-          <></>
-        )}
-        <div className="flex justify-between">
-          <SecondaryButton type="button" onClick={onClose}>
-            Cancel
-          </SecondaryButton>
-          <PrimaryButton type="submit">Select</PrimaryButton>
-        </div>
-      </form>
-    </Modal>
+          {v}
+        </DropdownItem>
+      ))}
+      {props.children}
+    </DropdownSection>
   );
 }
 
@@ -112,9 +48,9 @@ function SpeakerNameModal({
   selectedCallback: (speakerName: string) => void;
   onClose: () => void;
   initialValue: string;
-} & Omit<ComponentProps<typeof Modal>, 'label'>) {
+} & ComponentProps<typeof Modal>) {
   return (
-    <Modal {...props} onClose={onClose} label="Rename Speaker">
+    <Modal {...props} onClose={onClose}>
       <form
         className="flex flex-col gap-6"
         onSubmit={useCallback((e: React.SyntheticEvent) => {
@@ -136,8 +72,7 @@ function SpeakerNameModal({
   );
 }
 
-function setSpeaker(editor: Editor, node: Paragraph, speaker: string | null) {
-  const path = ReactEditor.findPath(editor, node);
+function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
   editor.apply({
     type: 'set_node',
     path: path,
@@ -162,79 +97,83 @@ function changeSpeakerName(editor: Editor, speakerId: string, speakerName: strin
   editor.setDoc(newDoc);
 }
 
-export const SpeakerDropdown = memo(
-  ({
-    paragraph,
-    ...props
-  }: { paragraph: Paragraph } & Omit<ComponentProps<typeof Dropdown>, 'label'>) => {
+export function SpeakerDropdown({
+  paragraph,
+  ...props
+}: { paragraph: Paragraph } & Omit<ComponentProps<typeof Dropdown>, 'label'>) {
+  const editor: Editor = useSlate();
+
+  const elementPath = ReactEditor.findPath(editor, paragraph);
+  const doc: Automerge.Doc<Document> = editor.doc;
+  const renameSpeaker = () => {
     const speaker = paragraph.speaker;
-    const editor: Editor = useSlateStatic();
-    const speakerName = useSpeakerName(speaker);
-    const changeSpeaker = useCallback(() => {
+    if (speaker !== null) {
       showModal(
-        <SelectSpeakerModal
-          editor={editor}
-          selected={speaker}
+        <SpeakerNameModal
+          label="Rename Speaker"
           onClose={() => showModal(null)}
-          onSpeakerSelected={(speakerId) => setSpeaker(editor, paragraph, speakerId)}
-          onNewSpeaker={(speakerName) => {
-            const speakerId = addNewSpeaker(editor, speakerName);
-            setSpeaker(editor, paragraph, speakerId);
+          initialValue={getSpeakerName(paragraph.speaker, doc.speaker_names)}
+          selectedCallback={(speakerName) => {
+            changeSpeakerName(editor, speaker, speakerName);
+
+            // No-op to trigger a re-render of the editor so the speaker name gets applied
+            editor.apply({
+              type: 'set_node',
+              path: [0],
+              properties: {},
+              newProperties: {},
+            });
           }}
         />,
       );
-    }, [speaker, paragraph, editor]);
-
-    const renameSpeaker = useCallback(() => {
-      if (speaker !== null && speaker !== undefined) {
-        showModal(
-          <SpeakerNameModal
-            onClose={() => showModal(null)}
-            initialValue={speakerName}
-            selectedCallback={(speakerName: string) => {
-              changeSpeakerName(editor, speaker, speakerName);
-            }}
-          />,
-        );
-      }
-    }, [speaker, speakerName, editor]);
-
-    const unsetSpeaker = useCallback(
-      () => setSpeaker(editor, paragraph, null),
-      [editor, paragraph],
+    }
+  };
+  const addSpeaker = () => {
+    showModal(
+      <SpeakerNameModal
+        label="New Speaker"
+        onClose={() => showModal(null)}
+        initialValue=""
+        selectedCallback={(speakerName) => {
+          if (!speakerName) return;
+          const speakerId = addNewSpeaker(editor, speakerName);
+          setSpeaker(editor, elementPath, speakerId);
+        }}
+      />,
     );
+  };
+  const unsetSpeaker = () => setSpeaker(editor, elementPath, null);
 
-    return (
-      <Dropdown
-        {...props}
-        className={clsx('pr-4', props.className)}
-        dropdownClassName={'min-w-[190px]'}
-        label={speakerName}
+  return (
+    <Dropdown
+      {...props}
+      label={getSpeakerName(paragraph.speaker, editor.doc.speaker_names)}
+      dropdownClassName="min-w-[190px]"
+    >
+      <SpeakerNamesSection
+        editor={editor}
+        onSpeakerSelected={(speakerId) => setSpeaker(editor, elementPath, speakerId)}
       >
-        <DropdownSection>
-          <DropdownItem icon={IoIosList} onClick={changeSpeaker}>
-            Change Speaker
-          </DropdownItem>
-          <DropdownItem
-            icon={IoIosCreate}
-            onClick={renameSpeaker}
-            disabled={speaker === null || speaker === undefined}
-          >
-            Rename Speaker
-          </DropdownItem>
-        </DropdownSection>
-        <DropdownSection>
-          <DropdownItem
-            icon={IoIosTrash}
-            onClick={unsetSpeaker}
-            disabled={speaker === null || speaker === undefined}
-          >
-            Unset Speaker
-          </DropdownItem>
-        </DropdownSection>
-      </Dropdown>
-    );
-  },
-);
-
-SpeakerDropdown.displayName = 'SpeakerDropdown';
+        <DropdownItem icon={IoIosAdd} onClick={addSpeaker}>
+          New Speaker
+        </DropdownItem>
+      </SpeakerNamesSection>
+      <DropdownSection>
+        <DropdownItem
+          icon={IoIosCreate}
+          onClick={renameSpeaker}
+          disabled={paragraph.speaker === null || paragraph.speaker === undefined}
+        >
+          Rename Speaker
+        </DropdownItem>
+        <DropdownItem
+          icon={IoIosTrash}
+          onClick={unsetSpeaker}
+          disabled={paragraph.speaker === null || paragraph.speaker === undefined}
+        >
+          Unset Speaker
+        </DropdownItem>
+      </DropdownSection>
+    </Dropdown>
+  );
+}

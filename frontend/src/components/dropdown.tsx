@@ -95,7 +95,7 @@ export function Dropdown({
           'w-full rounded-lg',
           'text-sm text-left font-semibold',
           'hover:bg-gray-200 dark:hover:bg-neutral-700',
-          show.now && 'bg-gray-200 dark:bg-neutral-700',
+          show.now && 'bg-gray-200 dark:bg-neutral-700 !opacity-100',
           'px-2 py-1',
           buttonClassName,
         )}
