@@ -1,13 +1,21 @@
 import { Editor, Transforms, Range, Operation } from 'slate';
-import { Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
+import {
+  Slate,
+  Editable,
+  RenderElementProps,
+  RenderLeafProps,
+  ReactEditor,
+  useSlateStatic,
+} from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
 import { SeekToEvent } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
-import { ComponentProps, useContext, useCallback, memo } from 'react';
+import { CSSProperties, ComponentProps, useContext, useCallback, memo } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
+import { createPortal } from 'react-dom';
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
@@ -33,57 +41,92 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
 
-  if (element.type === 'paragraph') {
-    return (
-      <div className="contents order-0">
-        <div
-          contentEditable={false}
-          className={clsx(
-            'w-2 mr-2 h-full rounded-md row-span-2',
-            'md:ml-1 md:col-start-2',
-            'xl:row-span-1 xl:col-start-3',
-          )}
-          style={element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}}
-        />
+  const editor = useSlateStatic();
+  const idx = ReactEditor.findPath(editor, element)[0];
 
-        <div
-          contentEditable={false}
-          className="text-slate-500 dark:text-neutral-400 font-mono md:col-start-1"
-          onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
-        >
-          {formattedTime(startAtom.start)}
-        </div>
-
-        <div
-          {...attributes}
-          className={clsx(
-            'grow-1 basis-full col-span-2',
-            'md:col-span-1 md:row-span-2 md:col-start-3',
-            'xl:row-span-1 xl:col-start-4',
-          )}
-          lang={element.lang}
-          spellCheck={false}
-        >
-          {children}
-        </div>
-
-        <SpeakerDropdown
-          contentEditable={false}
-          paragraph={element}
-          className="md:-ml-2 xl:ml-1"
-          dropdownClassName={clsx(
-            'max-w-none break-all text-neutral-400 relative',
-            'md:max-w-[200px] md:text-neutral-600 md:col-start-1',
-            'xl:col-start-2',
-          )}
-        />
-
-        <div className="mb-6 col-span-3 xl:col-span-4" />
-      </div>
-    );
+  let portalNode = document.getElementById('meta-portal');
+  if (portalNode == null) {
+    const gridNode = document.getElementsByClassName('grid')[0];
+    portalNode = document.createElement('div');
+    portalNode.id = 'meta-portal';
+    portalNode.style.display = 'contents';
+    if (gridNode.children.length == 0) {
+      gridNode.appendChild(portalNode);
+    } else {
+      gridNode.insertBefore(gridNode.children[0], portalNode);
+    }
   }
 
-  throw Error('Unknown element type');
+  const metaInformation = (
+    <div className="contents" style={{ '--element-idx': idx } as CSSProperties}>
+      {/* speaker color indicator */}
+      <div
+        contentEditable={false}
+        style={{
+          ...(element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}),
+        }}
+        className={clsx(
+          'w-2 mr-2 h-full rounded-md row-span-2',
+          'row-start-[calc(var(--element-idx)*3+1)] col-start-2',
+          'md:col-start-3',
+          'xl:mr-4',
+        )}
+      />
+
+      {/* start time */}
+      <div
+        contentEditable={false}
+        className={clsx(
+          `text-slate-500 dark:text-neutral-400 font-mono`,
+          'row-start-[calc(var(--element-idx)*3+1)] col-start-3',
+          'md:col-start-2',
+          'xl:col-start-1 xl:mr-4',
+        )}
+        onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
+      >
+        {formattedTime(startAtom.start)}
+      </div>
+
+      <SpeakerDropdown
+        contentEditable={false}
+        paragraph={element}
+        buttonClassName={clsx(
+          'max-w-none break-all text-neutral-400',
+          'md:max-w-[200px] md:text-neutral-600',
+          'xl:pr-2',
+        )}
+        className={clsx(
+          'mx-2',
+          'row-start-[calc(var(--element-idx)*3+1)] col-start-4',
+          'md:row-start-[calc(var(--element-idx)*3+2)] md:col-start-2 md:-ml-2',
+          'xl:row-start-[calc(var(--element-idx)*3+1)]',
+        )}
+      />
+
+      {/* helper for bottom padding */}
+      <div className={clsx('mb-6', 'row-start-[calc(var(--element-idx)*3+3)]')} />
+    </div>
+  );
+
+  return (
+    <>
+      {portalNode && createPortal(metaInformation, portalNode)}
+
+      <div
+        {...attributes}
+        style={{ '--element-idx': idx } as CSSProperties}
+        className={clsx(
+          `col-start-2 col-span-2`,
+          'row-start-[calc(var(--element-idx)*3+2)] col-start-3',
+          'md:row-start-[calc(var(--element-idx)*3+1)] md:row-span-1 md:col-start-4 md:col-span-1',
+        )}
+        lang={element.lang}
+        spellCheck={false}
+      >
+        {children}
+      </div>
+    </>
+  );
 }
 
 const Leaf = memo(
@@ -199,9 +242,9 @@ export function TranscriptionEditor({
               }
             }}
             className={clsx(
-              'grid grid-flow-row-dense items-start grid-cols-[max-content_min-content_1fr]',
+              'grid items-start grid-cols-[min-content_max-content_min-content_1fr]',
               'md:auto-rows-[24px_auto_auto]',
-              'xl:auto-rows-auto xl:grid-cols-[min-content_max-content_min-content_1fr]',
+              'xl:auto-rows-auto',
               '2xl:-ml-20',
             )}
           />
