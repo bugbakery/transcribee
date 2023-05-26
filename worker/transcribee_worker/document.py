@@ -60,11 +60,11 @@ class SyncedDocument:
                         d.children = []
                     if d.speaker_names is None:
                         d.speaker_names = {}
-                    d.version = 1
+                    d.version = 2
             else:
                 raise UnsupportedDocumentVersion()
 
-        if self.doc.version != 1:
+        if self.doc.version > 2:
             raise UnsupportedDocumentVersion()
 
     async def _get_document_state(self) -> automerge.Document:

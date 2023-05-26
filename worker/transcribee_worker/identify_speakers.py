@@ -1,5 +1,6 @@
 import logging
 
+import automerge
 import numpy as np
 import numpy.typing as npt
 import torch
@@ -81,6 +82,6 @@ async def identify_speakers(
                 label_map[label] = str(len(label_map))
 
         for para, label in zip(doc.children, clustering.labels_):
-            para.speaker = label_map[label]
+            para.speaker = automerge.Text(label_map[label])
 
     await alist(aiter(async_task(work)))

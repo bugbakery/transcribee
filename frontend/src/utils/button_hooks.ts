@@ -21,7 +21,7 @@ export function useButtonHoldRepeat({
   const interval = useRef<number | undefined>();
 
   const onLongPressStart = useCallback(() => {
-    interval.current = setInterval(() => {
+    interval.current = window.setInterval(() => {
       repeatingAction();
     }, intervalMs);
   }, [repeatingAction, intervalMs]);
@@ -64,7 +64,7 @@ export function useButtonLongPress({
   const timeout = useRef<number | undefined>();
 
   const down = useCallback(() => {
-    timeout.current = setTimeout(() => {
+    timeout.current = window.setTimeout(() => {
       longPressing.current = true;
       onLongPressStart?.();
     }, delayMs);

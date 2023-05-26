@@ -27,6 +27,23 @@ from transcribee_worker.util import aenumerate, load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean
 
 
+def normalize_for_automerge(value):
+    def normalize_value(k, v):
+        if isinstance(v, int):
+            value[k] = float(v)
+        if isinstance(v, str):
+            value[k] = automerge.Text(v)
+        else:
+            normalize_for_automerge(v)
+
+    if isinstance(value, dict):
+        for k, v in value.items():
+            normalize_value(k, v)
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            normalize_value(i, item)
+
+
 def ensure_atom_invariants(doc: EditorDocument):
     prev_atom = None
     for atom in doc.iter_atoms():
@@ -155,8 +172,7 @@ class Worker:
             ):
                 async with doc.transaction("Automatic Transcription") as d:
                     p = paragraph.dict()
-                    for c in p["children"]:
-                        c["text"] = automerge.Text(c["text"])
+                    normalize_for_automerge(p)
                     d.children.append(p)
 
     async def identify_speakers(

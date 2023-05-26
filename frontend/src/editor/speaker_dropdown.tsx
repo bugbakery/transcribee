@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSlate, ReactEditor } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
-import { AutomergeEditor } from 'slate-automerge-doc';
+import { Editor } from 'slate';
 
 import { Document, Paragraph } from './types';
 import { PrimaryButton, SecondaryButton } from '../components/button';
@@ -150,7 +150,7 @@ function SpeakerNameModal({
   );
 }
 
-function setSpeaker(editor: AutomergeEditor, path: number[], speaker: string | null) {
+function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
   editor.apply({
     type: 'set_node',
     path: path,
@@ -159,30 +159,24 @@ function setSpeaker(editor: AutomergeEditor, path: number[], speaker: string | n
   });
 }
 
-function addNewSpeaker(editor: AutomergeEditor, speakerName: string): string {
+function addNewSpeaker(editor: Editor, speakerName: string): string {
   const speakerId = crypto.randomUUID();
   const newDoc = Automerge.change(editor.doc, (draft: Document) => {
     draft.speaker_names[speakerId] = speakerName;
   });
   editor.setDoc(newDoc);
-  if (editor.onDocChange) {
-    editor.onDocChange(newDoc);
-  }
   return speakerId;
 }
 
-function changeSpeakerName(editor: AutomergeEditor, speakerId: string, speakerName: string) {
+function changeSpeakerName(editor: Editor, speakerId: string, speakerName: string) {
   const newDoc = Automerge.change(editor.doc, (draft: Document) => {
     draft.speaker_names[speakerId] = speakerName;
   });
   editor.setDoc(newDoc);
-  if (editor.onDocChange) {
-    editor.onDocChange(newDoc);
-  }
 }
 
 export function SpeakerDropdown({ paragraph }: { paragraph: Paragraph }) {
-  const editor: ReactEditor & AutomergeEditor = useSlate();
+  const editor: Editor = useSlate();
 
   const elementPath = ReactEditor.findPath(editor, paragraph);
   const doc: Automerge.Doc<Document> = editor.doc;

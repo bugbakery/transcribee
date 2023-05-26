@@ -29,12 +29,12 @@ export function useStateDelayed(
       setNow(true);
       setProlonged(true);
       if (timeout.current != null) clearTimeout(timeout.current);
-      timeout.current = setTimeout(() => setLate(true), config.late);
+      timeout.current = window.setTimeout(() => setLate(true), config.late);
     } else {
       setNow(false);
       setLate(false);
       if (timeout.current != null) clearTimeout(timeout.current);
-      timeout.current = setTimeout(() => setProlonged(false), config.prolong);
+      timeout.current = window.setTimeout(() => setProlonged(false), config.prolong);
     }
   };
 

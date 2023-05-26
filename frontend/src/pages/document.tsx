@@ -44,7 +44,7 @@ export function DocumentPage({
         editor.doc.version === undefined &&
         editor.doc.children === undefined &&
         editor.doc.speaker_names === undefined;
-      if (!isNewDocument && editor.doc.version !== 1) {
+      if (!isNewDocument && editor.doc.version !== 2) {
         alert('The document is in an unsupported version.');
         navigate('/');
       }

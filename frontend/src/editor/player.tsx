@@ -228,7 +228,6 @@ function PlaybackSpeedDropdown({ onChange }: { onChange: (v: number) => void }) 
       )}
       onChange={(v) => {
         const r = parseFloat(v.target.value);
-        console.log(r);
         onChange(r);
         setValue(r);
       }}
