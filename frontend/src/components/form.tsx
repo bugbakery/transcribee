@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ComponentProps, ReactNode } from 'react';
 import { primitiveWithClassname } from '../styled';
 import clsx from 'clsx';
 
@@ -42,18 +42,28 @@ export const Input = primitiveWithClassname('input', [
 export function Checkbox({
   label,
   disabled,
+  inputClassName = '',
+  onChange,
+  value,
   ...props
-}: { label: string } & React.HTMLProps<HTMLInputElement>): JSX.Element {
+}: {
+  label: string;
+  disabled?: boolean;
+  inputClassName?: string;
+  onChange: (newValue: boolean) => void;
+  value: boolean;
+} & Omit<ComponentProps<'label'>, 'onChange'>): JSX.Element {
   return (
     <label
+      {...props}
       className={clsx(
         'w-full flex items-center text-start',
         disabled ? 'text-slate-500 dark:text-neutral-400' : '',
+        props.className,
       )}
     >
       <input
         type="checkbox"
-        {...props}
         className={clsx(
           'form-input',
           'rounded',
@@ -64,9 +74,11 @@ export function Checkbox({
           'dark:bg-neutral-900',
           'dark:focus:ring-blue-400 dark:focus:border-blue-400',
           'disabled:border-slate-500 disabled:dark:border-neutral-400',
-          props.className,
+          inputClassName,
         )}
         disabled={disabled}
+        checked={value}
+        onChange={(e) => onChange(e.target.checked)}
       />
       {label}
     </label>

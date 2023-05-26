@@ -9,7 +9,7 @@ import { IoIosCreate, IoIosList, IoIosTrash } from 'react-icons/io';
 import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
 import { Input, Select } from '../components/form';
 import { useSpeakerName, useSpeakerNames } from '../utils/document';
-import { showModal, Modal, ModalProps } from '../components/modal';
+import { showModal, Modal } from '../components/modal';
 import clsx from 'clsx';
 
 function SelectSpeakerModal({
@@ -25,7 +25,7 @@ function SelectSpeakerModal({
   onNewSpeaker: (speakerName: string) => void;
   onClose: () => void;
   selected: string | null;
-} & Omit<ModalProps, 'label'>) {
+} & Omit<ComponentProps<typeof Modal>, 'label'>) {
   const NEW_SPEAKER_OPTION = '__new_speaker';
 
   const [speakerId, setSpeakerId] = useState<string | null>(null);
@@ -112,7 +112,7 @@ function SpeakerNameModal({
   selectedCallback: (speakerName: string) => void;
   onClose: () => void;
   initialValue: string;
-} & Omit<ModalProps, 'label'>) {
+} & Omit<ComponentProps<typeof Modal>, 'label'>) {
   return (
     <Modal {...props} onClose={onClose} label="Rename Speaker">
       <form

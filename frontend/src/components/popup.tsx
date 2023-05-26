@@ -7,8 +7,13 @@ import { useStateDelayed } from '../utils/use_state_delayed';
 export function Popup({
   children,
   button,
+  popupClassName = '',
   ...props
-}: { children?: ReactNode; button: ReactElement } & ComponentProps<'div'>) {
+}: {
+  children?: ReactNode;
+  button: ReactElement;
+  popupClassName?: string;
+} & ComponentProps<'div'>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
   const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
@@ -43,7 +48,7 @@ export function Popup({
   });
 
   return (
-    <div ref={setReferenceElement}>
+    <div {...props} ref={setReferenceElement}>
       {cloneElement(button, {
         onClick: () => {
           setShow(!show.now);
@@ -53,7 +58,6 @@ export function Popup({
 
       {show.prolonged && (
         <div
-          {...props}
           className={clsx(
             'p-4',
             'bg-white dark:bg-neutral-900',
@@ -67,7 +71,7 @@ export function Popup({
             show.now && !show.late && 'transition-none',
             'duration-100 origin-top',
             show.late ? 'opacity-100' : 'opacity-0 pointer-events-none',
-            props.className,
+            popupClassName,
           )}
           aria-hidden={!show.now}
           style={{
