@@ -12,6 +12,12 @@ import { Editor } from 'slate';
 import { useButtonHoldRepeat } from '../utils/button_hooks';
 import { useLocalStorage } from '../utils/use_local_storage';
 
+const DOUBLE_TAP_THRESHOLD_MS = 250;
+const SKIP_BUTTON_SEC = 2;
+const SKIP_SHORTCUT_SEC = 3;
+
+let lastTabPressTs = 0;
+
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument({ document_id: documentId });
   let audioFile = data?.media_files[0]?.url;
@@ -104,6 +110,17 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   };
   useEvent<KeyboardEvent>('keydown', (e) => {
     if (e.key == 'Tab') {
+      // double tap to skip
+      if (e.timeStamp - lastTabPressTs < DOUBLE_TAP_THRESHOLD_MS) {
+        if (e.shiftKey) {
+          waveSurferRef.current?.skipForward(SKIP_SHORTCUT_SEC);
+        } else {
+          waveSurferRef.current?.skipBackward(SKIP_SHORTCUT_SEC);
+        }
+      }
+
+      lastTabPressTs = e.timeStamp;
+
       togglePlaying();
       e.stopPropagation();
       e.preventDefault();
@@ -111,13 +128,13 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   });
 
   const backwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => waveSurferRef.current?.skipBackward(1),
-    onShortClick: () => waveSurferRef.current?.skipBackward(2),
+    repeatingAction: () => waveSurferRef.current?.skipBackward(SKIP_BUTTON_SEC / 2),
+    onShortClick: () => waveSurferRef.current?.skipBackward(SKIP_BUTTON_SEC),
   });
 
   const forwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => waveSurferRef.current?.skipForward(1),
-    onShortClick: () => waveSurferRef.current?.skipForward(2),
+    repeatingAction: () => waveSurferRef.current?.skipForward(SKIP_BUTTON_SEC / 2),
+    onShortClick: () => waveSurferRef.current?.skipForward(SKIP_BUTTON_SEC),
   });
 
   // if we don't know the path of the audio file yet, we can't start to render
