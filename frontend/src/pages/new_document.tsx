@@ -6,9 +6,8 @@ import { useLocation } from 'wouter';
 import { createDocument } from '../api/document';
 import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input } from '../components/form';
-import { PrimaryButton, SecondaryButton } from '../components/button';
+import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppCenter } from '../components/app';
-import { LoadingSpinner } from '../components/loading_spinner';
 
 type FieldValues = {
   name: string;
@@ -179,9 +178,9 @@ export function NewDocumentPage() {
               <SecondaryButton type="button" onClick={() => navigate(`/`)}>
                 Cancel
               </SecondaryButton>
-              <PrimaryButton disabled={loading} type="submit">
-                {loading ? <LoadingSpinner /> : 'Create'}
-              </PrimaryButton>
+              <LoadingSpinnerButton loading={loading} variant="primary" type="submit">
+                Create
+              </LoadingSpinnerButton>
             </div>
           </div>
         </form>
