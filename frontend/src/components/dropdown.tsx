@@ -55,6 +55,7 @@ export function Dropdown({
   expandOn = false,
   arrow = true,
   dropdownClassName = '',
+  dropdownContainerClassName = '',
   buttonClassName = '',
   ...props
 }: {
@@ -64,6 +65,7 @@ export function Dropdown({
   arrow?: boolean;
   expandOn?: boolean;
   dropdownClassName?: string;
+  dropdownContainerClassName: string;
   buttonClassName?: string;
 } & ComponentProps<'div'>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
@@ -111,24 +113,25 @@ export function Dropdown({
         )}
         <div className="flex-grow break-all text-start">{label}</div>
       </button>
-      <div
-        className={clsx(
-          'absolute left-0 z-10 my-1',
-          `${inverseDirection}-${expandOn ? '0' : 'full'}`,
-          'bg-white dark:bg-neutral-900',
-          'border-2 border-black dark:border-neutral-200',
-          'shadow-brutal shadow-slate-400 dark:shadow-neutral-600',
-          'rounded-lg',
-          'divide-y divide-black dark:divide-neutral-200',
-          'transition-scale duration-100',
-          `origin-${inverseDirection}`,
-          show.late ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
-          dropdownClassName,
-        )}
-        aria-hidden={!show}
-        style={{ width: bounds.width }}
-      >
-        {show.prolonged && children}
+      <div className={clsx('absolute left-0 z-10 my-1', show.now && dropdownContainerClassName)}>
+        <div
+          className={clsx(
+            'bg-white dark:bg-neutral-900',
+            'border-2 border-black dark:border-neutral-200',
+            'shadow-brutal shadow-slate-400 dark:shadow-neutral-600',
+            'rounded-lg',
+            'divide-y divide-black dark:divide-neutral-200',
+            `${inverseDirection}-${expandOn ? '0' : 'full'}`,
+            'transition-scale duration-100',
+            `origin-${inverseDirection}`,
+            show.late ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
+            dropdownClassName,
+          )}
+          aria-hidden={!show}
+          style={{ width: bounds.width }}
+        >
+          {show.prolonged && children}
+        </div>
       </div>
     </div>
   );

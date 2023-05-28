@@ -5,7 +5,7 @@ import {
   RenderElementProps,
   RenderLeafProps,
   ReactEditor,
-  useSlateStatic,
+  useSlate,
 } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
@@ -42,7 +42,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
 
-  const editor = useSlateStatic();
+  const editor = useSlate();
   const idx = ReactEditor.findPath(editor, element)[0];
   let speakerEndIdx = 0;
   for (
@@ -112,6 +112,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
       {/* speaker names */}
       {speakerChanged && (
         <div
+          contentEditable={false}
           className={clsx(
             'sticky top-0',
             '-mt-[0.1rem] py-1 mr-1',
@@ -136,6 +137,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
           'xl:pr-2',
           'md:opacity-0 md:hover:opacity-100',
         )}
+        dropdownContainerClassName="pb-24"
         className={clsx(
           'mx-2',
           'row-start-[calc(var(--element-idx)*3+1)] col-start-4',
@@ -237,7 +239,7 @@ export function TranscriptionEditor({
   });
 
   return (
-    <div {...props} className={clsx('pb-40', props.className)}>
+    <div {...props}>
       <Slate
         editor={editor}
         value={
