@@ -201,6 +201,8 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
         <PlaybackSpeedDropdown onChange={(v) => waveSurferRef.current?.setPlaybackRate(v)} />
       </div>
+
+      <div className="pb-24" />
     </>
   );
 }
