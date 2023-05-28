@@ -8,6 +8,7 @@ import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input } from '../components/form';
 import { PrimaryButton, SecondaryButton } from '../components/button';
 import { AppCenter } from '../components/app';
+import { LoadingSpinner } from '../components/loading_spinner';
 
 type FieldValues = {
   name: string;
@@ -18,6 +19,7 @@ export function NewDocumentPage() {
   const [_, navigate] = useLocation();
   const [dropIndicator, setDropIndicator] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const {
     register,
@@ -39,10 +41,15 @@ export function NewDocumentPage() {
       return;
     }
 
-    const response = await createDocument({ name: data.name, file: data.audioFile[0] });
+    try {
+      setLoading(true);
+      const response = await createDocument({ name: data.name, file: data.audioFile[0] });
 
-    if (response.ok) {
-      navigate('/');
+      if (response.ok) {
+        navigate('/');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -172,7 +179,9 @@ export function NewDocumentPage() {
               <SecondaryButton type="button" onClick={() => navigate(`/`)}>
                 Cancel
               </SecondaryButton>
-              <PrimaryButton type="submit">Create</PrimaryButton>
+              <PrimaryButton disabled={loading} type="submit">
+                {loading ? <LoadingSpinner /> : 'Create'}
+              </PrimaryButton>
             </div>
           </div>
         </form>
