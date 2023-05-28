@@ -39,7 +39,7 @@ class ApiClient:
     async def document(self, id: str) -> AsyncGenerator[SyncedDocument, None]:
         params = urllib.parse.urlencode(self._get_headers())
         async with websockets.connect(
-            f"{self.websocket_base_url}{id}/?{params}"
+            f"{self.websocket_base_url}{id}/?{params}", max_size=None
         ) as websocket:
             doc = await SyncedDocument.create(websocket)
             try:
