@@ -4,11 +4,12 @@ import clsx from 'clsx';
 
 export const PrimaryButton = primitiveWithClassname('button', [
   'bg-black dark:bg-neutral-200',
-  'hover:bg-gray-700 dark:hover:bg-neutral-300',
-  'rounded-md',
+  'enabled:hover:bg-gray-700 dark:enabled:hover:bg-neutral-300',
+  'disabled:bg-gray-200 dark:disabled:bg-neutral-800',
   'text-white dark:text-black',
-  'py-2',
-  'px-4',
+  'disabled:text-gray-400 disabled:dark:text-gray-500',
+  'rounded-md',
+  'py-2 px-4',
 ]);
 
 export const SecondaryButton = primitiveWithClassname('button', [
