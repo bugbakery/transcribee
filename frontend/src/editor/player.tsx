@@ -10,6 +10,7 @@ import { TEXT_CLICK_EVENT, TextClickEvent } from './types';
 import { useEvent } from '../utils/use_event';
 import { Editor } from 'slate';
 import { useButtonHoldRepeat } from '../utils/button_hooks';
+import { useLocalStorage } from '../utils/use_local_storage';
 
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument({ document_id: documentId });
@@ -196,7 +197,7 @@ export function startTimeToClassName(startTime: number) {
 function PlaybackSpeedDropdown({ onChange }: { onChange: (v: number) => void }) {
   const possibleRates = [0.5, 0.7, 1.0, 1.2, 1.5, 1.7, 2.0];
 
-  const [value, setValue] = useState(1.0);
+  const [value, setValue] = useLocalStorage('playbackSpeed', 1.0);
 
   return (
     <select
