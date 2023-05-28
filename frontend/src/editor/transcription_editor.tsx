@@ -118,8 +118,8 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
             '-mt-[0.1rem] py-1 mr-1',
             'max-w-none break-all text-neutral-400',
             'text-sm font-semibold',
-            'md:max-w-[200px] md:text-neutral-600 xl:text-right',
-            'hidden md:block bg-white',
+            'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
+            'hidden md:block bg-white dark:bg-neutral-900',
             'row-start-[calc(var(--element-idx)*3+1)] col-start-2',
             'xl:row-start-[calc(var(--element-idx)*3+1)]',
             'xl:pr-3',
@@ -133,7 +133,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
         paragraph={element}
         buttonClassName={clsx(
           'max-w-none break-all text-neutral-400',
-          'md:max-w-[200px] md:text-neutral-600 xl:text-right',
+          'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
           'xl:pr-2',
           'md:opacity-0 md:hover:opacity-100',
         )}
