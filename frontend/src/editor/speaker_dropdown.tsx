@@ -148,7 +148,7 @@ export function SpeakerDropdown({
     <Dropdown
       {...props}
       label={getSpeakerName(paragraph.speaker, editor.doc.speaker_names)}
-      dropdownClassName="min-w-[190px]"
+      dropdownClassName="min-w-[210px]"
     >
       <SpeakerNamesSection
         editor={editor}
