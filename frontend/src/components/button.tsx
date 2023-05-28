@@ -1,6 +1,8 @@
 import { primitiveWithClassname } from '../styled';
 import { IconType } from 'react-icons';
 import clsx from 'clsx';
+import { ComponentProps } from 'react';
+import { LoadingSpinner } from './loading_spinner';
 
 export const PrimaryButton = primitiveWithClassname('button', [
   'bg-black dark:bg-neutral-200',
@@ -20,6 +22,29 @@ export const SecondaryButton = primitiveWithClassname('button', [
   'border',
   'border-black dark:border-neutral-200',
 ]);
+
+export function LoadingSpinnerButton({
+  loading,
+  children,
+  className,
+  variant,
+  ...props
+}: { loading: boolean; variant: 'primary' | 'secondary' } & ComponentProps<typeof PrimaryButton>) {
+  const Component = variant === 'primary' ? PrimaryButton : SecondaryButton;
+
+  return (
+    <Component
+      {...props}
+      disabled={props.disabled || loading}
+      className={clsx('grid place-items-center', className)}
+    >
+      <span className={clsx('col-span-full row-span-full', loading && 'invisible')}>
+        {children}
+      </span>
+      {loading && <LoadingSpinner className="row-span-full col-span-full" />}
+    </Component>
+  );
+}
 
 export function IconButton({
   icon,
