@@ -31,7 +31,7 @@ class Paragraph(BaseModel):
 
 
 class Document(BaseModel):
-    speaker_names: Optional[Mapping[int, str]]
+    speaker_names: Optional[Mapping[str, str]]
     children: List[Paragraph]
     version: int = 1
 
