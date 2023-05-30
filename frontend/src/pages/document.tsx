@@ -28,6 +28,10 @@ const LazyDebugPanel = lazy(() =>
 function DocumentTitle({ name, onChange }: { name: string; onChange: (newTitle: string) => void }) {
   const [editable, setEditable] = useState(false);
 
+  if (name == null || name == undefined) {
+    return <></>;
+  }
+
   if (editable) {
     return (
       <form
