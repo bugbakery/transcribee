@@ -8,7 +8,7 @@ import { WorkerStatus } from '../editor/worker_status';
 import { updateDocument, useGetDocument } from '../api/document';
 import { TbFileExport } from 'react-icons/tb';
 import { canGenerateVtt } from '../utils/export/webvtt';
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo, useState, useCallback } from 'react';
 import { PlayerBar } from '../editor/player';
 import { useDebugMode } from '../debugMode';
 import clsx from 'clsx';
@@ -28,32 +28,44 @@ const LazyDebugPanel = lazy(() =>
 function DocumentTitle({ name, onChange }: { name: string; onChange: (newTitle: string) => void }) {
   const [editable, setEditable] = useState(false);
 
+  const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setEditable(false);
+
+    const target = e.target as typeof e.target & { title: { value: string } };
+    onChange(target.title.value);
+  }, []);
+
+  const cancelEdit = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement> | React.MouseEvent<HTMLButtonElement>) => {
+      if ('key' in e) {
+        if (e.key === 'Escape') {
+          setEditable(false);
+        }
+      } else {
+        setEditable(false);
+      }
+    },
+    [],
+  );
+
+  const startEdit = useCallback(() => setEditable(true), []);
+
   if (name == null || name == undefined) {
     return <></>;
   }
 
   if (editable) {
     return (
-      <form
-        className="flex flex-row space-x-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setEditable(false);
-
-          const target = e.target as typeof e.target & { title: { value: string } };
-          onChange(target.title.value);
-        }}
-      >
+      <form className="flex flex-row space-x-2" onSubmit={onSubmit}>
         <Input
           autoFocus
           name="title"
           defaultValue={name}
           className="py-0 px-4 text-xl font-bold min-w-0 !mt-0"
-          onKeyDown={(e) => {
-            if (e.key == 'Escape') setEditable(false);
-          }}
+          onKeyDown={cancelEdit}
         />
-        <SecondaryButton type="button" onClick={() => setEditable(false)} className="py-0">
+        <SecondaryButton type="button" onClick={cancelEdit} className="py-0">
           Cancel
         </SecondaryButton>
         <PrimaryButton type="submit" className="py-0">
@@ -67,7 +79,7 @@ function DocumentTitle({ name, onChange }: { name: string; onChange: (newTitle: 
         <IconButton
           icon={BiPencil}
           label="edit document title"
-          onClick={() => setEditable(true)}
+          onClick={startEdit}
           iconAfter={true}
           iconClassName="inline-block -mt-1"
           className="rounded-xl px-4 py-1"
@@ -120,7 +132,7 @@ export function DocumentPage({
           />
           <DocumentTitle
             name={data?.name}
-            onChange={(newTitle) => {
+            onChange={useCallback((newTitle: string) => {
               mutate({ ...data, name: newTitle });
               updateDocument({ document_id: documentId, name: newTitle })
                 .catch((e) => {
@@ -128,7 +140,7 @@ export function DocumentPage({
                   mutate(data);
                 }) // reset to old name
                 .then(() => mutate());
-            }}
+            }, [])}
           />
         </TopBarPart>
         <TopBarPart>
