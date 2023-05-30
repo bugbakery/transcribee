@@ -2,7 +2,7 @@ import { Editor, Transforms } from 'slate';
 import { Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
-import { Paragraph, TextClickEvent } from './types';
+import { TextClickEvent } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
 import { useContext } from 'react';
@@ -71,19 +71,9 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
 }
 
 function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
-  const parent: Paragraph = children.props.parent;
-  const myIndex = parent.children.findIndex((x) => x.start == leaf.start);
-  let wordStartIndex = myIndex;
-  for (
-    ;
-    wordStartIndex > 0 && !parent.children[wordStartIndex].text.startsWith(' ');
-    wordStartIndex--
-  );
-  const wordStart = parent.children[wordStartIndex];
-
   const classes = ['word'];
-  if (wordStart?.start !== undefined) {
-    classes.push(startTimeToClassName(wordStart.start));
+  if (leaf.start !== undefined) {
+    classes.push(startTimeToClassName(leaf.start));
   }
 
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
