@@ -9,7 +9,6 @@ declare module 'virtual:git-version' {
     branch: string;
     diffShort: string;
     lastCommit: Commit;
-    lastCommitOnMain: Commit;
     date: string;
   }
 

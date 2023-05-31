@@ -4,7 +4,7 @@ import topLevelAwait from 'vite-plugin-top-level-await';
 import { execSync } from 'child_process';
 
 function gitVersionPlugin() {
-  const virtualModuleId = 'virtual:git-version'
+  const virtualModuleId = 'virtual:git-version';
 
   return {
     name: 'git-version', // required, will show up in warnings and errors
@@ -22,32 +22,30 @@ function gitVersionPlugin() {
           console.error(error);
         }
         return stdout;
-      };
+      }
 
       function commitInfo(ref) {
         return {
           hash: git(`rev-parse ${ref}`),
           date: git(`show -s --format=%cI ${ref}`),
           countSinceStart: parseInt(git(`rev-list --count ${ref}`)),
-        }
+        };
       }
 
       if (id === virtualModuleId) {
-        const lastCommitOnMain = git("merge-base origin/main HEAD");
         const json = JSON.stringify({
-          diffShort: git("diff --shortstat HEAD"),
-          lastCommit: commitInfo("HEAD"),
-          lastCommitOnMain: commitInfo(lastCommitOnMain),
-          branch: git("rev-parse --abbrev-ref HEAD"),
+          diffShort: git('diff --shortstat HEAD'),
+          lastCommit: commitInfo('HEAD'),
+          branch: git('rev-parse --abbrev-ref HEAD'),
           date: new Date().toISOString(),
-        })
+        });
         return `
           const version = ${json};
           export default version;
         `;
       }
     },
-  }
+  };
 }
 
 // eslint-disable-next-line import/no-default-export
