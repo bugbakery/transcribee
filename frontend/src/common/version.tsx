@@ -36,7 +36,7 @@ export function CommitPopup({ commit, text }: { commit: Commit; text: string }) 
 }
 
 export function Version({ className = '' }: { className?: string }) {
-  const { lastCommitOnMain, branch, lastCommit, diffShort } = version;
+  const { lastCommit } = version;
 
   return (
     <div className={clsx('mb-10')}>
@@ -44,30 +44,23 @@ export function Version({ className = '' }: { className?: string }) {
         className={clsx(
           'absolute bottom-0 ',
           'h-10 text-xs',
-          'opacity-50 hover:opacity-100 duration-400 transition-all',
+          'opacity-70 hover:opacity-100 duration-400 transition-all',
           'w-full text-center',
           'left-1/2 -translate-x-1/2',
           className,
         )}
       >
-        Frontend built on {formatDate(version.date)}.{' '}
-        <CommitPopup
-          commit={lastCommitOnMain}
-          text={`${lastCommitOnMain.countSinceStart} commits on main`}
-        />
-        {branch != 'main' && (
-          <>
-            {' '}
-            +{' '}
-            <CommitPopup
-              commit={lastCommit}
-              text={`${
-                lastCommit.countSinceStart - lastCommitOnMain.countSinceStart
-              } commits on ${branch}`}
-            />
-          </>
-        )}
-        {diffShort && <> + {diffShort}</>}
+        Frontend built on {formatDate(version.date)}. Last commit{' '}
+        <a
+          href={`https://github.com/transcribee/transcribee/commit/${lastCommit.hash}`}
+          target="_blank"
+          rel="noreferrer"
+          className="underline decoration-dashed"
+          title="View commit on GitHub"
+        >
+          {lastCommit.hash.substring(0, 10)} <IoMdOpen className="inline" />
+        </a>{' '}
+        on {formatDate(lastCommit.date)}.
       </div>
     </div>
   );
