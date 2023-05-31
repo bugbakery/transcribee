@@ -19,9 +19,9 @@ export type Document = {
 };
 
 // we fire this event when the user clicks on a word and we want the player to skip through it
-export const TEXT_CLICK_EVENT = 'textClick';
-export class TextClickEvent extends CustomEvent<{ text: Text }> {
-  constructor(text: Text) {
-    super(TEXT_CLICK_EVENT, { detail: { text } });
+export const SEEK_TO_EVENT = 'seekTo';
+export class SeekToEvent extends CustomEvent<{ start?: number }> {
+  constructor(start?: number) {
+    super(SEEK_TO_EVENT, { detail: { start } });
   }
 }

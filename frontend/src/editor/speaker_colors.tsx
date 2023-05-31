@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Editor } from 'slate';
+import React, { useMemo } from 'react';
+import { useSpeakerIDs } from '../utils/document';
 
 export const SpeakerColorsContext = React.createContext<Record<string, string>>({});
 
@@ -22,22 +22,11 @@ function getColor(n: number) {
   return palette[n % palette.length];
 }
 
-export function SpeakerColorsProvider({
-  children,
-  editor,
-}: {
-  children: JSX.Element;
-  editor: Editor;
-}) {
-  const [colors, setColors] = useState<Record<string, string>>({});
-
-  const paragraphs = editor.doc.children || [];
-  const speakers = paragraphs.map((p) => p.speaker);
-
-  useEffect(() => {
-    const colors = Object.fromEntries([...new Set(speakers)].map((uuid, i) => [uuid, getColor(i)]));
-    setColors(colors);
-  }, [JSON.stringify(speakers)]);
+export function SpeakerColorsProvider({ children }: { children: JSX.Element }) {
+  const speakerIDs = useSpeakerIDs();
+  const colors = useMemo(() => {
+    return Object.fromEntries([...speakerIDs].map((uuid, i) => [uuid, getColor(i)]));
+  }, [speakerIDs]);
 
   return <SpeakerColorsContext.Provider value={colors}>{children}</SpeakerColorsContext.Provider>;
 }

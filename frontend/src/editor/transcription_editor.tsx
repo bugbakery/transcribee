@@ -2,11 +2,11 @@ import { Editor, Transforms, Range, Operation } from 'slate';
 import { Slate, Editable, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
-import { TextClickEvent } from './types';
+import { SeekToEvent } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
-import { useContext } from 'react';
-import { SpeakerColorsContext } from './speaker_colors';
+import { useContext, useCallback, memo } from 'react';
+import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 
 export function formattedTime(sec: number | undefined): string {
@@ -40,7 +40,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
           <div
             contentEditable={false}
             className="w-16 mr-2 -ml-20 hidden 2xl:block text-slate-500 dark:text-neutral-400 font-mono"
-            onClick={() => window.dispatchEvent(new TextClickEvent(startAtom))}
+            onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
           >
             {formattedTime(startAtom.start)}
           </div>
@@ -49,7 +49,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
             <SpeakerDropdown paragraph={element} />
             <div
               className="mr-2 ml-7 2xl:hidden text-slate-500 dark:text-neutral-400 font-mono"
-              onClick={() => window.dispatchEvent(new TextClickEvent(startAtom))}
+              onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
             >
               {formattedTime(startAtom.start)}
             </div>
@@ -69,34 +69,48 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
   throw Error('Unknown element type');
 }
 
-function renderLeaf({ leaf, children, attributes }: RenderLeafProps): JSX.Element {
-  const classes = ['word'];
-  if (leaf.start !== undefined) {
-    classes.push(startTimeToClassName(leaf.start));
-  }
+const Leaf = memo(
+  ({
+    start,
+    conf,
+    children,
+    attributes,
+    systemPrefersDark,
+  }: {
+    start?: number;
+    conf?: number;
+    children: RenderLeafProps['children'];
+    attributes: RenderLeafProps['attributes'];
+    systemPrefersDark: boolean;
+  }): JSX.Element => {
+    const color = !conf
+      ? undefined
+      : systemPrefersDark
+      ? `hsl(0, 100%, ${Math.min(conf * 50 + 50, 100)}%)`
+      : `hsl(0, 100%, ${Math.min((1 - conf) * 100, 45)}%)`;
 
-  const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+    const classes = ['word'];
+    if (start !== undefined) {
+      classes.push(startTimeToClassName(start));
+    }
 
-  const color = !leaf.conf
-    ? undefined
-    : systemPrefersDark
-    ? `hsl(0, 100%, ${Math.min(leaf.conf * 50 + 50, 100)}%)`
-    : `hsl(0, 100%, ${Math.min((1 - leaf.conf) * 100, 45)}%)`;
+    return (
+      <span
+        {...attributes}
+        className={classes.join(' ')}
+        onClick={() => {
+          // this event is handeled in player.tsx to set the time when someone clicks a word
+          window.dispatchEvent(new SeekToEvent(start));
+        }}
+        style={{ color }}
+      >
+        {children}
+      </span>
+    );
+  },
+);
 
-  return (
-    <span
-      {...attributes}
-      className={classes.join(' ')}
-      onClick={() => {
-        // this event is handeled in player.tsx to set the time when someone clicks a word
-        window.dispatchEvent(new TextClickEvent(leaf));
-      }}
-      style={{ color }}
-    >
-      {children}
-    </span>
-  );
-}
+Leaf.displayName = 'Leaf';
 
 export function TranscriptionEditor({
   editor,
@@ -104,6 +118,7 @@ export function TranscriptionEditor({
 }: {
   editor: Editor;
 } & React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>) {
+  const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   // prevent ctrl+s
   useEvent('keydown', (e: KeyboardEvent) => {
     const ctrlOrCmd = window.navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey;
@@ -132,25 +147,42 @@ export function TranscriptionEditor({
           }
         }}
       >
-        <Editable
-          renderElement={(props) => renderElement(props)}
-          renderLeaf={renderLeaf}
-          onClick={(e) => {
-            const { selection } = editor;
+        <SpeakerColorsProvider>
+          <Editable
+            renderElement={renderElement}
+            renderLeaf={useCallback(
+              (props: RenderLeafProps) => {
+                const { leaf, children, attributes } = props;
+                return (
+                  <Leaf
+                    attributes={attributes}
+                    conf={leaf.conf}
+                    start={leaf.start}
+                    systemPrefersDark={systemPrefersDark}
+                  >
+                    {children}
+                  </Leaf>
+                );
+              },
+              [systemPrefersDark],
+            )}
+            onClick={(e: React.MouseEvent) => {
+              const { selection } = editor;
 
-            // fire a text click event when selection is changed by clicking outside of a text node
-            // e.g. by clicking at the blank space on the right of a paragraph
-            if (
-              selection &&
-              Range.isCollapsed(selection) &&
-              e.target instanceof HTMLElement &&
-              e.target.isContentEditable
-            ) {
-              const [leaf] = editor.leaf(selection.anchor);
-              window.dispatchEvent(new TextClickEvent(leaf));
-            }
-          }}
-        />
+              // fire a 'seek to' event when selection is changed by clicking outside of a text node
+              // e.g. by clicking at the blank space on the right of a paragraph
+              if (
+                selection &&
+                Range.isCollapsed(selection) &&
+                e.target instanceof HTMLElement &&
+                e.target.isContentEditable
+              ) {
+                const [leaf] = editor.leaf(selection.anchor);
+                window.dispatchEvent(new SeekToEvent(leaf.start));
+              }
+            }}
+          />
+        </SpeakerColorsProvider>
       </Slate>
     </div>
   );

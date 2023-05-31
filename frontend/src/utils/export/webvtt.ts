@@ -1,6 +1,6 @@
 import { WebVtt, VttCue, escapeVttString, formattedTime } from '@audapolis/webvtt-writer';
 import { Document, Paragraph, Text } from '../../editor/types';
-import { getSpeakerName } from '../../editor/speaker_dropdown';
+import { getSpeakerName } from '../document';
 
 function atomToString(item: Text, includeWordTimings: boolean): string {
   if (includeWordTimings && typeof item.start === 'number') {
@@ -67,7 +67,7 @@ function paragraphToCues(
           endTime: cueEnd,
           payload:
             (includeSpeakerNames && paragraph.speaker
-              ? `<v ${escapeVttString(getSpeakerName(paragraph, speaker_names))}>`
+              ? `<v ${escapeVttString(getSpeakerName(paragraph.speaker, speaker_names))}>`
               : '') + cuePayload,
           payloadEscaped: true,
         }),
@@ -102,7 +102,7 @@ function paragraphToCues(
         endTime: cueEnd,
         payload:
           (includeSpeakerNames && paragraph.speaker
-            ? `<v ${escapeVttString(getSpeakerName(paragraph, speaker_names))}>`
+            ? `<v ${escapeVttString(getSpeakerName(paragraph.speaker, speaker_names))}>`
             : '') + cuePayload,
         payloadEscaped: true,
       }),
