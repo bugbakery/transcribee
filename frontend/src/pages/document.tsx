@@ -20,21 +20,29 @@ import { SpeakerColorsProvider } from '../editor/speaker_colors';
 import { Version } from '../common/version';
 import { Input } from '../components/form';
 import { BiPencil } from 'react-icons/bi';
+import { SubmitHandler, useForm } from 'react-hook-form';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
 );
 
+type DocumentTitleInputs = {
+  title: string;
+};
+
 function DocumentTitle({ name, onChange }: { name: string; onChange: (newTitle: string) => void }) {
   const [editable, setEditable] = useState(false);
 
-  const onSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setEditable(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<DocumentTitleInputs>();
 
-    const target = e.target as typeof e.target & { title: { value: string } };
-    onChange(target.title.value);
-  }, []);
+  const onSubmit: SubmitHandler<DocumentTitleInputs> = (data) => {
+    setEditable(false);
+    onChange(data.title);
+  };
 
   const cancelEdit = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement> | React.MouseEvent<HTMLButtonElement>) => {
@@ -57,20 +65,29 @@ function DocumentTitle({ name, onChange }: { name: string; onChange: (newTitle: 
 
   if (editable) {
     return (
-      <form className="flex flex-row space-x-2" onSubmit={onSubmit}>
-        <Input
-          autoFocus
-          name="title"
-          defaultValue={name}
-          className="py-0 px-4 text-xl font-bold min-w-0 !mt-0"
-          onKeyDown={cancelEdit}
-        />
-        <SecondaryButton type="button" onClick={cancelEdit} className="py-0">
-          Cancel
-        </SecondaryButton>
-        <PrimaryButton type="submit" className="py-0">
-          Save
-        </PrimaryButton>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="flex flex-row space-x-2">
+          <Input
+            autoFocus
+            defaultValue={name}
+            className="py-0 px-4 text-xl font-bold min-w-0 !mt-0"
+            onKeyPress={cancelEdit}
+            {...register('title', {
+              validate: {
+                notWhitespace: (v) => v.trim().length > 0,
+              },
+            })}
+          />
+          <SecondaryButton type="button" onClick={cancelEdit} className="py-0">
+            Cancel
+          </SecondaryButton>
+          <PrimaryButton type="submit" className="py-0">
+            Save
+          </PrimaryButton>
+        </div>
+        {errors.title && (
+          <p className="text-red-600 text-sm mt-1">{'Title must not be only whitespace'}</p>
+        )}
       </form>
     );
   } else {
@@ -123,8 +140,8 @@ export function DocumentPage({
 
   return (
     <AppContainer className="relative min-h-screen">
-      <TopBar>
-        <TopBarPart className="sticky left-4 -ml-12">
+      <TopBar className="!items-start">
+        <TopBarPart className="sticky left-4 -ml-12 !items-start">
           <IconButton
             icon={IoIosArrowBack}
             label="back to document gallery"
@@ -132,15 +149,15 @@ export function DocumentPage({
           />
           <DocumentTitle
             name={data?.name}
-            onChange={useCallback((newTitle: string) => {
-              mutate({ ...data, name: newTitle });
+            onChange={(newTitle: string) => {
+              mutate({ ...data, name: newTitle }, { revalidate: false });
               updateDocument({ document_id: documentId, name: newTitle })
                 .catch((e) => {
                   console.error(e);
                   mutate(data);
                 }) // reset to old name
                 .then(() => mutate());
-            }, [])}
+            }}
           />
         </TopBarPart>
         <TopBarPart>
