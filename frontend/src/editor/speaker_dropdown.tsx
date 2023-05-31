@@ -1,55 +1,38 @@
-import { useMemo, useState } from 'react';
-import { useSlate, ReactEditor } from 'slate-react';
-import * as Automerge from '@automerge/automerge';
+import { memo, useState, useCallback } from 'react';
 import { Editor } from 'slate';
+import { useSlateStatic, ReactEditor } from 'slate-react';
+import * as Automerge from '@automerge/automerge';
 
 import { Document, Paragraph } from './types';
 import { PrimaryButton, SecondaryButton } from '../components/button';
 import { IoIosCreate, IoIosList, IoIosTrash } from 'react-icons/io';
 import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
 import { Input, Select } from '../components/form';
+import { useSpeakerName, useSpeakerNames } from '../utils/document';
 import { showModal, Modal, ModalProps } from '../components/modal';
 
-export function getSpeakerName(element: Paragraph, speaker_names: Record<string, string>): string {
-  if (!element.speaker) {
-    return `Unknown Speaker`;
-  } else if (element.speaker in speaker_names) {
-    return speaker_names[element.speaker];
-  } else {
-    return `Unnamed Speaker ${element.speaker}`;
-  }
-}
-
 function SelectSpeakerModal({
-  doc,
+  editor,
   onSpeakerSelected,
   onNewSpeaker,
   onClose,
   selected,
   ...props
 }: {
-  doc: Automerge.Doc<Document>;
+  editor: Editor;
   onSpeakerSelected: (speakerId: string) => void;
   onNewSpeaker: (speakerName: string) => void;
   onClose: () => void;
-  selected?: string;
+  selected: string | null;
 } & Omit<ModalProps, 'label'>) {
   const NEW_SPEAKER_OPTION = '__new_speaker';
 
   const [speakerId, setSpeakerId] = useState<string | null>(null);
   const [speakerName, setSpeakerName] = useState<string>('');
 
-  const speakerNames = useMemo(() => {
-    const spkNames: Record<string, string> = {};
-    for (const para of doc.children) {
-      if (para.speaker !== null && !(para.speaker in spkNames)) {
-        spkNames[para.speaker] = getSpeakerName(para, doc.speaker_names);
-      }
-    }
-    return spkNames;
-  }, [doc.speaker_names]);
+  const speakerNames = useSpeakerNames(editor);
 
-  if (speakerId === null && selected !== undefined && selected in speakerNames) {
+  if (speakerId === null && selected !== null && selected in speakerNames) {
     setSpeakerId(selected);
   } else if (speakerId === null && Object.keys(speakerNames).length > 0) {
     setSpeakerId(Object.keys(speakerNames)[0]);
@@ -57,27 +40,39 @@ function SelectSpeakerModal({
     setSpeakerId(NEW_SPEAKER_OPTION);
   }
 
+  const setSpeakerNameFromEvent = useCallback(
+    (e: React.FormEvent<HTMLInputElement>) => {
+      const target = e.target as typeof e.target & { value: string };
+      setSpeakerName(target.value);
+    },
+    [setSpeakerName],
+  );
+
   return (
     <Modal {...props} onClose={onClose} label="Select Speaker">
       <form
         className="flex flex-col gap-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (speakerId === NEW_SPEAKER_OPTION) {
-            onClose();
-            onNewSpeaker(speakerName);
-          } else if (speakerId !== null) {
-            onClose();
-            onSpeakerSelected(speakerId);
-          }
-        }}
+        onSubmit={useCallback(
+          (e: React.SyntheticEvent) => {
+            e.preventDefault();
+            if (speakerId === NEW_SPEAKER_OPTION) {
+              onClose();
+              onNewSpeaker(speakerName);
+            } else if (speakerId !== null) {
+              onClose();
+              onSpeakerSelected(speakerId);
+            }
+          },
+          [speakerId, speakerName],
+        )}
       >
         <Select
           autoFocus
           value={speakerId !== null ? speakerId : undefined}
-          onChange={(e) => {
-            setSpeakerId(e.target.value);
-          }}
+          onChange={useCallback((e: React.SyntheticEvent) => {
+            const target = e.target as typeof e.target & { value: string };
+            setSpeakerId(target.value);
+          }, [])}
         >
           {Object.entries(speakerNames).map(([k, v]) => (
             <option value={k} key={k}>
@@ -91,9 +86,7 @@ function SelectSpeakerModal({
             autoFocus
             name="speaker_name"
             value={speakerName}
-            onChange={(e) => {
-              setSpeakerName(e.target.value);
-            }}
+            onChange={setSpeakerNameFromEvent}
           />
         ) : (
           <></>
@@ -119,26 +112,18 @@ function SpeakerNameModal({
   onClose: () => void;
   initialValue: string;
 } & Omit<ModalProps, 'label'>) {
-  const [value, setValue] = useState(initialValue);
-
   return (
     <Modal {...props} onClose={onClose} label="Rename Speaker">
       <form
         className="flex flex-col gap-6"
-        onSubmit={(e) => {
+        onSubmit={useCallback((e: React.SyntheticEvent) => {
+          const target = e.target as typeof e.target & { speaker_name: { value: string } };
           e.preventDefault();
           onClose();
-          selectedCallback(value);
-        }}
+          selectedCallback(target.speaker_name.value);
+        }, [])}
       >
-        <Input
-          autoFocus
-          name="speaker_name"
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-          }}
-        />
+        <Input autoFocus name="speaker_name" defaultValue={initialValue} />
         <div className="flex justify-between">
           <SecondaryButton type="button" onClick={onClose}>
             Cancel
@@ -150,7 +135,8 @@ function SpeakerNameModal({
   );
 }
 
-function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
+function setSpeaker(editor: Editor, node: Paragraph, speaker: string | null) {
+  const path = ReactEditor.findPath(editor, node);
   editor.apply({
     type: 'set_node',
     path: path,
@@ -175,51 +161,43 @@ function changeSpeakerName(editor: Editor, speakerId: string, speakerName: strin
   editor.setDoc(newDoc);
 }
 
-export function SpeakerDropdown({ paragraph }: { paragraph: Paragraph }) {
-  const editor: Editor = useSlate();
-
-  const elementPath = ReactEditor.findPath(editor, paragraph);
-  const doc: Automerge.Doc<Document> = editor.doc;
-  const changeSpeaker = () => {
+export const SpeakerDropdown = memo(({ paragraph }: { paragraph: Paragraph }) => {
+  const speaker = paragraph.speaker;
+  const editor: Editor = useSlateStatic();
+  const speakerName = useSpeakerName(speaker);
+  const changeSpeaker = useCallback(() => {
     showModal(
       <SelectSpeakerModal
-        doc={doc}
-        selected={paragraph.speaker?.toString()}
+        editor={editor}
+        selected={speaker}
         onClose={() => showModal(null)}
-        onSpeakerSelected={(speakerId) => setSpeaker(editor, elementPath, speakerId)}
+        onSpeakerSelected={(speakerId) => setSpeaker(editor, paragraph, speakerId)}
         onNewSpeaker={(speakerName) => {
           const speakerId = addNewSpeaker(editor, speakerName);
-          setSpeaker(editor, elementPath, speakerId);
+          setSpeaker(editor, paragraph, speakerId);
         }}
       />,
     );
-  };
-  const renameSpeaker = () => {
-    const speaker = paragraph.speaker;
-    if (speaker !== null) {
+  }, [speaker, paragraph, editor]);
+
+  const renameSpeaker = useCallback(() => {
+    if (speaker !== null && speaker !== undefined) {
       showModal(
         <SpeakerNameModal
           onClose={() => showModal(null)}
-          initialValue={getSpeakerName(paragraph, doc.speaker_names)}
-          selectedCallback={(speakerName) => {
+          initialValue={speakerName}
+          selectedCallback={(speakerName: string) => {
             changeSpeakerName(editor, speaker, speakerName);
-
-            // No-op to trigger a re-render of the editor so the speaker name gets applied
-            editor.apply({
-              type: 'set_node',
-              path: [0],
-              properties: {},
-              newProperties: {},
-            });
           }}
         />,
       );
     }
-  };
-  const unsetSpeaker = () => setSpeaker(editor, elementPath, null);
+  }, [speaker, speakerName, editor]);
+
+  const unsetSpeaker = useCallback(() => setSpeaker(editor, paragraph, null), [editor, paragraph]);
 
   return (
-    <Dropdown label={getSpeakerName(paragraph, editor.doc.speaker_names)} className="pr-4">
+    <Dropdown label={speakerName} className="pr-4">
       <DropdownSection>
         <DropdownItem icon={IoIosList} onClick={changeSpeaker}>
           Change Speaker
@@ -227,7 +205,7 @@ export function SpeakerDropdown({ paragraph }: { paragraph: Paragraph }) {
         <DropdownItem
           icon={IoIosCreate}
           onClick={renameSpeaker}
-          disabled={paragraph.speaker === null || paragraph.speaker === undefined}
+          disabled={speaker === null || speaker === undefined}
         >
           Rename Speaker
         </DropdownItem>
@@ -236,11 +214,13 @@ export function SpeakerDropdown({ paragraph }: { paragraph: Paragraph }) {
         <DropdownItem
           icon={IoIosTrash}
           onClick={unsetSpeaker}
-          disabled={paragraph.speaker === null || paragraph.speaker === undefined}
+          disabled={speaker === null || speaker === undefined}
         >
           Unset Speaker
         </DropdownItem>
       </DropdownSection>
     </Dropdown>
   );
-}
+});
+
+SpeakerDropdown.displayName = 'SpeakerDropdown';

@@ -6,7 +6,7 @@ import { WaveSurfer, WaveForm } from 'wavesurfer-react';
 import WaveSurferType from 'wavesurfer.js';
 import { useGetDocument } from '../api/document';
 import { CssRule } from '../utils/cssdom';
-import { TEXT_CLICK_EVENT, TextClickEvent } from './types';
+import { SEEK_TO_EVENT, SeekToEvent } from './types';
 import { useEvent } from '../utils/use_event';
 import { Editor } from 'slate';
 import { useButtonHoldRepeat } from '../utils/button_hooks';
@@ -91,10 +91,9 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
   // skip to a timestamp if the user clicks on a word in the transcript. The corresponding event is
   // dispatched in transcription_editor.tsx
-  useEvent<TextClickEvent>(TEXT_CLICK_EVENT, (e) => {
-    progressCallback();
-    if (e.detail.text.start) {
-      waveSurferRef.current?.seekTo(e.detail.text.start / waveSurferRef.current.getDuration());
+  useEvent<SeekToEvent>(SEEK_TO_EVENT, (e) => {
+    if (e.detail.start != undefined) {
+      waveSurferRef.current?.setCurrentTime(e.detail.start);
     }
   });
 
