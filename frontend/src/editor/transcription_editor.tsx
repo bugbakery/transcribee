@@ -141,6 +141,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
         className={clsx(
           'mx-2',
           'row-start-[calc(var(--element-idx)*3+1)] col-start-4',
+          '-mt-0.5 xl:mt-0',
           'md:col-start-2 md:-ml-2',
           'xl:row-start-[calc(var(--element-idx)*3+1)]',
         )}
