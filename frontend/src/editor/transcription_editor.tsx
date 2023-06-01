@@ -38,20 +38,29 @@ export function formattedTime(sec: number | undefined): string {
   return `${minutes}:${seconds}`;
 }
 
+export function calculateParagraphIdxOfSpeakerEnd(editor: Editor, idx: number): number {
+  const speaker = editor.doc.children[idx].speaker;
+
+  let speakerEndIdx;
+  for (
+    speakerEndIdx = idx;
+    speakerEndIdx < editor.doc.children.length &&
+    editor.doc.children[speakerEndIdx].speaker == speaker;
+    speakerEndIdx++
+  );
+  speakerEndIdx--;
+
+  return speakerEndIdx;
+}
+
 function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
 
   const editor = useSlate();
+
   const idx = ReactEditor.findPath(editor, element)[0];
-  let speakerEndIdx = 0;
-  for (
-    speakerEndIdx = idx;
-    speakerEndIdx < editor.doc.children.length &&
-    editor.doc.children[speakerEndIdx].speaker == element.speaker;
-    speakerEndIdx++
-  );
-  speakerEndIdx--;
+  const speakerEndIdx = calculateParagraphIdxOfSpeakerEnd(editor, idx);
   const speakerChanged = idx == 0 || editor.doc.children[idx - 1].speaker != element.speaker;
 
   let portalNode = document.getElementById('meta-portal');

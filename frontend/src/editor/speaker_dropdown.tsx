@@ -73,12 +73,19 @@ function SpeakerNameModal({
 }
 
 function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
-  editor.apply({
-    type: 'set_node',
-    path: path,
-    properties: {},
-    newProperties: { speaker },
-  });
+  const endPath = calculateParagraphIdxOfSpeakerEnd(editor, path[0]);
+
+  Transforms.setNodes(
+    editor,
+    { speaker },
+    {
+      at: {
+        anchor: { path, offset: 0 },
+        focus: { path: [endPath], offset: 0 },
+      },
+      match: (n) => 'speaker' in n, // we only match paragraph nodes
+    },
+  );
 }
 
 function addNewSpeaker(editor: Editor, speakerName: string): string {
@@ -101,7 +108,7 @@ export function SpeakerDropdown({
   paragraph,
   ...props
 }: { paragraph: Paragraph } & Omit<ComponentProps<typeof Dropdown>, 'label'>) {
-  const editor: Editor = useSlate();
+  const editor = useSlate();
 
   const elementPath = ReactEditor.findPath(editor, paragraph);
   const doc: Automerge.Doc<Document> = editor.doc;
