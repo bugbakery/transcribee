@@ -104,14 +104,13 @@ export function Dropdown({
         aria-expanded={show.now}
         aria-haspopup="true"
       >
+        <div className="flex-grow break-all text-start pl-1">{label}</div>
+
         {arrow && (
           <div className={clsx('flex text-slate-500 dark:text-neutral-400 px-1')}>
-            <IoIosArrowDown
-              className={clsx('self-center transition-all duration-100', show.now || '-rotate-90')}
-            />
+            <IoIosArrowDown className={clsx('self-center transition-all duration-100')} />
           </div>
         )}
-        <div className="flex-grow break-all text-start">{label}</div>
       </button>
       <div className={clsx('absolute left-0 z-10 my-1', show.now && dropdownContainerClassName)}>
         <div
