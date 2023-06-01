@@ -159,7 +159,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
       {/* helper for bottom padding */}
       <div
         className={clsx(
-          'mb-6 md:mb-0 xl:mb-3',
+          'mb-6 md:mb-1 xl:mb-3',
           'row-start-[calc(var(--element-idx)*3+3)]',
           idx == speakerEndIdx && 'md:mb-2',
         )}
