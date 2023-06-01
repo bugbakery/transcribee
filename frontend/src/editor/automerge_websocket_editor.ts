@@ -1,3 +1,4 @@
+import { useLocation } from 'wouter';
 import { useEffect, useMemo, useRef } from 'react';
 import { Editor, createEditor } from 'slate';
 import { withReact } from 'slate-react';
@@ -36,6 +37,8 @@ export function useAutomergeWebsocketEditor(
     }
   }
 
+  const [_, navigate] = useLocation();
+
   useEffect(() => {
     const ws = new ReconnectingWebSocket(url.toString(), [], { debug });
     const start = Date.now();
@@ -73,7 +76,10 @@ export function useAutomergeWebsocketEditor(
       }
     };
     ws.addEventListener('message', (msg) => {
-      onMessage(msg);
+      onMessage(msg).catch((e) => {
+        alert(`error while loading automerge message occured: ${e}`);
+        navigate('/');
+      });
     });
 
     wsRef.current = ws;
