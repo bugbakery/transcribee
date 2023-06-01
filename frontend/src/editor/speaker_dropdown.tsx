@@ -26,12 +26,12 @@ function SpeakerNamesSection({
   return (
     <DropdownSection {...props}>
       {Object.entries(speakerNames).map(([k, v]) => (
-        <DropdownItem key={k} onClick={() => onSpeakerSelected(k)}>
-          <span
-            className="w-2 h-6 min-h-full ml-1.5 mr-3.5 rounded-xl"
+        <DropdownItem key={k} onClick={() => onSpeakerSelected(k)} className="relative">
+          <div
+            className="absolute top-1 w-2 h-[calc(100%-8px)] ml-1.5 rounded-xl"
             style={{ background: speakerColors[k] }}
           />
-          {v}
+          <div className="text-left ml-5">{v}</div>
         </DropdownItem>
       ))}
       {props.children}
