@@ -11,14 +11,19 @@ import { Input } from '../components/form';
 import { getSpeakerName, useSpeakerNames } from '../utils/document';
 import { showModal, Modal } from '../components/modal';
 import { SpeakerColorsContext } from './speaker_colors';
+import { Editor, Transforms } from 'slate';
+import { calculateParagraphIdxOfSpeakerEnd } from './transcription_editor';
+import clsx from 'clsx';
 
 function SpeakerNamesSection({
   editor,
   onSpeakerSelected,
+  currentSpeaker,
   ...props
 }: {
   editor: Editor;
   onSpeakerSelected: (speakerId: string) => void;
+  currentSpeaker: string | null;
 } & ComponentProps<typeof DropdownSection>) {
   const speakerColors = useContext(SpeakerColorsContext);
   const speakerNames = useSpeakerNames(editor);
@@ -26,7 +31,11 @@ function SpeakerNamesSection({
   return (
     <DropdownSection {...props}>
       {Object.entries(speakerNames).map(([k, v]) => (
-        <DropdownItem key={k} onClick={() => onSpeakerSelected(k)} className="relative">
+        <DropdownItem
+          key={k}
+          onClick={() => onSpeakerSelected(k)}
+          className={clsx('relative', k == currentSpeaker && 'font-bold')}
+        >
           <div
             className="absolute top-1 w-2 h-[calc(100%-8px)] ml-1.5 rounded-xl"
             style={{ background: speakerColors[k] }}
@@ -160,6 +169,7 @@ export function SpeakerDropdown({
       <SpeakerNamesSection
         editor={editor}
         onSpeakerSelected={(speakerId) => setSpeaker(editor, elementPath, speakerId)}
+        currentSpeaker={paragraph.speaker}
       >
         <DropdownItem icon={IoIosAdd} onClick={addSpeaker}>
           New Speaker
