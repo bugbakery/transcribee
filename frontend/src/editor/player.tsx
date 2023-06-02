@@ -1,9 +1,8 @@
 import clsx from 'clsx';
 import { IconButton } from '../components/button';
 import { ImPause, ImPlay2, ImBackward2 } from 'react-icons/im';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { WaveSurfer, WaveForm } from 'wavesurfer-react';
-import WaveSurferType from 'wavesurfer.js';
+import { useCallback, useMemo, useEffect, useState } from 'react';
+import { audio, actions, events } from '@podlove/html5-audio-driver';
 import { useGetDocument } from '../api/document';
 import { CssRule } from '../utils/cssdom';
 import { SEEK_TO_EVENT, SeekToEvent } from './types';
@@ -20,42 +19,44 @@ let lastTabPressTs = 0;
 
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument({ document_id: documentId });
-  let audioFile = data?.media_files[0]?.url;
-  const audioElement = document.createElement('audio');
-  data?.media_files.forEach((media_file) => {
-    if (
-      media_file.tags.indexOf('original') == -1 &&
-      audioElement.canPlayType(media_file.content_type) == 'probably'
-    ) {
-      audioFile = media_file.url;
-    }
-  });
+
+  const player = useMemo(() => {
+    const element = audio(
+      data?.media_files.map((file) => {
+        return {
+          src: file.url,
+          type: file.content_type,
+        };
+      }) || [],
+    );
+
+    return {
+      element,
+      actions: actions(element),
+      events: events(element),
+    };
+  }, [data?.media_files]);
 
   // state for knowing which symbol we should display at the play / pause button
   const [playing, setPlayingState] = useState(false);
 
-  // handle the waveSurfer mounting
-  const waveSurferRef = useRef<WaveSurferType | undefined>();
-  const handleWSMount = useCallback(
-    (ws: WaveSurferType | null) => {
-      if (!ws) return;
-      waveSurferRef.current = ws;
-
-      if (ws && audioFile) {
-        ws.load(audioFile);
-        ws.setHeight(40);
-
-        ws.on('play', () => setPlayingState(true));
-        ws.on('pause', () => setPlayingState(false));
-      }
-    },
-    [audioFile],
-  );
+  useEffect(() => {
+    if (playing) {
+      player.actions.play();
+    } else {
+      player.actions.pause();
+    }
+  }, [playing]);
+  const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
+  useEffect(() => {
+    player.actions.setRate(playbackRate);
+  }, [playbackRate]);
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
   const progressCallback = useCallback(() => {
-    const time = waveSurferRef.current?.getCurrentTime() || 0;
+    console.log('progress', player.element.currentTime);
+    const time = player.element.currentTime;
     let startTimeOfElement = 0;
 
     if (!editor.doc.children) return;
@@ -79,42 +80,34 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   }, [editor.doc]);
 
   useEffect(() => {
-    waveSurferRef.current?.on('seek', progressCallback);
-    waveSurferRef.current?.on('audioprocess', progressCallback);
-    waveSurferRef.current?.drawer.on('click', progressCallback);
-    return () => {
-      waveSurferRef.current?.un('seek', progressCallback);
-      waveSurferRef.current?.un('audioprocess', progressCallback);
-      waveSurferRef.current?.drawer.un('click', progressCallback);
-    };
-  }, [waveSurferRef.current, progressCallback]);
+    player.events.onPlaytimeUpdate(progressCallback);
+  }, [player, progressCallback]);
 
   // skip to a timestamp if the user clicks on a word in the transcript. The corresponding event is
   // dispatched in transcription_editor.tsx
   useEvent<SeekToEvent>(SEEK_TO_EVENT, (e) => {
     if (e.detail.start != undefined) {
-      waveSurferRef.current?.setCurrentTime(e.detail.start);
+      player.actions.setPlaytime(e.detail.start);
     }
   });
 
   // bind the tab key to play / pause
   const togglePlaying = () => {
-    if (waveSurferRef.current) {
-      if (!playing) {
-        waveSurferRef.current.play();
-      } else {
-        waveSurferRef.current.pause();
-      }
-    }
+    setPlayingState(!playing);
   };
+
+  const seekRelative = (seconds: number) => {
+    player.actions.setPlaytime(player.element.currentTime + seconds);
+  };
+
   useEvent<KeyboardEvent>('keydown', (e) => {
     if (e.key == 'Tab') {
       // double tap to skip
       if (e.timeStamp - lastTabPressTs < DOUBLE_TAP_THRESHOLD_MS) {
         if (e.shiftKey) {
-          waveSurferRef.current?.skipForward(SKIP_SHORTCUT_SEC);
+          seekRelative(SKIP_SHORTCUT_SEC);
         } else {
-          waveSurferRef.current?.skipBackward(SKIP_SHORTCUT_SEC);
+          seekRelative(-SKIP_SHORTCUT_SEC);
         }
       }
 
@@ -127,22 +120,14 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   });
 
   const backwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => waveSurferRef.current?.skipBackward(SKIP_BUTTON_SEC / 2),
-    onShortClick: () => waveSurferRef.current?.skipBackward(SKIP_BUTTON_SEC),
+    repeatingAction: () => seekRelative(-SKIP_BUTTON_SEC / 2),
+    onShortClick: () => seekRelative(-SKIP_BUTTON_SEC),
   });
 
   const forwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => waveSurferRef.current?.skipForward(SKIP_BUTTON_SEC / 2),
-    onShortClick: () => waveSurferRef.current?.skipForward(SKIP_BUTTON_SEC),
+    repeatingAction: () => seekRelative(SKIP_BUTTON_SEC / 2),
+    onShortClick: () => seekRelative(SKIP_BUTTON_SEC),
   });
-
-  const setPlaybackRate = useCallback(
-    (v: number) => waveSurferRef.current?.setPlaybackRate(v),
-    [waveSurferRef.current],
-  );
-
-  // if we don't know the path of the audio file yet, we can't start to render
-  if (!audioFile) return <></>;
 
   return (
     <>
@@ -190,21 +175,9 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           {...forwardLongPressProps}
         />
 
-        <div className="pl-4 flex-grow">
-          <WaveSurfer onMount={handleWSMount}>
-            <WaveForm
-              id="waveform"
-              cursorColor="red"
-              barWidth={2}
-              normalize
-              responsive={true}
-              hideScrollbar={true}
-              backend="MediaElement"
-            />
-          </WaveSurfer>
-        </div>
+        <div className="pl-4 flex-grow"></div>
 
-        <PlaybackSpeedDropdown onChange={setPlaybackRate} />
+        <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
       </div>
 
       <div className="pb-24" />
@@ -217,13 +190,14 @@ export function startTimeToClassName(startTime: number) {
   return `start-${startTime.toFixed(3).replace('.', '')}`;
 }
 
-function PlaybackSpeedDropdown({ onChange }: { onChange: (v: number) => void }) {
+function PlaybackSpeedDropdown({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
   const possibleRates = [0.5, 0.7, 1.0, 1.2, 1.5, 1.7, 2.0];
-
-  const [value, setValue] = useLocalStorage('playbackSpeed', 1.0);
-  useEffect(() => {
-    onChange(value);
-  }, [onChange]);
 
   return (
     <select
@@ -238,7 +212,6 @@ function PlaybackSpeedDropdown({ onChange }: { onChange: (v: number) => void }) 
       onChange={(v) => {
         const r = parseFloat(v.target.value);
         onChange(r);
-        setValue(r);
       }}
     >
       {possibleRates.map((r) => (
