@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { IconButton } from '../components/button';
 import { ImPause, ImPlay2, ImBackward2 } from 'react-icons/im';
-import { useCallback, useMemo, useEffect, useState } from 'react';
+import { useCallback, useMemo, useEffect, useState, useRef } from 'react';
 import { audio, actions, events } from '@podlove/html5-audio-driver';
 import { useGetDocument } from '../api/document';
 import { CssRule } from '../utils/cssdom';
@@ -37,6 +37,22 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
     };
   }, [data?.media_files]);
 
+  const [duration, setDuration] = useState<number | undefined>();
+  useEffect(() => {
+    setDuration(player.element.duration);
+    player.events.onDurationChange(() => {
+      setDuration(player.element.duration);
+    });
+
+    player.events.onPlay(() => {
+      setPlayingState(true);
+    });
+
+    player.events.onPause(() => {
+      setPlayingState(false);
+    });
+  }, [player]);
+
   // state for knowing which symbol we should display at the play / pause button
   const [playing, setPlayingState] = useState(false);
 
@@ -54,10 +70,12 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
+  const [currentTime, setCurrentTime] = useState(0.0);
   const progressCallback = useCallback(() => {
-    console.log('progress', player.element.currentTime);
     const time = player.element.currentTime;
     let startTimeOfElement = 0;
+
+    setCurrentTime(time);
 
     if (!editor.doc.children) return;
 
@@ -175,13 +193,97 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           {...forwardLongPressProps}
         />
 
-        <div className="pl-4 flex-grow"></div>
+        <div className="pl-4 flex-grow">
+          {duration && (
+            <SeekBar
+              time={currentTime}
+              duration={duration}
+              setTime={(time) => {
+                setCurrentTime(time);
+                player.actions.setPlaytime(time);
+              }}
+            />
+          )}
+        </div>
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
       </div>
 
       <div className="pb-24" />
     </>
+  );
+}
+
+function SeekBar({
+  time,
+  duration,
+  setTime,
+}: {
+  time: number;
+  duration: number;
+  setTime: (time: number) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [tmpTime, setTmpTime] = useState<number | undefined>();
+
+  const onMouseSeek = useCallback((e: MouseEvent) => {
+    if (!ref.current) return;
+    const boundingRect = ref.current.getBoundingClientRect();
+    const seekToPercent = (e.pageX - boundingRect.x) / boundingRect.width;
+    const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
+
+    setTime(clampedPercent * duration);
+    setTmpTime(undefined);
+  }, []);
+
+  const onMouseMove = useCallback((e: MouseEvent | React.MouseEvent) => {
+    if (!ref.current) return;
+    const boundingRect = ref.current.getBoundingClientRect();
+    const seekToPercent = (e.pageX - boundingRect.x) / boundingRect.width;
+    const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
+
+    setTmpTime(clampedPercent * duration);
+  }, []);
+
+  const onMouseDown = useCallback((e: MouseEvent | React.MouseEvent) => {
+    onMouseMove(e);
+    setDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    window.addEventListener('mousemove', onMouseMove);
+
+    const onMouseUp = (e: MouseEvent) => {
+      onMouseSeek(e);
+      setDragging(false);
+    };
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [dragging, onMouseSeek]);
+
+  return (
+    <div
+      ref={ref}
+      className={clsx('bg-gray-600', 'h-4', 'w-full', 'relative', 'rounded-sm')}
+      onMouseDown={onMouseDown}
+    >
+      <div
+        className={clsx('absolute', 'w-[2px]', 'bg-white', '-top-1 -bottom-1 -ml-0.5')}
+        style={{
+          transform: `translateX(${
+            ((tmpTime !== undefined ? tmpTime : time) / duration) *
+            (ref.current?.getBoundingClientRect().width || 0)
+          }px)`,
+        }}
+      />
+    </div>
   );
 }
 
