@@ -22,16 +22,8 @@ components:
       type: object
     AssignedTaskResponse:
       properties:
-        assigned_at:
-          format: date-time
-          title: Assigned At
-          type: string
-        assigned_worker:
-          $ref: '#/components/schemas/WorkerBase'
-        completed_at:
-          format: date-time
-          title: Completed At
-          type: string
+        current_attempt:
+          $ref: '#/components/schemas/TaskAttemptResponse'
         dependencies:
           items:
             format: uuid
@@ -48,16 +40,8 @@ components:
           format: uuid
           title: Id
           type: string
-        is_completed:
-          title: Is Completed
-          type: boolean
-        last_keepalive:
-          format: date-time
-          title: Last Keepalive
-          type: string
-        progress:
-          title: Progress
-          type: number
+        state:
+          $ref: '#/components/schemas/TaskState'
         task_parameters:
           title: Task Parameters
           type: object
@@ -68,11 +52,9 @@ components:
       - task_parameters
       - document_id
       - id
-      - is_completed
+      - state
       - dependencies
-      - assigned_worker
       - document
-      - last_keepalive
       title: AssignedTaskResponse
       type: object
     Body_add_media_file_api_v1_documents__document_id__add_media_file__post:
@@ -225,16 +207,17 @@ components:
       - document_id
       title: SpeakerIdentificationTask
       type: object
+    TaskAttemptResponse:
+      properties:
+        progress:
+          title: Progress
+          type: number
+      title: TaskAttemptResponse
+      type: object
     TaskResponse:
       properties:
-        assigned_at:
-          format: date-time
-          title: Assigned At
-          type: string
-        completed_at:
-          format: date-time
-          title: Completed At
-          type: string
+        current_attempt:
+          $ref: '#/components/schemas/TaskAttemptResponse'
         dependencies:
           items:
             format: uuid
@@ -249,12 +232,8 @@ components:
           format: uuid
           title: Id
           type: string
-        is_completed:
-          title: Is Completed
-          type: boolean
-        progress:
-          title: Progress
-          type: number
+        state:
+          $ref: '#/components/schemas/TaskState'
         task_parameters:
           title: Task Parameters
           type: object
@@ -265,10 +244,18 @@ components:
       - task_parameters
       - document_id
       - id
-      - is_completed
+      - state
       - dependencies
       title: TaskResponse
       type: object
+    TaskState:
+      description: An enumeration.
+      enum:
+      - NEW
+      - ASSIGNED
+      - COMPLETED
+      - FAILED
+      title: TaskState
     TaskType:
       description: An enumeration.
       enum:
@@ -348,19 +335,6 @@ components:
       - msg
       - type
       title: ValidationError
-      type: object
-    WorkerBase:
-      properties:
-        last_seen:
-          format: date-time
-          title: Last Seen
-          type: string
-        name:
-          title: Name
-          type: string
-      required:
-      - name
-      title: WorkerBase
       type: object
 info:
   title: FastAPI
@@ -787,7 +761,7 @@ paths:
         content:
           application/json:
             schema:
-              title: Completion Data
+              title: Extra Data
               type: object
         required: true
       responses:
@@ -804,6 +778,44 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Mark Completed
+  /api/v1/tasks/{task_id}/mark_failed/:
+    post:
+      operationId: mark_failed_api_v1_tasks__task_id__mark_failed__post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Extra Data
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignedTaskResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Mark Failed
   /api/v1/users/create/:
     post:
       operationId: create_user_req_api_v1_users_create__post

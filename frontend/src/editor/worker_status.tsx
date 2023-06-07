@@ -10,23 +10,24 @@ type Task = ReturnType<typeof useGetDocumentTasks>['data'][0];
 
 function formatProgress(task: Task | null): string | undefined {
   if (!task) return;
-  if (task.is_completed) return 'DONE';
-  else if (task.progress) return `${(task.progress * 100).toFixed(0)}%`;
-  else if (task.assigned_at) return 'ASSIGNED';
-  else return 'WAITING';
+  if (task.state == 'ASSIGNED' && task.current_attempt?.progress !== undefined)
+    return `${(task.current_attempt?.progress * 100).toFixed(0)}%`;
+  else return task.state;
 }
 
 function getColor(task: Task | null, dark: boolean): string {
   const str = formatProgress(task);
   const color_map: Record<string, string> = dark
     ? {
-        WAITING: '#ff9264',
-        DONE: '#db93bd',
+        NEW: '#ff9264',
+        COMPLETED: '#db93bd',
+        FAILED: '#f00',
         DEFAULT: '#FFF',
       }
     : {
-        WAITING: '#006d9b',
-        DONE: '#246c42',
+        NEW: '#006d9b',
+        COMPLETED: '#246c42',
+        FAILED: '#f00',
         DEFAULT: '#000',
       };
   return (str && color_map[str]) || color_map['DEFAULT'];
@@ -36,7 +37,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
 
   const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
-  const isWorking = data?.some((task) => !task?.completed_at);
+  const isWorking = data?.some((task) => task.state !== 'COMPLETED');
 
   const yPositionsText = data?.map((_, i) => i * 40 + 20);
   const yPositionsCircles = data?.map((_, i) => i * 40 + 14);
@@ -53,7 +54,7 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
           icon={BsRobot}
           label={`worker status (${isWorking ? 'working' : 'idle'})`}
           className={clsx({
-            'animate-rainbow': data?.some((task) => !task?.completed_at),
+            'animate-rainbow': isWorking,
           })}
         />
       }

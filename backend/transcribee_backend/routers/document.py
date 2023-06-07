@@ -27,7 +27,7 @@ from transcribee_backend.config import settings
 from transcribee_backend.db import get_session
 from transcribee_backend.helpers.sync import DocumentSyncConsumer
 from transcribee_backend.helpers.time import now_tz_aware
-from transcribee_backend.models.task import TaskResponse
+from transcribee_backend.models.task import TaskAttempt, TaskResponse
 from transcribee_proto.api import Document as ApiDocument
 
 from .. import media_storage
@@ -92,7 +92,8 @@ def ws_get_document_from_url(
         return document
     if worker is not None:
         statement = select(Task).where(
-            Task.assigned_worker_id == worker.id, Task.document_id == document.id
+            Task.current_attempt.has(TaskAttempt.assigned_worker_id == worker.id),
+            Task.document_id == document.id,
         )
         if session.exec(statement.limit(1)).one_or_none() is not None:
             return document
@@ -255,7 +256,7 @@ def add_media_file(
     if task is None:
         raise HTTPException(status_code=403)
 
-    if task.assigned_worker != authorized_worker:
+    if task.current_attempt.assigned_worker != authorized_worker:
         raise HTTPException(status_code=403)
 
     stored_file = media_storage.store_file(file.file)
@@ -297,7 +298,7 @@ def set_duration(
     if task is None:
         raise HTTPException(status_code=403)
 
-    if task.assigned_worker != authorized_worker:
+    if task.current_attempt.assigned_worker != authorized_worker:
         raise HTTPException(status_code=403)
 
     doc = task.document

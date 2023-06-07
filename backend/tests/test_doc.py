@@ -10,6 +10,7 @@ from transcribee_backend.models import (
     Task,
     TaskDependency,
 )
+from transcribee_backend.models.task import TaskAttempt
 
 
 @pytest.fixture
@@ -34,6 +35,7 @@ def test_doc_delete(
     checked_tables = [
         Task,
         TaskDependency,
+        TaskAttempt,
         Document,
         DocumentMediaFile,
         DocumentMediaTag,
@@ -56,6 +58,7 @@ def test_doc_delete(
     assert len(req.json()) >= 1
 
     memory_session.add(DocumentUpdate(document_id=document_id, change_bytes=b""))
+    memory_session.add(TaskAttempt(task_id=req.json()[0]["id"], attempt_number=1))
     memory_session.commit()
 
     for table in checked_tables:

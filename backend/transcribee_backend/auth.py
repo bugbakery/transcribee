@@ -3,6 +3,7 @@ import datetime
 import hashlib
 import hmac
 import os
+import uuid
 from base64 import b64decode, b64encode
 from typing import Tuple
 
@@ -11,7 +12,7 @@ from sqlmodel import Session, select
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists, UserDoesNotExist
 from transcribee_backend.helpers.time import now_tz_aware
-from transcribee_backend.models import User, UserToken, Worker
+from transcribee_backend.models import Task, User, UserToken, Worker
 
 
 class NotAuthorized(Exception):
@@ -139,3 +140,22 @@ def change_user_password(session: Session, username: str, new_password: str) -> 
     session.add(existing_user)
     session.commit()
     return existing_user
+
+
+def get_authorized_task(
+    task_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    authorized_worker: Worker = Depends(get_authorized_worker),
+):
+    statement = select(Task).where(Task.id == task_id)
+    task = session.exec(statement).one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404)
+
+    if (
+        task.current_attempt is None
+        or task.current_attempt.assigned_worker != authorized_worker
+    ):
+        raise HTTPException(status_code=403)
+
+    return task
