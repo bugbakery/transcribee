@@ -1,15 +1,24 @@
 import datetime
+import enum
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 
 from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel
 from sqlmodel.sql.sqltypes import GUID
+from transcribee_backend.config import settings
+from transcribee_backend.helpers.time import now_tz_aware
+from transcribee_backend.models.document import Document
+from transcribee_backend.models.worker import Worker
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import TaskType
 from typing_extensions import Self
 
-from .document import Document
-from .worker import Worker, WorkerBase
+
+class TaskState(enum.Enum):
+    NEW = "NEW"
+    ASSIGNED = "ASSIGNED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class TaskBase(SQLModel):
@@ -49,21 +58,32 @@ class Task(TaskBase, table=True):
     )
     document: Document = Relationship()
 
-    progress: Optional[float] = None
-
-    assigned_worker_id: Optional[uuid.UUID] = Field(
-        foreign_key="worker.id", default=None
-    )
-    assigned_worker: Optional[Worker] = Relationship()
-    assigned_at: Optional[datetime.datetime] = None
-    last_keepalive: Optional[datetime.datetime] = None
     task_parameters: dict = Field(sa_column=Column(JSON(), nullable=False))
 
-    is_completed: bool = Field(default=False)
-    completed_at: Optional[datetime.datetime] = None
-    completion_data: Optional[Dict] = Field(
-        sa_column=Column(JSON(), nullable=True), default=None
+    state: TaskState = TaskState.NEW
+    state_changed_at: datetime.datetime = Field(default_factory=now_tz_aware)
+
+    attempts: List["TaskAttempt"] = Relationship(
+        sa_relationship_kwargs={
+            "cascade": "all,delete",
+            "primaryjoin": "TaskAttempt.task_id == Task.id",
+        },
     )
+
+    current_attempt_id: Optional[uuid.UUID] = Field(
+        sa_column=Column(
+            GUID, ForeignKey("taskattempt.id", ondelete="SET NULL", use_alter=True)
+        ),
+    )
+    current_attempt: Optional["TaskAttempt"] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "Task.current_attempt_id == TaskAttempt.id",
+            "post_update": True,
+        }
+    )
+
+    attempt_counter: int = 0
+    remaining_attempts: int = Field(default=settings.task_attempt_limit)
 
     dependencies: List["Task"] = Relationship(
         back_populates="dependants",
@@ -83,26 +103,65 @@ class Task(TaskBase, table=True):
     )
 
 
+class TaskAttempt(SQLModel, table=True):
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+
+    task_id: uuid.UUID = Field(
+        sa_column=Column(GUID, ForeignKey(Task.id, ondelete="CASCADE"), nullable=False),
+        unique=False,
+    )
+    task: Task = Relationship(
+        back_populates="attempts",
+        sa_relationship_kwargs={
+            "primaryjoin": "TaskAttempt.task_id == Task.id",
+        },
+    )
+
+    assigned_worker_id: Optional[uuid.UUID] = Field(
+        foreign_key="worker.id", default=None
+    )
+    assigned_worker: Optional[Worker] = Relationship()
+
+    attempt_number: int
+    started_at: Optional[datetime.datetime] = None
+    last_keepalive: Optional[datetime.datetime] = None
+    ended_at: Optional[datetime.datetime] = None
+
+    progress: Optional[float] = None
+
+    extra_data: Optional[dict] = Field(
+        sa_column=Column(JSON(), nullable=True), default=None
+    )
+
+
+class TaskAttemptResponse(SQLModel):
+    progress: Optional[float]
+
+
 class TaskResponse(TaskBase):
     id: uuid.UUID
-    progress: Optional[float]
-    is_completed: bool
-    completed_at: Optional[datetime.datetime] = None
-    assigned_at: Optional[datetime.datetime] = None
+    state: TaskState
     dependencies: List[uuid.UUID]
+    current_attempt: Optional[TaskAttemptResponse]
 
     @classmethod
     def from_orm(cls, task: Task, update={}) -> Self:
         return super().from_orm(
             task,
-            update={"dependencies": [x.id for x in task.dependencies], **update},
+            update={
+                "dependencies": [x.id for x in task.dependencies],
+                **update,
+            },
         )
 
 
 class AssignedTaskResponse(TaskResponse):
-    assigned_worker: WorkerBase
     document: ApiDocument
-    last_keepalive: datetime.datetime
 
     @classmethod
     def from_orm(cls, task: Task) -> Self:

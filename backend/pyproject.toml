@@ -49,6 +49,7 @@ migrate = "alembic upgrade head"
 makemigrations = "alembic revision --autogenerate -m"
 create_user = "scripts/create_user.py"
 create_worker = "scripts/create_worker.py"
+reset_task = "scripts/reset_task.py"
 generate_openapi = "python -m scripts.generate_openapi"
 test = "pytest tests/"
 

@@ -53,6 +53,10 @@ export interface paths {
     /** Mark Completed */
     post: operations["mark_completed_api_v1_tasks__task_id__mark_completed__post"];
   };
+  "/api/v1/tasks/{task_id}/mark_failed/": {
+    /** Mark Failed */
+    post: operations["mark_failed_api_v1_tasks__task_id__mark_failed__post"];
+  };
   "/api/v1/users/create/": {
     /** Create User Req */
     post: operations["create_user_req_api_v1_users_create__post"];
@@ -93,17 +97,7 @@ export interface components {
     };
     /** AssignedTaskResponse */
     AssignedTaskResponse: {
-      /**
-       * Assigned At
-       * Format: date-time
-       */
-      assigned_at?: string;
-      assigned_worker: components["schemas"]["WorkerBase"];
-      /**
-       * Completed At
-       * Format: date-time
-       */
-      completed_at?: string;
+      current_attempt?: components["schemas"]["TaskAttemptResponse"];
       /** Dependencies */
       dependencies: (string)[];
       document: components["schemas"]["Document"];
@@ -117,15 +111,7 @@ export interface components {
        * Format: uuid
        */
       id: string;
-      /** Is Completed */
-      is_completed: boolean;
-      /**
-       * Last Keepalive
-       * Format: date-time
-       */
-      last_keepalive: string;
-      /** Progress */
-      progress?: number;
+      state: components["schemas"]["TaskState"];
       /** Task Parameters */
       task_parameters: Record<string, never>;
       task_type: components["schemas"]["TaskType"];
@@ -220,18 +206,14 @@ export interface components {
        */
       task_type?: "IDENTIFY_SPEAKERS";
     };
+    /** TaskAttemptResponse */
+    TaskAttemptResponse: {
+      /** Progress */
+      progress?: number;
+    };
     /** TaskResponse */
     TaskResponse: {
-      /**
-       * Assigned At
-       * Format: date-time
-       */
-      assigned_at?: string;
-      /**
-       * Completed At
-       * Format: date-time
-       */
-      completed_at?: string;
+      current_attempt?: components["schemas"]["TaskAttemptResponse"];
       /** Dependencies */
       dependencies: (string)[];
       /**
@@ -244,14 +226,17 @@ export interface components {
        * Format: uuid
        */
       id: string;
-      /** Is Completed */
-      is_completed: boolean;
-      /** Progress */
-      progress?: number;
+      state: components["schemas"]["TaskState"];
       /** Task Parameters */
       task_parameters: Record<string, never>;
       task_type: components["schemas"]["TaskType"];
     };
+    /**
+     * TaskState
+     * @description An enumeration.
+     * @enum {unknown}
+     */
+    TaskState: "NEW" | "ASSIGNED" | "COMPLETED" | "FAILED";
     /**
      * TaskType
      * @description An enumeration.
@@ -300,16 +285,6 @@ export interface components {
       msg: string;
       /** Error Type */
       type: string;
-    };
-    /** WorkerBase */
-    WorkerBase: {
-      /**
-       * Last Seen
-       * Format: date-time
-       */
-      last_seen?: string;
-      /** Name */
-      name: string;
     };
   };
   responses: never;
@@ -654,6 +629,36 @@ export interface operations {
   };
   /** Mark Completed */
   mark_completed_api_v1_tasks__task_id__mark_completed__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        task_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": Record<string, never>;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AssignedTaskResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Mark Failed */
+  mark_failed_api_v1_tasks__task_id__mark_failed__post: {
     parameters: {
       header: {
         authorization: string;
