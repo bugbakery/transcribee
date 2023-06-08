@@ -58,6 +58,9 @@ async def async_task(generator, *args, **kwargs):
     while run:
         done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
         for fut in done:
+            if fut.exception() is not None:
+                for p in pending:
+                    p.cancel()
             value = fut.result()
             if isinstance(value, WorkDoneToken):
                 run = False
