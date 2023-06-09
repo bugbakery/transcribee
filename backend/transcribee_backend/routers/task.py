@@ -174,8 +174,10 @@ def mark_failed(
     task.current_attempt.ended_at = now
     task.current_attempt.last_keepalive = now
     task.current_attempt.extra_data = extra_data
+    session.add(task.current_attempt)
     task.state = TaskState.NEW
     task.state_changed_at = now
+    task.current_attempt = None
     session.add(task)
     session.commit()
     return AssignedTaskResponse.from_orm(task)
