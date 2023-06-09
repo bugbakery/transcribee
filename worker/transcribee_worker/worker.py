@@ -2,6 +2,7 @@ import logging
 import mimetypes
 import tempfile
 import time
+import traceback
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
@@ -253,14 +254,20 @@ class Worker:
         )
 
     def mark_completed(self, task_id: str, additional_data: Optional[dict] = None):
-        completion_data = {**self._result_data}
+        extra_data = {**self._result_data}
         if additional_data:
-            completion_data.update(additional_data)
-        body = {
-            "completion_data": completion_data if completion_data is not None else {}
-        }
+            extra_data.update(additional_data)
+        body = {"extra_data": extra_data if extra_data is not None else {}}
         logging.debug(f"Marking task as completed {task_id=} {body=}")
         self.api_client.post(f"tasks/{task_id}/mark_completed/", json=body)
+
+    def mark_failed(self, task_id: str, additional_data: Optional[dict] = None):
+        extra_data = {**self._result_data}
+        if additional_data:
+            extra_data.update(additional_data)
+        body = {"extra_data": extra_data if extra_data is not None else {}}
+        logging.debug(f"Marking task as completed {task_id=} {body=}")
+        self.api_client.post(f"tasks/{task_id}/mark_failed/", json=body)
 
     def _set_progress(
         self, task_id: str, step: str, progress: Optional[float], extra_data: Any = None
@@ -294,6 +301,7 @@ class Worker:
                 no_work = True
         except Exception as exc:
             logging.warning("Worker failed with exception", exc_info=exc)
+            self.mark_failed(task.id, {"exception": traceback.format_exception(exc)})
 
         logging.debug("run_task() done :)")
         return no_work
