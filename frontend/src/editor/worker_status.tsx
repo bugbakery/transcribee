@@ -33,11 +33,21 @@ function getColor(task: Task | null, dark: boolean): string {
   return (str && color_map[str]) || color_map['DEFAULT'];
 }
 
+function getWorkerStatusString(isWorking: boolean, isFailed: boolean): string {
+  if (isFailed) {
+    return 'failed';
+  } else if (isWorking) {
+    return 'working';
+  } else {
+    return 'idle';
+  }
+}
 export function WorkerStatus({ documentId }: { documentId: string }) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
 
   const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
   const isWorking = data?.some((task) => task.state !== 'COMPLETED');
+  const isFailed = data?.some((task) => task.state == 'FAILED');
 
   const yPositionsText = data?.map((_, i) => i * 40 + 20);
   const yPositionsCircles = data?.map((_, i) => i * 40 + 14);
@@ -52,9 +62,10 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
       button={
         <IconButton
           icon={BsRobot}
-          label={`worker status (${isWorking ? 'working' : 'idle'})`}
+          label={`worker status (${getWorkerStatusString(isWorking, isFailed)})`}
           className={clsx({
-            'animate-rainbow': isWorking,
+            'animate-rainbow': isWorking && !isFailed,
+            'text-red-500': isFailed,
           })}
         />
       }
