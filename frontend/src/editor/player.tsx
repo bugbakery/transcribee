@@ -136,6 +136,11 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
     onShortClick: () => waveSurferRef.current?.skipForward(SKIP_BUTTON_SEC),
   });
 
+  const setPlaybackRate = useCallback(
+    (v: number) => waveSurferRef.current?.setPlaybackRate(v),
+    [waveSurferRef.current],
+  );
+
   // if we don't know the path of the audio file yet, we can't start to render
   if (!audioFile) return <></>;
 
@@ -199,7 +204,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           </WaveSurfer>
         </div>
 
-        <PlaybackSpeedDropdown onChange={(v) => waveSurferRef.current?.setPlaybackRate(v)} />
+        <PlaybackSpeedDropdown onChange={setPlaybackRate} />
       </div>
 
       <div className="pb-24" />
@@ -216,6 +221,9 @@ function PlaybackSpeedDropdown({ onChange }: { onChange: (v: number) => void }) 
   const possibleRates = [0.5, 0.7, 1.0, 1.2, 1.5, 1.7, 2.0];
 
   const [value, setValue] = useLocalStorage('playbackSpeed', 1.0);
+  useEffect(() => {
+    onChange(value);
+  }, [onChange]);
 
   return (
     <select
