@@ -5,7 +5,7 @@ import {
   RenderElementProps,
   RenderLeafProps,
   ReactEditor,
-  useSlate,
+  useSlateSelector,
 } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
@@ -16,7 +16,7 @@ import { CSSProperties, ComponentProps, useContext, useCallback, memo } from 're
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { createPortal } from 'react-dom';
-import { getSpeakerName } from '../utils/document';
+import { useDocumentSelector, useSpeakerName } from '../utils/document';
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
@@ -53,15 +53,19 @@ export function calculateParagraphIdxOfSpeakerEnd(editor: Editor, idx: number): 
   return speakerEndIdx;
 }
 
-function renderElement({ element, children, attributes }: RenderElementProps): JSX.Element {
+function Paragraph({ element, children, attributes }: RenderElementProps): JSX.Element {
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
 
-  const editor = useSlate();
+  const idx = useSlateSelector((editor) => ReactEditor.findPath(editor, element)[0]);
+  const speakerEndIdx = useSlateSelector((editor) =>
+    calculateParagraphIdxOfSpeakerEnd(editor, idx),
+  );
+  const speakerChanged = useDocumentSelector(
+    (doc) => idx == 0 || doc.children[idx - 1].speaker != element.speaker,
+  );
 
-  const idx = ReactEditor.findPath(editor, element)[0];
-  const speakerEndIdx = calculateParagraphIdxOfSpeakerEnd(editor, idx);
-  const speakerChanged = idx == 0 || editor.doc.children[idx - 1].speaker != element.speaker;
+  const speakerName = useSpeakerName(element.speaker);
 
   let portalNode = document.getElementById('meta-portal');
   if (portalNode == null) {
@@ -134,7 +138,7 @@ function renderElement({ element, children, attributes }: RenderElementProps): J
             'xl:pr-3',
           )}
         >
-          {getSpeakerName(element.speaker, editor.doc.speaker_names)}
+          {speakerName}
         </div>
       )}
       <SpeakerDropdown
@@ -269,7 +273,7 @@ export function TranscriptionEditor({
       >
         <SpeakerColorsProvider>
           <Editable
-            renderElement={renderElement}
+            renderElement={Paragraph}
             renderLeaf={useCallback(
               (props: RenderLeafProps) => {
                 const { leaf, children, attributes } = props;

@@ -1,5 +1,5 @@
 import { ComponentProps, useContext, useCallback } from 'react';
-import { ReactEditor, useSlate } from 'slate-react';
+import { ReactEditor, useSlateStatic } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
 
 import { Document, Paragraph } from './types';
@@ -7,7 +7,7 @@ import { PrimaryButton, SecondaryButton } from '../components/button';
 import { IoIosAdd, IoIosCreate, IoIosTrash } from 'react-icons/io';
 import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
 import { Input } from '../components/form';
-import { getSpeakerName, useSpeakerNames } from '../utils/document';
+import { getSpeakerName, useSpeakerName, useSpeakerNames } from '../utils/document';
 import { showModal, Modal } from '../components/modal';
 import { SpeakerColorsContext } from './speaker_colors';
 import { Editor, Transforms } from 'slate';
@@ -116,10 +116,9 @@ export function SpeakerDropdown({
   paragraph,
   ...props
 }: { paragraph: Paragraph } & Omit<ComponentProps<typeof Dropdown>, 'label'>) {
-  const editor = useSlate();
+  const editor = useSlateStatic();
+  const name = useSpeakerName(paragraph.speaker, editor);
 
-  const elementPath = ReactEditor.findPath(editor, paragraph);
-  const doc: Automerge.Doc<Document> = editor.doc;
   const renameSpeaker = () => {
     const speaker = paragraph.speaker;
     if (speaker !== null) {
@@ -127,7 +126,7 @@ export function SpeakerDropdown({
         <SpeakerNameModal
           label="Rename Speaker"
           onClose={() => showModal(null)}
-          initialValue={getSpeakerName(paragraph.speaker, doc.speaker_names)}
+          initialValue={name}
           selectedCallback={(speakerName) => {
             changeSpeakerName(editor, speaker, speakerName);
 
@@ -151,13 +150,17 @@ export function SpeakerDropdown({
         initialValue=""
         selectedCallback={(speakerName) => {
           if (!speakerName) return;
+          const elementPath = ReactEditor.findPath(editor, paragraph);
           const speakerId = addNewSpeaker(editor, speakerName);
           setSpeaker(editor, elementPath, speakerId);
         }}
       />,
     );
   };
-  const unsetSpeaker = () => setSpeaker(editor, elementPath, null);
+  const unsetSpeaker = () => {
+    const elementPath = ReactEditor.findPath(editor, paragraph);
+    setSpeaker(editor, elementPath, null);
+  };
 
   return (
     <Dropdown
@@ -167,7 +170,10 @@ export function SpeakerDropdown({
     >
       <SpeakerNamesSection
         editor={editor}
-        onSpeakerSelected={(speakerId) => setSpeaker(editor, elementPath, speakerId)}
+        onSpeakerSelected={(speakerId) => {
+          const elementPath = ReactEditor.findPath(editor, paragraph);
+          setSpeaker(editor, elementPath, speakerId);
+        }}
         currentSpeaker={paragraph.speaker}
       >
         <DropdownItem icon={IoIosAdd} onClick={addSpeaker}>
