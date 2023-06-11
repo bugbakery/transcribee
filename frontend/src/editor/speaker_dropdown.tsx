@@ -39,7 +39,7 @@ function SpeakerNamesSection({
             className="absolute top-1 w-2 h-[calc(100%-8px)] ml-1.5 rounded-xl"
             style={{ background: speakerColors[k] }}
           />
-          <div className="text-left ml-5">{v}</div>
+          <div className="text-left ml-5 break-word">{v}</div>
         </DropdownItem>
       ))}
       {props.children}
