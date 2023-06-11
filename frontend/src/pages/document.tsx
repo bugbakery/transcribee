@@ -13,13 +13,13 @@ import { PlayerBar } from '../editor/player';
 import { useDebugMode } from '../debugMode';
 import clsx from 'clsx';
 import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_editor';
-import { WebvttExportModal } from '../editor/webvtt_export';
 import { showModal } from '../components/modal';
 import { Tooltip } from '../components/tooltip';
 import { Version } from '../common/version';
 import { Input } from '../components/form';
 import { BiPencil } from 'react-icons/bi';
 import { SubmitHandler, useForm } from 'react-hook-form';
+import { ExportModal } from '../editor/export/export_modal';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -165,7 +165,13 @@ export function DocumentPage({
               icon={TbFileExport}
               label={'export...'}
               onClick={() => {
-                showModal(<WebvttExportModal editor={editor} onClose={() => showModal(null)} />);
+                showModal(
+                  <ExportModal
+                    editor={editor}
+                    onClose={() => showModal(null)}
+                    outputBaseName={data?.name}
+                  />,
+                );
               }}
               disabled={!canGenVtt.canGenerate}
             />

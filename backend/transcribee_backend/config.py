@@ -12,9 +12,14 @@ class Settings(BaseSettings):
     media_signature_max_age = 3600  # in seconds
     task_attempt_limit = 5
 
+    debug_mode = False
+
     media_url_base = "http://localhost:8000/"
 
     model_config_path: Path = Path("data/models.json")
+
+    class Config:
+        env_file = ".env"
 
 
 class ModelConfig(BaseModel):
@@ -25,6 +30,7 @@ class ModelConfig(BaseModel):
 
 class PublicConfig(BaseModel):
     models: Dict[str, ModelConfig]
+    debug_mode: bool
 
 
 def get_model_config():
@@ -32,7 +38,7 @@ def get_model_config():
 
 
 def get_public_config():
-    return PublicConfig(models=get_model_config())
+    return PublicConfig(models=get_model_config(), debug_mode=settings.debug_mode)
 
 
 settings = Settings()

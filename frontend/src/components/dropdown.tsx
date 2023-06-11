@@ -6,6 +6,7 @@ import { IconType } from 'react-icons';
 import { useOnClickOutside } from '../utils/use_on_click_outside';
 import { useStateDelayed } from '../utils/use_state_delayed';
 import { IoIosArrowDown } from 'react-icons/io';
+import { IconButton } from './button';
 
 export function DropdownSection({
   children,
@@ -129,6 +130,58 @@ export function Dropdown({
             )}
             aria-hidden={!show}
             style={{ width: bounds.width }}
+          >
+            {show.prolonged && children}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function IconDropdown({
+  children,
+  icon,
+  ...props
+}: {
+  children?: ReactNode;
+  icon: IconType;
+} & ComponentProps<'div'>) {
+  const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
+
+  const [show, setShow] = useStateDelayed(false);
+  useOnClickOutside(referenceElement, () => {
+    setShow(false);
+  });
+
+  return (
+    <div
+      {...props}
+      ref={(ref) => {
+        setReferenceElement(ref);
+      }}
+      onClick={() => {
+        setShow(!show.now);
+      }}
+      className={clsx('relative', props.className)}
+    >
+      <IconButton icon={icon} label={'more'} onClick={(e) => e.preventDefault()}></IconButton>
+
+      {show.prolonged && (
+        <div className={clsx('absolute right-0 z-10 my-1 min-w-max')}>
+          <div
+            className={clsx(
+              'bg-white dark:bg-neutral-900',
+              'border-2 border-black dark:border-neutral-200',
+              'shadow-brutal shadow-slate-400 dark:shadow-neutral-600',
+              'rounded-lg',
+              'divide-y divide-black dark:divide-neutral-200',
+              `bottom-full`,
+              'transition-scale duration-100',
+              `origin-top-right`,
+              show.late ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none',
+            )}
+            aria-hidden={!show}
           >
             {show.prolonged && children}
           </div>

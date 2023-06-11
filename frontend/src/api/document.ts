@@ -24,3 +24,8 @@ export const updateDocument = fetcher
   .path('/api/v1/documents/{document_id}/')
   .method('patch', 'application/json')
   .create();
+
+export const replaceChanges = fetcher
+  .path('/api/v1/documents/{document_id}/replace_changes/')
+  .method('post', 'multipart/form-data')
+  .create();

@@ -55,7 +55,7 @@
     "@fontsource/inter": "^4.5.15",
     "@popperjs/core": "^2.11.7",
     "clsx": "^1.2.1",
-    "openapi-typescript-fetch": "github:transcribee/openapi-typescript-fetch#content-type",
+    "openapi-typescript-fetch": "github:bugbakery/openapi-typescript-fetch#pajowu/list_file_field",
     "react": "^18.2.0",
     "react-base16-styling": "^0.9.1",
     "react-dom": "^18.2.0",

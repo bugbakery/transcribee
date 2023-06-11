@@ -95,6 +95,18 @@ components:
       - file
       title: Body_create_document_api_v1_documents__post
       type: object
+    Body_replace_changes_api_v1_documents__document_id__replace_changes__post:
+      properties:
+        document_updates:
+          items:
+            format: binary
+            type: string
+          title: Document Updates
+          type: array
+      required:
+      - document_updates
+      title: Body_replace_changes_api_v1_documents__document_id__replace_changes__post
+      type: object
     ChangePasswordRequest:
       properties:
         new_password:
@@ -168,12 +180,12 @@ components:
       - tags
       title: DocumentMedia
       type: object
-    DocumentUpdate:
+    DocumentUpdateRequest:
       properties:
         name:
           title: Name
           type: string
-      title: DocumentUpdate
+      title: DocumentUpdateRequest
       type: object
     HTTPValidationError:
       properties:
@@ -221,6 +233,9 @@ components:
       type: object
     PublicConfig:
       properties:
+        debug_mode:
+          title: Debug Mode
+          type: boolean
         models:
           additionalProperties:
             $ref: '#/components/schemas/ModelConfig'
@@ -228,6 +243,7 @@ components:
           type: object
       required:
       - models
+      - debug_mode
       title: PublicConfig
       type: object
     SetDurationRequest:
@@ -391,7 +407,7 @@ components:
 info:
   title: FastAPI
   version: 0.1.0
-openapi: 3.0.2
+openapi: 3.1.0
 paths:
   /:
     get:
@@ -550,7 +566,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DocumentUpdate'
+              $ref: '#/components/schemas/DocumentUpdateRequest'
         required: true
       responses:
         '200':
@@ -603,6 +619,42 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Add Media File
+  /api/v1/documents/{document_id}/replace_changes/:
+    post:
+      operationId: replace_changes_api_v1_documents__document_id__replace_changes__post
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_replace_changes_api_v1_documents__document_id__replace_changes__post'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Replace Changes
   /api/v1/documents/{document_id}/set_duration/:
     post:
       operationId: set_duration_api_v1_documents__document_id__set_duration__post

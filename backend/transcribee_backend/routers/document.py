@@ -19,7 +19,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from pydantic.error_wrappers import ErrorWrapper
 from sqlalchemy.sql.expression import desc
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 from transcribee_proto.api import Document as ApiDocument
 
 from transcribee_backend.auth import (
@@ -38,6 +38,7 @@ from ..models import (
     Document,
     DocumentMediaFile,
     DocumentMediaTag,
+    DocumentUpdate,
     Task,
     TaskType,
     UserToken,
@@ -337,13 +338,13 @@ def set_duration(
     return doc.as_api_document()
 
 
-class DocumentUpdate(BaseModel):
+class DocumentUpdateRequest(BaseModel):
     name: Optional[str] = None
 
 
 @document_router.patch("/{document_id}/")
 def update_document(
-    update: DocumentUpdate,
+    update: DocumentUpdateRequest,
     document: Document = Depends(get_document_from_url),
     session: Session = Depends(get_session),
 ) -> ApiDocument:
@@ -354,3 +355,27 @@ def update_document(
     session.commit()
 
     return document.as_api_document()
+
+
+def ensure_debug_mode():
+    if not settings.debug_mode:
+        raise HTTPException(404)
+
+
+@document_router.post("/{document_id}/replace_changes/")
+def replace_changes(
+    _debug_mode: None = Depends(ensure_debug_mode),
+    document_updates: List[UploadFile] = File(),
+    document: Document = Depends(get_document_from_url),
+    session: Session = Depends(get_session),
+):
+    session.execute(
+        delete(DocumentUpdate).where(DocumentUpdate.document_id == document.id)
+    )
+    for document_update in document_updates:
+        session.add(
+            DocumentUpdate(
+                document_id=document.id, change_bytes=document_update.file.read()
+            )
+        )
+    session.commit()

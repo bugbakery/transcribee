@@ -31,6 +31,10 @@ export interface paths {
     /** Add Media File */
     post: operations["add_media_file_api_v1_documents__document_id__add_media_file__post"];
   };
+  "/api/v1/documents/{document_id}/replace_changes/": {
+    /** Replace Changes */
+    post: operations["replace_changes_api_v1_documents__document_id__replace_changes__post"];
+  };
   "/api/v1/documents/{document_id}/set_duration/": {
     /** Set Duration */
     post: operations["set_duration_api_v1_documents__document_id__set_duration__post"];
@@ -152,6 +156,11 @@ export interface components {
       /** Name */
       name: string;
     };
+    /** Body_replace_changes_api_v1_documents__document_id__replace_changes__post */
+    Body_replace_changes_api_v1_documents__document_id__replace_changes__post: {
+      /** Document Updates */
+      document_updates: (string)[];
+    };
     /** ChangePasswordRequest */
     ChangePasswordRequest: {
       /** New Password */
@@ -188,8 +197,8 @@ export interface components {
       /** Url */
       url: string;
     };
-    /** DocumentUpdate */
-    DocumentUpdate: {
+    /** DocumentUpdateRequest */
+    DocumentUpdateRequest: {
       /** Name */
       name?: string;
     };
@@ -219,6 +228,8 @@ export interface components {
     };
     /** PublicConfig */
     PublicConfig: {
+      /** Debug Mode */
+      debug_mode: boolean;
       /** Models */
       models: {
         [key: string]: components["schemas"]["ModelConfig"] | undefined;
@@ -470,7 +481,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["DocumentUpdate"];
+        "application/json": components["schemas"]["DocumentUpdateRequest"];
       };
     };
     responses: {
@@ -508,6 +519,36 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["Document"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Replace Changes */
+  replace_changes_api_v1_documents__document_id__replace_changes__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_replace_changes_api_v1_documents__document_id__replace_changes__post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
         };
       };
       /** @description Validation Error */

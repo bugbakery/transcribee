@@ -44,6 +44,21 @@ the following steps:
 > docker run -it -p 5173:5173 --mount type=bind,source="$(pwd)",target=/app transcribee:latest
 > ```
 
+## Debug Mode
+
+Some features are only available in debug mode.
+To enable this mode, set the `DEBUG_MODE` environment variable to `true`.
+
+```
+DEBUG_MODE=true ./packaging/dev.sh
+```
+
+or
+
+```
+docker run -it -p 5173:5173 -e DEBUG_MODE=true --mount type=bind,source="$(pwd)",target=/app transcribee:latest
+```
+
 ## Extended setup
 
 If you do more development on transcribee, you may wish to do the following things:
