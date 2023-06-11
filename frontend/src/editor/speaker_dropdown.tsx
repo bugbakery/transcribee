@@ -1,5 +1,4 @@
 import { ComponentProps, useContext, useCallback } from 'react';
-import { Editor } from 'slate';
 import { ReactEditor, useSlate } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
 
