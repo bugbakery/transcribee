@@ -127,18 +127,26 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
         <div
           contentEditable={false}
           className={clsx(
-            'sticky top-0',
-            '-mt-[0.1rem] py-1 mr-1',
-            'max-w-none break-all text-neutral-400',
-            'text-sm font-semibold',
-            'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
-            'hidden md:block bg-white dark:bg-neutral-900',
-            'row-start-[calc(var(--element-idx)*3+1)] col-start-2',
-            'xl:row-start-[calc(var(--element-idx)*3+1)]',
-            'xl:pr-3',
+            'hidden md:block',
+            'col-start-2 h-full',
+            'row-start-[calc(var(--element-idx)*3+1)]',
+            'row-end-[calc(var(--current-speaker-end-idx)*3+3)]',
+            'overflow-clip',
           )}
         >
-          {speakerName}
+          <div
+            className={clsx(
+              'sticky top-0',
+              '-mt-[0.1rem] py-1 mr-1',
+              'max-w-none break-all text-neutral-400',
+              'text-sm font-semibold',
+              'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
+              'bg-white dark:bg-neutral-900',
+              'xl:pr-3',
+            )}
+          >
+            {speakerName}
+          </div>
         </div>
       )}
       <SpeakerDropdown
@@ -156,7 +164,6 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
           'row-start-[calc(var(--element-idx)*3+1)] col-start-4',
           '-mt-0.5 xl:mt-0',
           'md:col-start-2 md:-ml-2',
-          'xl:row-start-[calc(var(--element-idx)*3+1)]',
         )}
       />
 
