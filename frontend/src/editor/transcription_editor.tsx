@@ -138,7 +138,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
             className={clsx(
               'sticky top-0',
               '-mt-[0.1rem] py-1 mr-1',
-              'max-w-none break-all text-neutral-400',
+              'max-w-none break-all text-neutral-500',
               'text-sm font-semibold',
               'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
               'bg-white dark:bg-neutral-900',
@@ -153,7 +153,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
         contentEditable={false}
         paragraph={element}
         buttonClassName={clsx(
-          'max-w-none break-all text-neutral-400',
+          'max-w-none break-all text-neutral-500',
           'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
           'xl:pr-2',
           'md:opacity-0 md:hover:opacity-100',
