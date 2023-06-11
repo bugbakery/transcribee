@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -23,3 +24,6 @@ engine = create_engine(DATABASE_URL, connect_args=connect_args)
 def get_session():
     with Session(engine) as session:
         yield session
+
+
+SessionContextManager = contextmanager(get_session)
