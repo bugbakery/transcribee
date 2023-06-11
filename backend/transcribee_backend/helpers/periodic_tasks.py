@@ -5,7 +5,7 @@ from typing import Callable
 from starlette.concurrency import run_in_threadpool
 
 
-async def repeat(func: Callable, seconds: int):
+async def run_periodic(func: Callable, seconds: int):
     is_coroutine = asyncio.iscoroutinefunction(func)
 
     while True:

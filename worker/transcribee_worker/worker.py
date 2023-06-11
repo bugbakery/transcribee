@@ -1,10 +1,12 @@
+import asyncio
 import logging
 import mimetypes
 import tempfile
 import time
 import traceback
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, AsyncGenerator, Optional, Tuple
 
 import automerge
 import numpy.typing as npt
@@ -64,6 +66,7 @@ class Worker:
     token: str
     tmpdir: Optional[Path]
     task_types: list[TaskType]
+    progress: Optional[float]
 
     def __init__(
         self,
@@ -280,7 +283,28 @@ class Worker:
                 "timestamp": time.time(),
             }
         )
-        self.keepalive(task_id, progress)
+        self.progress = progress
+
+    @asynccontextmanager
+    async def keepalive_task(
+        self, task_id: str, seconds: float
+    ) -> AsyncGenerator[None, None]:
+        stop_event = asyncio.Event()
+
+        async def _work():
+            while not stop_event.is_set():
+                try:
+                    self.keepalive(task_id, self.progress)
+                except Exception as exc:
+                    logging.error("Keepliave failed", exc_info=exc)
+                await asyncio.sleep(seconds)
+
+        task = asyncio.create_task(_work())
+
+        yield
+
+        stop_event.set()
+        await task
 
     async def run_task(self, mark_completed=True):
         task = self.claim_task()
@@ -289,12 +313,16 @@ class Worker:
 
         try:
             if task is not None:
+                self.progress = None
                 with tempfile.TemporaryDirectory() as tmpdir:
-                    self.tmpdir = Path(tmpdir)
-                    task_result = await self.perform_task(task)
-                    logging.info(f"Worker returned: {task_result=}")
-                    if mark_completed:
-                        self.mark_completed(task.id, {"result": task_result})
+                    async with self.keepalive_task(
+                        task.id, settings.KEEPALIVE_INTERVAL
+                    ):
+                        self.tmpdir = Path(tmpdir)
+                        task_result = await self.perform_task(task)
+                        logging.info(f"Worker returned: {task_result=}")
+                        if mark_completed:
+                            self.mark_completed(task.id, {"result": task_result})
                 self.tmpdir = None
             else:
                 logging.info("Got no task, not running worker")
