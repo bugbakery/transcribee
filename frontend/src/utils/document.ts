@@ -24,17 +24,14 @@ export function useDocumentSelector<T>(
   const theEditor = editor ?? useSlateStatic();
   const [value, setValue] = useState(() => selector(theEditor.doc));
   const valueRef = useRef(value);
-  const theSelector = useCallback(
-    (doc: Document) => {
-      const newValue = selector(doc);
-      const update = eq !== undefined ? !eq(valueRef.current, newValue) : true;
-      if (update) {
-        valueRef.current = newValue;
-        setValue(newValue);
-      }
-    },
-    [selector, eq],
-  );
+  const theSelector = (doc: Document) => {
+    const newValue = selector(doc);
+    const update = eq !== undefined ? !eq(valueRef.current, newValue) : true;
+    if (update) {
+      valueRef.current = newValue;
+      setValue(newValue);
+    }
+  };
 
   useEffect(() => {
     theSelector(theEditor.doc);
