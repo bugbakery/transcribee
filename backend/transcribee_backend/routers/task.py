@@ -4,10 +4,10 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.operators import is_
-from sqlmodel import Session, col, or_, select
+from sqlmodel import Session, col, select
 from transcribee_backend.auth import get_authorized_task, get_authorized_worker
-from transcribee_backend.config import settings
 from transcribee_backend.db import get_session
+from transcribee_backend.helpers.tasks import finish_current_attempt
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.task import TaskState
 from transcribee_proto.api import KeepaliveBody
@@ -41,24 +41,6 @@ def create_task(
     return TaskResponse.from_orm(db_task)
 
 
-def finish_current_attempt(
-    session: Session, task: Task, now: Optional[datetime.datetime] = None
-):
-    if now is None:
-        now = now_tz_aware()
-    attempt = task.current_attempt
-    if attempt is not None:
-        attempt.ended_at = now
-        session.add(attempt)
-
-
-def mark_task_as_failed(session: Session, task: Task, now: datetime.datetime):
-    task.state = TaskState.FAILED
-    task.state_changed_at = now
-    finish_current_attempt(session, task, now)
-    session.add(task)
-
-
 def get_ready_task(session: Session, task_type: List[TaskType]) -> Optional[Task]:
     taskalias = aliased(Task)
     blocking_tasks_exist = (
@@ -77,14 +59,7 @@ def get_ready_task(session: Session, task_type: List[TaskType]) -> Optional[Task
         select(Task)
         .where(
             col(Task.task_type).in_(task_type),
-            or_(
-                is_(Task.current_attempt_id, None),
-                Task.current_attempt.has(
-                    TaskAttempt.last_keepalive
-                    < now_tz_aware()
-                    - datetime.timedelta(seconds=settings.worker_timeout)
-                ),
-            ),
+            is_(Task.current_attempt_id, None),
             ~(col(Task.state).in_([TaskState.COMPLETED, TaskState.FAILED])),
             ~blocking_tasks_exist,
         )
@@ -100,17 +75,10 @@ def claim_unassigned_task(
     task_type: List[TaskType] = Query(),
     now: datetime.datetime = Depends(now_tz_aware),
 ) -> Optional[AssignedTaskResponse]:
-    while True:
-        task = get_ready_task(session, task_type)
-        if task is None:
-            session.commit()  # We might have marked tasks as failed
-            return
-        elif task.remaining_attempts <= 0:
-            mark_task_as_failed(session, task, now)
-        else:
-            break
+    task = get_ready_task(session, task_type)
+    if task is None:
+        return
 
-    finish_current_attempt(session, task, now=now)
     attempt = TaskAttempt(
         task=task,
         started_at=now,
@@ -151,14 +119,9 @@ def mark_completed(
     task: Task = Depends(get_authorized_task),
     now: datetime.datetime = Depends(now_tz_aware),
 ) -> Optional[AssignedTaskResponse]:
-    task.current_attempt.ended_at = now
-    task.current_attempt.last_keepalive = now
-    task.current_attempt.extra_data = extra_data
-    session.add(task.current_attempt)
-    task.state = TaskState.COMPLETED
-    task.state_changed_at = now
-    session.add(task)
-    session.commit()
+    finish_current_attempt(
+        session=session, task=task, now=now, extra_data=extra_data, successful=True
+    )
     return AssignedTaskResponse.from_orm(task)
 
 
@@ -171,15 +134,10 @@ def mark_failed(
 ) -> Optional[AssignedTaskResponse]:
     now = now_tz_aware()
 
-    task.current_attempt.ended_at = now
-    task.current_attempt.last_keepalive = now
-    task.current_attempt.extra_data = extra_data
-    session.add(task.current_attempt)
-    task.state = TaskState.NEW
-    task.state_changed_at = now
-    task.current_attempt = None
-    session.add(task)
-    session.commit()
+    finish_current_attempt(
+        session=session, task=task, now=now, extra_data=extra_data, successful=False
+    )
+
     return AssignedTaskResponse.from_orm(task)
 
 
