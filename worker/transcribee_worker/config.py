@@ -24,6 +24,8 @@ class Settings(BaseSettings):
         },
     }
 
+    KEEPALIVE_INTERVAL: float = 0.5
+
     class Config:
         env_file = ".env"
 

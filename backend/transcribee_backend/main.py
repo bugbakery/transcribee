@@ -2,7 +2,8 @@ import asyncio
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from transcribee_backend.helpers.repeated_tasks import repeat
+from transcribee_backend.config import settings
+from transcribee_backend.helpers.periodic_tasks import run_periodic
 from transcribee_backend.helpers.tasks import timeout_attempts
 from transcribee_backend.routers.document import document_router
 from transcribee_backend.routers.task import task_router
@@ -37,5 +38,7 @@ app.get("/media/{file}")(serve_media)
 
 
 @app.on_event("startup")
-async def setup_repeating_tasks():
-    asyncio.create_task(repeat(timeout_attempts, seconds=30))
+async def setup_periodic_tasks():
+    asyncio.create_task(
+        run_periodic(timeout_attempts, seconds=min(30, settings.worker_timeout))
+    )
