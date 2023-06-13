@@ -15,20 +15,30 @@ repos:
       - id: trailing-whitespace
 
   # python checks
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        args: ["--profile", "black", "--filter-files"]
   - repo: https://github.com/psf/black
     rev: 23.1.0
     hooks:
       - id: black
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.0.272
     hooks:
-      - id: flake8
-        exclude: ^backend/.*/migrations/.*$
+      - id: ruff
+  - repo: local
+    hooks:
+      - id: backend-pyright
+        name: Run typechecker for backend
+        entry: pdm run -p backend/ pyright backend/transcribee_backend
+        language: system
+        files: backend/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: worker-pyright
+        name: Run typechecker for worker
+        entry: pdm run -p worker/ pyright worker/transcribee_worker
+        language: system
+        files: worker/.*
+        pass_filenames: false
   - repo: local
     hooks:
       - id: backend-openapi

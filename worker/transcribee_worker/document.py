@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import automerge
-import websockets
+from websockets.client import WebSocketClientProtocol
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
 
@@ -16,7 +16,9 @@ class UnsupportedDocumentVersion(Exception):
 
 class SyncedDocument:
     doc: automerge.Document
-    conn: websockets.WebSocketClientProtocol
+    conn: WebSocketClientProtocol
+    _stop: asyncio.Event
+    _discard_messages_task: asyncio.Task
 
     @classmethod
     async def create(cls, connection):
@@ -53,7 +55,7 @@ class SyncedDocument:
         self._stop.set()
 
     async def _preprocess_doc(self):
-        if self.doc.version is None:
+        if self.doc.version is None:  # type: ignore
             if automerge.dump(self.doc) == {}:
                 async with self.transaction("Initialize Document") as d:
                     if d.children is None:
@@ -64,7 +66,7 @@ class SyncedDocument:
             else:
                 raise UnsupportedDocumentVersion()
 
-        if self.doc.version > 2:
+        if self.doc.version > 2:  # type: ignore
             raise UnsupportedDocumentVersion()
 
     async def _get_document_state(self) -> automerge.Document:

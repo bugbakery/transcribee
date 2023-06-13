@@ -17,7 +17,7 @@ from fastapi import (
 )
 from pydantic import BaseModel
 from sqlalchemy.sql.expression import desc
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 from transcribee_backend.auth import (
     get_authorized_worker,
     validate_user_authorization,
@@ -92,7 +92,7 @@ def ws_get_document_from_url(
         return document
     if worker is not None:
         statement = select(Task).where(
-            Task.current_attempt.has(TaskAttempt.assigned_worker_id == worker.id),
+            col(Task.current_attempt).has(TaskAttempt.assigned_worker_id == worker.id),
             Task.document_id == document.id,
         )
         if session.exec(statement.limit(1)).one_or_none() is not None:
@@ -253,11 +253,12 @@ def add_media_file(
         Task.document_id == document_id, Task.task_type == TaskType.REENCODE
     )
     task = session.exec(statement).one_or_none()
-    if task is None:
-        raise HTTPException(status_code=403)
-
-    if task.current_attempt.assigned_worker != authorized_worker:
-        raise HTTPException(status_code=403)
+    if (
+        task is None
+        or task.current_attempt is None
+        or task.current_attempt.assigned_worker != authorized_worker
+    ):
+        raise HTTPException(status_code=404)
 
     stored_file = media_storage.store_file(file.file)
     file.file.seek(0)
@@ -295,11 +296,12 @@ def set_duration(
         Task.document_id == document_id, Task.task_type == TaskType.REENCODE
     )
     task = session.exec(statement).one_or_none()
-    if task is None:
-        raise HTTPException(status_code=403)
-
-    if task.current_attempt.assigned_worker != authorized_worker:
-        raise HTTPException(status_code=403)
+    if (
+        task is None
+        or task.current_attempt is None
+        or task.current_attempt.assigned_worker != authorized_worker
+    ):
+        raise HTTPException(status_code=404)
 
     doc = task.document
     doc.duration = body.duration
@@ -319,8 +321,8 @@ def update_document(
     document: Document = Depends(get_document_from_url),
     session: Session = Depends(get_session),
 ) -> ApiDocument:
-    update = update.dict(exclude_unset=True)
-    for key, value in update.items():
+    update_dict = update.dict(exclude_unset=True)
+    for key, value in update_dict.items():
         setattr(document, key, value)
     session.add(document)
     session.commit()

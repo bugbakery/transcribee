@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import requests
-import websockets
+from websockets.client import connect
 from transcribee_worker.document import SyncedDocument
 
 
@@ -38,7 +38,7 @@ class ApiClient:
     @asynccontextmanager
     async def document(self, id: str) -> AsyncGenerator[SyncedDocument, None]:
         params = urllib.parse.urlencode(self._get_headers())
-        async with websockets.connect(
+        async with connect(
             f"{self.websocket_base_url}{id}/?{params}", max_size=None
         ) as websocket:
             doc = await SyncedDocument.create(websocket)

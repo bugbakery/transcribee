@@ -57,9 +57,11 @@ def _transcription_work(
         rest_start = 0
         rest_conf_ts = 0
 
-        lang = lang_code
-        if lang in [None, "", "auto"]:
+        lang: str
+        if lang_code is None or lang_code in ["", "auto"]:
             lang = ctx.lang_id_to_str(ctx.full_lang_id())
+        else:
+            lang = lang_code
 
         while segment < ctx.full_n_segments():
             tokens = (
@@ -144,10 +146,11 @@ def _transcription_work(
             False
         )  # if False, feeds back already transcribed text back to the model
         .with_num_threads(4)
-        .with_language(lang_code)
         .with_max_segment_length(0)  # Unlimited segment length
         .with_token_timestamps(True)
     )
+    if lang_code is not None:
+        params = params.with_language(lang_code)
     params.on_new_segment(handle_new_segment, queue)
     if progress_callback is not None:
         params.on_progress(
