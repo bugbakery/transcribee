@@ -238,7 +238,10 @@ class Worker:
 
             tags = [f"profile:{profile}"] + [f"{k}:{v}" for k, v in parameters.items()]
 
-            self.add_document_media_file(task, output_path, tags)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None, self.add_document_media_file, task, output_path, tags
+            )
 
     def set_duration(self, task: AssignedTask, duration: float):
         logging.debug(
