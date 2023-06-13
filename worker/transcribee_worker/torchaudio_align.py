@@ -63,7 +63,7 @@ def load_model(language_code: str, device):
     else:
         try:
             processor = Wav2Vec2Processor.from_pretrained(model_name)
-            align_model = Wav2Vec2ForCTC.from_pretrained(model_name)
+            align_model: Wav2Vec2ForCTC = Wav2Vec2ForCTC.from_pretrained(model_name)  # type: ignore
         except Exception as e:
             print(e)
             print(
@@ -77,9 +77,10 @@ def load_model(language_code: str, device):
             )
         pipeline_type = "huggingface"
         align_model = align_model.to(device)
-        labels = processor.tokenizer.get_vocab()
+        tokenizer = processor.tokenizer  # type: ignore
+        labels = tokenizer.get_vocab()
         align_dictionary = {
-            char.lower(): code for char, code in processor.tokenizer.get_vocab().items()
+            char.lower(): code for char, code in tokenizer.get_vocab().items()
         }
 
     align_metadata = {
@@ -335,7 +336,7 @@ def backtrack(trellis, emission, tokens, blank_id=0):
     t_start = torch.argmax(trellis[:, j]).item()
 
     path = []
-    for t in range(t_start, 0, -1):
+    for t in range(t_start, 0, -1):  # type: ignore
         # 1. Figure out if the current position was stay or change
         # Note (again):
         # `emission[J-1]` is the emission at time frame `J` of trellis dimension.

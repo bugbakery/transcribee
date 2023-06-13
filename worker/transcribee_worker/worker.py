@@ -141,7 +141,7 @@ class Worker:
     async def perform_task(self, task: AssignedTask):
         logging.info(f"Running task: {task=}")
 
-        def progress_callback(*, progress, step="", extra_data=None):
+        def progress_callback(*, progress, step: Optional[str] = "", extra_data=None):
             step = f"{task.task_type}:{step}"
             self._set_progress(task.id, step, progress=progress, extra_data=extra_data)
 
@@ -226,12 +226,16 @@ class Worker:
         n_profiles = len(settings.REENCODE_PROFILES)
         for i, (profile, parameters) in enumerate(settings.REENCODE_PROFILES.items()):
             output_path = self._get_tmpfile(f"reencode_{profile}")
+
             await reencode(
                 document_audio,
                 output_path,
                 parameters,
-                lambda progress, extra_data: progress_callback(
-                    progress=(i + progress) / n_profiles, extra_data=extra_data
+                lambda *args, progress, **kwargs: progress_callback(
+                    *args,
+                    progress=(i + progress) / n_profiles,
+                    step=f"reencode_{profile}",
+                    **kwargs,
                 ),
                 duration,
             )
@@ -314,8 +318,8 @@ class Worker:
         no_work = False
         self._result_data = {"progress": []}
 
-        try:
-            if task is not None:
+        if task is not None:
+            try:
                 self.progress = None
                 with tempfile.TemporaryDirectory() as tmpdir:
                     async with self.keepalive_task(
@@ -327,12 +331,14 @@ class Worker:
                         if mark_completed:
                             self.mark_completed(task.id, {"result": task_result})
                 self.tmpdir = None
-            else:
-                logging.info("Got no task, not running worker")
-                no_work = True
-        except Exception as exc:
-            logging.warning("Worker failed with exception", exc_info=exc)
-            self.mark_failed(task.id, {"exception": traceback.format_exception(exc)})
+            except Exception as exc:
+                logging.warning("Worker failed with exception", exc_info=exc)
+                self.mark_failed(
+                    task.id, {"exception": traceback.format_exception(exc)}
+                )
+        else:
+            logging.info("Got no task, not running worker")
+            no_work = True
 
         logging.debug("run_task() done :)")
         return no_work

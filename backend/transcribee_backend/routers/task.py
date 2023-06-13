@@ -2,6 +2,7 @@ import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, Query
+from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.operators import is_
 from sqlmodel import Session, col, select
@@ -80,7 +81,7 @@ def claim_unassigned_task(
         return
 
     attempt = TaskAttempt(
-        task=task,
+        task_id=task.id,
         started_at=now,
         assigned_worker=authorized_worker,
         last_keepalive=now,
@@ -103,6 +104,10 @@ def keepalive(
     session: Session = Depends(get_session),
     task: Task = Depends(get_authorized_task),
 ) -> Optional[AssignedTaskResponse]:
+    # mostly to please the type checker, get_authorized_task already ensures
+    # that the task has a current attempt
+    if task.current_attempt is None:
+        raise HTTPException(status_code=500)
     task.current_attempt.last_keepalive = now_tz_aware()
     if keepalive_data.progress:
         task.current_attempt.progress = keepalive_data.progress

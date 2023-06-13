@@ -1,3 +1,4 @@
+# pyright: basic
 """add TaskAttempt
 
 Revision ID: 6392770332cd
@@ -8,12 +9,12 @@ Create Date: 2023-06-08 13:27:39.523827
 import uuid
 
 import sqlalchemy as sa
+from sqlalchemy.sql.operators import is_
+import sqlmodel.sql.sqltypes
 import sqlmodel
 from alembic import op
-from sqlalchemy.dialects import sqlite
 from transcribee_backend.config import settings
 from transcribee_backend.helpers.time import now_tz_aware
-from transcribee_backend.models.task import TaskState
 
 # revision identifiers, used by Alembic.
 revision = "6392770332cd"
@@ -76,7 +77,7 @@ def upgrade_with_autocommit() -> None:
             "fk_task_assigned_worker_id_worker", type_="foreignkey"
         )
         batch_op.create_foreign_key(
-            None,
+            None,  # type: ignore
             "taskattempt",
             ["current_attempt_id"],
             ["id"],
@@ -107,11 +108,11 @@ def upgrade_with_autocommit() -> None:
     )
     bind = op.get_bind()
     session = sqlmodel.Session(bind)
-    for task in session.exec(
-        Task.select().where(~sa.sql.operators.is_(Task.c.assigned_worker_id, None))
+    for task in session.execute(
+        Task.select().where(~is_(Task.c.assigned_worker_id, None))
     ).all():
         attempt_id = uuid.uuid4()
-        session.exec(
+        session.execute(
             sqlmodel.insert(TaskAttempt).values(
                 id=attempt_id,
                 task_id=task.id,
@@ -124,7 +125,7 @@ def upgrade_with_autocommit() -> None:
                 attempt_number=1,
             )
         )
-        session.exec(
+        session.execute(
             sqlmodel.update(Task)
             .where(Task.c.id == task.id)
             .values(
@@ -139,7 +140,7 @@ def upgrade_with_autocommit() -> None:
         now = now_tz_aware()
         batch_op.execute(
             sqlmodel.update(Task)
-            .where(Task.c.is_completed == True)
+            .where(Task.c.is_completed.is_(True))
             .values(state="COMPLETED", state_changed_at=Task.c.completed_at)
         )
         batch_op.execute(
