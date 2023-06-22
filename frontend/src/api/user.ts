@@ -6,6 +6,12 @@ export const login = fetcher
   .path('/api/v1/users/login/')
   .method('post', 'application/json')
   .create();
+
+export const changePassword = fetcher
+  .path('/api/v1/users/change_password/')
+  .method('post', 'application/json')
+  .create();
+
 export const getMe = fetcher.path('/api/v1/users/me/').method('get').create();
 
 const useGetMeWithRetry = makeSwrHook('getMe', getMe);
