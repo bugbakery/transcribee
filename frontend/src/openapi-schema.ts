@@ -57,6 +57,10 @@ export interface paths {
     /** Mark Failed */
     post: operations["mark_failed_api_v1_tasks__task_id__mark_failed__post"];
   };
+  "/api/v1/users/change_password/": {
+    /** Change Password */
+    post: operations["change_password_api_v1_users_change_password__post"];
+  };
   "/api/v1/users/create/": {
     /** Create User Req */
     post: operations["create_user_req_api_v1_users_create__post"];
@@ -135,6 +139,13 @@ export interface components {
       file: string;
       /** Name */
       name: string;
+    };
+    /** ChangePasswordRequest */
+    ChangePasswordRequest: {
+      /** New Password */
+      new_password: string;
+      /** Old Password */
+      old_password: string;
     };
     /** CreateUser */
     CreateUser: {
@@ -677,6 +688,33 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["AssignedTaskResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Change Password */
+  change_password_api_v1_users_change_password__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChangePasswordRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
         };
       };
       /** @description Validation Error */

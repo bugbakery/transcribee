@@ -87,6 +87,20 @@ components:
       - file
       title: Body_create_document_api_v1_documents__post
       type: object
+    ChangePasswordRequest:
+      properties:
+        new_password:
+          minLength: 6
+          title: New Password
+          type: string
+        old_password:
+          title: Old Password
+          type: string
+      required:
+      - old_password
+      - new_password
+      title: ChangePasswordRequest
+      type: object
     CreateUser:
       properties:
         password:
@@ -816,6 +830,35 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Mark Failed
+  /api/v1/users/change_password/:
+    post:
+      operationId: change_password_api_v1_users_change_password__post
+      parameters:
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Change Password
   /api/v1/users/create/:
     post:
       operationId: create_user_req_api_v1_users_create__post

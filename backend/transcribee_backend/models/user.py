@@ -1,6 +1,7 @@
 import datetime
 import uuid
 
+from pydantic import BaseModel, ConstrainedStr
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 
 
@@ -41,3 +42,12 @@ class UserToken(UserTokenBase, table=True):
     valid_until: datetime.datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
+
+
+class PasswordConstrainedStr(ConstrainedStr):
+    min_length = 6
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: PasswordConstrainedStr

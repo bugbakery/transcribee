@@ -5,6 +5,7 @@ from transcribee_proto.api import LoginResponse
 from transcribee_backend.auth import (
     NotAuthorized,
     authorize_user,
+    change_user_password,
     create_user,
     generate_user_token,
     get_user_token,
@@ -12,6 +13,7 @@ from transcribee_backend.auth import (
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists
 from transcribee_backend.models import CreateUser, User, UserBase, UserToken
+from transcribee_backend.models.user import ChangePasswordRequest
 
 user_router = APIRouter()
 
@@ -51,4 +53,25 @@ def read_user(
 ):
     statement = select(User).where(User.id == token.user_id)
     user = session.exec(statement).one()
+    return {"username": user.username}
+
+
+@user_router.post("/change_password/")
+def change_password(
+    body: ChangePasswordRequest,
+    session: Session = Depends(get_session),
+    token: UserToken = Depends(get_user_token),
+):
+    try:
+        authorized_user = authorize_user(
+            session=session, username=token.user.username, password=body.old_password
+        )
+    except NotAuthorized:
+        raise HTTPException(403)
+
+    user = change_user_password(
+        session=session,
+        username=authorized_user.username,
+        new_password=body.new_password,
+    )
     return {"username": user.username}
