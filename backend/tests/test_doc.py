@@ -16,7 +16,9 @@ from transcribee_backend.models.task import TaskAttempt
 @pytest.fixture
 def document(memory_session: Session, logged_in_client: TestClient):
     req = logged_in_client.post(
-        "/api/v1/documents/", files={"file": b""}, data={"name": "test document"}
+        "/api/v1/documents/",
+        files={"file": b""},
+        data={"name": "test document", "model": "tiny", "language": "auto"},
     )
     assert req.status_code == 200
     document_id = req.json()["id"]
@@ -48,7 +50,9 @@ def test_doc_delete(
     files = set(str(x) for x in settings.storage_path.glob("*"))
 
     req = logged_in_client.post(
-        "/api/v1/documents/", files={"file": b""}, data={"name": "test document"}
+        "/api/v1/documents/",
+        files={"file": b""},
+        data={"name": "test document", "model": "tiny", "language": "auto"},
     )
     assert req.status_code == 200
     document_id = req.json()["id"]

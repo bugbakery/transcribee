@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from transcribee_backend.config import settings
 from transcribee_backend.helpers.periodic_tasks import run_periodic
 from transcribee_backend.helpers.tasks import timeout_attempts
+from transcribee_backend.routers.config import config_router
 from transcribee_backend.routers.document import document_router
 from transcribee_backend.routers.task import task_router
 from transcribee_backend.routers.user import user_router
@@ -28,6 +29,7 @@ app.add_middleware(
 app.include_router(user_router, prefix="/api/v1/users")
 app.include_router(document_router, prefix="/api/v1/documents")
 app.include_router(task_router, prefix="/api/v1/tasks")
+app.include_router(config_router, prefix="/api/v1/config")
 
 
 @app.get("/")

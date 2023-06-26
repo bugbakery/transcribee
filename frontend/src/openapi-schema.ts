@@ -9,6 +9,10 @@ export interface paths {
     /** Root */
     get: operations["root__get"];
   };
+  "/api/v1/config/": {
+    /** Get Config */
+    get: operations["get_config_api_v1_config__get"];
+  };
   "/api/v1/documents/": {
     /** List Documents */
     get: operations["list_documents_api_v1_documents__get"];
@@ -137,6 +141,10 @@ export interface components {
        * Format: binary
        */
       file: string;
+      /** Language */
+      language: string;
+      /** Model */
+      model: string;
       /** Name */
       name: string;
     };
@@ -195,6 +203,22 @@ export interface components {
     LoginResponse: {
       /** Token */
       token: string;
+    };
+    /** ModelConfig */
+    ModelConfig: {
+      /** Id */
+      id: string;
+      /** Languages */
+      languages: (string)[];
+      /** Name */
+      name: string;
+    };
+    /** PublicConfig */
+    PublicConfig: {
+      /** Models */
+      models: {
+        [key: string]: components["schemas"]["ModelConfig"] | undefined;
+      };
     };
     /** SetDurationRequest */
     SetDurationRequest: {
@@ -316,6 +340,17 @@ export interface operations {
       200: {
         content: {
           "application/json": Record<string, never>;
+        };
+      };
+    };
+  };
+  /** Get Config */
+  get_config_api_v1_config__get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["PublicConfig"];
         };
       };
     };

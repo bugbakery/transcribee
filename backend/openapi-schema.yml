@@ -79,11 +79,19 @@ components:
           format: binary
           title: File
           type: string
+        language:
+          title: Language
+          type: string
+        model:
+          title: Model
+          type: string
         name:
           title: Name
           type: string
       required:
       - name
+      - model
+      - language
       - file
       title: Body_create_document_api_v1_documents__post
       type: object
@@ -191,6 +199,36 @@ components:
       required:
       - token
       title: LoginResponse
+      type: object
+    ModelConfig:
+      properties:
+        id:
+          title: Id
+          type: string
+        languages:
+          items:
+            type: string
+          title: Languages
+          type: array
+        name:
+          title: Name
+          type: string
+      required:
+      - id
+      - name
+      - languages
+      title: ModelConfig
+      type: object
+    PublicConfig:
+      properties:
+        models:
+          additionalProperties:
+            $ref: '#/components/schemas/ModelConfig'
+          title: Models
+          type: object
+      required:
+      - models
+      title: PublicConfig
       type: object
     SetDurationRequest:
       properties:
@@ -365,6 +403,17 @@ paths:
               schema: {}
           description: Successful Response
       summary: Root
+  /api/v1/config/:
+    get:
+      operationId: get_config_api_v1_config__get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicConfig'
+          description: Successful Response
+      summary: Get Config
   /api/v1/documents/:
     get:
       operationId: list_documents_api_v1_documents__get

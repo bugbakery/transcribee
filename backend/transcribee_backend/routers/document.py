@@ -15,7 +15,9 @@ from fastapi import (
     WebSocketException,
     status,
 )
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
+from pydantic.error_wrappers import ErrorWrapper
 from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, col, select
 from transcribee_proto.api import Document as ApiDocument
@@ -25,7 +27,7 @@ from transcribee_backend.auth import (
     validate_user_authorization,
     validate_worker_authorization,
 )
-from transcribee_backend.config import settings
+from transcribee_backend.config import get_model_config, settings
 from transcribee_backend.db import get_session
 from transcribee_backend.helpers.sync import DocumentSyncConsumer
 from transcribee_backend.helpers.time import now_tz_aware
@@ -101,7 +103,9 @@ def ws_get_document_from_url(
     raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
 
 
-def create_default_tasks_for_document(session: Session, document: Document):
+def create_default_tasks_for_document(
+    session: Session, document: Document, model: str, language: str
+):
     reencode_task = Task(
         task_type=TaskType.REENCODE,
         task_parameters={},
@@ -111,7 +115,7 @@ def create_default_tasks_for_document(session: Session, document: Document):
 
     transcribe_task = Task(
         task_type=TaskType.TRANSCRIBE,
-        task_parameters={"lang": "auto", "model": "base"},
+        task_parameters={"lang": language, "model": model},
         document_id=document.id,
         dependencies=[reencode_task],
     )
@@ -137,10 +141,31 @@ def create_default_tasks_for_document(session: Session, document: Document):
 @document_router.post("/")
 async def create_document(
     name: str = Form(),
+    model: str = Form(),
+    language: str = Form(),
     file: UploadFile = File(),
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
 ) -> ApiDocument:
+    model_configs = get_model_config()
+
+    if model not in model_configs:
+        raise RequestValidationError(
+            [ErrorWrapper(ValueError(f"Unknown model '{model}'"), ("body", "model"))]
+        )
+
+    if language not in model_configs[model].languages:
+        raise RequestValidationError(
+            [
+                ErrorWrapper(
+                    ValueError(
+                        f"Model '{model}' does not support language '{language}'"
+                    ),
+                    ("body", "language"),
+                )
+            ]
+        )
+
     document = Document(
         name=name,
         user_id=token.user_id,
@@ -166,7 +191,7 @@ async def create_document(
     tag = DocumentMediaTag(media_file_id=media_file.id, tag="original")
     session.add(tag)
 
-    create_default_tasks_for_document(session, document)
+    create_default_tasks_for_document(session, document, model, language)
 
     session.commit()
     return document.as_api_document()
