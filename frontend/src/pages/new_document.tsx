@@ -1,26 +1,38 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
 
 import { createDocument } from '../api/document';
 import { Dialog, DialogTitle } from '../components/dialog';
-import { FormControl, Input } from '../components/form';
+import { FormControl, Input, Select } from '../components/form';
 import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppCenter } from '../components/app';
 import { Version } from '../common/version';
+import { useGetConfig } from '../api/config';
 
 type FieldValues = {
   name: string;
   audioFile: FileList | undefined;
+  model: string;
+  language: string;
 };
+
+type ModelConfig = ReturnType<typeof useGetConfig>['data']['models'];
+
+export function getLanguages(models: ModelConfig, model: string | undefined): string[] | null {
+  if (model === undefined) {
+    return null;
+  }
+  return models[model]?.languages || [];
+}
 
 export function NewDocumentPage() {
   const [_, navigate] = useLocation();
   const [dropIndicator, setDropIndicator] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
-
+  const { data, isLoading } = useGetConfig({});
   const {
     register,
     handleSubmit,
@@ -34,6 +46,7 @@ export function NewDocumentPage() {
   });
 
   const audioFile = watch('audioFile');
+  const [model, setModel] = useState(undefined as string | undefined);
 
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
     if (!data.audioFile) {
@@ -41,9 +54,19 @@ export function NewDocumentPage() {
       return;
     }
 
+    if (!model) {
+      console.error('[NewDocumentPage] Illegal state: model is undefined.');
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await createDocument({ name: data.name, file: data.audioFile[0] });
+      const response = await createDocument({
+        name: data.name,
+        file: data.audioFile[0],
+        model: model,
+        language: data.language,
+      });
 
       if (response.ok) {
         navigate('/');
@@ -52,6 +75,12 @@ export function NewDocumentPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (model === undefined && !isLoading && Object.keys(data.models).length >= 1) {
+      setModel(Object.keys(data.models)[0]);
+    }
+  }, [model, isLoading, data]);
 
   return (
     <AppCenter onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
@@ -175,6 +204,35 @@ export function NewDocumentPage() {
                 <p className="text-red-600 text-sm mt-0.5">Audio file is required.</p>
               )}
             </div>
+            {!isLoading ? (
+              <>
+                <FormControl label="Model" error={errors.model?.message?.toString()}>
+                  <Select value={model} onChange={(e) => setModel(e.target.value)}>
+                    {Object.values(data.models).map((cur_model) =>
+                      cur_model !== undefined ? (
+                        <option value={cur_model.id} key={cur_model.id}>
+                          {cur_model.name}
+                        </option>
+                      ) : (
+                        <></>
+                      ),
+                    )}
+                  </Select>
+                </FormControl>
+                <FormControl label="Language" error={errors.model?.message?.toString()}>
+                  <Select {...register('language')}>
+                    {getLanguages(data.models, model)?.map((lang) => (
+                      <option value={lang} key={lang}>
+                        {lang}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </>
+            ) : (
+              <></>
+            )}
+
             <div className="flex justify-between">
               <SecondaryButton type="button" onClick={() => navigate(`/`)}>
                 Cancel

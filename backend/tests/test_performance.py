@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 
 def create_doc(logged_in_client: TestClient):
     req = logged_in_client.post(
-        "/api/v1/documents/", files={"file": b""}, data={"name": "test document"}
+        "/api/v1/documents/",
+        files={"file": b""},
+        data={"name": "test document", "model": "tiny", "language": "auto"},
     )
     assert req.status_code == 200
 
