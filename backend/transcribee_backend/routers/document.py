@@ -17,7 +17,9 @@ from fastapi import (
 )
 from pydantic import BaseModel
 from sqlalchemy.sql.expression import desc
-from sqlmodel import Session, select, col
+from sqlmodel import Session, col, select
+from transcribee_proto.api import Document as ApiDocument
+
 from transcribee_backend.auth import (
     get_authorized_worker,
     validate_user_authorization,
@@ -28,7 +30,6 @@ from transcribee_backend.db import get_session
 from transcribee_backend.helpers.sync import DocumentSyncConsumer
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.task import TaskAttempt, TaskResponse
-from transcribee_proto.api import Document as ApiDocument
 
 from .. import media_storage
 from ..models import (

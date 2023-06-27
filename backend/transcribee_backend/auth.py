@@ -9,6 +9,7 @@ from typing import Tuple
 
 from fastapi import Depends, Header, HTTPException
 from sqlmodel import Session, select
+
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists, UserDoesNotExist
 from transcribee_backend.helpers.time import now_tz_aware

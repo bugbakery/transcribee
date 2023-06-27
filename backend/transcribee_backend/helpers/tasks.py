@@ -1,7 +1,7 @@
 import datetime
 from typing import Iterable, Optional
 
-from sqlmodel import Session, select, col
+from sqlmodel import Session, col, select
 from transcribee_backend.config import settings
 from transcribee_backend.db import SessionContextManager
 from transcribee_backend.helpers.time import now_tz_aware

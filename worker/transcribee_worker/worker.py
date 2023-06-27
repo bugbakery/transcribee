@@ -11,14 +11,15 @@ from typing import Any, AsyncGenerator, Optional, Tuple
 import automerge
 import numpy.typing as npt
 from pydantic import parse_raw_as
-from transcribee_proto.api import AlignTask, AssignedTask
-from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import (
+    AlignTask,
+    AssignedTask,
     ReencodeTask,
     SpeakerIdentificationTask,
     TaskType,
     TranscribeTask,
 )
+from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_worker.api_client import ApiClient
 from transcribee_worker.config import settings
