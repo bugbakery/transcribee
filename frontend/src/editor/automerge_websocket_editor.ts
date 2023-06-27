@@ -41,12 +41,24 @@ export function useAutomergeWebsocketEditor(
 
   useEffect(() => {
     const ws = new ReconnectingWebSocket(url.toString(), [], { debug });
-    const start = Date.now();
+
+    let bytesReceived = 0;
+    console.time('initialSync');
     let initialSync = true;
     let doc = Automerge.init();
 
+    const migrateAndSetDoc = (doc: Automerge.Doc<Document>) => {
+      const migratedDoc = migrateDocument(doc as Automerge.Doc<Document>);
+      sendDocChange(migratedDoc);
+
+      console.time('setDoc');
+      editor.setDoc(migratedDoc);
+      console.timeEnd('setDoc');
+    };
+
     const onMessage = async (event: MessageEvent) => {
       const msg_data = new Uint8Array(await event.data.arrayBuffer());
+      bytesReceived += msg_data.length;
       const msg_type = msg_data[0];
       const msg = msg_data.slice(1);
       if (msg_type === MessageSyncType.Change) {
@@ -55,24 +67,37 @@ export function useAutomergeWebsocketEditor(
         if (Automerge.decodeChange(msg).actor == Automerge.getActorId(editor.doc)) return;
 
         if (initialSync) {
+          console.time('automerge');
           const [newDoc] = Automerge.applyChanges(doc, [msg]);
+          console.timeEnd('automerge');
           doc = newDoc;
         } else {
+          console.time('automerge');
           const [newDoc] = Automerge.applyChanges(editor.doc, [msg]);
+          console.timeEnd('automerge');
+          console.time('setDoc');
           editor.setDoc(newDoc);
+          console.timeEnd('setDoc');
         }
       } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
+        console.info('backlog complete');
         initialSync = false;
-        console.log(`All changes synced in ${(Date.now() - start) / 1000} s`);
-
-        const migratedDoc = migrateDocument(doc as Automerge.Doc<Document>);
-        sendDocChange(migratedDoc);
-        editor.setDoc(migratedDoc);
+        migrateAndSetDoc(doc as Automerge.Doc<Document>);
+        console.timeEnd('initialSync');
+        console.info(`ws: ${(bytesReceived / 1e6).toFixed(2)} MB recieved so far`);
         onInitialSyncComplete();
       } else if (msg_type === MessageSyncType.FullDoc) {
-        console.log('Received new document');
+        console.info('Received new document');
+        console.time('automerge');
         doc = Automerge.load(msg);
-        console.log('Loaded new document');
+        console.timeEnd('automerge');
+        if (!initialSync) {
+          // for some reason, firefox sometimes receives the messages out of order.
+          // This works around that problem
+          migrateAndSetDoc(doc as Automerge.Doc<Document>);
+          console.info(`ws: ${(bytesReceived / 1e6).toFixed(2)} MB recieved so far`);
+        }
+        console.info('Loaded new document');
       }
     };
     ws.addEventListener('message', (msg) => {
