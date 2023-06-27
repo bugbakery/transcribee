@@ -5,6 +5,7 @@ from sqlmodel import Session, col, select
 from transcribee_backend.config import settings
 from transcribee_backend.db import SessionContextManager
 from transcribee_backend.helpers.time import now_tz_aware
+from transcribee_backend.models import UserToken
 from transcribee_backend.models.task import Task, TaskAttempt, TaskState
 
 
@@ -61,4 +62,18 @@ def timeout_attempts():
             finish_current_attempt(
                 session=session, task=task, now=now, successful=False
             )
+        session.commit()
+
+
+def expired_tokens(session: Session) -> Iterable[UserToken]:
+    now = now_tz_aware()
+    statement = select(UserToken).where(UserToken.valid_until < now)
+    return session.exec(statement)
+
+
+def remove_expired_tokens():
+    with SessionContextManager() as session:
+        for user_token in expired_tokens(session):
+            session.delete(user_token)
+
         session.commit()
