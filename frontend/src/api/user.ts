@@ -11,8 +11,8 @@ export const changePassword = fetcher
   .path('/api/v1/users/change_password/')
   .method('post', 'application/json')
   .create();
-
 export const getMe = fetcher.path('/api/v1/users/me/').method('get').create();
+export const logout = fetcher.path('/api/v1/users/logout/').method('post').create();
 
 const useGetMeWithRetry = makeSwrHook('getMe', getMe);
 

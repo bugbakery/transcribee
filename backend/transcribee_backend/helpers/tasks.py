@@ -39,8 +39,6 @@ def finish_current_attempt(
     session.add(task)
     session.commit()
 
-    session.add(task)
-
 
 def timeouted_tasks(session: Session) -> Iterable[Task]:
     statement = (

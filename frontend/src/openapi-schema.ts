@@ -73,6 +73,10 @@ export interface paths {
     /** Login */
     post: operations["login_api_v1_users_login__post"];
   };
+  "/api/v1/users/logout/": {
+    /** Logout */
+    post: operations["logout_api_v1_users_logout__post"];
+  };
   "/api/v1/users/me/": {
     /** Read User */
     get: operations["read_user_api_v1_users_me__get"];
@@ -794,6 +798,28 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["LoginResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Logout */
+  logout_api_v1_users_logout__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
         };
       };
       /** @description Validation Error */
