@@ -861,6 +861,31 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Login
+  /api/v1/users/logout/:
+    post:
+      operationId: logout_api_v1_users_logout__post
+      parameters:
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Logout Api V1 Users Logout  Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Logout
   /api/v1/users/me/:
     get:
       operationId: read_user_api_v1_users_me__get

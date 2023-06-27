@@ -45,8 +45,7 @@ def login(user: CreateUser, session: Session = Depends(get_session)) -> LoginRes
 
 @user_router.post("/logout/")
 def logout(
-    token: UserToken = Depends(get_user_token),
-    session: Session = Depends(get_session)
+    token: UserToken = Depends(get_user_token), session: Session = Depends(get_session)
 ) -> dict:
     session.delete(token)
     session.commit()
