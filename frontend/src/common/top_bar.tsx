@@ -1,6 +1,6 @@
 import { useLocation } from 'wouter';
 import { storeAuthToken } from '../api';
-import { useGetMe } from '../api/user';
+import { useGetMe }, { logout } from '../api/user';
 import { primitiveWithClassname } from '../styled';
 import { BiUser } from 'react-icons/bi';
 import { IconButton, PrimaryButton } from '../components/button';
@@ -29,6 +29,7 @@ export function MeMenu() {
         onClick={() => {
           storeAuthToken(undefined);
           mutate();
+          logout({})
           navigate('/');
           window.location.reload();
         }}

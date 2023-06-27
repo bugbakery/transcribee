@@ -7,6 +7,10 @@ export const login = fetcher
   .method('post', 'application/json')
   .create();
 export const getMe = fetcher.path('/api/v1/users/me/').method('get').create();
+export const logout = fetcher
+  .path('/api/v1/users/logout/')
+  .method('post', 'application/json')
+  .create();
 
 const useGetMeWithRetry = makeSwrHook('getMe', getMe);
 
