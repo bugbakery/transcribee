@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     storage_path: Path = Path("storage/")
     secret_key = "insecure-secret-key"
     worker_timeout = 60  # in seconds
+    tokens_timeout = 60 * 24  # in minutes, once per day
     media_signature_max_age = 3600  # in seconds
     task_attempt_limit = 5
 

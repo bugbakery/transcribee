@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from transcribee_backend.config import settings
 from transcribee_backend.helpers.periodic_tasks import run_periodic
-from transcribee_backend.helpers.tasks import timeout_attempts
+from transcribee_backend.helpers.tasks import remove_expired_tokens, timeout_attempts
 from transcribee_backend.routers.document import document_router
 from transcribee_backend.routers.task import task_router
 from transcribee_backend.routers.user import user_router
@@ -41,4 +41,7 @@ app.get("/media/{file}")(serve_media)
 async def setup_periodic_tasks():
     asyncio.create_task(
         run_periodic(timeout_attempts, seconds=min(30, settings.worker_timeout))
+    )
+    asyncio.create_task(
+        run_periodic(remove_expired_tokens, seconds=settings.tokens_timeout * 60)
     )

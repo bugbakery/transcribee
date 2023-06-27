@@ -1,6 +1,6 @@
 import { useLocation } from 'wouter';
 import { storeAuthToken } from '../api';
-import { useGetMe }, { logout } from '../api/user';
+import { useGetMe, logout } from '../api/user';
 import { primitiveWithClassname } from '../styled';
 import { BiUser } from 'react-icons/bi';
 import { IconButton, PrimaryButton } from '../components/button';
@@ -21,6 +21,7 @@ export function MeButton() {
 export function MeMenu() {
   const { data, mutate } = useGetMe({});
   const [_location, navigate] = useLocation();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   return (
     <>
@@ -28,8 +29,14 @@ export function MeMenu() {
       <PrimaryButton
         onClick={() => {
           storeAuthToken(undefined);
+
+          try {
+            const response = await logout({});
+          } catch (e) {
+            let message = 'An unknown error occcured.';
+            setErrorMessage(message);
+          }
           mutate();
-          logout({})
           navigate('/');
           window.location.reload();
         }}

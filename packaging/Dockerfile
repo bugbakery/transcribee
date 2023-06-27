@@ -5,6 +5,7 @@ RUN nix-channel --update
 RUN mkdir -p /app/packaging
 
 COPY packaging/shell.nix /app/packaging
+COPY packaging/dev.sh /app/
 
 WORKDIR /app
 
