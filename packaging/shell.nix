@@ -39,6 +39,7 @@ pkgs.mkShell {
 
     # required by pre-commit
     git
+    ruff
 
     ffmpeg
 
