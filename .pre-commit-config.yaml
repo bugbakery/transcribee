@@ -19,10 +19,13 @@ repos:
     rev: 23.1.0
     hooks:
       - id: black
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.272
+  - repo: local
     hooks:
       - id: ruff
+        name: Run ruff for python files
+        entry: ruff check --config .ruff.toml --force-exclude --fix
+        language: system
+        'types_or': [python, pyi]
   - repo: local
     hooks:
       - id: backend-pyright
