@@ -5,9 +5,9 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import automerge
-from websockets.client import WebSocketClientProtocol
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
+from websockets.client import WebSocketClientProtocol
 
 
 class UnsupportedDocumentVersion(Exception):

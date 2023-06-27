@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
+from transcribee_proto.api import LoginResponse
+
 from transcribee_backend.auth import (
     NotAuthorized,
     authorize_user,
@@ -10,7 +12,6 @@ from transcribee_backend.auth import (
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists
 from transcribee_backend.models import CreateUser, User, UserBase, UserToken
-from transcribee_proto.api import LoginResponse
 
 user_router = APIRouter()
 

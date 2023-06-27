@@ -6,12 +6,13 @@ from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.operators import is_
 from sqlmodel import Session, col, select
+from transcribee_proto.api import KeepaliveBody
+
 from transcribee_backend.auth import get_authorized_task, get_authorized_worker
 from transcribee_backend.db import get_session
 from transcribee_backend.helpers.tasks import finish_current_attempt
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.task import TaskState
-from transcribee_proto.api import KeepaliveBody
 
 from ..models import (
     AssignedTaskResponse,

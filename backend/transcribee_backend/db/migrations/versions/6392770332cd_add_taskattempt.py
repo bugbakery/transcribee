@@ -9,10 +9,10 @@ Create Date: 2023-06-08 13:27:39.523827
 import uuid
 
 import sqlalchemy as sa
-from sqlalchemy.sql.operators import is_
-import sqlmodel.sql.sqltypes
 import sqlmodel
+import sqlmodel.sql.sqltypes
 from alembic import op
+from sqlalchemy.sql.operators import is_
 from transcribee_backend.config import settings
 from transcribee_backend.helpers.time import now_tz_aware
 

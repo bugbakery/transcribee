@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import MetaData, engine_from_config, pool
 from sqlmodel import SQLModel
+
 from transcribee_backend.db import DATABASE_URL
 from transcribee_backend.models import *  # noqa
 
