@@ -32,14 +32,14 @@ jobs:
         with:
           path: |
             backend/__pypackages__/
-          key: ${{ runner.os }}-pypackages-${{ hashFiles('backend/pdm.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('backend/pdm.lock') }}
 
       - name: Setup worker pypackages cache
         uses: actions/cache@v3
         with:
           path: |
             worker/__pypackages__/
-          key: ${{ runner.os }}-pypackages-${{ hashFiles('worker/pdm.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('worker/pdm.lock') }}
 
       - name: install dependencies
         run: ./packaging/install_dependencies.sh
@@ -48,7 +48,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
-          key: ${{ matrix.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: run pre-commit
         run: pre-commit run --show-diff-on-failure --color=always --all-files
