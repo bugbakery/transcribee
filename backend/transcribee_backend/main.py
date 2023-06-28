@@ -43,5 +43,5 @@ async def setup_periodic_tasks():
         run_periodic(timeout_attempts, seconds=min(30, settings.worker_timeout))
     )
     asyncio.create_task(
-        run_periodic(remove_expired_tokens, seconds=settings.tokens_timeout * 60)
+        run_periodic(remove_expired_tokens, seconds=60 * 60)  # 1 hour
     )

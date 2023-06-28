@@ -21,22 +21,17 @@ export function MeButton() {
 export function MeMenu() {
   const { data, mutate } = useGetMe({});
   const [_location, navigate] = useLocation();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   return (
     <>
       <div className="pb-4">hello, {data?.username}</div>
       <PrimaryButton
-        onClick={() => {
-          storeAuthToken(undefined);
-
+        onClick={async () => {
           try {
             const response = await logout({});
-          } catch (e) {
-            let message = 'An unknown error occcured.';
-            setErrorMessage(message);
-          }
-          mutate();
+          } catch (e) {}
+          storeAuthToken(undefined);
+//           mutate();  was need for debug
           navigate('/');
           window.location.reload();
         }}
