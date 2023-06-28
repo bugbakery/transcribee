@@ -1,0 +1,2 @@
+line-length = 100
+select = ["E", "F", "I"]

@@ -3,9 +3,10 @@ import uuid
 from typing import List, Optional
 
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
-from transcribee_backend import media_storage
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import DocumentMedia as ApiDocumentMedia
+
+from transcribee_backend import media_storage
 
 from .user import User
 

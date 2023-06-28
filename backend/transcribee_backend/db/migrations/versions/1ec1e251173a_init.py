@@ -7,6 +7,7 @@ Create Date: 2023-04-28 20:52:30.276317
 """
 import sqlalchemy as sa
 import sqlmodel
+import sqlmodel.sql.sqltypes
 from alembic import op
 
 # revision identifiers, used by Alembic.

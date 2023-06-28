@@ -1,7 +1,7 @@
 import datetime
 from typing import Iterable, Optional
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 from transcribee_backend.config import settings
 from transcribee_backend.db import SessionContextManager
 from transcribee_backend.helpers.time import now_tz_aware
@@ -18,6 +18,9 @@ def finish_current_attempt(
 ):
     if now is None:
         now = now_tz_aware()
+
+    if task.current_attempt is None:
+        return
 
     task.current_attempt.ended_at = now
     task.current_attempt.last_keepalive = now
@@ -42,8 +45,8 @@ def timeouted_tasks(session: Session) -> Iterable[Task]:
     statement = (
         select(Task)
         .where(
-            Task.current_attempt.has(
-                TaskAttempt.last_keepalive
+            col(Task.current_attempt).has(
+                col(TaskAttempt.last_keepalive)
                 < now_tz_aware() - datetime.timedelta(seconds=settings.worker_timeout)
             ),
         )

@@ -13,7 +13,7 @@ dependencies = [
     "fastapi>=0.92.0",
     "uvicorn[standard]>=0.20.0",
     "sqlmodel @ git+https://github.com/transcribee/sqlmodel.git@transcribee_main",
-    "alembic>=1.9.4",
+    "alembic>=1.11.1",
     "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
     "python-multipart>=0.0.6",
     "filetype>=1.2.0",
@@ -40,6 +40,7 @@ dev = [
     "pytest>=7.3.1",
     "httpx>=0.24.0",
     "pytest-alembic>=0.10.4",
+    "pyright>=1.1.314",
 ]
 
 [tool.pdm.scripts]

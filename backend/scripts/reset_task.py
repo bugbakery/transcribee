@@ -13,7 +13,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     with SessionContextManager() as session:
-        task = session.exec(
+        task = session.execute(
             update(Task)
             .where(
                 or_(Task.id == args.uuid, Task.document_id == args.uuid),

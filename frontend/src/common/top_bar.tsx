@@ -3,8 +3,10 @@ import { storeAuthToken } from '../api';
 import { useGetMe, logout } from '../api/user';
 import { primitiveWithClassname } from '../styled';
 import { BiUser } from 'react-icons/bi';
-import { IconButton, PrimaryButton } from '../components/button';
+import { IconButton, PrimaryButton, SecondaryButton } from '../components/button';
 import { Popup } from '../components/popup';
+import { showModal } from '../components/modal';
+import { ChangePasswordModal } from '../components/change_password';
 
 export const TopBar = primitiveWithClassname('div', 'mb-8 flex items-center gap-4 justify-between');
 export const TopBarTitle = primitiveWithClassname('h2', 'text-xl font-bold');
@@ -24,20 +26,31 @@ export function MeMenu() {
 
   return (
     <>
-      <div className="pb-4">hello, {data?.username}</div>
-      <PrimaryButton
-        onClick={async () => {
-          try {
-            const response = await logout({});
-          } catch (e) {}
-          storeAuthToken(undefined);
-//           mutate();  was need for debug
-          navigate('/');
-          window.location.reload();
-        }}
-      >
-        Logout
-      </PrimaryButton>
+      <div className="flex flex-col gap-y-4">
+        <div>hello, {data?.username}</div>
+        <SecondaryButton
+          onClick={() => {
+            showModal(
+              <ChangePasswordModal label="Change Password" onClose={() => showModal(null)} />,
+            );
+          }}
+        >
+          Change Password
+        </SecondaryButton>
+        <PrimaryButton
+          onClick={async () => {
+            try {
+              const response = await logout({});
+            } catch (e) {}
+            storeAuthToken(undefined);
+  //           mutate();  was need for debug
+            navigate('/');
+            window.location.reload();
+          }}
+        >
+          Logout
+        </PrimaryButton>
+      </div>
     </>
   );
 }

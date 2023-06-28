@@ -65,9 +65,9 @@ async def identify_speakers(
             progress=len(segments) / (len(segments) + 1),
         )
         clustering = AgglomerativeClustering(
-            compute_full_tree=True,
+            compute_full_tree=True,  # type: ignore
             linkage="complete",
-            n_clusters=None,
+            n_clusters=None,  # type: ignore
             # distance_threshold curtesty of
             # https://huggingface.co/pyannote/speaker-diarization/blob/369ac1852c71759894a48c9bb1c6f499a54862fe/config.yaml#L15
             distance_threshold=0.7153,

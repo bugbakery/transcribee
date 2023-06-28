@@ -3,15 +3,16 @@ import enum
 import uuid
 from typing import Any, Dict, List, Literal, Optional
 
-from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel
+from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel, col
 from sqlmodel.sql.sqltypes import GUID
+from transcribee_proto.api import Document as ApiDocument
+from transcribee_proto.api import TaskType
+from typing_extensions import Self
+
 from transcribee_backend.config import settings
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.document import Document
 from transcribee_backend.models.worker import Worker
-from transcribee_proto.api import Document as ApiDocument
-from transcribee_proto.api import TaskType
-from typing_extensions import Self
 
 
 class TaskState(enum.Enum):
@@ -74,6 +75,7 @@ class Task(TaskBase, table=True):
         sa_column=Column(
             GUID, ForeignKey("taskattempt.id", ondelete="SET NULL", use_alter=True)
         ),
+        default=None,
     )
     current_attempt: Optional["TaskAttempt"] = Relationship(
         sa_relationship_kwargs={
@@ -112,7 +114,9 @@ class TaskAttempt(SQLModel, table=True):
     )
 
     task_id: uuid.UUID = Field(
-        sa_column=Column(GUID, ForeignKey(Task.id, ondelete="CASCADE"), nullable=False),
+        sa_column=Column(
+            GUID, ForeignKey(col(Task.id), ondelete="CASCADE"), nullable=False
+        ),
         unique=False,
     )
     task: Task = Relationship(
