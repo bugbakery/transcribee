@@ -14,14 +14,12 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    env:
-      NIX_PATH: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
-
     steps:
       - uses: actions/checkout@v3
 
-      - name: install nix
-        uses: nixbuild/nix-quick-install-action@v22
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
       - name: setup direnv
         uses: JRMurr/direnv-nix-action@v4.1.0
