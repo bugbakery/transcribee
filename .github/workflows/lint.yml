@@ -10,9 +10,10 @@ jobs:
   pre-commit:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ ["ubuntu-latest"], ["self-hosted", "macOS"] ]
 
     runs-on: ${{ matrix.os }}
+
     env:
       NIX_PATH: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
