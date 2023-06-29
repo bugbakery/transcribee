@@ -10,17 +10,16 @@ jobs:
   pre-commit:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ ["ubuntu-latest"], ["self-hosted", "macOS"] ]
 
     runs-on: ${{ matrix.os }}
-    env:
-      NIX_PATH: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: install nix
-        uses: nixbuild/nix-quick-install-action@v22
+      - uses: cachix/install-nix-action@v22
+        with:
+          nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/43862987c3cf2554a542c6dd81f5f37435eb1423.tar.gz # keep in sync with shell.nix
 
       - name: setup direnv
         uses: JRMurr/direnv-nix-action@v4.1.0
@@ -33,14 +32,14 @@ jobs:
         with:
           path: |
             backend/__pypackages__/
-          key: ${{ runner.os }}-pypackages-${{ hashFiles('backend/pdm.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('backend/pdm.lock') }}
 
       - name: Setup worker pypackages cache
         uses: actions/cache@v3
         with:
           path: |
             worker/__pypackages__/
-          key: ${{ runner.os }}-pypackages-${{ hashFiles('worker/pdm.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('worker/pdm.lock') }}
 
       - name: install dependencies
         run: ./packaging/install_dependencies.sh
@@ -49,7 +48,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
-          key: ${{ matrix.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: run pre-commit
         run: pre-commit run --show-diff-on-failure --color=always --all-files
