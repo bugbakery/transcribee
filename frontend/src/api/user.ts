@@ -13,6 +13,7 @@ export const changePassword = fetcher
   .create();
 
 export const getMe = fetcher.path('/api/v1/users/me/').method('get').create();
+export const logout = fetcher.path('/api/v1/users/logout/').method('get').create();
 
 const useGetMeWithRetry = makeSwrHook('getMe', getMe);
 

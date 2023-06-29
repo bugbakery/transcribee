@@ -46,6 +46,16 @@ def login(user: CreateUser, session: Session = Depends(get_session)) -> LoginRes
     return LoginResponse(token=user_token)
 
 
+@user_router.get("/logout/")
+def logout(
+    token: UserToken = Depends(get_user_token), session: Session = Depends(get_session)
+):
+    session.delete(token)
+    session.commit()
+
+    return {}
+
+
 @user_router.get("/me/")
 def read_user(
     token: UserToken = Depends(get_user_token),

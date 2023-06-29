@@ -1,6 +1,6 @@
 import { useLocation } from 'wouter';
 import { storeAuthToken } from '../api';
-import { useGetMe } from '../api/user';
+import { useGetMe, logout } from '../api/user';
 import { primitiveWithClassname } from '../styled';
 import { BiUser } from 'react-icons/bi';
 import { IconButton, PrimaryButton, SecondaryButton } from '../components/button';
@@ -38,9 +38,12 @@ export function MeMenu() {
           Change Password
         </SecondaryButton>
         <PrimaryButton
-          onClick={() => {
+          onClick={async () => {
+            try {
+              const response = await logout({});
+            } catch (e) {}
             storeAuthToken(undefined);
-            mutate();
+  //           mutate();  was need for debug
             navigate('/');
             window.location.reload();
           }}
