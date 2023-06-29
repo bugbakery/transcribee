@@ -68,7 +68,7 @@ def timeout_attempts():
 def expired_tokens(session: Session) -> Iterable[UserToken]:
     now = now_tz_aware()
     statement = select(UserToken).where(UserToken.valid_until < now)
-    return session.exec(statement).all()
+    return session.exec(statement)
 
 
 def remove_expired_tokens():
