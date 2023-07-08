@@ -1,4 +1,4 @@
-import { ComponentProps, useContext, useCallback } from 'react';
+import { ComponentProps, useCallback } from 'react';
 import { ReactEditor, useSlateStatic } from 'slate-react';
 import * as Automerge from '@automerge/automerge';
 
@@ -7,11 +7,16 @@ import { PrimaryButton, SecondaryButton } from '../components/button';
 import { IoIosAdd, IoIosCreate, IoIosTrash } from 'react-icons/io';
 import { Dropdown, DropdownItem, DropdownSection } from '../components/dropdown';
 import { Input } from '../components/form';
-import { getSpeakerName, useSpeakerName, useSpeakerNames } from '../utils/document';
+import {
+  SpeakerBlocks,
+  getSpeakerName,
+  useSpeakerBlocks,
+  useSpeakerColors,
+  useSpeakerName,
+  useSpeakerNames,
+} from '../utils/document';
 import { showModal, Modal } from '../components/modal';
-import { SpeakerColorsContext } from './speaker_colors';
 import { Editor, Transforms } from 'slate';
-import { calculateParagraphIdxOfSpeakerEnd } from './transcription_editor';
 import clsx from 'clsx';
 
 function SpeakerNamesSection({
@@ -24,7 +29,7 @@ function SpeakerNamesSection({
   onSpeakerSelected: (speakerId: string) => void;
   currentSpeaker: string | null;
 } & ComponentProps<typeof DropdownSection>) {
-  const speakerColors = useContext(SpeakerColorsContext);
+  const speakerColors = useSpeakerColors(editor);
   const speakerNames = useSpeakerNames(editor);
 
   return (
@@ -80,8 +85,15 @@ function SpeakerNameModal({
   );
 }
 
-function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
-  const endPath = calculateParagraphIdxOfSpeakerEnd(editor, path[0]);
+function setSpeaker(
+  editor: Editor,
+  path: number[],
+  speaker: string | null,
+  speakerBlocks: SpeakerBlocks,
+) {
+  const speakerBlock = speakerBlocks.find(
+    (block) => block.start <= path[0] && block.end <= path[0],
+  );
 
   Transforms.setNodes(
     editor,
@@ -89,7 +101,7 @@ function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
     {
       at: {
         anchor: { path, offset: 0 },
-        focus: { path: [endPath], offset: 0 },
+        focus: { path: [speakerBlock?.end || 0], offset: 0 },
       },
       match: (n) => 'speaker' in n, // we only match paragraph nodes
     },
@@ -118,6 +130,7 @@ export function SpeakerDropdown({
 }: { paragraph: Paragraph } & Omit<ComponentProps<typeof Dropdown>, 'label'>) {
   const editor = useSlateStatic();
   const name = useSpeakerName(paragraph.speaker, editor);
+  const speakerBlocks = useSpeakerBlocks(editor);
 
   const renameSpeaker = () => {
     const speaker = paragraph.speaker;
@@ -152,14 +165,14 @@ export function SpeakerDropdown({
           if (!speakerName) return;
           const elementPath = ReactEditor.findPath(editor, paragraph);
           const speakerId = addNewSpeaker(editor, speakerName);
-          setSpeaker(editor, elementPath, speakerId);
+          setSpeaker(editor, elementPath, speakerId, speakerBlocks);
         }}
       />,
     );
   };
   const unsetSpeaker = () => {
     const elementPath = ReactEditor.findPath(editor, paragraph);
-    setSpeaker(editor, elementPath, null);
+    setSpeaker(editor, elementPath, null, speakerBlocks);
   };
 
   return (
@@ -172,7 +185,7 @@ export function SpeakerDropdown({
         editor={editor}
         onSpeakerSelected={(speakerId) => {
           const elementPath = ReactEditor.findPath(editor, paragraph);
-          setSpeaker(editor, elementPath, speakerId);
+          setSpeaker(editor, elementPath, speakerId, speakerBlocks);
         }}
         currentSpeaker={paragraph.speaker}
       >

@@ -110,27 +110,11 @@ def create_default_tasks_for_document(session: Session, document: Document):
 
     transcribe_task = Task(
         task_type=TaskType.TRANSCRIBE,
-        task_parameters={"lang": "auto", "model": "base"},
+        task_parameters={"lang": "auto", "model": "large"},
         document_id=document.id,
         dependencies=[reencode_task],
     )
     session.add(transcribe_task)
-
-    align_task = Task(
-        task_type=TaskType.ALIGN,
-        task_parameters={},
-        document_id=document.id,
-        dependencies=[transcribe_task],
-    )
-    session.add(align_task)
-
-    speaker_identification_task = Task(
-        task_type=TaskType.IDENTIFY_SPEAKERS,
-        task_parameters={},
-        document_id=document.id,
-        dependencies=[align_task],
-    )
-    session.add(speaker_identification_task)
 
 
 @document_router.post("/")

@@ -75,6 +75,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
       }
     }
 
+    console.log(time)
     setCurrentElementStartTime(startTimeOfElement);
   }, [editor.doc]);
 
@@ -93,6 +94,8 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   // dispatched in transcription_editor.tsx
   useEvent<SeekToEvent>(SEEK_TO_EVENT, (e) => {
     if (e.detail.start != undefined) {
+      console.log(e.detail.start)
+      window.wave = waveSurferRef.current;
       waveSurferRef.current?.setCurrentTime(e.detail.start);
     }
   });
@@ -218,7 +221,7 @@ export function startTimeToClassName(startTime: number) {
 }
 
 function PlaybackSpeedDropdown({ onChange }: { onChange: (v: number) => void }) {
-  const possibleRates = [0.5, 0.7, 1.0, 1.2, 1.5, 1.7, 2.0];
+  const possibleRates = [0.5, 0.7, 1.0, 1.2, 1.5, 1.7, 2.0, 2.2, 2.5, 2.7, 3.0];
 
   const [value, setValue] = useLocalStorage('playbackSpeed', 1.0);
   useEffect(() => {

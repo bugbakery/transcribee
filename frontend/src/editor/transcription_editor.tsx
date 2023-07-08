@@ -4,19 +4,23 @@ import {
   Editable,
   RenderElementProps,
   RenderLeafProps,
-  ReactEditor,
-  useSlateSelector,
 } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
 import { SeekToEvent } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
-import { CSSProperties, ComponentProps, useContext, useCallback, memo } from 'react';
-import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
+import { ComponentProps, useCallback, memo } from 'react';
 import { useMediaQuery } from '../utils/use_media_query';
 import { createPortal } from 'react-dom';
-import { useDocumentSelector, useSpeakerName } from '../utils/document';
+import {
+  SpeakerBlocks,
+  useSpeakerBlocks,
+  useSpeakerColors,
+  useSpeakerName,
+} from '../utils/document';
+import { id } from '../utils/id';
+import { CssRule } from '../utils/cssdom';
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
@@ -38,33 +42,9 @@ export function formattedTime(sec: number | undefined): string {
   return `${minutes}:${seconds}`;
 }
 
-export function calculateParagraphIdxOfSpeakerEnd(editor: Editor, idx: number): number {
-  const speaker = editor.doc.children[idx].speaker;
-
-  let speakerEndIdx;
-  for (
-    speakerEndIdx = idx;
-    speakerEndIdx < editor.doc.children.length &&
-    editor.doc.children[speakerEndIdx].speaker == speaker;
-    speakerEndIdx++
-  );
-  speakerEndIdx--;
-
-  return speakerEndIdx;
-}
-
 function Paragraph({ element, children, attributes }: RenderElementProps): JSX.Element {
   const startAtom = element.children[0];
-  const speakerColors = useContext(SpeakerColorsContext);
-
-  const idx = useSlateSelector((editor) => ReactEditor.findPath(editor, element)[0]);
-  const speakerEndIdx = useSlateSelector((editor) =>
-    calculateParagraphIdxOfSpeakerEnd(editor, idx),
-  );
-  const speakerChanged = useDocumentSelector(
-    (doc) => idx == 0 || doc.children[idx - 1].speaker != element.speaker,
-  );
-
+  const speakerColors = useSpeakerColors();
   const speakerName = useSpeakerName(element.speaker);
 
   let portalNode = document.getElementById('meta-portal');
@@ -80,111 +60,108 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
     }
   }
 
+  const speakerChanged = false;
+  const speakerLast = false;
+
   const metaInformation = (
     <div
       className="contents"
-      style={
-        {
-          '--element-idx': idx,
-          '--current-speaker-end-idx': speakerEndIdx,
-        } as CSSProperties
-      }
+      id={`paragraph-${id(element)}`}
     >
       {/* speaker color indicator */}
       <div
-        contentEditable={false}
-        style={{
-          ...(element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}),
-        }}
-        className={clsx(
-          'w-2 mr-2 h-full rounded-md',
-          'row-start-[calc(var(--element-idx)*3+1)]',
-          'row-end-[calc(var(--current-speaker-end-idx)*3+3)]',
-          'col-start-2',
-          'md:col-start-3',
-          'xl:mr-4',
-        )}
-      />
+          contentEditable={false}
+          style={{
+            backgroundColor: element.speaker && speakerColors[element.speaker],
+          }}
+          className={clsx(
+            'w-2 mr-2 h-full rounded-md',
+            'row-start-[calc(var(--element-idx)*3+1)]',
+            'row-end-[calc(var(--current-speaker-end-idx)*3+3)]',
+            'col-start-2',
+            'md:col-start-3',
+            'xl:mr-4',
+          )}
+        />
 
-      {/* start time */}
-      <div
-        contentEditable={false}
-        className={clsx(
-          `text-slate-500 dark:text-neutral-400 font-mono`,
-          'row-start-[calc(var(--element-idx)*3+1)] col-start-3',
-          speakerChanged && 'md:row-start-[calc(var(--element-idx)*3+2)]',
-          'xl:row-start-[calc(var(--element-idx)*3+1)]',
-          'md:col-start-2',
-          'xl:col-start-1 xl:mr-4',
-        )}
-        onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
-      >
-        {formattedTime(startAtom.start)}
-      </div>
-
-      {/* speaker names */}
-      {speakerChanged && (
+        {/* start time */}
         <div
           contentEditable={false}
           className={clsx(
-            'hidden md:block',
-            'col-start-2 h-full',
-            'row-start-[calc(var(--element-idx)*3+1)]',
-            'row-end-[calc(var(--current-speaker-end-idx)*3+3)]',
-            'overflow-clip',
+            `text-slate-500 dark:text-neutral-400 font-mono`,
+            'row-start-[calc(var(--element-idx)*3+1)] col-start-3',
+            speakerChanged && 'md:row-start-[calc(var(--element-idx)*3+2)]',
+            'xl:row-start-[calc(var(--element-idx)*3+1)]',
+            'md:col-start-2',
+            'xl:col-start-1 xl:mr-4',
           )}
+          onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
         >
+          {formattedTime(startAtom.start)}
+        </div>
+
+        {/* speaker names */}
+        {speakerChanged && (
           <div
+            contentEditable={false}
             className={clsx(
-              'sticky top-0',
-              '-mt-[0.1rem] py-1 mr-1',
-              'max-w-none break-all text-neutral-500',
-              'text-sm font-semibold',
-              'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
-              'bg-white dark:bg-neutral-900',
-              'xl:pr-3',
+              'hidden md:block',
+              'col-start-2 h-full',
+              'row-start-[calc(var(--element-idx)*3+1)]',
+              'row-end-[calc(var(--current-speaker-end-idx)*3+3)]',
+              'overflow-clip',
             )}
           >
-            {speakerName}
+            <div
+              className={clsx(
+                'sticky top-0',
+                '-mt-[0.1rem] py-1 mr-1',
+                'max-w-none break-all text-neutral-500',
+                'text-sm font-semibold',
+                'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
+                'bg-white dark:bg-neutral-900',
+                'xl:pr-3',
+              )}
+            >
+              {speakerName}
+            </div>
           </div>
-        </div>
-      )}
-      <SpeakerDropdown
-        contentEditable={false}
-        paragraph={element}
-        buttonClassName={clsx(
-          'max-w-none break-all text-neutral-500',
-          'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
-          'xl:pr-2',
-          'md:opacity-0 md:hover:opacity-100',
         )}
-        dropdownContainerClassName="pb-24"
-        className={clsx(
-          'mx-2',
-          'row-start-[calc(var(--element-idx)*3+1)] col-start-4',
-          '-mt-0.5 xl:mt-0',
-          'md:col-start-2 md:-ml-2',
-        )}
-      />
+        <SpeakerDropdown
+          paragraph={element}
+          contentEditable={false}
+          buttonClassName={clsx(
+            'max-w-none break-all text-neutral-500',
+            'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
+            'xl:pr-2',
+            'md:opacity-0 md:hover:opacity-100',
+          )}
+          dropdownContainerClassName="pb-24"
+          className={clsx(
+            'mx-2',
+            'row-start-[calc(var(--element-idx)*3+1)] col-start-4',
+            '-mt-0.5 xl:mt-0',
+            'md:col-start-2 md:-ml-2',
+          )}
+        />
 
-      {/* helper for bottom padding */}
-      <div
-        className={clsx(
-          'mb-6 md:mb-1 xl:mb-3',
-          'row-start-[calc(var(--element-idx)*3+3)]',
-          idx == speakerEndIdx && 'md:mb-2',
-        )}
-      />
+        {/* helper for bottom padding */}
+        <div
+          className={clsx(
+            'mb-6 md:mb-1 xl:mb-3',
+            'row-start-[calc(var(--element-idx)*3+3)]',
+            speakerLast && 'md:mb-2',
+          )}
+        />
     </div>
   );
 
   return (
     <>
       {portalNode && createPortal(metaInformation, portalNode)}
-
       <div
         {...attributes}
-        style={{ '--element-idx': idx } as CSSProperties}
+        id={`paragraph-${id(element)}`}
         className={clsx(
           `col-start-2 col-span-2`,
           'row-start-[calc(var(--element-idx)*3+2)] col-start-3',
@@ -259,8 +236,21 @@ export function TranscriptionEditor({
     }
   });
 
+  const speakerBlocks = useSpeakerBlocks(editor);
+  const paras: {id: number, idx: number, block: SpeakerBlocks[0]}[] = []
+  speakerBlocks.forEach(block => {
+    for (let i = block.start; i < block.end; i++) {
+      paras.push({id: id(editor.children[i]), idx: i, block})
+    }
+  })
+
+
   return (
     <div {...props}>
+      {paras.map(p => <CssRule key={p.id} css={`#paragraph-${p.id} {
+        --element-idx: ${p.idx};
+        --current-speaker-end-idx: ${p.block.end};
+      }`} />)}
       <Slate
         editor={editor}
         value={
@@ -278,48 +268,46 @@ export function TranscriptionEditor({
           }
         }}
       >
-        <SpeakerColorsProvider>
-          <Editable
-            renderElement={Paragraph}
-            renderLeaf={useCallback(
-              (props: RenderLeafProps) => {
-                const { leaf, children, attributes } = props;
-                return (
-                  <Leaf
-                    attributes={attributes}
-                    conf={leaf.conf}
-                    start={leaf.start}
-                    systemPrefersDark={systemPrefersDark}
-                  >
-                    {children}
-                  </Leaf>
-                );
-              },
-              [systemPrefersDark],
-            )}
-            onClick={(e: React.MouseEvent) => {
-              const { selection } = editor;
+        <Editable
+          renderElement={Paragraph}
+          renderLeaf={useCallback(
+            (props: RenderLeafProps) => {
+              const { leaf, children, attributes } = props;
+              return (
+                <Leaf
+                  attributes={attributes}
+                  conf={leaf.conf}
+                  start={leaf.start}
+                  systemPrefersDark={systemPrefersDark}
+                >
+                  {children}
+                </Leaf>
+              );
+            },
+            [systemPrefersDark],
+          )}
+          onClick={(e: React.MouseEvent) => {
+            const { selection } = editor;
 
-              // fire a 'seek to' event when selection is changed by clicking outside of a text node
-              // e.g. by clicking at the blank space on the right of a paragraph
-              if (
-                selection &&
-                Range.isCollapsed(selection) &&
-                e.target instanceof HTMLElement &&
-                e.target.isContentEditable
-              ) {
-                const [leaf] = editor.leaf(selection.anchor);
-                window.dispatchEvent(new SeekToEvent(leaf.start));
-              }
-            }}
-            className={clsx(
-              'grid items-start grid-cols-[min-content_max-content_min-content_1fr]',
-              'md:auto-rows-[24px_auto_auto]',
-              'xl:auto-rows-auto',
-              '2xl:-ml-20',
-            )}
-          />
-        </SpeakerColorsProvider>
+            // fire a 'seek to' event when selection is changed by clicking outside of a text node
+            // e.g. by clicking at the blank space on the right of a paragraph
+            if (
+              selection &&
+              Range.isCollapsed(selection) &&
+              e.target instanceof HTMLElement &&
+              e.target.isContentEditable
+            ) {
+              const [leaf] = editor.leaf(selection.anchor);
+              window.dispatchEvent(new SeekToEvent(leaf.start));
+            }
+          }}
+          className={clsx(
+            'grid items-start grid-cols-[min-content_max-content_min-content_1fr]',
+            'md:auto-rows-[24px_auto_auto]',
+            'xl:auto-rows-auto',
+            '2xl:-ml-20',
+          )}
+        />
       </Slate>
     </div>
   );
