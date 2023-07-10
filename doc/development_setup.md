@@ -41,7 +41,7 @@ the following steps:
 > do not need to restart the container:
 >
 > ```shell
-> docker run -it -p 5173:5173 --mount type=bind,source="$(pwd)",target=/app transcribee:latest
+> docker run -it -p 5173:5173 --mount type=bind,source="$(pwd)",target=/app --entrypoint nix-shell transcribee:latest packaging/shell.nix --command /app/packaging/dev.sh
 > ```
 
 ## Extended setup
