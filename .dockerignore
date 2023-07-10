@@ -1,1 +1,4 @@
 worker/transcribee_worker/.data
+backend/__pypackages__
+worker/__pypackages__
+frontend/node_modules/

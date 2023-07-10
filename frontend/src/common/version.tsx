@@ -5,8 +5,10 @@ import version, { Commit } from 'virtual:git-version';
 import { IoMdOpen } from 'react-icons/io';
 import clsx from 'clsx';
 
-function formatDate(date: string): string {
-  return new Date(date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+function formatDate(date?: string): string {
+  return date
+    ? new Date(date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
+    : 'UNKNOWN DATE';
 }
 
 export function CommitPopup({ commit, text }: { commit: Commit; text: string }) {
@@ -24,7 +26,7 @@ export function CommitPopup({ commit, text }: { commit: Commit; text: string }) 
             className="text-blue-600 underline dark:text-blue-500 hover:no-underline"
             title="View commit on GitHub"
           >
-            {commit.hash.substring(0, 10)} <IoMdOpen className="inline" />
+            {commit?.hash?.substring(0, 10)} <IoMdOpen className="inline" />
           </a>{' '}
           on {formatDate(commit.date)}.
         </>
@@ -36,7 +38,7 @@ export function CommitPopup({ commit, text }: { commit: Commit; text: string }) 
 }
 
 export function Version({ className = '' }: { className?: string }) {
-  const { lastCommit } = version;
+  const lastCommit = version?.lastCommit;
 
   return (
     <div className={clsx('mb-10')}>
@@ -50,17 +52,19 @@ export function Version({ className = '' }: { className?: string }) {
           className,
         )}
       >
-        Frontend built on {formatDate(version.date)}. Last commit{' '}
-        <a
-          href={`https://github.com/transcribee/transcribee/commit/${lastCommit.hash}`}
-          target="_blank"
-          rel="noreferrer"
-          className="underline decoration-dashed"
-          title="View commit on GitHub"
-        >
-          {lastCommit.hash.substring(0, 10)} <IoMdOpen className="inline" />
-        </a>{' '}
-        on {formatDate(lastCommit.date)}.
+        Frontend built on {formatDate(version?.date)}. Last commit{' '}
+        {lastCommit?.hash && (
+          <a
+            href={`https://github.com/transcribee/transcribee/commit/${lastCommit.hash}`}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-dashed"
+            title="View commit on GitHub"
+          >
+            {lastCommit.hash.substring(0, 10)} <IoMdOpen className="inline" />
+          </a>
+        )}{' '}
+        on {formatDate(lastCommit?.date)}.
       </div>
     </div>
   );
