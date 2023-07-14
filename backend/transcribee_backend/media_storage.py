@@ -15,7 +15,8 @@ from urllib import parse
 
 import filetype
 from fastapi import HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.params import Header
+from fastapi.responses import FileResponse, Response
 
 from .config import settings
 
@@ -123,10 +124,42 @@ def is_safe_path(basedir: Path, path: Path):
     return basedir == Path(os.path.commonpath((basedir, matchpath)))
 
 
-def serve_media(file: str, user_sig: str = Query(alias=SIGNATURE_PARAMETER)):
+# good for server memory, good for player performance on slow connections
+MAX_CHUNK_SIZE = 1024 * 1024
+
+
+def serve_media(
+    file: str, user_sig: str = Query(alias=SIGNATURE_PARAMETER), range=Header(None)
+):
     verify_media_url(file, user_sig, settings.media_signature_max_age)
     path = settings.storage_path / file
     if not is_safe_path(settings.storage_path, path):  # Path traversal. Naughty!
         raise HTTPException(status_code=403)
 
-    return FileResponse(path, media_type=filetype.guess_mime(path))
+    # handle chunked responses
+    if range is not None:
+        # would be nice to use FileResponse but it doesn't support range requests yet
+        # see issue: https://github.com/encode/starlette/issues/950
+        start, end = str(range).replace("bytes=", "").split("-")
+
+        filesize = path.stat().st_size
+        start = int(start)
+        end = min(int(end), filesize - 1) if end else filesize - 1
+        end = min(int(end), start + MAX_CHUNK_SIZE)
+
+        with open(path, "rb") as f:
+            f.seek(start)
+            data = f.read(end - start + 1)
+            headers = {
+                "Content-Range": f"bytes {start}-{end}/{filesize}",
+                "Accept-Ranges": "bytes",
+            }
+
+            return Response(
+                data,
+                status_code=206,
+                headers=headers,
+                media_type=filetype.guess_mime(path),
+            )
+    else:
+        return FileResponse(path, media_type=filetype.guess_mime(path))
