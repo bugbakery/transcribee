@@ -1,8 +1,7 @@
 import clsx from 'clsx';
 import { IconButton } from '../components/button';
-import { ImPause, ImPlay2, ImBackward2 } from 'react-icons/im';
-import { useCallback, useMemo, useEffect, useState, useRef } from 'react';
-import { audio, actions, events } from '@podlove/html5-audio-driver';
+import { ImBackward2, ImPause2, ImPlay3 } from 'react-icons/im';
+import { useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react';
 import { useGetDocument } from '../api/document';
 import { CssRule } from '../utils/cssdom';
 import { SEEK_TO_EVENT, SeekToEvent } from './types';
@@ -10,6 +9,10 @@ import { useEvent } from '../utils/use_event';
 import { Editor } from 'slate';
 import { useButtonHoldRepeat } from '../utils/button_hooks';
 import { useLocalStorage } from '../utils/use_local_storage';
+import { SpeakerColorsContext } from './speaker_colors';
+import { LoadingSpinner } from '../components/loading_spinner';
+import { getSpeakerName } from '../utils/document';
+import { useAudio } from '../utils/use_audio';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -20,62 +23,30 @@ let lastTabPressTs = 0;
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument({ document_id: documentId });
 
-  const player = useMemo(() => {
-    const element = audio(
-      data?.media_files.map((file) => {
+  const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
+
+  const sources = useMemo(
+    () =>
+      data?.media_files.map((media) => {
         return {
-          src: file.url,
-          type: file.content_type,
+          src: media.url,
+          type: media.content_type,
         };
       }) || [],
-    );
+    [data?.media_files],
+  );
 
-    return {
-      element,
-      actions: actions(element),
-      events: events(element),
-    };
-  }, [data?.media_files]);
-
-  const [duration, setDuration] = useState<number | undefined>();
-  useEffect(() => {
-    setDuration(player.element.duration);
-    player.events.onDurationChange(() => {
-      setDuration(player.element.duration);
-    });
-
-    player.events.onPlay(() => {
-      setPlayingState(true);
-    });
-
-    player.events.onPause(() => {
-      setPlayingState(false);
-    });
-  }, [player]);
-
-  // state for knowing which symbol we should display at the play / pause button
-  const [playing, setPlayingState] = useState(false);
-
-  useEffect(() => {
-    if (playing) {
-      player.actions.play();
-    } else {
-      player.actions.pause();
-    }
-  }, [playing]);
-  const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
-  useEffect(() => {
-    player.actions.setRate(playbackRate);
-  }, [playbackRate]);
+  const audioPlayer = useAudio({
+    playbackRate,
+    sources,
+  });
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
-  const [currentTime, setCurrentTime] = useState(0.0);
-  const progressCallback = useCallback(() => {
-    const time = player.element.currentTime;
-    let startTimeOfElement = 0;
 
-    setCurrentTime(time);
+  useEffect(() => {
+    const time = audioPlayer.playtime || 0;
+    let startTimeOfElement = 0;
 
     if (!editor.doc.children) return;
 
@@ -95,27 +66,23 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
     }
 
     setCurrentElementStartTime(startTimeOfElement);
-  }, [editor.doc]);
-
-  useEffect(() => {
-    player.events.onPlaytimeUpdate(progressCallback);
-  }, [player, progressCallback]);
+  }, [editor.doc, audioPlayer.playtime]);
 
   // skip to a timestamp if the user clicks on a word in the transcript. The corresponding event is
   // dispatched in transcription_editor.tsx
   useEvent<SeekToEvent>(SEEK_TO_EVENT, (e) => {
     if (e.detail.start != undefined) {
-      player.actions.setPlaytime(e.detail.start);
+      audioPlayer.setPlaytime(e.detail.start);
     }
   });
 
   // bind the tab key to play / pause
   const togglePlaying = () => {
-    setPlayingState(!playing);
-  };
-
-  const seekRelative = (seconds: number) => {
-    player.actions.setPlaytime(player.element.currentTime + seconds);
+    if (!audioPlayer.playing) {
+      audioPlayer.play();
+    } else {
+      audioPlayer.pause();
+    }
   };
 
   useEvent<KeyboardEvent>('keydown', (e) => {
@@ -123,9 +90,9 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
       // double tap to skip
       if (e.timeStamp - lastTabPressTs < DOUBLE_TAP_THRESHOLD_MS) {
         if (e.shiftKey) {
-          seekRelative(SKIP_SHORTCUT_SEC);
+          audioPlayer.seekRelative(SKIP_SHORTCUT_SEC);
         } else {
-          seekRelative(-SKIP_SHORTCUT_SEC);
+          audioPlayer.seekRelative(-SKIP_SHORTCUT_SEC);
         }
       }
 
@@ -138,13 +105,13 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   });
 
   const backwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => seekRelative(-SKIP_BUTTON_SEC / 2),
-    onShortClick: () => seekRelative(-SKIP_BUTTON_SEC),
+    repeatingAction: () => audioPlayer.seekRelative(-SKIP_BUTTON_SEC / 2),
+    onShortClick: () => audioPlayer.seekRelative(-SKIP_BUTTON_SEC),
   });
 
   const forwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => seekRelative(SKIP_BUTTON_SEC / 2),
-    onShortClick: () => seekRelative(SKIP_BUTTON_SEC),
+    repeatingAction: () => audioPlayer.seekRelative(SKIP_BUTTON_SEC / 2),
+    onShortClick: () => audioPlayer.seekRelative(SKIP_BUTTON_SEC),
   });
 
   return (
@@ -180,11 +147,10 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           label="backwards"
           {...backwardLongPressProps}
         />
-        <IconButton
-          icon={playing ? ImPause : ImPlay2}
-          label="play / pause"
-          size={28}
-          onClick={() => togglePlaying()}
+        <BufferingPlayButton
+          playing={audioPlayer.playing}
+          buffering={audioPlayer.buffering}
+          onClick={togglePlaying}
         />
         <IconButton
           icon={ImBackward2}
@@ -194,16 +160,14 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
         />
 
         <div className="pl-4 flex-grow">
-          {duration && (
-            <SeekBar
-              time={currentTime}
-              duration={duration}
-              setTime={(time) => {
-                setCurrentTime(time);
-                player.actions.setPlaytime(time);
-              }}
-            />
-          )}
+          <SeekBar
+            time={audioPlayer.playtime}
+            duration={audioPlayer.duration}
+            onSeek={(time) => {
+              audioPlayer.setPlaytime(time);
+            }}
+            editor={editor}
+          />
         </div>
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
@@ -214,42 +178,89 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   );
 }
 
+function BufferingPlayButton({
+  onClick,
+  playing,
+  buffering,
+}: {
+  onClick: () => void;
+  playing: boolean;
+  buffering: boolean;
+}) {
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  const [delayedBuffering, setDelayedBuffering] = useState(false);
+
+  useEffect(() => {
+    if (buffering) {
+      timeoutRef.current = setTimeout(() => {
+        setDelayedBuffering(true);
+      }, 500);
+    } else {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = undefined;
+      }
+      setDelayedBuffering(false);
+    }
+  }, [buffering]);
+
+  return (
+    <IconButton
+      icon={playing ? (delayedBuffering ? LoadingSpinner : ImPause2) : ImPlay3}
+      label={playing ? 'pause' : 'play'}
+      size={28}
+      onClick={onClick}
+    />
+  );
+}
+
 function SeekBar({
   time,
   duration,
-  setTime,
+  onSeek,
+  editor,
 }: {
   time: number;
-  duration: number;
-  setTime: (time: number) => void;
+  duration: number | undefined;
+  onSeek: (time: number) => void;
+  editor: Editor;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [tmpTime, setTmpTime] = useState<number | undefined>();
 
-  const onMouseSeek = useCallback((e: MouseEvent) => {
-    if (!ref.current) return;
-    const boundingRect = ref.current.getBoundingClientRect();
-    const seekToPercent = (e.pageX - boundingRect.x) / boundingRect.width;
-    const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
+  const onMouseSeek = useCallback(
+    (e: MouseEvent) => {
+      if (!ref.current || !duration) return;
+      const boundingRect = ref.current.getBoundingClientRect();
+      const seekToPercent = (e.pageX - boundingRect.x) / boundingRect.width;
+      const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
 
-    setTime(clampedPercent * duration);
-    setTmpTime(undefined);
-  }, []);
+      onSeek(clampedPercent * duration);
+      setTmpTime(undefined);
+    },
+    [duration],
+  );
 
-  const onMouseMove = useCallback((e: MouseEvent | React.MouseEvent) => {
-    if (!ref.current) return;
-    const boundingRect = ref.current.getBoundingClientRect();
-    const seekToPercent = (e.pageX - boundingRect.x) / boundingRect.width;
-    const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
+  const onMouseMove = useCallback(
+    (e: MouseEvent | React.MouseEvent) => {
+      if (!ref.current || !duration) return;
+      const boundingRect = ref.current.getBoundingClientRect();
+      const seekToPercent = (e.pageX - boundingRect.x) / boundingRect.width;
+      const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
 
-    setTmpTime(clampedPercent * duration);
-  }, []);
+      setTmpTime(clampedPercent * duration);
+    },
+    [duration],
+  );
 
-  const onMouseDown = useCallback((e: MouseEvent | React.MouseEvent) => {
-    onMouseMove(e);
-    setDragging(true);
-  }, []);
+  const onMouseDown = useCallback(
+    (e: MouseEvent | React.MouseEvent) => {
+      onMouseMove(e);
+      setDragging(true);
+    },
+    [onMouseMove],
+  );
 
   useEffect(() => {
     if (!dragging) return;
@@ -268,20 +279,53 @@ function SeekBar({
     };
   }, [dragging, onMouseSeek]);
 
+  const speakerColors = useContext(SpeakerColorsContext);
+
+  const barWidth = ref.current?.getBoundingClientRect().width;
+
   return (
     <div
       ref={ref}
-      className={clsx('bg-gray-600', 'h-4', 'w-full', 'relative', 'rounded-sm')}
+      className={clsx('relative', 'h-6', 'flex', 'items-center', 'select-none')}
       onMouseDown={onMouseDown}
     >
+      <div className="absolute h-2 w-full overflow-hidden rounded-md bg-gray-600">
+        {duration && editor.doc.children
+          ? editor.doc.children.map((p, i) => {
+              const width =
+                ((p.children[p.children.length - 1]?.end || 0) - (p.children[0]?.start || 0)) /
+                duration;
+              const left = (p.children[0]?.start || 0) / duration;
+
+              return (
+                <div
+                  className={clsx(
+                    'absolute h-full',
+                    width * (barWidth || 0) > 4 && 'border-l-2 first:border-l-0 border-gray-600',
+                  )}
+                  title={getSpeakerName(p.speaker, editor.doc.speaker_names)}
+                  data-start={p.children[0]?.start}
+                  data-end={p.children[p.children.length - 1]?.end}
+                  style={{
+                    background: (p.speaker && speakerColors[p.speaker]) || 'transparent',
+                    left: `${left * 100}%`,
+                    width: `${width * 100}%`,
+                  }}
+                  key={i}
+                />
+              );
+            })
+          : null}
+      </div>
       <div
-        className={clsx('absolute', 'w-[2px]', 'bg-white', '-top-1 -bottom-1 -ml-0.5')}
-        style={{
-          transform: `translateX(${
-            ((tmpTime !== undefined ? tmpTime : time) / duration) *
-            (ref.current?.getBoundingClientRect().width || 0)
-          }px)`,
-        }}
+        className={clsx('absolute', 'w-[2px]', 'bg-white', 'h-full', '-ml-[1px]')}
+        style={
+          duration
+            ? {
+                left: ((tmpTime !== undefined ? tmpTime : time) / duration) * 100 + '%',
+              }
+            : {}
+        }
       />
     </div>
   );
