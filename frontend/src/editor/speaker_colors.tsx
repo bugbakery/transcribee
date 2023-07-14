@@ -22,7 +22,7 @@ function getColor(n: number) {
   return palette[n % palette.length];
 }
 
-export function SpeakerColorsProvider({ children }: { children: JSX.Element }) {
+export function SpeakerColorsProvider({ children }: { children: React.ReactNode }) {
   const speakerIDs = useSpeakerIDs();
   const colors = useMemo(() => {
     return Object.fromEntries([...speakerIDs].map((uuid, i) => [uuid, getColor(i)]));

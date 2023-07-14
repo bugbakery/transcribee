@@ -70,7 +70,7 @@
     "react-use-measure": "^2.1.1",
     "reconnecting-websocket": "^4.4.0",
     "slate": "^0.94.0",
-    "slate-automerge-doc": "github:transcribee/slate-automerge-doc#32a3f9c6f55c6e5263eae8ed32903213910336f3",
+    "slate-automerge-doc": "github:transcribee/slate-automerge-doc",
     "slate-react": "^0.94.0",
     "swr": "^2.1.0",
     "tailwindcss": "^3.2.7",

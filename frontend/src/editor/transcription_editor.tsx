@@ -10,7 +10,7 @@ import {
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
 import { SeekToEvent } from './types';
-import { startTimeToClassName } from './player';
+import { PlayerBar, startTimeToClassName } from './player';
 import clsx from 'clsx';
 import { CSSProperties, ComponentProps, useContext, useCallback, memo } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
@@ -245,9 +245,11 @@ Leaf.displayName = 'Leaf';
 
 export function TranscriptionEditor({
   editor,
+  documentId,
   ...props
 }: {
   editor: Editor;
+  documentId: string;
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   // prevent ctrl+s
@@ -319,6 +321,7 @@ export function TranscriptionEditor({
               '2xl:-ml-20',
             )}
           />
+          <PlayerBar documentId={documentId} editor={editor} />
         </SpeakerColorsProvider>
       </Slate>
     </div>

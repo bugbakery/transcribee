@@ -9,7 +9,6 @@ import { updateDocument, useGetDocument } from '../api/document';
 import { TbFileExport } from 'react-icons/tb';
 import { canGenerateVtt } from '../utils/export/webvtt';
 import { Suspense, lazy, useMemo, useState, useCallback } from 'react';
-import { PlayerBar } from '../editor/player';
 import { useDebugMode } from '../debugMode';
 import clsx from 'clsx';
 import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_editor';
@@ -178,8 +177,12 @@ export function DocumentPage({
           <MeButton />
         </TopBarPart>
       </TopBar>
-      <TranscriptionEditor editor={editor} className={clsx({ blur: !syncComplete })} />
-      <PlayerBar documentId={documentId} editor={editor} />
+
+      <TranscriptionEditor
+        editor={editor}
+        documentId={documentId}
+        className={clsx({ blur: !syncComplete })}
+      />
 
       <Suspense>{debugMode && <LazyDebugPanel editor={editor} />}</Suspense>
 

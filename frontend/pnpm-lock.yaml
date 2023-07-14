@@ -5247,14 +5247,14 @@ packages:
     dev: true
 
   github.com/transcribee/openapi-typescript-fetch/1fcb5d7f9f0a2a4d26eec58e1a0a9d8be1655190:
-    resolution: {tarball: https://codeload.github.com/transcribee/openapi-typescript-fetch/tar.gz/1fcb5d7f9f0a2a4d26eec58e1a0a9d8be1655190}
+    resolution: {commit: 1fcb5d7f9f0a2a4d26eec58e1a0a9d8be1655190, repo: git+ssh://git@github.com/transcribee/openapi-typescript-fetch.git, type: git}
     name: openapi-typescript-fetch
     version: 1.1.3
     engines: {node: '>= 12.0.0', npm: '>= 7.0.0'}
     dev: false
 
   github.com/transcribee/slate-automerge-doc/d113d8d5e753a540b61b65f2f0d94b22720a0e16(slate@0.94.0):
-    resolution: {tarball: https://codeload.github.com/transcribee/slate-automerge-doc/tar.gz/d113d8d5e753a540b61b65f2f0d94b22720a0e16}
+    resolution: {commit: d113d8d5e753a540b61b65f2f0d94b22720a0e16, repo: git+ssh://git@github.com/transcribee/slate-automerge-doc.git, type: git}
     id: github.com/transcribee/slate-automerge-doc/d113d8d5e753a540b61b65f2f0d94b22720a0e16
     name: slate-automerge-doc
     version: 0.1.0
