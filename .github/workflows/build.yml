@@ -1,0 +1,67 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  frontend:
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - uses: pnpm/action-setup@v2
+        name: Install pnpm
+        id: pnpm-install
+        with:
+          version: 7
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v3
+        name: Setup pnpm cache
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm --prefix frontend/ install
+
+      - name: build frontend
+        run: pnpm --prefix frontend/ build
+
+      - name: create frontend archive
+        uses: ksm2/archive-action@v1
+        with:
+          format: "tar.gz"
+          name: frontend
+          root-directory: "frontend/dist/"
+
+      - name: clone frontend builds repo
+        shell: bash
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+        run: |
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add - <<< "${{ secrets.FRONTEND_RELEASE_DEPLOY_KEY }}"
+          git config --global user.email "bugbakery@riseup.net"
+          git config --global user.name "Vegan Bug Bakery CI"
+          git clone git@github.com:bugbakery/transcribee-frontend-releases.git
+          cp frontend.tar.gz transcribee-frontend-releases/frontend-${{github.sha}}.tar.gz
+          cd transcribee-frontend-releases/
+          git add *.tar.gz
+          git commit -m "Add frontend build ${{github.sha}}"
+          git push
