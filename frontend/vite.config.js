@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
+import { favicons } from "favicons";
 import topLevelAwait from 'vite-plugin-top-level-await';
 import { execSync } from 'child_process';
+import fs from 'fs';
 
 function gitVersionPlugin() {
   const virtualModuleId = 'virtual:git-version';
@@ -48,6 +50,46 @@ function gitVersionPlugin() {
   };
 }
 
+function faviconPlugin(originalPath) {
+  const files = {};
+  function addFiles(ctx, fileName, source) {
+    ctx.emitFile({ type: 'asset', fileName, source });
+    files[`/${fileName}`] = source;
+  }
+
+  return {
+    name: 'favicon-plugin', // required, will show up in warnings and errors
+    async buildStart() {
+      const response = await favicons(originalPath, {
+        icons: {
+          android: false,
+          appleIcon: false,
+          appleStartup: false,
+          windows: false,
+          yandex: false,
+
+          favicons: true,
+        },
+      });
+
+      addFiles(this, "favicon.svg", fs.readFileSync(originalPath))
+      response.images.forEach(img => {
+        addFiles(this, img.file, img.contents)
+      })
+    },
+    configureServer(server) {
+      return () => {
+        server.middlewares.use((req, res, next) => {
+          if (req.originalUrl in files) {
+            res.end(files[req.originalUrl]);
+          }
+          next()
+        })
+      }
+    },
+  };
+}
+
 // eslint-disable-next-line import/no-default-export
 export default defineConfig({
   server: {
@@ -57,7 +99,12 @@ export default defineConfig({
       '/api/v1/documents/sync': { target: 'http://127.0.0.1:8000', ws: true },
     },
   },
-  plugins: [topLevelAwait(), wasm(), gitVersionPlugin()],
+  plugins: [
+    topLevelAwait(),
+    wasm(),
+    gitVersionPlugin(),
+    faviconPlugin("../doc/transcribee-logo.svg"),
+  ],
 
   // This is only necessary if you are using `SharedWorker` or `WebWorker`, as
   // documented in https://vitejs.dev/guide/features.html#import-with-constructors
