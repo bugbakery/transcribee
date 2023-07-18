@@ -1,4 +1,8 @@
-# <div align="center">🎤 transcribee 🐝</div>
+<div align="center">
+  <img height="100" src="doc/transcribee-logo.svg" alt="transcribee logo">
+</div>
+
+# <div align="center">🎤 transcribee ✍️</div>
 
 > **<div align="center">[going to be] an open source audio- and videotranscription software</div>**
 
