@@ -13,6 +13,7 @@ import { SpeakerColorsContext } from './speaker_colors';
 import { LoadingSpinner } from '../components/loading_spinner';
 import { getSpeakerName } from '../utils/document';
 import { useAudio } from '../utils/use_audio';
+import { minutesInMs } from '../utils/duration_in_ms';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -21,7 +22,13 @@ const SKIP_SHORTCUT_SEC = 3;
 let lastTabPressTs = 0;
 
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
-  const { data } = useGetDocument({ document_id: documentId });
+  const { data } = useGetDocument(
+    { document_id: documentId },
+    {
+      revalidateOnFocus: false,
+      refreshInterval: minutesInMs(50), // media token expires after 1 hour
+    },
+  );
 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
 
@@ -72,7 +79,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   // dispatched in transcription_editor.tsx
   useEvent<SeekToEvent>(SEEK_TO_EVENT, (e) => {
     if (e.detail.start != undefined) {
-      audioPlayer.setPlaytime(e.detail.start);
+      audioPlayer.setPlaytime(e.detail.start + 1e-6);
     }
   });
 
@@ -281,8 +288,6 @@ function SeekBar({
 
   const speakerColors = useContext(SpeakerColorsContext);
 
-  const barWidth = ref.current?.getBoundingClientRect().width;
-
   return (
     <div
       ref={ref}
@@ -301,7 +306,7 @@ function SeekBar({
                 <div
                   className={clsx(
                     'absolute h-full',
-                    width * (barWidth || 0) > 4 && 'border-l-2 first:border-l-0 border-gray-600',
+                    // width * (barWidth || 0) > 4 && 'border-l-2 first:border-l-0 border-gray-600',
                   )}
                   title={getSpeakerName(p.speaker, editor.doc.speaker_names)}
                   data-start={p.children[0]?.start}
