@@ -1,5 +1,5 @@
 import { actions, audio, events, props } from '@podlove/html5-audio-driver';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type UseAudioOptions = {
   playbackRate?: number;
@@ -12,12 +12,13 @@ export function useAudio({ sources, playbackRate }: UseAudioOptions) {
   const [buffering, setBuffering] = useState(false);
   const [playtimeState, setPlaytimeState] = useState(0);
 
+  const lastPlaytimeRef = useRef<number>(0);
+
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const myAudioElement = audio(sources);
+    const myAudioElement = audio([]);
     setAudioElement(myAudioElement);
-    actions(myAudioElement).load(); // in case element is reused
 
     const e = events(myAudioElement);
     e.onDurationChange(() => {
@@ -37,34 +38,53 @@ export function useAudio({ sources, playbackRate }: UseAudioOptions) {
 
     return () => {
       myAudioElement.pause();
-      myAudioElement.innerHTML = ''; // cleanup media element for next use
+      myAudioElement.innerHTML = '';
       myAudioElement.remove();
     };
-  }, [sources]);
+  }, []);
 
   useEffect(() => {
-    if (audioElement) {
-      const e = events(audioElement);
-      e.onDurationChange(() => {
-        if (!audioElement) return;
-        setDuration(props(audioElement).duration);
-      });
-      e.onPlay(() => setPlayingState(true));
-      e.onPause(() => setPlayingState(false));
-      e.onBuffering(() => setBuffering(true));
-      e.onReady(() => setBuffering(false));
-      e.onPlaytimeUpdate((sec) => {
-        if (!audioElement) return;
+    if (!audioElement) return;
 
-        if (sec != undefined) {
-          setPlaytimeState(sec);
-        }
-      });
+    audioElement.innerHTML = '';
 
-      setDuration(props(audioElement).duration);
-      actions(audioElement).setPlaytime(0);
+    sources.forEach((source) => {
+      const sourceElement = document.createElement('source');
+      sourceElement.src = source.src;
+      sourceElement.type = source.type;
+      audioElement.appendChild(sourceElement);
+    });
+
+    actions(audioElement).load();
+
+    events(audioElement).onLoaded(() => {
+      actions(audioElement).setPlaytime(lastPlaytimeRef.current);
+    });
+
+    if (playing) {
+      actions(audioElement).play();
+    } else {
+      actions(audioElement).pause();
     }
-  }, [audioElement]);
+
+    return () => {
+      lastPlaytimeRef.current = props(audioElement).playtime || 0;
+    };
+  }, [audioElement, sources]);
+
+  // faster playtime updates
+  useEffect(() => {
+    if (playing) {
+      const interpolateInterval = window.setInterval(() => {
+        if (!audioElement) return;
+        setPlaytimeState(audioElement.currentTime);
+      }, 100);
+
+      return () => {
+        window.clearInterval(interpolateInterval);
+      };
+    }
+  }, [playing]);
 
   useEffect(() => {
     if (!audioElement) return;
@@ -72,7 +92,7 @@ export function useAudio({ sources, playbackRate }: UseAudioOptions) {
     if (playbackRate != undefined) {
       actions(audioElement).setRate(playbackRate);
     }
-  }, [audioElement, playbackRate]);
+  }, [audioElement, sources, playbackRate]);
 
   const setPlaytime = useCallback(
     (sec: number) => {
