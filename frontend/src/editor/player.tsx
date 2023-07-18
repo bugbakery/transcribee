@@ -21,6 +21,22 @@ const SKIP_SHORTCUT_SEC = 3;
 
 let lastTabPressTs = 0;
 
+const MEDIA_PRIORITY = ['video/mp4', 'audio/ogg', 'audio/mpeg'];
+
+function sortMediaFiles<T extends { type: string }>(mediaFiles: T[]) {
+  const sorted = [];
+
+  for (const contentType of MEDIA_PRIORITY) {
+    const files = mediaFiles.filter((file) => file.type == contentType);
+    sorted.push(...files);
+  }
+
+  const rest = mediaFiles.filter((file) => !MEDIA_PRIORITY.includes(file.type));
+  sorted.push(...rest);
+
+  return sorted;
+}
+
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument(
     { document_id: documentId },
@@ -32,16 +48,17 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
 
-  const sources = useMemo(
-    () =>
+  const sources = useMemo(() => {
+    const mappedFiles =
       data?.media_files.map((media) => {
         return {
           src: media.url,
           type: media.content_type,
         };
-      }) || [],
-    [data?.media_files],
-  );
+      }) || [];
+
+    return sortMediaFiles(mappedFiles);
+  }, [data?.media_files]);
 
   const audioPlayer = useAudio({
     playbackRate,
@@ -294,7 +311,7 @@ function SeekBar({
       className={clsx('relative', 'h-6', 'flex', 'items-center', 'select-none')}
       onMouseDown={onMouseDown}
     >
-      <div className="absolute h-2 w-full overflow-hidden rounded-md bg-gray-600">
+      <div className="absolute h-2 w-full overflow-hidden rounded-md bg-gray-200 dark:bg-gray-600">
         {duration && editor.doc.children
           ? editor.doc.children.map((p, i) => {
               const width =
@@ -304,10 +321,7 @@ function SeekBar({
 
               return (
                 <div
-                  className={clsx(
-                    'absolute h-full',
-                    // width * (barWidth || 0) > 4 && 'border-l-2 first:border-l-0 border-gray-600',
-                  )}
+                  className="absolute h-full"
                   title={getSpeakerName(p.speaker, editor.doc.speaker_names)}
                   data-start={p.children[0]?.start}
                   data-end={p.children[p.children.length - 1]?.end}
@@ -323,7 +337,7 @@ function SeekBar({
           : null}
       </div>
       <div
-        className={clsx('absolute', 'w-[2px]', 'bg-white', 'h-full', '-ml-[1px]')}
+        className={clsx('absolute', 'w-[2px]', 'bg-black', 'dark:bg-white', 'h-full', '-ml-[1px]')}
         style={
           duration
             ? {
