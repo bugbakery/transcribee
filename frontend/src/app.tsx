@@ -8,6 +8,7 @@ import { NewDocumentPage } from './pages/new_document';
 import { DocumentPage } from './pages/document';
 import { PageNotFoundPage } from './pages/page_not_found';
 import { ModalHolder } from './components/modal';
+import { Helmet } from 'react-helmet';
 
 export function App() {
   const routerBase = trimTrailingSlash(import.meta.env.BASE_URL);
@@ -21,6 +22,7 @@ export function App() {
 
   return (
     <Router base={routerBase}>
+      <Helmet titleTemplate="%s | transcribee 🐝" defaultTitle="transcribee 🐝"></Helmet>
       <ModalHolder />
       <Switch>
         <Route path="/login" component={LoginPage} />

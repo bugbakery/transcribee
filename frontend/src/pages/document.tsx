@@ -20,6 +20,7 @@ import { Version } from '../common/version';
 import { Input } from '../components/form';
 import { BiPencil } from 'react-icons/bi';
 import { SubmitHandler, useForm } from 'react-hook-form';
+import { Helmet } from 'react-helmet';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -139,6 +140,9 @@ export function DocumentPage({
 
   return (
     <AppContainer className="relative min-h-screen">
+      <Helmet>
+        <title>{data?.name}</title>
+      </Helmet>
       <TopBar className="!items-start">
         <TopBarPart className="sticky left-4 -ml-12 !items-start">
           <IconButton
