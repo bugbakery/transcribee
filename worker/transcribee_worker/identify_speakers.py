@@ -22,7 +22,7 @@ async def identify_speakers(
         if len(doc.children) == 0:
             return
         elif len(doc.children) == 1:
-            doc.children[0].speaker = "1"
+            doc.children[0].speaker = automerge.Text("1")
             return
 
         def time_to_sample(time: float | None):
