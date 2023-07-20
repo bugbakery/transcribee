@@ -11,7 +11,6 @@ export function useAudio({ sources, playbackRate }: UseAudioOptions) {
   const [duration, setDuration] = useState<number | undefined>();
   const [buffering, setBuffering] = useState(false);
   const [playtimeState, setPlaytimeState] = useState(0);
-
   const lastPlaytimeRef = useRef<number>(0);
 
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
@@ -136,4 +135,24 @@ export function useAudio({ sources, playbackRate }: UseAudioOptions) {
     duration,
     buffering,
   };
+}
+
+const MEDIA_PRIORITY = [
+  'video/mp4', // more precise seeking in most browsers
+  'audio/ogg',
+  'audio/mpeg',
+];
+
+export function sortMediaFiles<T extends { type: string }>(mediaFiles: T[]) {
+  const sorted = [];
+
+  for (const contentType of MEDIA_PRIORITY) {
+    const files = mediaFiles.filter((file) => file.type == contentType);
+    sorted.push(...files);
+  }
+
+  const rest = mediaFiles.filter((file) => !MEDIA_PRIORITY.includes(file.type));
+  sorted.push(...rest);
+
+  return sorted;
 }
