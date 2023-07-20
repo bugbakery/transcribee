@@ -11,31 +11,17 @@ import { useButtonHoldRepeat } from '../utils/button_hooks';
 import { useLocalStorage } from '../utils/use_local_storage';
 import { SpeakerColorsContext } from './speaker_colors';
 import { LoadingSpinner } from '../components/loading_spinner';
-import { getSpeakerName } from '../utils/document';
-import { useAudio } from '../utils/use_audio';
+import { getSpeakerName, useDocumentSelector } from '../utils/document';
+import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { minutesInMs } from '../utils/duration_in_ms';
+import { formattedTime } from './transcription_editor';
+import { IconType } from 'react-icons';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
 const SKIP_SHORTCUT_SEC = 3;
 
 let lastTabPressTs = 0;
-
-const MEDIA_PRIORITY = ['video/mp4', 'audio/ogg', 'audio/mpeg'];
-
-function sortMediaFiles<T extends { type: string }>(mediaFiles: T[]) {
-  const sorted = [];
-
-  for (const contentType of MEDIA_PRIORITY) {
-    const files = mediaFiles.filter((file) => file.type == contentType);
-    sorted.push(...files);
-  }
-
-  const rest = mediaFiles.filter((file) => !MEDIA_PRIORITY.includes(file.type));
-  sorted.push(...rest);
-
-  return sorted;
-}
 
 export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
   const { data } = useGetDocument(
@@ -60,7 +46,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
     return sortMediaFiles(mappedFiles);
   }, [data?.media_files]);
 
-  const audioPlayer = useAudio({
+  const audio = useAudio({
     playbackRate,
     sources,
   });
@@ -69,7 +55,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
 
   useEffect(() => {
-    const time = audioPlayer.playtime || 0;
+    const time = audio.playtime || 0;
     let startTimeOfElement = 0;
 
     if (!editor.doc.children) return;
@@ -90,22 +76,23 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
     }
 
     setCurrentElementStartTime(startTimeOfElement);
-  }, [editor.doc, audioPlayer.playtime]);
+  }, [editor.doc, audio.playtime]);
 
   // skip to a timestamp if the user clicks on a word in the transcript. The corresponding event is
   // dispatched in transcription_editor.tsx
   useEvent<SeekToEvent>(SEEK_TO_EVENT, (e) => {
     if (e.detail.start != undefined) {
-      audioPlayer.setPlaytime(e.detail.start + 1e-6);
+      // move a bit into the word to avoid highlighting the previous word because of rounding errors
+      audio.setPlaytime(e.detail.start + 1e-6);
     }
   });
 
   // bind the tab key to play / pause
   const togglePlaying = () => {
-    if (!audioPlayer.playing) {
-      audioPlayer.play();
+    if (!audio.playing) {
+      audio.play();
     } else {
-      audioPlayer.pause();
+      audio.pause();
     }
   };
 
@@ -114,9 +101,9 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
       // double tap to skip
       if (e.timeStamp - lastTabPressTs < DOUBLE_TAP_THRESHOLD_MS) {
         if (e.shiftKey) {
-          audioPlayer.seekRelative(SKIP_SHORTCUT_SEC);
+          audio.seekRelative(SKIP_SHORTCUT_SEC);
         } else {
-          audioPlayer.seekRelative(-SKIP_SHORTCUT_SEC);
+          audio.seekRelative(-SKIP_SHORTCUT_SEC);
         }
       }
 
@@ -129,14 +116,21 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   });
 
   const backwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => audioPlayer.seekRelative(-SKIP_BUTTON_SEC / 2),
-    onShortClick: () => audioPlayer.seekRelative(-SKIP_BUTTON_SEC),
+    repeatingAction: () => audio.seekRelative(-SKIP_BUTTON_SEC / 2),
+    onShortClick: () => audio.seekRelative(-SKIP_BUTTON_SEC),
   });
 
   const forwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => audioPlayer.seekRelative(SKIP_BUTTON_SEC / 2),
-    onShortClick: () => audioPlayer.seekRelative(SKIP_BUTTON_SEC),
+    repeatingAction: () => audio.seekRelative(SKIP_BUTTON_SEC / 2),
+    onShortClick: () => audio.seekRelative(SKIP_BUTTON_SEC),
   });
+
+  const onSeek = useCallback(
+    (time: number) => {
+      audio.setPlaytime(time);
+    },
+    [audio],
+  );
 
   return (
     <>
@@ -171,11 +165,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
           label="backwards"
           {...backwardLongPressProps}
         />
-        <BufferingPlayButton
-          playing={audioPlayer.playing}
-          buffering={audioPlayer.buffering}
-          onClick={togglePlaying}
-        />
+        <PlayButton playing={audio.playing} buffering={audio.buffering} onClick={togglePlaying} />
         <IconButton
           icon={ImBackward2}
           iconClassName="translate-x-0.5 rotate-180"
@@ -185,11 +175,9 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
         <div className="pl-4 flex-grow">
           <SeekBar
-            time={audioPlayer.playtime}
-            duration={audioPlayer.duration}
-            onSeek={(time) => {
-              audioPlayer.setPlaytime(time);
-            }}
+            time={audio.playtime}
+            duration={audio.duration}
+            onSeek={onSeek}
             editor={editor}
           />
         </div>
@@ -202,7 +190,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   );
 }
 
-function BufferingPlayButton({
+function PlayButton({
   onClick,
   playing,
   buffering,
@@ -228,15 +216,41 @@ function BufferingPlayButton({
     }
   }, [buffering]);
 
-  return (
-    <IconButton
-      icon={playing ? (delayedBuffering ? LoadingSpinner : ImPause2) : ImPlay3}
-      label={playing ? 'pause' : 'play'}
-      size={28}
-      onClick={onClick}
-    />
-  );
+  const Icon: IconType = useCallback(() => {
+    return (
+      <div className="grid justify-items-center items-center">
+        {delayedBuffering && <LoadingSpinner className="col-start-1 row-start-1" size={28} />}
+        {!delayedBuffering && (
+          <div
+            className={clsx(
+              'col-start-1 row-start-1',
+              'border-2 border-black dark:border-white',
+              'w-[28px] h-[28px]',
+              'rounded-full',
+            )}
+          />
+        )}
+        {playing && <ImPause2 className="col-start-1 row-start-1" size={14} />}
+        {!playing && (
+          <ImPlay3
+            className="col-start-1 row-start-1"
+            style={{ transform: `translateX(1px)` }}
+            size={16}
+          />
+        )}
+      </div>
+    );
+  }, [delayedBuffering, playing]);
+
+  return <IconButton icon={Icon} label={playing ? 'pause' : 'play'} onClick={onClick} />;
 }
+
+const timeFromPosition = (element: HTMLElement, x: number, duration: number) => {
+  const boundingRect = element.getBoundingClientRect();
+  const seekToPercent = (x - boundingRect.x) / boundingRect.width;
+  const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
+  return clampedPercent * duration;
+};
 
 function SeekBar({
   time,
@@ -252,56 +266,57 @@ function SeekBar({
   const ref = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [tmpTime, setTmpTime] = useState<number | undefined>();
+  const [hover, setHover] = useState(false);
+  const [hoverTime, setHoverTime] = useState<number>(0);
 
-  const onMouseSeek = useCallback(
-    (e: MouseEvent) => {
-      if (!ref.current || !duration) return;
-      const boundingRect = ref.current.getBoundingClientRect();
-      const seekToPercent = (e.pageX - boundingRect.x) / boundingRect.width;
-      const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
-
-      onSeek(clampedPercent * duration);
-      setTmpTime(undefined);
-    },
-    [duration],
-  );
-
-  const onMouseMove = useCallback(
+  const onDrag = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
       if (!ref.current || !duration) return;
-      const boundingRect = ref.current.getBoundingClientRect();
-      const seekToPercent = (e.pageX - boundingRect.x) / boundingRect.width;
-      const clampedPercent = Math.max(0, Math.min(seekToPercent, 1.0));
 
-      setTmpTime(clampedPercent * duration);
+      const time = timeFromPosition(ref.current, e.pageX, duration);
+      setTmpTime(time);
     },
     [duration],
-  );
-
-  const onMouseDown = useCallback(
-    (e: MouseEvent | React.MouseEvent) => {
-      onMouseMove(e);
-      setDragging(true);
-    },
-    [onMouseMove],
   );
 
   useEffect(() => {
     if (!dragging) return;
 
-    window.addEventListener('mousemove', onMouseMove);
+    // globally listen to mouse move events to allow dragging outside of the seek bar
+    window.addEventListener('mousemove', onDrag);
 
     const onMouseUp = (e: MouseEvent) => {
-      onMouseSeek(e);
+      if (!ref.current || !duration) return;
+
+      const time = timeFromPosition(ref.current, e.pageX, duration);
+      onSeek(time);
+
+      setTmpTime(undefined);
       setDragging(false);
     };
     window.addEventListener('mouseup', onMouseUp);
 
     return () => {
-      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mousemove', onDrag);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [dragging, onMouseSeek]);
+  }, [dragging, onSeek, duration]);
+
+  const paragraphs = useDocumentSelector(
+    (doc) => {
+      return (
+        doc.children?.map((p) => ({
+          speaker: p.speaker,
+          start: p.children[0]?.start || 0,
+          end: p.children[p.children.length - 1]?.end || 0,
+        })) || []
+      );
+    },
+    {
+      eq: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+      editor,
+    },
+  );
 
   const speakerColors = useContext(SpeakerColorsContext);
 
@@ -309,43 +324,112 @@ function SeekBar({
     <div
       ref={ref}
       className={clsx('relative', 'h-6', 'flex', 'items-center', 'select-none')}
-      onMouseDown={onMouseDown}
+      onMouseDown={(e) => {
+        onDrag(e);
+        setDragging(true);
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onMouseMove={(e) => {
+        if (!ref.current || !duration) return;
+        setHoverTime(timeFromPosition(ref.current, e.pageX, duration));
+      }}
     >
       <div className="absolute h-2 w-full overflow-hidden rounded-md bg-gray-200 dark:bg-gray-600">
-        {duration && editor.doc.children
-          ? editor.doc.children.map((p, i) => {
-              const width =
-                ((p.children[p.children.length - 1]?.end || 0) - (p.children[0]?.start || 0)) /
-                duration;
-              const left = (p.children[0]?.start || 0) / duration;
-
-              return (
-                <div
-                  className="absolute h-full"
-                  title={getSpeakerName(p.speaker, editor.doc.speaker_names)}
-                  data-start={p.children[0]?.start}
-                  data-end={p.children[p.children.length - 1]?.end}
-                  style={{
-                    background: (p.speaker && speakerColors[p.speaker]) || 'transparent',
-                    left: `${left * 100}%`,
-                    width: `${width * 100}%`,
-                  }}
-                  key={i}
-                />
-              );
-            })
+        {duration
+          ? paragraphs.map((p, i) => (
+              <SpeakerBar
+                key={i}
+                start={p.start}
+                end={p.end}
+                speakerName={getSpeakerName(p.speaker, editor.doc.speaker_names)}
+                color={p.speaker && speakerColors[p.speaker]}
+                duration={duration}
+              />
+            ))
           : null}
       </div>
+
+      <PlayPositionIndicator currentTime={time} seekTime={tmpTime} duration={duration} />
+
+      {(hover || dragging) && duration && (
+        <TimeMarker time={tmpTime != undefined ? tmpTime : hoverTime} duration={duration} />
+      )}
+    </div>
+  );
+}
+
+function SpeakerBar({
+  speakerName,
+  color,
+  start,
+  end,
+  duration,
+}: {
+  speakerName: string;
+  color: string | undefined | null;
+  start: number;
+  end: number;
+  duration: number;
+}) {
+  const width = (end - start) / duration;
+  const left = start / duration;
+
+  return (
+    <div
+      className="absolute h-full"
+      title={speakerName}
+      style={{
+        background: color || 'transparent',
+        left: `${left * 100}%`,
+        width: `${width * 100}%`,
+      }}
+    />
+  );
+}
+
+function PlayPositionIndicator({
+  currentTime,
+  seekTime,
+  duration,
+}: {
+  currentTime: number;
+  seekTime: number | undefined;
+  duration: number | undefined;
+}) {
+  return (
+    <div
+      className={clsx(
+        'absolute',
+        'w-[2px]',
+        'bg-black',
+        'dark:bg-white',
+        'h-full',
+        '-ml-[1px]',
+        'rounded-sm',
+      )}
+      style={
+        duration
+          ? {
+              left: ((seekTime !== undefined ? seekTime : currentTime) / duration) * 100 + '%',
+            }
+          : {}
+      }
+    />
+  );
+}
+
+function TimeMarker({ time, duration }: { time: number; duration: number }) {
+  return (
+    <div
+      style={{ left: `${(time / duration) * 100}%` }}
+      className="absolute w-0 flex bottom-7 justify-center"
+    >
       <div
-        className={clsx('absolute', 'w-[2px]', 'bg-black', 'dark:bg-white', 'h-full', '-ml-[1px]')}
-        style={
-          duration
-            ? {
-                left: ((tmpTime !== undefined ? tmpTime : time) / duration) * 100 + '%',
-              }
-            : {}
-        }
-      />
+        className={clsx('px-2 py-1', 'bg-neutral-100 dark:bg-neutral-800', 'rounded-lg', 'text-sm')}
+      >
+        {formattedTime(time)}
+      </div>
     </div>
   );
 }
