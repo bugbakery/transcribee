@@ -28,7 +28,7 @@ export function ChangePasswordModal({
         new_password: data.new_password,
         old_password: data.old_password,
       });
-      onClose();
+      window.location.reload();
     } catch (e) {
       let message = 'An unknown error occcured.';
 
