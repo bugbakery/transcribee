@@ -99,7 +99,7 @@ export function ChangePasswordModal({
             </div>
           )}
           <div className="block">
-            <PrimaryButton type="submit">Login</PrimaryButton>
+            <PrimaryButton type="submit">Change Password</PrimaryButton>
           </div>
         </div>
       </form>
