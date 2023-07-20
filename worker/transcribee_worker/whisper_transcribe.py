@@ -17,7 +17,7 @@ def get_model_file(model_name: str):
 
     if not model_file.exists():
         logging.info(f"downloading model {model_name} because it does not exist yet...")
-        base_url = "https://huggingface.co/datasets/ggerganov/whisper.cpp/resolve/main"
+        base_url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
         url = f"{base_url}/ggml-{model_name}.bin"
         r = requests.get(url, allow_redirects=True)
         r.raise_for_status()
