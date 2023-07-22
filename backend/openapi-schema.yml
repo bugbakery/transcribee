@@ -1015,6 +1015,11 @@ paths:
         schema:
           title: X-Transcribee-Signature
           type: string
+      - in: header
+        name: range
+        required: false
+        schema:
+          title: Range
       responses:
         '200':
           content:

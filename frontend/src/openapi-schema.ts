@@ -858,6 +858,9 @@ export interface operations {
       query: {
         "X-Transcribee-Signature": string;
       };
+      header: {
+        range?: Record<string, never>;
+      };
       path: {
         file: string;
       };
