@@ -11,8 +11,8 @@ from transcribee_worker.torchaudio_align import (
 from transcribee_worker.whisper_transcribe import get_context
 
 
-def is_multilingual(model_name):
-    return not model_name.endswith(".en")
+def is_english_only(model_name):
+    return model_name.endswith(".en")
 
 
 class ModelConfig(BaseModel):
@@ -32,7 +32,6 @@ if __name__ == "__main__":
         "base.en",
         "base",
         "small.en",
-        "small.en-tdrz",
         "small",
         "medium.en",
         "medium",
@@ -52,9 +51,13 @@ if __name__ == "__main__":
     )
 
     for model in models:
-        languages = ["auto"]
-        if is_multilingual(model):
-            languages += list(sorted(multilingual_model_langs & alignable_languages))
+        if is_english_only(model):
+            languages = ["en"]
+        else:
+            languages = ["auto"] + list(
+                sorted(multilingual_model_langs & alignable_languages)
+            )
+
         model_configs.append(
             ModelConfig(
                 id=model,
