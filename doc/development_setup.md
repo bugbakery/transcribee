@@ -6,16 +6,16 @@ This document should get you up to speed and give you a working development envi
 The transcribee project uses a development-setup managed by `nix`. This allows us to all use the
 same software & versions conviniently. Thus, the easiest way to start is to have
 [a working nix installation on your system](https://nix.dev/tutorials/install-nix).
-Alternatively you can install the dependencies listed in the [`shell.nix`](../packaging/shell.nix) file by
+Alternatively you can install the dependencies listed in the [`shell.nix`](../shell.nix) file by
 hand (but that might be more inconvenient).
 
 ## Minimal setup (nix)
 
 If you just want to try out `transcribee`, you need to go through the following steps:
 
-1. [Install `nix` on your system](https://nix.dev/tutorials/install-nix) & run `nix-shell packaging/shell.nix` to get
+1. [Install `nix` on your system](https://nix.dev/tutorials/install-nix) & run `nix-shell shell.nix` to get
    a shell with all dependencies of `transcribee` installed. Alternatively you can install the
-   dependencies listed in the [`shell.nix`](../packaging/shell.nix) file by hand
+   dependencies listed in the [`shell.nix`](../shell.nix) file by hand
    (but that might be more inconvenient).
 2. Run the dev script (this might take a long time as it downloads / compiles all the dependencies):
    execute `./packaging/dev.sh` in the root folder of the `transcribee` repo.
@@ -41,7 +41,7 @@ the following steps:
 > do not need to restart the container:
 >
 > ```shell
-> docker run -it -p 5173:5173 --mount type=bind,source="$(pwd)",target=/app --entrypoint nix-shell transcribee:latest packaging/shell.nix --command /app/packaging/dev.sh
+> docker run -it -p 5173:5173 --mount type=bind,source="$(pwd)",target=/app --entrypoint nix-shell transcribee:latest shell.nix --command /app/packaging/dev.sh
 > ```
 
 ## Extended setup
