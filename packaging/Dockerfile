@@ -2,23 +2,23 @@ FROM nixos/nix
 
 RUN nix-channel --update
 
-RUN mkdir -p /app/packaging
+RUN mkdir -p /app
 
-COPY packaging/shell.nix /app/packaging
+COPY shell.nix /app
 
 WORKDIR /app
 
-RUN nix-build packaging/shell.nix
+RUN nix-build shell.nix
 
 COPY . /app/
 
-RUN nix-shell packaging/shell.nix --command ./packaging/install_dependencies.sh
-RUN nix-shell packaging/shell.nix --command ./packaging/setup_backend.sh
+RUN nix-shell shell.nix --command ./packaging/install_dependencies.sh
+RUN nix-shell shell.nix --command ./packaging/setup_backend.sh
 
 EXPOSE 5173
 
 ENV MEDIA_URL_BASE=http://localhost:5173/
 
-ENTRYPOINT [ "nix-shell", "packaging/shell.nix", "--command" ]
+ENTRYPOINT [ "nix-shell", "shell.nix", "--command" ]
 
 CMD [ "overmind start -f packaging/Procfile" ]

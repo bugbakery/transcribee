@@ -8,4 +8,5 @@
         "worker/__pypackages__/3.10/lib"
     ],
     "python.analysis.typeCheckingMode": "basic",
+    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
 }
