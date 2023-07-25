@@ -3,7 +3,7 @@
         "id": "tiny.en",
         "name": "Tiny En",
         "languages": [
-            "auto"
+            "en"
         ]
     },
     "tiny": {
@@ -35,7 +35,7 @@
         "id": "base.en",
         "name": "Base En",
         "languages": [
-            "auto"
+            "en"
         ]
     },
     "base": {
@@ -67,32 +67,7 @@
         "id": "small.en",
         "name": "Small En",
         "languages": [
-            "auto"
-        ]
-    },
-    "small.en-tdrz": {
-        "id": "small.en-tdrz",
-        "name": "Small En Tdrz",
-        "languages": [
-            "auto",
-            "ar",
-            "de",
-            "el",
-            "en",
-            "es",
-            "fa",
-            "fi",
-            "fr",
-            "hu",
-            "it",
-            "ja",
-            "nl",
-            "pl",
-            "pt",
-            "ru",
-            "tr",
-            "uk",
-            "zh"
+            "en"
         ]
     },
     "small": {
@@ -124,7 +99,7 @@
         "id": "medium.en",
         "name": "Medium En",
         "languages": [
-            "auto"
+            "en"
         ]
     },
     "medium": {
