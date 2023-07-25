@@ -32,30 +32,38 @@ export function NewDocumentPage() {
   const [dropIndicator, setDropIndicator] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
-  const { data, isLoading } = useGetConfig({});
+  const { data: config, isLoading } = useGetConfig({});
   const {
     register,
     handleSubmit,
     formState: { errors },
     setValue,
     watch,
-  } = useForm<FieldValues>();
+  } = useForm<FieldValues>({
+    values: {
+      model: 'base',
+      language: '',
+      audioFile: undefined,
+      name: '',
+    },
+  });
 
   const { ref: audioFileRegisterRef, ...audioFileRegister } = register('audioFile', {
     required: true,
   });
 
   const audioFile = watch('audioFile');
-  const [model, setModel] = useState(undefined as string | undefined);
+  const model = watch('model');
+
+  // set initial language based on selected model
+  useEffect(() => {
+    if (!config) return;
+    setValue('language', getLanguages(config.models, model)?.[0] || 'auto');
+  }, [config, model]);
 
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
     if (!data.audioFile) {
       console.error('[NewDocumentPage] Illegal state: audioFile is undefined.');
-      return;
-    }
-
-    if (!model) {
-      console.error('[NewDocumentPage] Illegal state: model is undefined.');
       return;
     }
 
@@ -64,7 +72,7 @@ export function NewDocumentPage() {
       const response = await createDocument({
         name: data.name,
         file: data.audioFile[0],
-        model: model,
+        model: data.model,
         language: data.language,
       });
 
@@ -75,12 +83,6 @@ export function NewDocumentPage() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (model === undefined && !isLoading && Object.keys(data.models).length >= 1) {
-      setModel(Object.keys(data.models)[0]);
-    }
-  }, [model, isLoading, data]);
 
   return (
     <AppCenter onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
@@ -206,9 +208,9 @@ export function NewDocumentPage() {
             </div>
             {!isLoading ? (
               <>
-                <FormControl label="Model" error={errors.model?.message?.toString()}>
-                  <Select value={model} onChange={(e) => setModel(e.target.value)}>
-                    {Object.values(data.models).map((cur_model) =>
+                <FormControl label="Model" error={errors.model?.message}>
+                  <Select {...register('model')}>
+                    {Object.values(config.models).map((cur_model) =>
                       cur_model !== undefined ? (
                         <option value={cur_model.id} key={cur_model.id}>
                           {cur_model.name}
@@ -219,9 +221,9 @@ export function NewDocumentPage() {
                     )}
                   </Select>
                 </FormControl>
-                <FormControl label="Language" error={errors.model?.message?.toString()}>
+                <FormControl label="Language" error={errors.language?.message}>
                   <Select {...register('language')}>
-                    {getLanguages(data.models, model)?.map((lang) => (
+                    {getLanguages(config.models, model)?.map((lang) => (
                       <option value={lang} key={lang}>
                         {lang}
                       </option>
