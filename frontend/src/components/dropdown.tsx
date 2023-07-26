@@ -1,6 +1,5 @@
 import clsx from 'clsx';
 import { ComponentProps, ReactNode, useState } from 'react';
-import useMeasure from 'react-use-measure';
 
 import { IconType } from 'react-icons';
 import { useOnClickOutside } from '../utils/use_on_click_outside';
@@ -69,7 +68,6 @@ export function Dropdown({
   buttonClassName?: string;
 } & ComponentProps<'div'>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
-  const [setMeasureReference, bounds] = useMeasure();
 
   const [show, setShow] = useStateDelayed(false);
   useOnClickOutside(referenceElement, () => {
@@ -83,7 +81,6 @@ export function Dropdown({
       {...props}
       ref={(ref) => {
         setReferenceElement(ref);
-        setMeasureReference(ref);
       }}
       onClick={() => {
         setShow(!show.now);
@@ -128,7 +125,6 @@ export function Dropdown({
               dropdownClassName,
             )}
             aria-hidden={!show}
-            style={{ width: bounds.width }}
           >
             {show.prolonged && children}
           </div>
