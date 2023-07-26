@@ -16,7 +16,8 @@ RUN nix-shell packaging/shell.nix --command ./packaging/install_dependencies.sh
 RUN nix-shell packaging/shell.nix --command ./packaging/setup_backend.sh
 
 EXPOSE 5173
-EXPOSE 8000
+
+ENV MEDIA_URL_BASE=http://localhost:5173/
 
 ENTRYPOINT [ "nix-shell", "packaging/shell.nix", "--command" ]
 

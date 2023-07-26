@@ -97,6 +97,7 @@ export default defineConfig({
     proxy: {
       '/api': 'http://127.0.0.1:8000',
       '/api/v1/documents/sync': { target: 'http://127.0.0.1:8000', ws: true },
+      '/media': 'http://127.0.0.1:8000',
     },
   },
   plugins: [
