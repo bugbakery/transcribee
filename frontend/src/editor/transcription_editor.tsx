@@ -12,11 +12,10 @@ import { useEvent } from '../utils/use_event';
 import { SeekToEvent } from './types';
 import { PlayerBar, startTimeToClassName } from './player';
 import clsx from 'clsx';
-import { CSSProperties, ComponentProps, useContext, useCallback, memo } from 'react';
+import { ComponentProps, useContext, useCallback, memo } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
-import { createPortal } from 'react-dom';
-import { useDocumentSelector, useSpeakerName } from '../utils/document';
+import { useSpeakerName } from '../utils/document';
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
@@ -48,75 +47,27 @@ export function calculateParagraphIdxOfSpeakerEnd(editor: Editor, idx: number): 
     editor.doc.children[speakerEndIdx].speaker == speaker;
     speakerEndIdx++
   );
-  speakerEndIdx--;
 
-  return speakerEndIdx;
+  return speakerEndIdx - 1;
 }
 
 function Paragraph({ element, children, attributes }: RenderElementProps): JSX.Element {
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
 
-  const idx = useSlateSelector((editor) => ReactEditor.findPath(editor, element)[0]);
-  const speakerEndIdx = useSlateSelector((editor) =>
-    calculateParagraphIdxOfSpeakerEnd(editor, idx),
-  );
-  const speakerChanged = useDocumentSelector(
-    (doc) => idx == 0 || doc.children[idx - 1].speaker != element.speaker,
-  );
+  const speakerChanged = useSlateSelector((editor) => {
+    const idx = ReactEditor.findPath(editor, element)[0];
+    return idx == 0 || editor.doc.children[idx - 1].speaker != element.speaker;
+  });
 
   const speakerName = useSpeakerName(element.speaker);
 
-  let portalNode = document.getElementById('meta-portal');
-  if (portalNode == null) {
-    const gridNode = document.getElementsByClassName('grid')[0];
-    portalNode = document.createElement('div');
-    portalNode.id = 'meta-portal';
-    portalNode.style.display = 'contents';
-    if (gridNode.children.length == 0) {
-      gridNode.appendChild(portalNode);
-    } else {
-      gridNode.insertBefore(gridNode.children[0], portalNode);
-    }
-  }
-
   const metaInformation = (
-    <div
-      className="contents"
-      style={
-        {
-          '--element-idx': idx,
-          '--current-speaker-end-idx': speakerEndIdx,
-        } as CSSProperties
-      }
-    >
-      {/* speaker color indicator */}
-      <div
-        contentEditable={false}
-        style={{
-          ...(element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}),
-        }}
-        className={clsx(
-          'w-2 mr-2 h-full rounded-md',
-          'row-start-[calc(var(--element-idx)*3+1)]',
-          'row-end-[calc(var(--current-speaker-end-idx)*3+3)]',
-          'col-start-2',
-          'md:col-start-3',
-          'xl:mr-4',
-        )}
-      />
-
+    <div className="w-64 grid shrink-0 grid-cols-[auto_1fr_auto]">
       {/* start time */}
       <div
         contentEditable={false}
-        className={clsx(
-          `text-slate-500 dark:text-neutral-400 font-mono`,
-          'row-start-[calc(var(--element-idx)*3+1)] col-start-3',
-          speakerChanged && 'md:row-start-[calc(var(--element-idx)*3+2)]',
-          'xl:row-start-[calc(var(--element-idx)*3+1)]',
-          'md:col-start-2',
-          'xl:col-start-1 xl:mr-4',
-        )}
+        className={clsx(`text-slate-500 dark:text-neutral-400 font-mono`, 'xl:mr-4')}
         onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
       >
         {formattedTime(startAtom.start)}
@@ -126,18 +77,11 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
       {speakerChanged && (
         <div
           contentEditable={false}
-          className={clsx(
-            'hidden md:block',
-            'col-start-2 h-full',
-            'row-start-[calc(var(--element-idx)*3+1)]',
-            'row-end-[calc(var(--current-speaker-end-idx)*3+3)]',
-            'overflow-clip',
-          )}
+          className="hidden md:block overflow-clip row-start-1 col-start-2"
         >
           <div
             className={clsx(
-              'sticky top-0',
-              '-mt-[0.1rem] py-1 mr-1',
+              // '-mt-[0.1rem] py-1 mr-1',
               'max-w-none break-all text-neutral-500',
               'text-sm font-semibold',
               'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
@@ -159,44 +103,36 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
           'md:opacity-0 md:hover:opacity-100',
         )}
         dropdownContainerClassName="pb-24"
-        className={clsx(
-          'mx-2',
-          'row-start-[calc(var(--element-idx)*3+1)] col-start-4',
-          '-mt-0.5 xl:mt-0',
-          'md:col-start-2 md:-ml-2',
-        )}
+        className={clsx('mx-2', '-mt-0.5 xl:mt-0', 'md:-ml-2', 'row-start-1 col-start-2')}
       />
 
-      {/* helper for bottom padding */}
-      <div
-        className={clsx(
-          'mb-6 md:mb-1 xl:mb-3',
-          'row-start-[calc(var(--element-idx)*3+3)]',
-          idx == speakerEndIdx && 'md:mb-2',
-        )}
-      />
+      {/* speaker color indicator */}
+      <div className="relative w-2 mr-2 h-full">
+        <div
+          contentEditable={false}
+          style={{
+            ...(element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}),
+          }}
+          className={clsx(
+            'bottom-0 w-full top-0 rounded-md',
+            'absolute',
+            'row-start-1',
+            'col-start-3',
+            !speakerChanged && '-top-6',
+          )}
+        />
+      </div>
     </div>
   );
 
   return (
-    <>
-      {portalNode && createPortal(metaInformation, portalNode)}
+    <div className="flex mb-4">
+      {metaInformation}
 
-      <div
-        {...attributes}
-        style={{ '--element-idx': idx } as CSSProperties}
-        className={clsx(
-          `col-start-2 col-span-2`,
-          'row-start-[calc(var(--element-idx)*3+2)] col-start-3',
-          'md:row-start-[calc(var(--element-idx)*3+1)] md:row-span-2 md:col-start-4 md:col-span-1',
-          'md:mb-2',
-        )}
-        lang={element.lang}
-        spellCheck={false}
-      >
+      <div {...attributes} lang={element.lang} spellCheck={false}>
         {children}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -314,12 +250,7 @@ export function TranscriptionEditor({
                 window.dispatchEvent(new SeekToEvent(leaf.start));
               }
             }}
-            className={clsx(
-              'grid items-start grid-cols-[min-content_max-content_min-content_1fr]',
-              'md:auto-rows-[24px_auto_auto]',
-              'xl:auto-rows-auto',
-              '2xl:-ml-20',
-            )}
+            className="2xl:-ml-20"
           />
           <PlayerBar documentId={documentId} editor={editor} />
         </SpeakerColorsProvider>
