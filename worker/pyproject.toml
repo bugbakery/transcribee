@@ -10,7 +10,6 @@ authors = [
 ]
 
 dependencies = [
-    "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
     "numpy>=1.23.5",
     "pydantic[dotenv]>=1.10.7",
     "transformers>=4.26.1",
@@ -23,6 +22,7 @@ dependencies = [
     "watchfiles>=0.19.0",
     "speechbrain>=0.5.14",
     "ffmpeg-python>=0.2.0",
+    "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
 ]
 
 requires-python = ">=3.10"
@@ -41,6 +41,7 @@ build-backend = "pdm.pep517.api"
 
 [tool.pdm.resolution.overrides]
 soundfile = "0.11.0"
+
 
 
 [[tool.pdm.source]]

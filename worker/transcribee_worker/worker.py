@@ -184,10 +184,18 @@ class Worker:
         self, task: SpeakerIdentificationTask, progress_callback: ProgressCallbackType
     ):
         audio = self.load_document_audio(task.document)
+        assert (
+            task.task_parameters.number_of_speakers != 0
+        )  # this would not make any sense
+        assert (
+            task.task_parameters.number_of_speakers != 1
+        )  # this also would not make any sense
 
         async with self.api_client.document(task.document.id) as doc:
             async with doc.transaction("Speaker Identification") as d:
-                await identify_speakers(audio, d, progress_callback)
+                await identify_speakers(
+                    task.task_parameters.number_of_speakers, audio, d, progress_callback
+                )
 
     async def align(self, task: AlignTask, progress_callback: ProgressCallbackType):
         audio = self.load_document_audio(task.document)

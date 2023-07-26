@@ -14,7 +14,10 @@ from .config import settings
 
 
 async def identify_speakers(
-    audio: npt.NDArray, doc: Document, progress_callback: ProgressCallbackType
+    number_of_speakers: int | None,
+    audio: npt.NDArray,
+    doc: Document,
+    progress_callback: ProgressCallbackType,
 ):
     def work(_queue):
         logging.info("Running Speaker Identification")
@@ -64,13 +67,14 @@ async def identify_speakers(
             step="clustering speaker embeddings",
             progress=len(segments) / (len(segments) + 1),
         )
+
         clustering = AgglomerativeClustering(
             compute_full_tree=True,  # type: ignore
             linkage="complete",
-            n_clusters=None,  # type: ignore
+            n_clusters=number_of_speakers,  # type: ignore
             # distance_threshold curtesty of
             # https://huggingface.co/pyannote/speaker-diarization/blob/369ac1852c71759894a48c9bb1c6f499a54862fe/config.yaml#L15
-            distance_threshold=0.7153,
+            distance_threshold=0.7153 if number_of_speakers is None else None,
             metric="cosine",
         )
         clustering.fit(np.array(embeddings))

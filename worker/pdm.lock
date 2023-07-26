@@ -245,7 +245,7 @@ dependencies = [
 
 [[package]]
 name = "pyright"
-version = "1.1.314"
+version = "1.1.318"
 requires_python = ">=3.7"
 summary = "Command line wrapper for pyright"
 dependencies = [
@@ -496,7 +496,7 @@ summary = "Python bindings for whisper.cpp"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:4ff4f10a8b6d9625536a94f416ae3f6b82b0e0b9770d33c5808acc151e9a7b94"
+content_hash = "sha256:9647f8a49dc73b4bf9d48ff66e2214bc4ebafaa4dc0582278b66c137392d9874"
 
 [metadata.files]
 "ansicon 1.89.0" = [
@@ -838,9 +838,9 @@ content_hash = "sha256:4ff4f10a8b6d9625536a94f416ae3f6b82b0e0b9770d33c5808acc151
     {url = "https://files.pythonhosted.org/packages/fa/c2/3df79cd00e65678fce12e59e8c95378a992a93d7b9f9510d4f1f65df1936/pydantic-1.10.7-cp311-cp311-win_amd64.whl", hash = "sha256:b4a849d10f211389502059c33332e91327bc154acc1845f375a99eca3afa802d"},
     {url = "https://files.pythonhosted.org/packages/fd/66/3da2e7c0306251435bd61ae9da52db8a00672fdf2b2db1e3efe1692f41dd/pydantic-1.10.7-cp37-cp37m-musllinux_1_1_i686.whl", hash = "sha256:950ce33857841f9a337ce07ddf46bc84e1c4946d2a3bba18f8280297157a3fd1"},
 ]
-"pyright 1.1.314" = [
-    {url = "https://files.pythonhosted.org/packages/59/0d/06914afbc5e1489f27190804e1701807ab10fc37932a1607823ddb2be55e/pyright-1.1.314.tar.gz", hash = "sha256:bd104c206fe40eaf5f836efa9027f07cc0efcbc452e6d22dfae36759c5fd28b3"},
-    {url = "https://files.pythonhosted.org/packages/ea/7e/8a4e72068c47d91f62992933cde4caa483f52602668d3b99a83b91323512/pyright-1.1.314-py3-none-any.whl", hash = "sha256:5008a2e04b71e35c5f1b78b16adae9d012601197442ae6c798e9bb3456d1eecb"},
+"pyright 1.1.318" = [
+    {url = "https://files.pythonhosted.org/packages/28/2d/da1e79917b71298d5b1f8b492735ced8b00df9466a7daefac1a3e435b12a/pyright-1.1.318-py3-none-any.whl", hash = "sha256:056c1b2e711c3526e32919de1684ae599d34b7ec27e94398858a43f56ac9ba9b"},
+    {url = "https://files.pythonhosted.org/packages/7c/ce/58f6e45a1c8d5a09b755dec1dfc5aaf6b0dd3102218c5e67b00182fea899/pyright-1.1.318.tar.gz", hash = "sha256:69dcf9c32d5be27d531750de627e76a7cadc741d333b547c09044278b508db7b"},
 ]
 "python-dotenv 1.0.0" = [
     {url = "https://files.pythonhosted.org/packages/31/06/1ef763af20d0572c032fa22882cfbfb005fba6e7300715a37840858c919e/python-dotenv-1.0.0.tar.gz", hash = "sha256:a8df96034aae6d2d50a4ebe8216326c61c3eb64836776504fcca410e5937a3ba"},

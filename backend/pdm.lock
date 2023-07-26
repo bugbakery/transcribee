@@ -795,7 +795,7 @@ summary = "pyparsing module - Classes and methods to define and execute parsing 
 
 [[package]]
 name = "pyright"
-version = "1.1.314"
+version = "1.1.318"
 requires_python = ">=3.7"
 summary = "Command line wrapper for pyright"
 dependencies = [
@@ -1180,7 +1180,7 @@ summary = "Jupyter interactive widgets for Jupyter Notebook"
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:3c0c1a6bd7d9f5ef2f767ecd1af7d700416f090ed08d068b57a9360e2ef50a5c"
+content_hash = "sha256:300153dd9fcf222cb4b04159e74282c6cadf8242053996f2c7cbc32313b89dea"
 
 [metadata.files]
 "alembic 1.11.1" = [
@@ -2087,9 +2087,9 @@ content_hash = "sha256:3c0c1a6bd7d9f5ef2f767ecd1af7d700416f090ed08d068b57a9360e2
     {url = "https://files.pythonhosted.org/packages/6c/10/a7d0fa5baea8fe7b50f448ab742f26f52b80bfca85ac2be9d35cdd9a3246/pyparsing-3.0.9-py3-none-any.whl", hash = "sha256:5026bae9a10eeaefb61dab2f09052b9f4307d44aee4eda64b309723d8d206bbc"},
     {url = "https://files.pythonhosted.org/packages/71/22/207523d16464c40a0310d2d4d8926daffa00ac1f5b1576170a32db749636/pyparsing-3.0.9.tar.gz", hash = "sha256:2b020ecf7d21b687f219b71ecad3631f644a47f01403fa1d1036b0c6416d70fb"},
 ]
-"pyright 1.1.314" = [
-    {url = "https://files.pythonhosted.org/packages/59/0d/06914afbc5e1489f27190804e1701807ab10fc37932a1607823ddb2be55e/pyright-1.1.314.tar.gz", hash = "sha256:bd104c206fe40eaf5f836efa9027f07cc0efcbc452e6d22dfae36759c5fd28b3"},
-    {url = "https://files.pythonhosted.org/packages/ea/7e/8a4e72068c47d91f62992933cde4caa483f52602668d3b99a83b91323512/pyright-1.1.314-py3-none-any.whl", hash = "sha256:5008a2e04b71e35c5f1b78b16adae9d012601197442ae6c798e9bb3456d1eecb"},
+"pyright 1.1.318" = [
+    {url = "https://files.pythonhosted.org/packages/28/2d/da1e79917b71298d5b1f8b492735ced8b00df9466a7daefac1a3e435b12a/pyright-1.1.318-py3-none-any.whl", hash = "sha256:056c1b2e711c3526e32919de1684ae599d34b7ec27e94398858a43f56ac9ba9b"},
+    {url = "https://files.pythonhosted.org/packages/7c/ce/58f6e45a1c8d5a09b755dec1dfc5aaf6b0dd3102218c5e67b00182fea899/pyright-1.1.318.tar.gz", hash = "sha256:69dcf9c32d5be27d531750de627e76a7cadc741d333b547c09044278b508db7b"},
 ]
 "pyrsistent 0.19.3" = [
     {url = "https://files.pythonhosted.org/packages/07/d2/0e72806d668c001d13885e8d7c78fefa5a649c34ad9d77b90eb472096ae7/pyrsistent-0.19.3-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cc5d149f31706762c1f8bda2e8c4f8fead6e80312e3692619a75301d3dbb819a"},
