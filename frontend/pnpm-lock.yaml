@@ -49,9 +49,6 @@ dependencies:
   react-popper:
     specifier: ^2.3.0
     version: 2.3.0(@popperjs/core@2.11.7)(react-dom@18.2.0)(react@18.2.0)
-  react-use-measure:
-    specifier: ^2.1.1
-    version: 2.1.1(react-dom@18.2.0)(react@18.2.0)
   reconnecting-websocket:
     specifier: ^4.4.0
     version: 4.4.0
@@ -60,7 +57,7 @@ dependencies:
     version: 0.94.0
   slate-automerge-doc:
     specifier: github:bugbakery/slate-automerge-doc
-    version: github.com/bugbakery/slate-automerge-doc/d113d8d5e753a540b61b65f2f0d94b22720a0e16(slate@0.94.0)
+    version: github.com/bugbakery/slate-automerge-doc/17b57f8481356f7025775ed46ded556a9aa6ea87(slate@0.94.0)
   slate-react:
     specifier: ^0.94.0
     version: 0.94.0(react-dom@18.2.0)(react@18.2.0)(slate@0.94.0)
@@ -1964,10 +1961,6 @@ packages:
 
   /csstype@3.1.1:
     resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
-
-  /debounce@1.2.1:
-    resolution: {integrity: sha512-XRRe6Glud4rd/ZGQfiV1ruXSfbvfJedlV9Y6zOlP+2K04vBYiJEte6stfFkCP03aMnY5tsipamumUjL14fofug==}
-    dev: false
 
   /debug@3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
@@ -4285,17 +4278,6 @@ packages:
       react: 18.2.0
     dev: false
 
-  /react-use-measure@2.1.1(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-nocZhN26cproIiIduswYpV5y5lQpSQS1y/4KuvUCjSKmw7ZWIS/+g3aFnX3WdBkyuGUtTLif3UTqnLLhbDoQig==}
-    peerDependencies:
-      react: '>=16.13'
-      react-dom: '>=16.13'
-    dependencies:
-      debounce: 1.2.1
-      react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
-    dev: false
-
   /react@18.2.0:
     resolution: {integrity: sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==}
     engines: {node: '>=0.10.0'}
@@ -5255,9 +5237,9 @@ packages:
     requiresBuild: true
     dev: false
 
-  github.com/bugbakery/slate-automerge-doc/d113d8d5e753a540b61b65f2f0d94b22720a0e16(slate@0.94.0):
-    resolution: {tarball: https://codeload.github.com/bugbakery/slate-automerge-doc/tar.gz/d113d8d5e753a540b61b65f2f0d94b22720a0e16}
-    id: github.com/bugbakery/slate-automerge-doc/d113d8d5e753a540b61b65f2f0d94b22720a0e16
+  github.com/bugbakery/slate-automerge-doc/17b57f8481356f7025775ed46ded556a9aa6ea87(slate@0.94.0):
+    resolution: {tarball: https://codeload.github.com/bugbakery/slate-automerge-doc/tar.gz/17b57f8481356f7025775ed46ded556a9aa6ea87}
+    id: github.com/bugbakery/slate-automerge-doc/17b57f8481356f7025775ed46ded556a9aa6ea87
     name: slate-automerge-doc
     version: 0.1.0
     peerDependencies:
