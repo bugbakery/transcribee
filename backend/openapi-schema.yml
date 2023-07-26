@@ -88,6 +88,9 @@ components:
         name:
           title: Name
           type: string
+        number_of_speakers:
+          title: Number Of Speakers
+          type: integer
       required:
       - name
       - model

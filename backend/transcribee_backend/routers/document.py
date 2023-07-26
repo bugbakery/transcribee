@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 import magic
 from fastapi import (
@@ -104,7 +104,11 @@ def ws_get_document_from_url(
 
 
 def create_default_tasks_for_document(
-    session: Session, document: Document, model: str, language: str
+    session: Session,
+    document: Document,
+    model: str,
+    language: str,
+    number_of_speakers: int | None,
 ):
     reencode_task = Task(
         task_type=TaskType.REENCODE,
@@ -129,13 +133,14 @@ def create_default_tasks_for_document(
     )
     session.add(align_task)
 
-    speaker_identification_task = Task(
-        task_type=TaskType.IDENTIFY_SPEAKERS,
-        task_parameters={},
-        document_id=document.id,
-        dependencies=[align_task],
-    )
-    session.add(speaker_identification_task)
+    if number_of_speakers != 0 and number_of_speakers != 1:
+        speaker_identification_task = Task(
+            task_type=TaskType.IDENTIFY_SPEAKERS,
+            task_parameters={"number_of_speakers": number_of_speakers},
+            document_id=document.id,
+            dependencies=[align_task],
+        )
+        session.add(speaker_identification_task)
 
 
 @document_router.post("/")
@@ -143,6 +148,7 @@ async def create_document(
     name: str = Form(),
     model: str = Form(),
     language: str = Form(),
+    number_of_speakers: Optional[Annotated[int, Path(ge=0)]] = Form(None),
     file: UploadFile = File(),
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
@@ -191,7 +197,9 @@ async def create_document(
     tag = DocumentMediaTag(media_file_id=media_file.id, tag="original")
     session.add(tag)
 
-    create_default_tasks_for_document(session, document, model, language)
+    create_default_tasks_for_document(
+        session, document, model, language, number_of_speakers
+    )
 
     session.commit()
     return document.as_api_document()

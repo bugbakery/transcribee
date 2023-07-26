@@ -33,9 +33,13 @@ class TaskBase(BaseModel):
     task_type: TaskType
 
 
+class SpeakerIdentificationTaskParameters(BaseModel):
+    number_of_speakers: int | None
+
+
 class SpeakerIdentificationTask(TaskBase):
     task_type: Literal[TaskType.IDENTIFY_SPEAKERS] = TaskType.IDENTIFY_SPEAKERS
-    task_parameters: Dict[str, Any]
+    task_parameters: SpeakerIdentificationTaskParameters
 
 
 class TranscribeTaskParameters(BaseModel):

@@ -151,6 +151,8 @@ export interface components {
       model: string;
       /** Name */
       name: string;
+      /** Number Of Speakers */
+      number_of_speakers?: number;
     };
     /** ChangePasswordRequest */
     ChangePasswordRequest: {
