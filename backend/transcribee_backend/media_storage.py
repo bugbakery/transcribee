@@ -124,8 +124,9 @@ def is_safe_path(basedir: Path, path: Path):
     return basedir == Path(os.path.commonpath((basedir, matchpath)))
 
 
-# good for server memory, good for player performance on slow connections
-MAX_CHUNK_SIZE = 1024 * 1024
+# 512 KB seems to be not too small and makes the player start playing pretty quickly
+# even on slow connections
+MAX_CHUNK_SIZE = 512 * 1024
 
 
 def serve_media(
@@ -145,6 +146,9 @@ def serve_media(
         filesize = path.stat().st_size
         start = int(start)
         end = min(int(end), filesize - 1) if end else filesize - 1
+
+        # prevent loading large files to server memory and prevent the player from
+        # waiting for the entire file to download before starting to play
         end = min(int(end), start + MAX_CHUNK_SIZE)
 
         with open(path, "rb") as f:
