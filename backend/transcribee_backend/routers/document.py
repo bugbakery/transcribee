@@ -1,6 +1,9 @@
+import datetime
+import enum
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, List, Optional
+from typing import Annotated, Callable, List, Optional
 
 import magic
 from fastapi import (
@@ -8,6 +11,7 @@ from fastapi import (
     Depends,
     File,
     Form,
+    Header,
     HTTPException,
     Query,
     UploadFile,
@@ -21,9 +25,12 @@ from pydantic.error_wrappers import ErrorWrapper
 from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, col, select
 from transcribee_proto.api import Document as ApiDocument
+from transcribee_proto.api import DocumentWithAccessInfo as ApiDocumentWithAccessInfo
 
 from transcribee_backend.auth import (
+    generate_share_token,
     get_authorized_worker,
+    validate_share_authorization,
     validate_user_authorization,
     validate_worker_authorization,
 )
@@ -31,6 +38,7 @@ from transcribee_backend.config import get_model_config, settings
 from transcribee_backend.db import get_session
 from transcribee_backend.helpers.sync import DocumentSyncConsumer
 from transcribee_backend.helpers.time import now_tz_aware
+from transcribee_backend.models.document import DocumentShareTokenBase
 from transcribee_backend.models.task import TaskAttempt, TaskResponse
 
 from .. import media_storage
@@ -38,6 +46,7 @@ from ..models import (
     Document,
     DocumentMediaFile,
     DocumentMediaTag,
+    DocumentShareToken,
     Task,
     TaskType,
     UserToken,
@@ -48,59 +57,199 @@ from .user import get_user_token
 document_router = APIRouter()
 
 
-def get_document_from_url(
-    document_id: uuid.UUID,
-    session: Session = Depends(get_session),
-    token: UserToken = Depends(get_user_token),
-) -> Document:
-    """
-    Get the current document from the `document_id` url parameter, ensuring that the authorized user
-    is allowed to access the document.
-    """
-    statement = select(Document).where(
-        Document.id == document_id, Document.user_id == token.user_id
-    )
-    doc = session.exec(statement).one_or_none()
-    if doc is not None:
-        return doc
-    else:
-        raise HTTPException(status_code=404)
+class AuthLevel(enum.IntEnum):
+    READ_ONLY = 1
+    READ_WRITE = 2
+    WORKER = 3
+    FULL = 4
 
 
-def ws_get_document_from_url(
-    document_id: uuid.UUID,
-    authorization: str = Query(),
-    session: Session = Depends(get_session),
-):
-    """
-    Get the current document from a websocket url (using the `document_id` url parameter), ensuring
-    that an authorization query parameter is set and the user / worker can acccess the document.
-    """
-    statement = select(Document).where(Document.id == document_id)
-    document = session.exec(statement).one_or_none()
-    if document is None:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+@dataclass
+class AuthInfo:
+    document: Document
+    auth_level: AuthLevel
 
+
+def get_user_auth_info(
+    doc: Document, session: Session, authorization: str
+) -> Optional[AuthInfo]:
     try:
         user_token = validate_user_authorization(session, authorization)
     except HTTPException:
-        user_token = None
+        return
 
+    if doc.user_id == user_token.user_id:
+        return AuthInfo(document=doc, auth_level=AuthLevel.FULL)
+
+
+def get_worker_auth_info(
+    doc: Document, session: Session, authorization: str
+) -> Optional[AuthInfo]:
     try:
         worker = validate_worker_authorization(session, authorization)
     except HTTPException:
-        worker = None
+        return
 
-    if user_token is not None and user_token.user_id == document.user_id:
-        return document
-    if worker is not None:
-        statement = select(Task).where(
-            col(Task.current_attempt).has(TaskAttempt.assigned_worker_id == worker.id),
-            Task.document_id == document.id,
+    statement = select(Task).where(
+        col(Task.current_attempt).has(TaskAttempt.assigned_worker_id == worker.id),
+        Task.document_id == doc.id,
+    )
+    if session.exec(statement.limit(1)).one_or_none() is not None:
+        return AuthInfo(document=doc, auth_level=AuthLevel.WORKER)
+
+
+def get_shared_auth_info(
+    doc: Document, session: Session, share_token: str
+) -> Optional[AuthInfo]:
+    try:
+        token = validate_share_authorization(session, share_token, document_id=doc.id)
+    except HTTPException:
+        token = None
+        return
+
+    if doc.id == token.document_id:
+        return AuthInfo(
+            document=doc,
+            auth_level=AuthLevel.READ_WRITE if token.can_write else AuthLevel.READ_ONLY,
         )
-        if session.exec(statement.limit(1)).one_or_none() is not None:
-            return document
-    raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+
+
+class DocumentDoesNotExist(Exception):
+    pass
+
+
+def get_auth_info(
+    document_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    authorization: Optional[str] = Header(default=None),
+    share_token: Optional[str] = Header(default=None, alias="Share-Token"),
+    allow_worker=False,
+) -> Optional[AuthInfo]:
+    """Checks the provided credentials and returns the auth info with the highest privilege"""
+    statement = select(Document).where(Document.id == document_id)
+    doc = session.exec(statement).one_or_none()
+    if doc is None:
+        raise DocumentDoesNotExist()
+
+    auth_infos = []
+
+    if authorization is not None:
+        auth_info = get_user_auth_info(
+            doc=doc, session=session, authorization=authorization
+        )
+        if auth_info is not None:
+            auth_infos.append(auth_info)
+
+    if authorization is not None and allow_worker:
+        auth_info = get_worker_auth_info(
+            doc=doc, session=session, authorization=authorization
+        )
+        if auth_info is not None:
+            auth_infos.append(auth_info)
+
+    if share_token is not None:
+        auth_info = get_shared_auth_info(
+            doc=doc, session=session, share_token=share_token
+        )
+        if auth_info is not None:
+            auth_infos.append(auth_info)
+
+    if not auth_infos:
+        return None
+
+    return max(auth_infos, key=lambda x: x.auth_level)
+
+
+def get_doc_auth_function(
+    min_auth_level: AuthLevel,
+    allow_worker: bool,
+    max_auth_level: AuthLevel = AuthLevel.FULL,
+):
+    def func(
+        document_id: uuid.UUID,
+        session: Session = Depends(get_session),
+        authorization: Optional[str] = Header(default=None),
+        share_token: Optional[str] = Header(default=None, alias="Share-Token"),
+    ):
+        try:
+            auth_info = get_auth_info(
+                document_id=document_id,
+                session=session,
+                authorization=authorization,
+                share_token=share_token,
+                allow_worker=allow_worker,
+            )
+        except DocumentDoesNotExist:
+            raise HTTPException(status_code=404)
+
+        if auth_info is None:
+            raise HTTPException(status_code=403)
+        if auth_info.auth_level < min_auth_level:
+            raise HTTPException(status_code=403)
+        if auth_info.auth_level > max_auth_level:
+            raise HTTPException(status_code=403)
+
+        return auth_info
+
+    return func
+
+
+def auth_fn_to_ws(f: Callable):
+    def func(
+        document_id: uuid.UUID,
+        session: Session = Depends(get_session),
+        authorization: Optional[str] = Query(default=None),
+        share_token: Optional[str] = Query(default=None, alias="share_token"),
+    ):
+        try:
+            return f(
+                document_id=document_id,
+                session=session,
+                authorization=authorization,
+                share_token=share_token,
+            )
+        except HTTPException:
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+
+    return func
+
+
+get_doc_full_auth = get_doc_auth_function(
+    min_auth_level=AuthLevel.FULL, allow_worker=False
+)
+get_doc_worker_auth = get_doc_auth_function(
+    min_auth_level=AuthLevel.WORKER, max_auth_level=AuthLevel.WORKER, allow_worker=True
+)
+get_doc_min_readwrite_auth = get_doc_auth_function(
+    min_auth_level=AuthLevel.READ_WRITE, allow_worker=False
+)
+get_doc_min_readonly_auth = get_doc_auth_function(
+    min_auth_level=AuthLevel.READ_ONLY, allow_worker=False
+)
+get_doc_min_readonly_or_worker_auth = get_doc_auth_function(
+    min_auth_level=AuthLevel.READ_ONLY, allow_worker=True
+)
+ws_get_doc_min_readonly_or_worker_auth = auth_fn_to_ws(
+    get_doc_min_readonly_or_worker_auth
+)
+
+
+def get_task_worker_reencode_auth(
+    document_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    authorized_worker: Worker = Depends(get_authorized_worker),
+) -> Task:
+    statement = select(Task).where(
+        Task.document_id == document_id, Task.task_type == TaskType.REENCODE
+    )
+    task = session.exec(statement).one_or_none()
+    if (
+        task is None
+        or task.current_attempt is None
+        or task.current_attempt.assigned_worker != authorized_worker
+    ):
+        raise HTTPException(status_code=404)
+    return task
 
 
 def create_default_tasks_for_document(
@@ -221,28 +370,30 @@ def list_documents(
 
 @document_router.get("/{document_id}/")
 def get_document(
-    token: UserToken = Depends(get_user_token),
-    document: Document = Depends(get_document_from_url),
-) -> ApiDocument:
-    return document.as_api_document()
+    auth: AuthInfo = Depends(get_doc_min_readonly_auth),
+) -> ApiDocumentWithAccessInfo:
+    return ApiDocumentWithAccessInfo(
+        **dict(auth.document.as_api_document()),
+        can_write=auth.auth_level >= AuthLevel.READ_WRITE,
+        has_full_access=auth.auth_level >= AuthLevel.FULL,
+    )
 
 
 @document_router.delete("/{document_id}/")
 def delete_document(
-    token: UserToken = Depends(get_user_token),
-    document: Document = Depends(get_document_from_url),
+    auth: AuthInfo = Depends(get_doc_full_auth),
     session: Session = Depends(get_session),
 ) -> None:
     paths_to_delete: List[Path] = []
     media_files = select(DocumentMediaFile).where(
-        DocumentMediaFile.document == document
+        DocumentMediaFile.document == auth.document
     )
 
     for media_file in session.exec(media_files):
         paths_to_delete.append(settings.storage_path / media_file.file)
         session.delete(media_file)
 
-    session.delete(document)
+    session.delete(auth.document)
     session.commit()
 
     for path in paths_to_delete:
@@ -255,45 +406,35 @@ def delete_document(
 
 @document_router.get("/{document_id}/tasks/")
 def get_document_tasks(
-    token: UserToken = Depends(get_user_token),
-    document: Document = Depends(get_document_from_url),
+    auth: AuthInfo = Depends(get_doc_min_readonly_auth),
     session: Session = Depends(get_session),
 ) -> List[TaskResponse]:
-    statement = select(Task).where(Task.document_id == document.id)
+    statement = select(Task).where(Task.document_id == auth.document.id)
     return [TaskResponse.from_orm(x) for x in session.exec(statement)]
 
 
 @document_router.websocket("/sync/{document_id}/")
 async def websocket_endpoint(
     websocket: WebSocket,
-    document: Document = Depends(ws_get_document_from_url),
+    auth: AuthInfo = Depends(ws_get_doc_min_readonly_or_worker_auth),
     session: Session = Depends(get_session),
 ):
     connection = DocumentSyncConsumer(
-        document=document, websocket=websocket, session=session
+        document=auth.document,
+        websocket=websocket,
+        session=session,
+        can_write=auth.auth_level >= AuthLevel.READ_WRITE,
     )
     await connection.run()
 
 
 @document_router.post("/{document_id}/add_media_file/")
 def add_media_file(
-    document_id: uuid.UUID,
+    task: Task = Depends(get_task_worker_reencode_auth),
     tags: list[str] = Form(),
     file: UploadFile = File(),
     session: Session = Depends(get_session),
-    authorized_worker: Worker = Depends(get_authorized_worker),
 ) -> ApiDocument:
-    statement = select(Task).where(
-        Task.document_id == document_id, Task.task_type == TaskType.REENCODE
-    )
-    task = session.exec(statement).one_or_none()
-    if (
-        task is None
-        or task.current_attempt is None
-        or task.current_attempt.assigned_worker != authorized_worker
-    ):
-        raise HTTPException(status_code=404)
-
     stored_file = media_storage.store_file(file.file)
     file.file.seek(0)
 
@@ -321,22 +462,10 @@ class SetDurationRequest(BaseModel):
 
 @document_router.post("/{document_id}/set_duration/")
 def set_duration(
-    document_id: uuid.UUID,
     body: SetDurationRequest,
+    task: Task = Depends(get_task_worker_reencode_auth),
     session: Session = Depends(get_session),
-    authorized_worker: Worker = Depends(get_authorized_worker),
 ) -> ApiDocument:
-    statement = select(Task).where(
-        Task.document_id == document_id, Task.task_type == TaskType.REENCODE
-    )
-    task = session.exec(statement).one_or_none()
-    if (
-        task is None
-        or task.current_attempt is None
-        or task.current_attempt.assigned_worker != authorized_worker
-    ):
-        raise HTTPException(status_code=404)
-
     doc = task.document
     doc.duration = body.duration
     session.add(doc)
@@ -352,7 +481,7 @@ class DocumentUpdate(BaseModel):
 @document_router.patch("/{document_id}/")
 def update_document(
     update: DocumentUpdate,
-    document: Document = Depends(get_document_from_url),
+    document: Document = Depends(get_doc_full_auth),
     session: Session = Depends(get_session),
 ) -> ApiDocument:
     update_dict = update.dict(exclude_unset=True)
@@ -362,3 +491,60 @@ def update_document(
     session.commit()
 
     return document.as_api_document()
+
+
+class CreateShareToken(BaseModel):
+    name: str
+    valid_until: Optional[datetime.datetime]
+    can_write: bool
+
+
+@document_router.post("/{document_id}/share_tokens/")
+def share(
+    body: CreateShareToken,
+    session: Session = Depends(get_session),
+    token: UserToken = Depends(get_user_token),
+    auth: AuthInfo = Depends(get_doc_full_auth),
+) -> DocumentShareTokenBase:
+    db_token = generate_share_token(
+        document_id=auth.document.id,
+        name=body.name,
+        valid_until=body.valid_until,
+        can_write=body.can_write,
+    )
+    session.add(db_token)
+    session.commit()
+    return db_token
+
+
+@document_router.get("/{document_id}/share_tokens/")
+def list_share_tokens(
+    session: Session = Depends(get_session),
+    auth: AuthInfo = Depends(get_doc_full_auth),
+) -> List[DocumentShareTokenBase]:
+    statement = (
+        select(DocumentShareToken)
+        .where(DocumentShareToken.document_id == auth.document.id)
+        .order_by(desc(DocumentShareToken.valid_until), DocumentShareToken.id)
+    )
+    results = session.exec(statement)
+    return list(results)
+
+
+@document_router.delete("/{document_id}/share_tokens/{token_id}/")
+def delete_share_tokens(
+    token_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    auth: AuthInfo = Depends(get_doc_full_auth),
+):
+    statement = select(DocumentShareToken).where(
+        DocumentShareToken.document_id == auth.document.id,
+        DocumentShareToken.id == token_id,
+    )
+    token = session.exec(statement).one_or_none()
+    if token is None:
+        raise HTTPException(status_code=404)
+    else:
+        session.delete(token)
+        session.commit()
+        return

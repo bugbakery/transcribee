@@ -35,6 +35,9 @@ class Document(DocumentBase, table=True):
     updates: List["DocumentUpdate"] = Relationship(
         sa_relationship_kwargs={"cascade": "all,delete"}
     )
+    share_tokens: List["DocumentShareToken"] = Relationship(
+        sa_relationship_kwargs={"cascade": "all,delete"}
+    )
 
     def as_api_document(self) -> ApiDocument:
         return ApiDocument(
@@ -108,3 +111,24 @@ class DocumentUpdate(DocumentUpdateBase, table=True):
     )
     document_id: uuid.UUID = Field(foreign_key="document.id")
     document: Document = Relationship(back_populates="updates")
+
+
+class DocumentShareTokenBase(SQLModel):
+    id: uuid.UUID
+    name: str
+    valid_until: Optional[datetime.datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    document_id: uuid.UUID = Field(foreign_key="document.id")
+    token: str
+    can_write: bool
+
+
+class DocumentShareToken(DocumentShareTokenBase, table=True):
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    document: Document = Relationship(back_populates="share_tokens")

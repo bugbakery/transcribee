@@ -2,6 +2,14 @@ import { paths } from './openapi-schema';
 import { ApiResponse, Fetcher, Middleware } from 'openapi-typescript-fetch';
 import useSwr, { SWRConfiguration } from 'swr';
 
+export function getShareToken(): string | null {
+  return new URL(location.href).searchParams.get('share_token');
+}
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem('auth');
+}
+
 export function storeAuthToken(token: string | undefined) {
   if (token) {
     localStorage.setItem('auth', token);
@@ -13,9 +21,14 @@ export function storeAuthToken(token: string | undefined) {
 const authMiddleware: Middleware = async (url, init, next) => {
   const headers = new Headers(init.headers);
 
-  const authToken = localStorage.getItem('auth');
+  const authToken = getAuthToken();
   if (authToken) {
     headers.set('Authorization', `Token ${authToken}`);
+  }
+
+  const shareToken = getShareToken();
+  if (shareToken) {
+    headers.set('Share-Token', shareToken);
   }
 
   return next(url, { ...init, headers: headers });

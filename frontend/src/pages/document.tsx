@@ -6,7 +6,7 @@ import { IconButton, PrimaryButton, SecondaryButton } from '../components/button
 import { TranscriptionEditor } from '../editor/transcription_editor';
 import { WorkerStatus } from '../editor/worker_status';
 import { updateDocument, useGetDocument } from '../api/document';
-import { TbFileExport } from 'react-icons/tb';
+import { TbFileExport, TbShare3 } from 'react-icons/tb';
 import { canGenerateVtt } from '../utils/export/webvtt';
 import { Suspense, lazy, useMemo, useState, useCallback } from 'react';
 import { useDebugMode } from '../debugMode';
@@ -20,6 +20,9 @@ import { Input } from '../components/form';
 import { BiPencil } from 'react-icons/bi';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { Helmet } from 'react-helmet';
+import { ShareModal } from '../editor/share';
+import { useAuthData } from '../utils/auth';
+import { getAuthToken, getShareToken } from '../api';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -113,14 +116,23 @@ export function DocumentPage({
   const { data, mutate } = useGetDocument({ document_id: documentId });
   const [_location, navigate] = useLocation();
   const debugMode = useDebugMode();
+  const { isLoggedIn } = useAuthData();
 
   const [syncComplete, setSyncComplete] = useState<boolean>(false);
 
   const url = new URL(`/api/v1/documents/sync/${documentId}/`, window.location.href);
   url.protocol = url.protocol.replace('http', 'ws');
 
-  const authToken = localStorage.getItem('auth');
-  url.searchParams.append('authorization', `Token ${authToken}`);
+  const authToken = getAuthToken();
+  if (authToken) {
+    url.searchParams.append('authorization', `Token ${authToken}`);
+  }
+
+  const shareToken = getShareToken();
+  if (shareToken) {
+    url.searchParams.append('share_token', shareToken);
+  }
+
   const editor = useAutomergeWebsocketEditor(url, {
     onInitialSyncComplete: () => {
       setSyncComplete(true);
@@ -143,12 +155,18 @@ export function DocumentPage({
         <title>{data?.name}</title>
       </Helmet>
       <TopBar className="!items-start">
-        <TopBarPart className="sticky left-4 -ml-12 !items-start">
-          <IconButton
-            icon={IoIosArrowBack}
-            label="back to document gallery"
-            onClick={() => navigate('/')}
-          />
+        <TopBarPart
+          className={
+            isLoggedIn ? 'sticky left-4 -ml-12 !items-start' : ' left-4 -ml-4 !items-start'
+          }
+        >
+          {isLoggedIn && (
+            <IconButton
+              icon={IoIosArrowBack}
+              label="back to document gallery"
+              onClick={() => navigate('/')}
+            />
+          )}
           <DocumentTitle
             name={data?.name}
             onChange={(newTitle: string) => {
@@ -163,6 +181,15 @@ export function DocumentPage({
           />
         </TopBarPart>
         <TopBarPart>
+          {data?.has_full_access && (
+            <IconButton
+              icon={TbShare3}
+              label={'share...'}
+              onClick={() => {
+                showModal(<ShareModal documentId={documentId} onClose={() => showModal(null)} />);
+              }}
+            />
+          )}
           <Tooltip tooltipText={canGenVtt.reason}>
             <IconButton
               icon={TbFileExport}
@@ -174,7 +201,7 @@ export function DocumentPage({
             />
           </Tooltip>
           <WorkerStatus documentId={documentId} />
-          <MeButton />
+          {isLoggedIn && <MeButton />}
         </TopBarPart>
       </TopBar>
 
@@ -182,6 +209,7 @@ export function DocumentPage({
         editor={editor}
         documentId={documentId}
         className={clsx({ blur: !syncComplete })}
+        readOnly={!data || !data.can_write}
       />
 
       <Suspense>{debugMode && <LazyDebugPanel editor={editor} />}</Suspense>

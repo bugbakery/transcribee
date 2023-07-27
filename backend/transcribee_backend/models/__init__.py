@@ -1,4 +1,11 @@
-from .document import Document, DocumentMediaFile, DocumentMediaTag, DocumentUpdate
+from .document import (
+    Document,
+    DocumentMediaFile,
+    DocumentMediaTag,
+    DocumentShareToken,
+    DocumentShareTokenBase,
+    DocumentUpdate,
+)
 from .task import (
     AssignedTaskResponse,
     CreateTask,
@@ -15,6 +22,8 @@ __all__ = [
     "Document",
     "DocumentMediaFile",
     "DocumentMediaTag",
+    "DocumentShareToken",
+    "DocumentShareTokenBase",
     "DocumentUpdate",
     "AssignedTaskResponse",
     "CreateTask",

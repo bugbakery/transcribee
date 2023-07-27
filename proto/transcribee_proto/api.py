@@ -27,6 +27,11 @@ class Document(BaseModel):
     media_files: List[DocumentMedia]
 
 
+class DocumentWithAccessInfo(Document):
+    can_write: bool
+    has_full_access: bool
+
+
 class TaskBase(BaseModel):
     id: str
     document: Document
