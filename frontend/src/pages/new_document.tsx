@@ -16,6 +16,8 @@ type FieldValues = {
   audioFile: FileList | undefined;
   model: string;
   language: string;
+  speakerDetection: 'off' | 'on' | 'advanced';
+  numberOfSpeakers: number;
 };
 
 type ModelConfig = ReturnType<typeof useGetConfig>['data']['models'];
@@ -45,6 +47,8 @@ export function NewDocumentPage() {
       language: '',
       audioFile: undefined,
       name: '',
+      speakerDetection: 'on',
+      numberOfSpeakers: 2,
     },
   });
 
@@ -54,6 +58,7 @@ export function NewDocumentPage() {
 
   const audioFile = watch('audioFile');
   const model = watch('model');
+  const speakerDetection = watch('speakerDetection');
 
   // set initial language based on selected model
   useEffect(() => {
@@ -69,12 +74,21 @@ export function NewDocumentPage() {
 
     try {
       setLoading(true);
-      const response = await createDocument({
+
+      type DocumentCreateParameters = Parameters<typeof createDocument>[0];
+      const documentParameters: DocumentCreateParameters = {
         name: data.name,
         file: data.audioFile[0],
         model: data.model,
         language: data.language,
-      });
+      };
+      if (data.speakerDetection == 'off') {
+        documentParameters.number_of_speakers = 0;
+      } else if (data.speakerDetection == 'advanced') {
+        documentParameters.number_of_speakers = data.numberOfSpeakers;
+      }
+
+      const response = await createDocument(documentParameters);
 
       if (response.ok) {
         navigate('/');
@@ -134,7 +148,7 @@ export function NewDocumentPage() {
                 <div
                   className={clsx(
                     'absolute',
-                    'top-1',
+                    'top-2 text-center',
                     'bottom-1',
                     'right-1',
                     'left-1',
@@ -207,8 +221,8 @@ export function NewDocumentPage() {
               )}
             </div>
             {!isLoading ? (
-              <>
-                <FormControl label="Model" error={errors.model?.message}>
+              <div className="flex row">
+                <FormControl label="Model" error={errors.model?.message} className="flex-grow mr-2">
                   <Select {...register('model')}>
                     {Object.values(config.models).map((cur_model) =>
                       cur_model !== undefined ? (
@@ -221,7 +235,11 @@ export function NewDocumentPage() {
                     )}
                   </Select>
                 </FormControl>
-                <FormControl label="Language" error={errors.language?.message}>
+                <FormControl
+                  label="Language"
+                  error={errors.language?.message}
+                  className="flex-grow"
+                >
                   <Select {...register('language')}>
                     {getLanguages(config.models, model)?.map((lang) => (
                       <option value={lang} key={lang}>
@@ -230,9 +248,72 @@ export function NewDocumentPage() {
                     ))}
                   </Select>
                 </FormControl>
-              </>
+              </div>
             ) : (
               <></>
+            )}
+
+            <FormControl label={'Speaker Detection'}>
+              <div className="flex">
+                <input
+                  type="radio"
+                  id="off"
+                  value={'off'}
+                  className="hidden peer/off"
+                  {...register('speakerDetection')}
+                />
+                <label
+                  htmlFor="off"
+                  className={clsx(
+                    'block bg-transparent py-2 text-center flex-grow basis-1',
+                    'peer-checked/off:bg-gray-300 dark:peer-checked/off:bg-gray-700',
+                    'border-black dark:border-white border-2 rounded-l',
+                  )}
+                >
+                  Off
+                </label>
+
+                <input
+                  type="radio"
+                  id="on"
+                  value={'on'}
+                  className="hidden peer/on"
+                  {...register('speakerDetection')}
+                />
+                <label
+                  htmlFor="on"
+                  className={clsx(
+                    'block bg-transparent  py-2 text-center flex-grow basis-1',
+                    'peer-checked/on:bg-gray-300 dark:peer-checked/on:bg-gray-700',
+                    'border-black dark:border-white border-y-2',
+                  )}
+                >
+                  On
+                </label>
+
+                <input
+                  type="radio"
+                  id="advanced"
+                  value={'advanced'}
+                  className="hidden peer/advanced"
+                  {...register('speakerDetection')}
+                />
+                <label
+                  htmlFor="advanced"
+                  className={clsx(
+                    'block bg-transparent py-2 text-center flex-grow basis-1',
+                    'peer-checked/advanced:bg-gray-300 dark:peer-checked/advanced:bg-gray-700',
+                    'border-black dark:border-white border-2 rounded-r',
+                  )}
+                >
+                  Advanced
+                </label>
+              </div>
+            </FormControl>
+            {speakerDetection == 'advanced' && (
+              <FormControl label="Number of Speakers" className="-mt-4">
+                <Input type="number" min={2} {...register('numberOfSpeakers')} />
+              </FormControl>
             )}
 
             <div className="flex justify-between">

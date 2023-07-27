@@ -7,11 +7,12 @@ export type FormControlProps = {
   error?: string;
   children: ReactNode;
   disabled?: boolean;
+  className?: string;
 };
 
-export function FormControl({ label, error, disabled, children }: FormControlProps) {
+export function FormControl({ label, error, disabled, children, className }: FormControlProps) {
   return (
-    <label className="block">
+    <label className={clsx('block', className)}>
       <span
         className={clsx(
           'text-sm font-medium',
