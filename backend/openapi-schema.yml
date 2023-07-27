@@ -112,6 +112,23 @@ components:
       - new_password
       title: ChangePasswordRequest
       type: object
+    CreateShareToken:
+      properties:
+        can_write:
+          title: Can Write
+          type: boolean
+        name:
+          title: Name
+          type: string
+        valid_until:
+          format: date-time
+          title: Valid Until
+          type: string
+      required:
+      - name
+      - can_write
+      title: CreateShareToken
+      type: object
     CreateUser:
       properties:
         password:
@@ -171,12 +188,78 @@ components:
       - tags
       title: DocumentMedia
       type: object
+    DocumentShareTokenBase:
+      properties:
+        can_write:
+          title: Can Write
+          type: boolean
+        document_id:
+          format: uuid
+          title: Document Id
+          type: string
+        id:
+          format: uuid
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        token:
+          title: Token
+          type: string
+        valid_until:
+          format: date-time
+          title: Valid Until
+          type: string
+      required:
+      - id
+      - name
+      - document_id
+      - token
+      - can_write
+      title: DocumentShareTokenBase
+      type: object
     DocumentUpdate:
       properties:
         name:
           title: Name
           type: string
       title: DocumentUpdate
+      type: object
+    DocumentWithAccessInfo:
+      properties:
+        can_write:
+          title: Can Write
+          type: boolean
+        changed_at:
+          title: Changed At
+          type: string
+        created_at:
+          title: Created At
+          type: string
+        has_full_access:
+          title: Has Full Access
+          type: boolean
+        id:
+          title: Id
+          type: string
+        media_files:
+          items:
+            $ref: '#/components/schemas/DocumentMedia'
+          title: Media Files
+          type: array
+        name:
+          title: Name
+          type: string
+      required:
+      - id
+      - name
+      - created_at
+      - changed_at
+      - media_files
+      - can_write
+      - has_full_access
+      title: DocumentWithAccessInfo
       type: object
     HTTPValidationError:
       properties:
@@ -486,9 +569,15 @@ paths:
           type: string
       - in: header
         name: authorization
-        required: true
+        required: false
         schema:
           title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
           type: string
       responses:
         '200':
@@ -515,16 +604,22 @@ paths:
           type: string
       - in: header
         name: authorization
-        required: true
+        required: false
         schema:
           title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
           type: string
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Document'
+                $ref: '#/components/schemas/DocumentWithAccessInfo'
           description: Successful Response
         '422':
           content:
@@ -545,9 +640,15 @@ paths:
           type: string
       - in: header
         name: authorization
-        required: true
+        required: false
         schema:
           title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
           type: string
       requestBody:
         content:
@@ -643,9 +744,49 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Set Duration
-  /api/v1/documents/{document_id}/tasks/:
+  /api/v1/documents/{document_id}/share_tokens/:
     get:
-      operationId: get_document_tasks_api_v1_documents__document_id__tasks__get
+      operationId: list_share_tokens_api_v1_documents__document_id__share_tokens__get
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/DocumentShareTokenBase'
+                title: Response List Share Tokens Api V1 Documents  Document Id  Share
+                  Tokens  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Share Tokens
+    post:
+      operationId: share_api_v1_documents__document_id__share_tokens__post
       parameters:
       - in: path
         name: document_id
@@ -659,6 +800,98 @@ paths:
         required: true
         schema:
           title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShareToken'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentShareTokenBase'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Share
+  /api/v1/documents/{document_id}/share_tokens/{token_id}/:
+    delete:
+      operationId: delete_share_tokens_api_v1_documents__document_id__share_tokens__token_id___delete
+      parameters:
+      - in: path
+        name: token_id
+        required: true
+        schema:
+          format: uuid
+          title: Token Id
+          type: string
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Delete Share Tokens
+  /api/v1/documents/{document_id}/tasks/:
+    get:
+      operationId: get_document_tasks_api_v1_documents__document_id__tasks__get
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
           type: string
       responses:
         '200':

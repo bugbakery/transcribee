@@ -51,11 +51,13 @@ export function Modal({
   onClose,
   label,
   transitionClassName,
+  dialogClassName = 'w-96 max-w-full',
   ...props
 }: {
   onClose: () => void;
   label: string;
   transitionClassName?: string;
+  dialogClassName?: string;
 } & ComponentProps<'div'>) {
   const dialogRef = useRef<HTMLDivElement>();
   useEvent<KeyboardEvent>('keydown', (e) => {
@@ -67,7 +69,7 @@ export function Modal({
   return (
     <div
       {...props}
-      className={clsx('relative z-10')}
+      className={clsx('relative z-50')}
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
@@ -92,12 +94,9 @@ export function Modal({
 
       <div className="fixed inset-0 z-10 overflow-y-auto">
         <div
-          className={clsx(
-            'flex min-h-full justify-center text-center items-center p-0',
-            transitionClassName,
-          )}
+          className={clsx('flex min-h-full justify-center items-center p-0', transitionClassName)}
         >
-          <Dialog ref={dialogRef}>
+          <Dialog ref={dialogRef} className={dialogClassName}>
             <ModalTitle id="modal-title">{label}</ModalTitle>
             {children}
           </Dialog>
@@ -105,4 +104,8 @@ export function Modal({
       </div>
     </div>
   );
+}
+
+export function DoubleWidthModal(props: Omit<ComponentProps<typeof Modal>, 'dialogClassName'>) {
+  return <Modal {...props} dialogClassName="w-very-large-dialog w-max-full" />;
 }

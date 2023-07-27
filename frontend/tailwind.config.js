@@ -20,6 +20,7 @@ module.exports = {
       animation: {
         rainbow: 'rainbow 6s linear infinite;',
       },
+      width: { 'very-large-dialog': '60rem' },
     },
     fontFamily: {
       sans: [
@@ -36,7 +37,5 @@ module.exports = {
       ],
     },
   },
-  plugins: [
-    require('@tailwindcss/forms'),
-  ],
+  plugins: [require('@tailwindcss/forms')],
 };

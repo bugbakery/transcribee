@@ -100,7 +100,7 @@ export function NewDocumentPage() {
 
   return (
     <AppCenter onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
-      <Dialog>
+      <Dialog className={'w-96'}>
         <DialogTitle>New Document</DialogTitle>
         <form onSubmit={handleSubmit(submitHandler)}>
           <div className="flex flex-col gap-6">

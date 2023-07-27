@@ -32,10 +32,17 @@ sync_manager = DocumentSyncManager()
 
 
 class DocumentSyncConsumer:
-    def __init__(self, document: Document, websocket: WebSocket, session: Session):
+    def __init__(
+        self,
+        document: Document,
+        websocket: WebSocket,
+        session: Session,
+        can_write: bool,
+    ):
         self._doc = document
         self._ws = websocket
         self._session = session
+        self._can_write = can_write
         self._subscribed = set()
         self._msg_queue = Queue()
 
@@ -81,17 +88,21 @@ class DocumentSyncConsumer:
 
         await self.disconnect()
 
-    async def disconnect(self):
+    async def disconnect(self, code=1000):
         for ch in self._subscribed:
             sync_manager.unsubscribe(ch, self.handle_incoming_broadcast)
         if self._ws.client_state == WebSocketState.CONNECTED:
-            await self._ws.close()
+            await self._ws.close(code=code)
 
     async def on_broadcast(self, channel: str, message: bytes):
         if channel == str(self._doc.id):
             await self._ws.send_bytes(message)
 
     async def on_message(self, message: bytes):
+        if not self._can_write:
+            await self.disconnect(code=1008)  # 1008 = POLICY VIOLATION
+            return
+
         update = DocumentUpdate(change_bytes=message, document_id=self._doc.id)
         self._session.add(update)
 

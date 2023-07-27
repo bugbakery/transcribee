@@ -5,15 +5,15 @@ import hmac
 import os
 import uuid
 from base64 import b64decode, b64encode
-from typing import Tuple
+from typing import Optional, Tuple
 
 from fastapi import Depends, Header, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, col, or_, select
 
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists, UserDoesNotExist
 from transcribee_backend.helpers.time import now_tz_aware
-from transcribee_backend.models import Task, User, UserToken, Worker
+from transcribee_backend.models import DocumentShareToken, Task, User, UserToken, Worker
 
 
 class NotAuthorized(Exception):
@@ -160,3 +160,37 @@ def get_authorized_task(
         raise HTTPException(status_code=403)
 
     return task
+
+
+def generate_share_token(
+    document_id: uuid.UUID,
+    name: str,
+    valid_until: Optional[datetime.datetime],
+    can_write: bool,
+):
+    token = b64encode(os.urandom(32)).decode()
+    return DocumentShareToken(
+        document_id=document_id,
+        token=token,
+        valid_until=valid_until,
+        name=name,
+        can_write=can_write,
+    )
+
+
+def validate_share_authorization(
+    session: Session, share_token: str, document_id: uuid.UUID
+):
+    statement = select(DocumentShareToken).where(
+        DocumentShareToken.document_id == document_id,
+        DocumentShareToken.token == share_token,
+        or_(
+            col(DocumentShareToken.valid_until).is_(None),
+            col(DocumentShareToken.valid_until) >= now_tz_aware(),
+        ),
+    )
+    token = session.exec(statement).one_or_none()
+    if token:
+        return token
+
+    raise HTTPException(status_code=401)

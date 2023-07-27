@@ -54,7 +54,7 @@ export function LoginPage() {
 
   return (
     <AppCenter>
-      <Dialog>
+      <Dialog className={'w-96'}>
         <DialogTitle>transcribee login</DialogTitle>
         <form
           onSubmit={handleSubmit(submitHandler, () => {

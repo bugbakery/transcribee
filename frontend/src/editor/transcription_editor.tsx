@@ -6,6 +6,7 @@ import {
   RenderLeafProps,
   ReactEditor,
   useSlateSelector,
+  useReadOnly,
 } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
@@ -38,6 +39,7 @@ export function formattedTime(sec: number | undefined): string {
 }
 
 function Paragraph({ element, children, attributes }: RenderElementProps): JSX.Element {
+  const readOnly = useReadOnly();
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
 
@@ -79,6 +81,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
           </div>
         </div>
       )}
+
       <div
         className={clsx(
           'mx-2 -mt-0.5 md:mt-0 md:-ml-2',
@@ -87,17 +90,19 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
           'z-10',
         )}
       >
-        <SpeakerDropdown
-          contentEditable={false}
-          paragraph={element}
-          buttonClassName={clsx(
-            'text-neutral-500 md:text-neutral-600 md:dark:text-neutral-200',
-            'md:text-right',
-            'md:opacity-0 md:hover:opacity-100',
-            'md:pr-2',
-          )}
-          dropdownContainerClassName="pb-24"
-        />
+        {!readOnly && (
+          <SpeakerDropdown
+            contentEditable={false}
+            paragraph={element}
+            buttonClassName={clsx(
+              'text-neutral-500 md:text-neutral-600 md:dark:text-neutral-200',
+              'md:text-right',
+              'md:opacity-0 md:hover:opacity-100',
+              'md:pr-2',
+            )}
+            dropdownContainerClassName="pb-24"
+          />
+        )}
       </div>
 
       {/* speaker color indicator */}
@@ -189,10 +194,12 @@ Leaf.displayName = 'Leaf';
 export function TranscriptionEditor({
   editor,
   documentId,
+  readOnly,
   ...props
 }: {
   editor: Editor;
   documentId: string;
+  readOnly: boolean;
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   // prevent ctrl+s
@@ -225,6 +232,7 @@ export function TranscriptionEditor({
       >
         <SpeakerColorsProvider>
           <Editable
+            readOnly={readOnly}
             renderElement={Paragraph}
             renderLeaf={useCallback(
               (props: RenderLeafProps) => {
