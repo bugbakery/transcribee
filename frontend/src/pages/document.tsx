@@ -115,8 +115,6 @@ export function DocumentPage({
   const debugMode = useDebugMode();
   const { isLoggedIn } = useAuthData();
 
-  const [syncComplete, setSyncComplete] = useState<boolean>(false);
-
   const url = new URL(`/api/v1/documents/sync/${documentId}/`, window.location.href);
   url.protocol = url.protocol.replace('http', 'ws');
 
@@ -133,7 +131,6 @@ export function DocumentPage({
   const [editor, initialValue] = useAutomergeWebsocketEditor(url, {
     onInitialSyncComplete: () => {
       if (editor) {
-        setSyncComplete(true);
         const isNewDocument =
           editor.doc.version === undefined &&
           editor.doc.children === undefined &&
@@ -147,7 +144,7 @@ export function DocumentPage({
   });
 
   return (
-    <AppContainer className="relative min-h-screen" versionClassName="mb-16">
+    <AppContainer className="relative min-h-screen flex flex-col" versionClassName="mb-16">
       <Helmet>
         <title>{data?.name}</title>
       </Helmet>
@@ -206,7 +203,7 @@ export function DocumentPage({
         editor={editor}
         documentId={documentId}
         initialValue={initialValue}
-        className={clsx({ blur: !syncComplete })}
+        className={"grow flex flex-col"}
         readOnly={!data || !data.can_write}
       />
 

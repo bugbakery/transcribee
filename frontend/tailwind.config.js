@@ -19,6 +19,7 @@ module.exports = {
       },
       animation: {
         rainbow: 'rainbow 6s linear infinite;',
+        'spin-slow': 'spin 1s linear infinite'
       },
       width: { 'very-large-dialog': '60rem' },
     },
