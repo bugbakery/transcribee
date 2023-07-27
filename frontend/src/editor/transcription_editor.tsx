@@ -17,7 +17,7 @@ import { ComponentProps, useContext, useCallback, memo } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';
-import { LoadingSpinner } from '../components/loading_spinner';
+import { LoadingBee } from '../components/loading_spinner';
 
 import { useInView } from 'react-intersection-observer';
 import { ErrorBoundary } from './editor_error_boundary';
@@ -289,7 +289,12 @@ export function TranscriptionEditor({
           </SpeakerColorsProvider>
         </Slate>
       ) : (
-        <LoadingSpinner />
+        <>
+          <div className={clsx('grow-[2] flex items-center justify-center w-full h-full')}>
+              <LoadingBee size={200} className="" />
+          </div>
+          <div className="grow-[2] flex" />
+        </>
       )}
     </div>
   );
