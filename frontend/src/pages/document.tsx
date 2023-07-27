@@ -155,11 +155,7 @@ export function DocumentPage({
         <title>{data?.name}</title>
       </Helmet>
       <TopBar className="!items-start">
-        <TopBarPart
-          className={
-            isLoggedIn ? 'sticky left-4 -ml-12 !items-start' : ' left-4 -ml-4 !items-start'
-          }
-        >
+        <TopBarPart className={isLoggedIn ? 'sticky left-4 -ml-12 !items-start' : ''}>
           {isLoggedIn && (
             <IconButton
               icon={IoIosArrowBack}
@@ -167,18 +163,22 @@ export function DocumentPage({
               onClick={() => navigate('/')}
             />
           )}
-          <DocumentTitle
-            name={data?.name}
-            onChange={(newTitle: string) => {
-              mutate({ ...data, name: newTitle }, { revalidate: false });
-              updateDocument({ document_id: documentId, name: newTitle })
-                .catch((e) => {
-                  console.error(e);
-                  mutate(data);
-                }) // reset to old name
-                .then(() => mutate());
-            }}
-          />
+          {data?.has_full_access ? (
+            <DocumentTitle
+              name={data?.name}
+              onChange={(newTitle: string) => {
+                mutate({ ...data, name: newTitle }, { revalidate: false });
+                updateDocument({ document_id: documentId, name: newTitle })
+                  .catch((e) => {
+                    console.error(e);
+                    mutate(data);
+                  }) // reset to old name
+                  .then(() => mutate());
+              }}
+            />
+          ) : (
+            <TopBarTitle className="inline-block">{data?.name}</TopBarTitle>
+          )}
         </TopBarPart>
         <TopBarPart>
           {data?.has_full_access && (
