@@ -11,8 +11,21 @@ import { getSpeakerName, useSpeakerName, useSpeakerNames } from '../utils/docume
 import { showModal, Modal } from '../components/modal';
 import { SpeakerColorsContext } from './speaker_colors';
 import { Editor, Transforms } from 'slate';
-import { calculateParagraphIdxOfSpeakerEnd } from './transcription_editor';
 import clsx from 'clsx';
+
+export function calculateParagraphIdxOfSpeakerEnd(editor: Editor, idx: number): number {
+  const speaker = editor.doc.children[idx].speaker;
+
+  let speakerEndIdx;
+  for (
+    speakerEndIdx = idx;
+    speakerEndIdx < editor.doc.children.length &&
+    editor.doc.children[speakerEndIdx].speaker == speaker;
+    speakerEndIdx++
+  );
+
+  return speakerEndIdx - 1;
+}
 
 function SpeakerNamesSection({
   editor,

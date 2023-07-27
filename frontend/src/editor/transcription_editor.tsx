@@ -37,20 +37,6 @@ export function formattedTime(sec: number | undefined): string {
   return `${minutes}:${seconds}`;
 }
 
-export function calculateParagraphIdxOfSpeakerEnd(editor: Editor, idx: number): number {
-  const speaker = editor.doc.children[idx].speaker;
-
-  let speakerEndIdx;
-  for (
-    speakerEndIdx = idx;
-    speakerEndIdx < editor.doc.children.length &&
-    editor.doc.children[speakerEndIdx].speaker == speaker;
-    speakerEndIdx++
-  );
-
-  return speakerEndIdx - 1;
-}
-
 function Paragraph({ element, children, attributes }: RenderElementProps): JSX.Element {
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
@@ -63,11 +49,11 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
   const speakerName = useSpeakerName(element.speaker);
 
   const metaInformation = (
-    <div className="w-64 grid shrink-0 grid-cols-[auto_1fr_auto]">
+    <div className="md:w-[200px] lg:w-[280px] grid shrink-0 grid-cols-[auto_1fr_auto]">
       {/* start time */}
       <div
         contentEditable={false}
-        className={clsx(`text-slate-500 dark:text-neutral-400 font-mono`, 'xl:mr-4')}
+        className={clsx(`text-slate-500 dark:text-neutral-400 font-mono`, 'md:mr-4')}
         onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
       >
         {formattedTime(startAtom.start)}
@@ -81,44 +67,50 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
         >
           <div
             className={clsx(
-              // '-mt-[0.1rem] py-1 mr-1',
-              'max-w-none break-all text-neutral-500',
+              '-mt-[0.1rem] py-1',
+              'max-w-none text-neutral-500',
               'text-sm font-semibold',
-              'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
+              'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200',
               'bg-white dark:bg-neutral-900',
-              'xl:pr-3',
+              'md:text-right md:pr-3',
             )}
           >
             {speakerName}
           </div>
         </div>
       )}
-      <SpeakerDropdown
-        contentEditable={false}
-        paragraph={element}
-        buttonClassName={clsx(
-          'max-w-none break-all text-neutral-500',
-          'md:max-w-[200px] md:text-neutral-600 md:dark:text-neutral-200 xl:text-right',
-          'xl:pr-2',
-          'md:opacity-0 md:hover:opacity-100',
+      <div
+        className={clsx(
+          'mx-2 -mt-0.5 md:mt-0 md:-ml-2',
+          'row-start-1 col-start-2', // render on top of speaker name
+          'md:max-h-7', // prevent extensive whitespace on paragraph when dropdown is only shown on hover
+          'z-10',
         )}
-        dropdownContainerClassName="pb-24"
-        className={clsx('mx-2', '-mt-0.5 xl:mt-0', 'md:-ml-2', 'row-start-1 col-start-2')}
-      />
+      >
+        <SpeakerDropdown
+          contentEditable={false}
+          paragraph={element}
+          buttonClassName={clsx(
+            'text-neutral-500 md:text-neutral-600 md:dark:text-neutral-200',
+            'md:text-right',
+            'md:opacity-0 md:hover:opacity-100',
+            'md:pr-2',
+          )}
+          dropdownContainerClassName="pb-24"
+        />
+      </div>
 
       {/* speaker color indicator */}
-      <div className="relative w-2 mr-2 h-full">
+      <div className={clsx('relative w-2 h-full', 'mr-2 md:mr-4', 'hidden md:block')}>
         <div
           contentEditable={false}
           style={{
             ...(element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}),
           }}
           className={clsx(
-            'bottom-0 w-full top-0 rounded-md',
-            'absolute',
-            'row-start-1',
-            'col-start-3',
-            !speakerChanged && '-top-6',
+            'absolute bottom-0 w-full',
+            speakerChanged ? 'top-0' : '-top-6',
+            'rounded-md',
           )}
         />
       </div>
@@ -126,7 +118,21 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
   );
 
   return (
-    <div className="flex mb-4">
+    <div className="flex flex-col md:flex-row mb-4 pl-6 md:pl-0 relative">
+      {/* speaker color indicator for large screens */}
+      <div
+        contentEditable={false}
+        style={{
+          ...(element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}),
+        }}
+        className={clsx(
+          'absolute left-0 bottom-0 w-2',
+          speakerChanged ? 'top-0' : '-top-6',
+          'rounded-md',
+          'md:hidden',
+        )}
+      />
+
       {metaInformation}
 
       <div {...attributes} lang={element.lang} spellCheck={false}>
