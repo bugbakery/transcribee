@@ -240,8 +240,7 @@ class Worker:
                 document_audio,
                 output_path,
                 parameters,
-                lambda *args, progress, **kwargs: progress_callback(
-                    *args,
+                lambda progress, **kwargs: progress_callback(
                     progress=(i + progress) / n_profiles,
                     step=f"reencode_{profile}",
                     **kwargs,
