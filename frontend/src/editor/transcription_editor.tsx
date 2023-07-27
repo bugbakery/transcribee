@@ -10,13 +10,14 @@ import {
 } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
-import { SeekToEvent } from './types';
+import { SeekToEvent, Paragraph } from './types';
 import { PlayerBar, startTimeToClassName } from './player';
 import clsx from 'clsx';
 import { ComponentProps, useContext, useCallback, memo } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';
+import { LoadingSpinner } from '../components/loading_spinner';
 
 import { useInView } from 'react-intersection-observer';
 import { ErrorBoundary } from './editor_error_boundary';
@@ -210,11 +211,13 @@ export function TranscriptionEditor({
   editor,
   documentId,
   readOnly,
+  initialValue,
   ...props
 }: {
-  editor: Editor;
+  editor?: Editor;
   documentId: string;
   readOnly: boolean;
+  initialValue?: Paragraph[];
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   // prevent ctrl+s
@@ -226,67 +229,68 @@ export function TranscriptionEditor({
     }
   });
 
+  const renderLeaf = useCallback(
+    (props: RenderLeafProps) => {
+      const { leaf, children, attributes } = props;
+      return (
+        <Leaf
+          attributes={attributes}
+          conf={leaf.conf}
+          start={leaf.start}
+          systemPrefersDark={systemPrefersDark}
+        >
+          {children}
+        </Leaf>
+      );
+    },
+    [systemPrefersDark],
+  );
+
   return (
     <div {...props}>
-      <Slate
-        editor={editor}
-        value={
-          [
-            /* the value is actually managed by the editor object */
-          ]
-        }
-        onChange={() => {
-          // set the confidence of manually edited nodes to 1.0
-          const hasChanged = editor.operations.some(
-            (op: Operation) => op.type == 'insert_text' || op.type == 'remove_text',
-          );
-          if (hasChanged) {
-            Transforms.setNodes(editor, { conf: 1.0 }, { match: (n) => 'conf' in n });
-          }
-        }}
-      >
-        <SpeakerColorsProvider>
-          <ErrorBoundary editor={editor}>
-            <Editable
-              readOnly={readOnly}
-              renderElement={Paragraph}
-              renderLeaf={useCallback(
-                (props: RenderLeafProps) => {
-                  const { leaf, children, attributes } = props;
-                  return (
-                    <Leaf
-                      attributes={attributes}
-                      conf={leaf.conf}
-                      start={leaf.start}
-                      systemPrefersDark={systemPrefersDark}
-                    >
-                      {children}
-                    </Leaf>
-                  );
-                },
-                [systemPrefersDark],
-              )}
-              onClick={(e: React.MouseEvent) => {
-                const { selection } = editor;
+      {editor && initialValue ? (
+        <Slate
+          editor={editor}
+          value={initialValue}
+          onChange={() => {
+            // set the confidence of manually edited nodes to 1.0
+            const hasChanged = editor.operations.some(
+              (op: Operation) => op.type == 'insert_text' || op.type == 'remove_text',
+            );
+            if (hasChanged) {
+              Transforms.setNodes(editor, { conf: 1.0 }, { match: (n) => 'conf' in n });
+            }
+          }}
+        >
+          <SpeakerColorsProvider>
+            <ErrorBoundary editor={editor}>
+              <Editable
+                renderElement={Paragraph}
+                renderLeaf={renderLeaf}
+                onClick={(e: React.MouseEvent) => {
+                  const { selection } = editor;
 
-                // fire a 'seek to' event when selection is changed by clicking outside of a text node
-                // e.g. by clicking at the blank space on the right of a paragraph
-                if (
-                  selection &&
-                  Range.isCollapsed(selection) &&
-                  e.target instanceof HTMLElement &&
-                  e.target.isContentEditable
-                ) {
-                  const [leaf] = editor.leaf(selection.anchor);
-                  window.dispatchEvent(new SeekToEvent(leaf.start));
-                }
-              }}
-              className="2xl:-ml-20"
-            />
-          </ErrorBoundary>
-          <PlayerBar documentId={documentId} editor={editor} />
-        </SpeakerColorsProvider>
-      </Slate>
+                  // fire a 'seek to' event when selection is changed by clicking outside of a text node
+                  // e.g. by clicking at the blank space on the right of a paragraph
+                  if (
+                    selection &&
+                    Range.isCollapsed(selection) &&
+                    e.target instanceof HTMLElement &&
+                    e.target.isContentEditable
+                  ) {
+                    const [leaf] = editor.leaf(selection.anchor);
+                    window.dispatchEvent(new SeekToEvent(leaf.start));
+                  }
+                }}
+                className={clsx('2xl:-ml-20')}
+              />
+              </ErrorBoundary>
+            <PlayerBar documentId={documentId} editor={editor} />
+          </SpeakerColorsProvider>
+        </Slate>
+      ) : (
+        <LoadingSpinner />
+      )}
     </div>
   );
 }

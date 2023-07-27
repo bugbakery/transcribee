@@ -130,16 +130,18 @@ export function DocumentPage({
     url.searchParams.append('share_token', shareToken);
   }
 
-  const editor = useAutomergeWebsocketEditor(url, {
+  const [editor, initialValue] = useAutomergeWebsocketEditor(url, {
     onInitialSyncComplete: () => {
-      setSyncComplete(true);
-      const isNewDocument =
-        editor.doc.version === undefined &&
-        editor.doc.children === undefined &&
-        editor.doc.speaker_names === undefined;
-      if (!isNewDocument && editor.doc.version !== 2) {
-        alert('The document is in an unsupported version.');
-        navigate('/');
+      if (editor) {
+        setSyncComplete(true);
+        const isNewDocument =
+          editor.doc.version === undefined &&
+          editor.doc.children === undefined &&
+          editor.doc.speaker_names === undefined;
+        if (!isNewDocument && editor.doc.version !== 2) {
+          alert('The document is in an unsupported version.');
+          navigate('/');
+        }
       }
     },
   });
@@ -181,7 +183,8 @@ export function DocumentPage({
               icon={TbShare3}
               label={'share...'}
               onClick={() => {
-                showModal(<ShareModal documentId={documentId} onClose={() => showModal(null)} />);
+                editor &&
+                  showModal(<ShareModal editor={editor} onClose={() => showModal(null)} />);
               }}
             />
           )}
@@ -202,11 +205,12 @@ export function DocumentPage({
       <TranscriptionEditor
         editor={editor}
         documentId={documentId}
+        initialValue={initialValue}
         className={clsx({ blur: !syncComplete })}
         readOnly={!data || !data.can_write}
       />
 
-      <Suspense>{debugMode && <LazyDebugPanel editor={editor} />}</Suspense>
+      {editor && <Suspense>{debugMode && <LazyDebugPanel editor={editor} />}</Suspense>}
     </AppContainer>
   );
 }

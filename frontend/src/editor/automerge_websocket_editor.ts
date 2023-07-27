@@ -1,12 +1,12 @@
 import { useLocation } from 'wouter';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Editor, createEditor } from 'slate';
 import { withReact } from 'slate-react';
 import { withAutomergeDoc } from 'slate-automerge-doc';
 import { unstable as Automerge } from '@automerge/automerge';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { useDebugMode } from '../debugMode';
-import { Document } from './types';
+import { Document, Paragraph } from './types';
 import { migrateDocument } from '../document';
 
 enum MessageSyncType {
@@ -17,17 +17,16 @@ enum MessageSyncType {
 
 export function useAutomergeWebsocketEditor(
   url: string | URL,
-  { onInitialSyncComplete }: { onInitialSyncComplete: () => void },
-): Editor {
+  { onInitialSyncComplete }: { onInitialSyncComplete: (editor?: Editor) => void },
+): [Editor?, Paragraph[]?] {
   const debug = useDebugMode();
-
-  const editor = useMemo(() => {
-    const baseEditor = createEditor();
-    const editorWithReact = withReact(baseEditor);
-    const editorWithAutomerge = withAutomergeDoc(editorWithReact, Automerge.init());
-    return editorWithAutomerge;
-  }, [url.toString()]);
-
+  const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
+    editor: Editor;
+    initialValue: Paragraph[];
+  }>(null);
+  const editorRef = useRef<null | Editor>(null);
+  if (editorRef.current !== editorAndInitialValue?.editor)
+    editorRef.current = editorAndInitialValue?.editor;
   const wsRef = useRef<ReconnectingWebSocket | null>(null);
 
   function sendDocChange(newDoc: Document) {
@@ -44,16 +43,23 @@ export function useAutomergeWebsocketEditor(
 
     let bytesReceived = 0;
     console.time('initialSync');
-    let initialSync = true;
     let doc = Automerge.init();
 
-    const migrateAndSetDoc = (doc: Automerge.Doc<Document>) => {
+    const createNewEditor = (doc: Automerge.Doc<Document>) => {
+      const baseEditor = createEditor();
+      const editorWithReact = withReact(baseEditor);
+      const editor = withAutomergeDoc(editorWithReact, Automerge.init());
+      editor.addDocChangeListener(sendDocChange);
+
       const migratedDoc = migrateDocument(doc as Automerge.Doc<Document>);
       sendDocChange(migratedDoc);
+      editor.doc = migratedDoc;
 
-      console.time('setDoc');
-      editor.setDoc(migratedDoc);
-      console.timeEnd('setDoc');
+      onInitialSyncComplete(editor);
+      setEditorAndInitialValue((oldValue) => {
+        oldValue?.editor.removeDocChangeListener(sendDocChange);
+        return { editor: editor, initialValue: JSON.parse(JSON.stringify(migratedDoc.children)) };
+      });
     };
 
     const onMessage = async (event: MessageEvent) => {
@@ -62,41 +68,28 @@ export function useAutomergeWebsocketEditor(
       const msg_type = msg_data[0];
       const msg = msg_data.slice(1);
       if (msg_type === MessageSyncType.Change) {
-        // skip own changes
-        // TODO: filter own changes in backend?
-        if (Automerge.decodeChange(msg).actor == Automerge.getActorId(editor.doc)) return;
+        if (
+          !editorRef.current ||
+          Automerge.decodeChange(msg).actor == Automerge.getActorId(editorRef.current.doc)
+        )
+          return;
 
-        if (initialSync) {
-          console.time('automerge');
-          const [newDoc] = Automerge.applyChanges(doc, [msg]);
-          console.timeEnd('automerge');
-          doc = newDoc;
-        } else {
-          console.time('automerge');
-          const [newDoc] = Automerge.applyChanges(editor.doc, [msg]);
-          console.timeEnd('automerge');
-          console.time('setDoc');
-          editor.setDoc(newDoc);
-          console.timeEnd('setDoc');
-        }
+        console.time('automerge');
+        const [newDoc] = Automerge.applyChanges(editorRef.current.doc, [msg]);
+        console.timeEnd('automerge');
+        console.time('setDoc');
+        editorRef.current?.setDoc(newDoc);
+        console.timeEnd('setDoc');
       } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
         console.info('backlog complete');
-        initialSync = false;
-        migrateAndSetDoc(doc as Automerge.Doc<Document>);
-        console.timeEnd('initialSync');
-        console.info(`ws: ${(bytesReceived / 1e6).toFixed(2)} MB recieved so far`);
-        onInitialSyncComplete();
+        onInitialSyncComplete(editorRef.current);
       } else if (msg_type === MessageSyncType.FullDoc) {
         console.info('Received new document');
         console.time('automerge');
         doc = Automerge.load(msg);
         console.timeEnd('automerge');
-        if (!initialSync) {
-          // for some reason, firefox sometimes receives the messages out of order.
-          // This works around that problem
-          migrateAndSetDoc(doc as Automerge.Doc<Document>);
-          console.info(`ws: ${(bytesReceived / 1e6).toFixed(2)} MB recieved so far`);
-        }
+        createNewEditor(doc as Automerge.Doc<Document>);
+        console.info(`ws: ${(bytesReceived / 1e6).toFixed(2)} MB recieved so far`);
         console.info('Loaded new document');
       }
     };
@@ -113,12 +106,7 @@ export function useAutomergeWebsocketEditor(
       wsRef.current = null;
       ws.close();
     };
-  }, [editor]);
+  }, [url.toString(), setEditorAndInitialValue]);
 
-  useEffect(() => {
-    editor.addDocChangeListener(sendDocChange);
-    return () => editor.removeDocChangeListener(sendDocChange);
-  }, [editor]);
-
-  return editor;
+  return [editorAndInitialValue?.editor, editorAndInitialValue?.initialValue];
 }
