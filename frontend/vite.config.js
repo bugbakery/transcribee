@@ -4,6 +4,7 @@ import { favicons } from "favicons";
 import topLevelAwait from 'vite-plugin-top-level-await';
 import { execSync } from 'child_process';
 import fs from 'fs';
+import * as mime from 'mime-types';
 
 function gitVersionPlugin() {
   const virtualModuleId = 'virtual:git-version';
@@ -81,7 +82,9 @@ function faviconPlugin(originalPath) {
       return () => {
         server.middlewares.use((req, res, next) => {
           if (req.originalUrl in files) {
-            res.end(files[req.originalUrl]);
+            res.setHeader('Content-Type', mime.contentType(mime.lookup(req.originalUrl)));
+            res.write(files[req.originalUrl]);
+            res.end();
           }
           next()
         })
