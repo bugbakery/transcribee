@@ -9,6 +9,9 @@ import { DocumentPage } from './pages/document';
 import { PageNotFoundPage } from './pages/page_not_found';
 import { ModalHolder } from './components/modal';
 import { Helmet } from 'react-helmet';
+import { registerCopyHandler } from './utils/copy_text';
+
+registerCopyHandler();
 
 export function App() {
   const routerBase = trimTrailingSlash(import.meta.env.BASE_URL);
