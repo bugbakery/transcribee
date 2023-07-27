@@ -79,11 +79,11 @@ async def identify_speakers(
         )
         clustering.fit(np.array(embeddings))
 
-        # we now re-shuffle the labels so that the first occuring speaker is 0, the second is 1, ...
+        # we now re-shuffle the labels so that the first occuring speaker is 1, the second is 2, ...
         label_map = {}
         for label in clustering.labels_:
             if label not in label_map:
-                label_map[label] = str(len(label_map))
+                label_map[label] = str(len(label_map) + 1)
 
         for para, label in zip(doc.children, clustering.labels_):
             para.speaker = automerge.Text(label_map[label])
