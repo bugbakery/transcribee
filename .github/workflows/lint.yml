@@ -10,7 +10,7 @@ jobs:
   pre-commit:
     strategy:
       matrix:
-        os: [ ["ubuntu-latest"], ["self-hosted", "macOS"] ]
+        os: [["ubuntu-latest"], ["self-hosted", "macOS"]]
 
     runs-on: ${{ matrix.os }}
 
@@ -32,14 +32,14 @@ jobs:
         with:
           path: |
             backend/__pypackages__/
-          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('backend/pdm.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('backend/pdm.lock', 'proto/transcribee_proto/*.py') }}
 
       - name: Setup worker pypackages cache
         uses: actions/cache@v3
         with:
           path: |
             worker/__pypackages__/
-          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('worker/pdm.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('worker/pdm.lock', 'proto/transcribee_proto/*.py') }}
 
       - name: install dependencies
         run: ./packaging/install_dependencies.sh
