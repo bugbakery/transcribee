@@ -15,3 +15,7 @@
 .break-word {
     word-break: break-word;
 }
+
+.select-none::selection, .select-none *::selection {
+  background: transparent;
+}

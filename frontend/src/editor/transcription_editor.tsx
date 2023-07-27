@@ -49,7 +49,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
   const speakerName = useSpeakerName(element.speaker);
 
   const metaInformation = (
-    <div className="md:w-[200px] lg:w-[280px] grid shrink-0 grid-cols-[auto_1fr_auto]">
+    <div className="md:w-[200px] lg:w-[280px] grid shrink-0 grid-cols-[auto_1fr_auto] select-none">
       {/* start time */}
       <div
         contentEditable={false}
@@ -130,6 +130,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
           speakerChanged ? 'top-0' : '-top-6',
           'rounded-md',
           'md:hidden',
+          'select-none',
         )}
       />
 
