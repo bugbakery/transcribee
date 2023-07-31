@@ -25,7 +25,7 @@ repos:
         name: Run ruff for python files
         entry: ruff check --config .ruff.toml --force-exclude --fix
         language: system
-        'types_or': [python, pyi]
+        "types_or": [python, pyi]
   - repo: local
     hooks:
       - id: backend-pyright
@@ -57,6 +57,14 @@ repos:
         entry: pdm run -p backend/ test
         language: system
         files: backend/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: backend-tests
+        name: run worker tests
+        entry: pdm run -p worker/ test
+        language: system
+        files: worker/.*
         pass_filenames: false
 
   # frontend checks
