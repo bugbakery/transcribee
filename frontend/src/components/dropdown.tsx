@@ -96,6 +96,9 @@ export function Dropdown({
           'hover:bg-gray-200 dark:hover:bg-neutral-700',
           show.now && 'bg-gray-200 dark:bg-neutral-700 !opacity-100',
           'px-2 py-1',
+          'relative',
+          'hover:z-10',
+          show.prolonged && 'z-50',
           buttonClassName,
         )}
         aria-expanded={show.now}
