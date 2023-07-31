@@ -51,6 +51,8 @@ pkgs.mkShell {
 
     # provides libmagic which is needed by python-magic in the worker
     file
+
+    icu.dev
   ] ++
 
   # accelerates whisper.cpp on M{1,2} Macs

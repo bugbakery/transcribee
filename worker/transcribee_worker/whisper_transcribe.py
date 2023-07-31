@@ -1,5 +1,5 @@
 import logging
-from typing import Any, AsyncIterator, Optional
+from typing import TYPE_CHECKING, Any, AsyncIterator, List, Optional
 
 import requests
 from numpy.typing import NDArray
@@ -8,6 +8,11 @@ from transcribee_worker.config import settings
 from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import SubmissionQueue, async_task
 from whispercppy import api
+
+if TYPE_CHECKING:
+    from .icu import BreakIterator, Locale
+else:
+    from icu import BreakIterator, Locale
 
 
 def get_model_file(model_name: str):
@@ -231,6 +236,48 @@ async def remove_leading_whitespace_from_paragraph(
         yield paragraph
 
 
+async def combine_tokens_to_words(
+    iter: AsyncIterator[Paragraph],
+) -> AsyncIterator[Paragraph]:
+    async for paragraph in iter:
+        locale = Locale(paragraph.lang)
+        word_iter = BreakIterator.createWordInstance(locale)
+        word_iter.setText(paragraph.text())
+        breaks: List[int] = list(word_iter)
+        assert breaks[-1] == len(paragraph.text())
+
+        new_para = Paragraph(
+            children=[], speaker=paragraph.speaker, lang=paragraph.lang
+        )
+        pos = 0
+        current_atom = None
+        for atom in paragraph.children:
+            pos_after_atom = pos + len(atom.text)
+            if current_atom is None:
+                current_atom = Atom(
+                    text=atom.text,
+                    conf=atom.conf,
+                    start=atom.start,
+                    end=atom.end,
+                    conf_ts=atom.conf_ts,
+                )
+                pos = pos_after_atom
+            else:
+                current_atom.text += atom.text
+                current_atom.end = atom.end
+                current_atom.conf = min(current_atom.conf, atom.conf)
+                current_atom.conf_ts = min(current_atom.conf_ts, atom.conf_ts)
+                pos = pos_after_atom
+
+            if pos_after_atom in breaks:
+                new_para.children.append(current_atom)
+                current_atom = None
+
+        if current_atom is not None:
+            new_para.children.append(current_atom)
+        yield new_para
+
+
 async def transcribe_clean(
     data: NDArray,
     start_offset: float,
@@ -241,6 +288,7 @@ async def transcribe_clean(
     chain = (
         recombine_split_words,
         strict_sentence_paragraphs,
+        combine_tokens_to_words,
         remove_leading_whitespace_from_paragraph,
     )
     iter = aiter(
