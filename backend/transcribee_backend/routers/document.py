@@ -481,16 +481,16 @@ class DocumentUpdate(BaseModel):
 @document_router.patch("/{document_id}/")
 def update_document(
     update: DocumentUpdate,
-    document: Document = Depends(get_doc_full_auth),
+    auth: AuthInfo = Depends(get_doc_full_auth),
     session: Session = Depends(get_session),
 ) -> ApiDocument:
     update_dict = update.dict(exclude_unset=True)
     for key, value in update_dict.items():
-        setattr(document, key, value)
-    session.add(document)
+        setattr(auth.document, key, value)
+    session.add(auth.document)
     session.commit()
 
-    return document.as_api_document()
+    return auth.document.as_api_document()
 
 
 class CreateShareToken(BaseModel):
