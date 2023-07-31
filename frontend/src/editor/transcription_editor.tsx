@@ -92,7 +92,6 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
           'mx-2 -mt-0.5 md:mt-0 md:-ml-2',
           'row-start-1 col-start-2', // render on top of speaker name
           'md:max-h-7', // prevent extensive whitespace on paragraph when dropdown is only shown on hover
-          'z-10',
         )}
       >
         {!readOnly && (
