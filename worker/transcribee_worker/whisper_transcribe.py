@@ -200,25 +200,14 @@ async def strict_sentence_paragraphs(
         else:
             sentence_endings = [".", "?", "!", "。", "।", "෴", " ። ", "።", "။", ":"]
 
-        for atom in paragraph.children:
-            if acc_paragraph is None:
-                acc_paragraph = Paragraph(children=[], lang=paragraph.lang)
+        if acc_paragraph is None:
+            acc_paragraph = Paragraph(children=[], lang=paragraph.lang)
 
-            # ignore something like 1. of May
-            number_dot = (
-                atom.text.endswith(".")
-                and acc_paragraph.children
-                and acc_paragraph.children[-1].text[-1].isnumeric()
-            )
+        acc_paragraph.children.extend(paragraph.children)
 
-            acc_paragraph.children.append(atom)
-
-            if (
-                any(atom.text.endswith(ending) for ending in sentence_endings)
-                and not number_dot
-            ):
-                yield acc_paragraph
-                acc_paragraph = None
+        if any(paragraph.text().endswith(ending) for ending in sentence_endings):
+            yield acc_paragraph
+            acc_paragraph = None
 
     if acc_paragraph is not None:
         yield acc_paragraph
