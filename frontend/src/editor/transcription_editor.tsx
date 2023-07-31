@@ -55,7 +55,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
       {/* start time */}
       <div
         contentEditable={false}
-        className={clsx(`text-slate-500 dark:text-neutral-400 font-mono`, 'md:mr-4')}
+        className={clsx(`text-slate-500 dark:text-neutral-400 tabular-nums`, 'md:mr-4')}
         onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
       >
         {formattedTime(startAtom.start)}
