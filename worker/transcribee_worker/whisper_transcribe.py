@@ -1,3 +1,4 @@
+import copy
 import logging
 from typing import TYPE_CHECKING, Any, AsyncIterator, List, Optional
 
@@ -208,21 +209,23 @@ async def strict_sentence_paragraphs(
 ) -> AsyncIterator[Paragraph]:
     acc_paragraph = None
     async for paragraph in iter:
-        # this function implements a kind of crude heuristic to seperate sentences
-        # https://www.quora.com/Do-all-living-languages-use-the-period-to-end-a-sentence
-        if paragraph.lang == "th":
-            sentence_endings = " "
-        else:
-            sentence_endings = [".", "?", "!", "。", "।", "෴", " ። ", "።", "။", ":"]
-
         if acc_paragraph is None:
-            acc_paragraph = Paragraph(children=[], lang=paragraph.lang)
+            acc_paragraph = copy.copy(paragraph)
 
-        acc_paragraph.children.extend(paragraph.children)
-
-        if any(paragraph.text().endswith(ending) for ending in sentence_endings):
+        elif acc_paragraph.lang != paragraph.lang:
             yield acc_paragraph
-            acc_paragraph = None
+            acc_paragraph = copy.copy(paragraph)
+
+        else:
+            locale = Locale(paragraph.lang)
+            sentence_iter = BreakIterator.createSentenceInstance(locale)
+            sentence_iter.setText(acc_paragraph.text() + paragraph.text())
+            n_sent = len(list(sentence_iter))
+            if n_sent == 1:
+                acc_paragraph.children.extend(paragraph.children)
+            else:
+                yield acc_paragraph
+                acc_paragraph = copy.copy(paragraph)
 
     if acc_paragraph is not None:
         yield acc_paragraph
