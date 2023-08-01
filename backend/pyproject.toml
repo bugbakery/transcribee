@@ -44,8 +44,8 @@ dev = [
 ]
 
 [tool.pdm.scripts]
-start = "uvicorn transcribee_backend.main:app"
-dev = "uvicorn transcribee_backend.main:app --reload"
+start = "uvicorn transcribee_backend.main:app --ws websockets"
+dev = "uvicorn transcribee_backend.main:app --reload --ws websockets"
 migrate = "alembic upgrade head"
 makemigrations = "alembic revision --autogenerate -m"
 create_user = "scripts/create_user.py"
