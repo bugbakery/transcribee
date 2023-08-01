@@ -118,7 +118,7 @@ export function generateWebVtt(
   maxLineLength: number | null,
 ): WebVtt {
   const vtt = new WebVtt(
-    'This file was generated using transcribee. Find out more at https://github.com/transcribee/transcribee',
+    'This file was generated using transcribee. Find out more at https://github.com/bugbakery/transcribee',
   );
   for (const paragraph of doc.children) {
     if (paragraph.children.length === 0) {

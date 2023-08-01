@@ -20,7 +20,7 @@ export function CommitPopup({ commit, text }: { commit: Commit; text: string }) 
         <>
           Last commit{' '}
           <a
-            href={`https://github.com/transcribee/transcribee/commit/${commit.hash}`}
+            href={`https://github.com/bugbakery/transcribee/commit/${commit.hash}`}
             target="_blank"
             rel="noreferrer"
             className="text-blue-600 underline dark:text-blue-500 hover:no-underline"
@@ -55,7 +55,7 @@ export function Version({ className = '' }: { className?: string }) {
         Frontend built on {formatDate(version?.date)}. Last commit{' '}
         {lastCommit?.hash && (
           <a
-            href={`https://github.com/transcribee/transcribee/commit/${lastCommit.hash}`}
+            href={`https://github.com/bugbakery/transcribee/commit/${lastCommit.hash}`}
             target="_blank"
             rel="noreferrer"
             className="underline decoration-dashed"
