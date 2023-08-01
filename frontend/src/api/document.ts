@@ -5,6 +5,10 @@ export const createDocument = fetcher
   .path('/api/v1/documents/')
   .method('post', 'multipart/form-data')
   .create();
+export const importDocument = fetcher
+  .path('/api/v1/documents/import/')
+  .method('post', 'multipart/form-data')
+  .create();
 export const getDocument = fetcher.path('/api/v1/documents/{document_id}/').method('get').create();
 export const getDocumentTasks = fetcher
   .path('/api/v1/documents/{document_id}/tasks/')

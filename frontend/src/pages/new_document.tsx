@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
 
-import { createDocument } from '../api/document';
+import { createDocument, importDocument } from '../api/document';
 import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input, Select } from '../components/form';
 import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppCenter } from '../components/app';
 import { useGetConfig } from '../api/config';
+import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
+import * as Automerge from '@automerge/automerge';
 
 type FieldValues = {
   name: string;
@@ -26,6 +28,21 @@ export function getLanguages(models: ModelConfig, model: string | undefined): st
     return null;
   }
   return models[model]?.languages || [];
+}
+
+async function getEntry(
+  reader: ZipReader<BlobReader>,
+  entries: Entry[],
+  name: string,
+): Promise<Blob | null> {
+  for (const entry of entries) {
+    if (entry.filename == name) {
+      const writer = new BlobWriter();
+      const data = entry.getData ? await entry.getData(writer) : null;
+      return data;
+    }
+  }
+  return null;
 }
 
 export function NewDocumentPage() {
@@ -51,6 +68,8 @@ export function NewDocumentPage() {
     },
   });
 
+  const [errorMessage, setErrorMessage] = useState('');
+
   const { ref: audioFileRegisterRef, ...audioFileRegister } = register('audioFile', {
     required: true,
   });
@@ -65,6 +84,9 @@ export function NewDocumentPage() {
     setValue('language', getLanguages(config.models, model)?.[0] || 'auto');
   }, [config, model]);
 
+  // Switch to import mode if a .transcribee file is selected
+  const isImport = useMemo(() => audioFile?.[0]?.name.endsWith('.transcribee'), [audioFile]);
+
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
     if (!data.audioFile) {
       console.error('[NewDocumentPage] Illegal state: audioFile is undefined.');
@@ -73,21 +95,48 @@ export function NewDocumentPage() {
 
     try {
       setLoading(true);
+      let response;
+      if (isImport) {
+        type DocumentImportParamPeters = Parameters<typeof importDocument>[0];
+        const zipReader = new ZipReader(new BlobReader(data.audioFile[0]));
+        const entries = await zipReader.getEntries();
+        const [automergeFile, mediaFile] = await Promise.all([
+          getEntry(zipReader, entries, 'document.automerge'),
+          getEntry(zipReader, entries, 'media'),
+        ]);
+        if (automergeFile === null) {
+          setErrorMessage('Not a valid transcribee archive. Missing document.automerge');
+          throw 'Not a valid transcribee archive. Missing document.automerge';
+        }
+        if (mediaFile === null) {
+          setErrorMessage('Not a valid transcribee archive. Missing media');
+          throw 'Not a valid transcribee archive. Missing media';
+        }
+        const doc = Automerge.load(new Uint8Array(await automergeFile.arrayBuffer()));
+        const changes = Automerge.getChanges(Automerge.init(), doc).map((x) => new Blob([x]));
+        const documentParameters: DocumentImportParamPeters = {
+          name: data.name,
+          media_file: mediaFile,
+          document_updates: changes,
+        };
 
-      type DocumentCreateParameters = Parameters<typeof createDocument>[0];
-      const documentParameters: DocumentCreateParameters = {
-        name: data.name,
-        file: data.audioFile[0],
-        model: data.model,
-        language: data.language,
-      };
-      if (data.speakerDetection == 'off') {
-        documentParameters.number_of_speakers = 0;
-      } else if (data.speakerDetection == 'advanced') {
-        documentParameters.number_of_speakers = data.numberOfSpeakers;
+        response = await importDocument(documentParameters);
+      } else {
+        type DocumentCreateParameters = Parameters<typeof createDocument>[0];
+        const documentParameters: DocumentCreateParameters = {
+          name: data.name,
+          file: data.audioFile[0],
+          model: data.model,
+          language: data.language,
+        };
+        if (data.speakerDetection == 'off') {
+          documentParameters.number_of_speakers = 0;
+        } else if (data.speakerDetection == 'advanced') {
+          documentParameters.number_of_speakers = data.numberOfSpeakers;
+        }
+
+        response = await createDocument(documentParameters);
       }
-
-      const response = await createDocument(documentParameters);
 
       if (response.ok) {
         navigate('/');
@@ -128,8 +177,13 @@ export function NewDocumentPage() {
                   setDropIndicator(false);
 
                   const fileType = e.dataTransfer.files[0].type;
+                  const fileName = e.dataTransfer.files[0].name;
 
-                  if (!fileType.startsWith('audio/') && !fileType.startsWith('video/')) {
+                  if (
+                    !fileType.startsWith('audio/') &&
+                    !fileType.startsWith('video/') &&
+                    !fileName.endsWith('.transcribee')
+                  ) {
                     return;
                   }
 
@@ -162,11 +216,11 @@ export function NewDocumentPage() {
                   )}
                 >
                   <div className="text-center">
-                    <p className="font-medium">Drop audio file…</p>
+                    <p className="font-medium">Drop audio or transcribee file…</p>
                   </div>
                 </div>
                 <div className={clsx('text-center', dropIndicator && 'hidden')}>
-                  <p className="font-medium">Drag audio file here</p>
+                  <p className="font-medium">Drag audio or transcribee file here</p>
                   <p className="relative">
                     or{' '}
                     <input
@@ -177,7 +231,7 @@ export function NewDocumentPage() {
                       }}
                       type="file"
                       className="opacity-0 absolute peer w-full"
-                      accept="audio/*,video/*"
+                      accept="audio/*,video/*,.transcribee"
                     />
                     <a
                       href="#"
@@ -215,104 +269,120 @@ export function NewDocumentPage() {
               >
                 {audioFile?.[0]?.name || 'No file selected.'}
               </div>
-              {errors.audioFile && (
-                <p className="text-red-600 text-sm mt-0.5">Audio file is required.</p>
-              )}
+              {errors.audioFile && <p className="text-red-600 text-sm mt-0.5">File is required.</p>}
             </div>
-            {!isLoading ? (
-              <div className="flex row">
-                <FormControl label="Model" error={errors.model?.message} className="flex-grow mr-2">
-                  <Select {...register('model')}>
-                    {Object.values(config.models).map((cur_model) =>
-                      cur_model !== undefined ? (
-                        <option value={cur_model.id} key={cur_model.id}>
-                          {cur_model.name}
-                        </option>
-                      ) : (
-                        <></>
-                      ),
-                    )}
-                  </Select>
-                </FormControl>
-                <FormControl
-                  label="Language"
-                  error={errors.language?.message}
-                  className="flex-grow"
-                >
-                  <Select {...register('language')}>
-                    {getLanguages(config.models, model)?.map((lang) => (
-                      <option value={lang} key={lang}>
-                        {lang}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
+            {isImport ? (
+              <div className="block text-sm bg-gray-100 px-2 py-2 rounded text-center text-gray-700">
+                You selected a transcribee archive file, which will be imported as a new document.
               </div>
             ) : (
-              <></>
+              <>
+                {!isLoading ? (
+                  <div className="flex row">
+                    <FormControl
+                      label="Model"
+                      error={errors.model?.message}
+                      className="flex-grow mr-2"
+                    >
+                      <Select {...register('model')}>
+                        {Object.values(config.models).map((cur_model) =>
+                          cur_model !== undefined ? (
+                            <option value={cur_model.id} key={cur_model.id}>
+                              {cur_model.name}
+                            </option>
+                          ) : (
+                            <></>
+                          ),
+                        )}
+                      </Select>
+                    </FormControl>
+                    <FormControl
+                      label="Language"
+                      error={errors.language?.message}
+                      className="flex-grow"
+                    >
+                      <Select {...register('language')}>
+                        {getLanguages(config.models, model)?.map((lang) => (
+                          <option value={lang} key={lang}>
+                            {lang}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </div>
+                ) : (
+                  <></>
+                )}
+
+                <FormControl label={'Speaker Detection'}>
+                  <div className="flex">
+                    <input
+                      type="radio"
+                      id="off"
+                      value={'off'}
+                      className="hidden peer/off"
+                      {...register('speakerDetection')}
+                    />
+                    <label
+                      htmlFor="off"
+                      className={clsx(
+                        'block bg-transparent py-2 text-center flex-grow basis-1',
+                        'peer-checked/off:bg-gray-300 dark:peer-checked/off:bg-gray-700',
+                        'border-black dark:border-white border-2 rounded-l',
+                      )}
+                    >
+                      Off
+                    </label>
+
+                    <input
+                      type="radio"
+                      id="on"
+                      value={'on'}
+                      className="hidden peer/on"
+                      {...register('speakerDetection')}
+                    />
+                    <label
+                      htmlFor="on"
+                      className={clsx(
+                        'block bg-transparent  py-2 text-center flex-grow basis-1',
+                        'peer-checked/on:bg-gray-300 dark:peer-checked/on:bg-gray-700',
+                        'border-black dark:border-white border-y-2',
+                      )}
+                    >
+                      On
+                    </label>
+
+                    <input
+                      type="radio"
+                      id="advanced"
+                      value={'advanced'}
+                      className="hidden peer/advanced"
+                      {...register('speakerDetection')}
+                    />
+                    <label
+                      htmlFor="advanced"
+                      className={clsx(
+                        'block bg-transparent py-2 text-center flex-grow basis-1',
+                        'peer-checked/advanced:bg-gray-300 dark:peer-checked/advanced:bg-gray-700',
+                        'border-black dark:border-white border-2 rounded-r',
+                      )}
+                    >
+                      Advanced
+                    </label>
+                  </div>
+                </FormControl>
+                {speakerDetection == 'advanced' && (
+                  <FormControl label="Number of Speakers" className="-mt-4">
+                    <Input type="number" min={2} {...register('numberOfSpeakers')} />
+                  </FormControl>
+                )}
+              </>
             )}
 
-            <FormControl label={'Speaker Detection'}>
-              <div className="flex">
-                <input
-                  type="radio"
-                  id="off"
-                  value={'off'}
-                  className="hidden peer/off"
-                  {...register('speakerDetection')}
-                />
-                <label
-                  htmlFor="off"
-                  className={clsx(
-                    'block bg-transparent py-2 text-center flex-grow basis-1',
-                    'peer-checked/off:bg-gray-300 dark:peer-checked/off:bg-gray-700',
-                    'border-black dark:border-white border-2 rounded-l',
-                  )}
-                >
-                  Off
-                </label>
-
-                <input
-                  type="radio"
-                  id="on"
-                  value={'on'}
-                  className="hidden peer/on"
-                  {...register('speakerDetection')}
-                />
-                <label
-                  htmlFor="on"
-                  className={clsx(
-                    'block bg-transparent  py-2 text-center flex-grow basis-1',
-                    'peer-checked/on:bg-gray-300 dark:peer-checked/on:bg-gray-700',
-                    'border-black dark:border-white border-y-2',
-                  )}
-                >
-                  On
-                </label>
-
-                <input
-                  type="radio"
-                  id="advanced"
-                  value={'advanced'}
-                  className="hidden peer/advanced"
-                  {...register('speakerDetection')}
-                />
-                <label
-                  htmlFor="advanced"
-                  className={clsx(
-                    'block bg-transparent py-2 text-center flex-grow basis-1',
-                    'peer-checked/advanced:bg-gray-300 dark:peer-checked/advanced:bg-gray-700',
-                    'border-black dark:border-white border-2 rounded-r',
-                  )}
-                >
-                  Advanced
-                </label>
+            {errorMessage && (
+              <div className="block bg-red-100 px-2 py-2 rounded text-center text-red-700">
+                {errorMessage}
               </div>
-            </FormControl>
-            {speakerDetection == 'advanced' && (
-              <FormControl label="Number of Speakers" className="-mt-4">
-                <Input type="number" min={2} {...register('numberOfSpeakers')} />
-              </FormControl>
             )}
 
             <div className="flex justify-between">
@@ -320,7 +390,7 @@ export function NewDocumentPage() {
                 Cancel
               </SecondaryButton>
               <LoadingSpinnerButton loading={loading} variant="primary" type="submit">
-                Create
+                {isImport ? 'Import' : 'Create'}
               </LoadingSpinnerButton>
             </div>
           </div>

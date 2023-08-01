@@ -59,7 +59,7 @@
     "@popperjs/core": "^2.11.7",
     "@zip.js/zip.js": "^2.7.20",
     "clsx": "^1.2.1",
-    "openapi-typescript-fetch": "github:bugbakery/openapi-typescript-fetch#content-type",
+    "openapi-typescript-fetch": "github:bugbakery/openapi-typescript-fetch#4b5cc33983c5a658feedd628d417599db2bd672c",
     "react": "^18.2.0",
     "react-base16-styling": "^0.9.1",
     "react-dom": "^18.2.0",

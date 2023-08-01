@@ -131,6 +131,27 @@ components:
       - file
       title: Body_create_document_api_v1_documents__post
       type: object
+    Body_import_document_api_v1_documents_import__post:
+      properties:
+        document_updates:
+          items:
+            format: binary
+            type: string
+          title: Document Updates
+          type: array
+        media_file:
+          format: binary
+          title: Media File
+          type: string
+        name:
+          title: Name
+          type: string
+      required:
+      - document_updates
+      - media_file
+      - name
+      title: Body_import_document_api_v1_documents_import__post
+      type: object
     ChangePasswordRequest:
       properties:
         new_password:
@@ -252,12 +273,12 @@ components:
       - can_write
       title: DocumentShareTokenBase
       type: object
-    DocumentUpdate:
+    DocumentUpdateRequest:
       properties:
         name:
           title: Name
           type: string
-      title: DocumentUpdate
+      title: DocumentUpdateRequest
       type: object
     DocumentWithAccessInfo:
       properties:
@@ -589,6 +610,35 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Create Document
+  /api/v1/documents/import/:
+    post:
+      operationId: import_document_api_v1_documents_import__post
+      parameters:
+      - in: header
+        name: authorization
+        required: true
+        schema:
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_import_document_api_v1_documents_import__post'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Import Document
   /api/v1/documents/{document_id}/:
     delete:
       operationId: delete_document_api_v1_documents__document_id___delete
@@ -687,7 +737,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DocumentUpdate'
+              $ref: '#/components/schemas/DocumentUpdateRequest'
         required: true
       responses:
         '200':
