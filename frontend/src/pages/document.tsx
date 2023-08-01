@@ -7,14 +7,11 @@ import { TranscriptionEditor } from '../editor/transcription_editor';
 import { WorkerStatus } from '../editor/worker_status';
 import { updateDocument, useGetDocument } from '../api/document';
 import { TbFileExport, TbShare3 } from 'react-icons/tb';
-import { canGenerateVtt } from '../utils/export/webvtt';
-import { Suspense, lazy, useMemo, useState, useCallback } from 'react';
+import { Suspense, lazy, useState, useCallback } from 'react';
 import { useDebugMode } from '../debugMode';
 import clsx from 'clsx';
 import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_editor';
-import { WebvttExportModal } from '../editor/webvtt_export';
 import { showModal } from '../components/modal';
-import { Tooltip } from '../components/tooltip';
 import { Input } from '../components/form';
 import { BiPencil } from 'react-icons/bi';
 import { SubmitHandler, useForm } from 'react-hook-form';
@@ -22,6 +19,7 @@ import { Helmet } from 'react-helmet';
 import { ShareModal } from '../editor/share';
 import { useAuthData } from '../utils/auth';
 import { getAuthToken, getShareToken } from '../api';
+import { ExportModal } from '../editor/export';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -146,8 +144,6 @@ export function DocumentPage({
     },
   });
 
-  const canGenVtt = useMemo(() => canGenerateVtt(editor.doc.children), [editor.doc]);
-
   return (
     <AppContainer className="relative min-h-screen" versionClassName="mb-16">
       <Helmet>
@@ -189,16 +185,15 @@ export function DocumentPage({
               }}
             />
           )}
-          <Tooltip tooltipText={canGenVtt.reason}>
-            <IconButton
-              icon={TbFileExport}
-              label={'export...'}
-              onClick={() => {
-                showModal(<WebvttExportModal editor={editor} onClose={() => showModal(null)} />);
-              }}
-              disabled={!canGenVtt.canGenerate}
-            />
-          </Tooltip>
+          <IconButton
+            icon={TbFileExport}
+            label={'export...'}
+            onClick={() => {
+              showModal(
+                <ExportModal editor={editor} onClose={() => showModal(null)} document={data} />,
+              );
+            }}
+          />
           <WorkerStatus documentId={documentId} />
           {isLoggedIn && <MeButton />}
         </TopBarPart>
