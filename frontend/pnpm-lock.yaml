@@ -19,6 +19,9 @@ dependencies:
   '@popperjs/core':
     specifier: ^2.11.7
     version: 2.11.7
+  '@zip.js/zip.js':
+    specifier: ^2.7.20
+    version: 2.7.20
   clsx:
     specifier: ^1.2.1
     version: 1.2.1
@@ -1466,6 +1469,11 @@ packages:
       '@typescript-eslint/types': 5.54.0
       eslint-visitor-keys: 3.3.0
     dev: true
+
+  /@zip.js/zip.js@2.7.20:
+    resolution: {integrity: sha512-rh5cby/bBOYC+hcK9qElDzbiIDeL3nhHPUTIE6/FQZR8mhY7azpthPdYbSNMOYBfv0AM188RNJ2yjtXsUfbAuQ==}
+    engines: {deno: '>=1.0.0', node: '>=16.5.0'}
+    dev: false
 
   /acorn-jsx@5.3.2(acorn@8.8.2):
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}

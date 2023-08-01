@@ -57,6 +57,7 @@
     "@fontsource/inter": "^4.5.15",
     "@podlove/html5-audio-driver": "^2.0.3",
     "@popperjs/core": "^2.11.7",
+    "@zip.js/zip.js": "^2.7.20",
     "clsx": "^1.2.1",
     "openapi-typescript-fetch": "github:bugbakery/openapi-typescript-fetch#content-type",
     "react": "^18.2.0",
