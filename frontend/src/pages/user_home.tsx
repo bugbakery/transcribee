@@ -8,8 +8,9 @@ import { AiOutlinePlus } from 'react-icons/ai';
 import { IoMdTrash } from 'react-icons/io';
 import { IconButton } from '../components/button';
 import { WorkerStatusWithData } from '../editor/worker_status';
-import { useEffect, useState } from 'react';
+import { ComponentProps, useEffect, useState } from 'react';
 
+type ApiDocument = ReturnType<typeof useListDocuments>['data'][0];
 type Tasks = ReturnType<typeof useListDocuments>['data'][0]['tasks'];
 
 function getTaskProgress(tasks: Tasks) {
@@ -71,81 +72,81 @@ export function UserHomePage() {
           'gap-6',
         )}
       >
-        {data?.map((doc) => {
-          return (
-            <li key={doc.id}>
-              <Link
-                to={`document/${doc.id}`}
-                className={clsx(
-                  'w-full h-full',
-                  'flex flex-col',
-                  'items-stretch justify-between',
-                  'p-4',
-                  'aspect-square',
-                  'bg-white dark:bg-neutral-900',
-                  'font-medium',
-                  'rounded-lg',
-                  'border',
-                  'border-gray-200 dark:border-neutral-600',
-                  'hover:shadow-lg',
-                  'hover:scale-105',
-                  'transition-all',
-                  'break-word',
-                )}
-              >
-                <div className="w-full flex flex-row items-center justify-between relative">
-                  {getTaskProgress(doc.tasks) < 1 ? (
-                    <WorkerStatusWithData data={doc.tasks} />
-                  ) : (
-                    // we need to keep this div, because otherwise the trashbin jumps to the left
-                    <div></div>
-                  )}
-                  <IconButton
-                    label={'Delete Document'}
-                    icon={IoMdTrash}
-                    className={clsx('self-end -m-2')}
-                    size={28}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      // TODO: Replace with modal
-                      if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
-                        // mutate marks the document list as stale, so SWR refreshes it
-                        deleteDocument({ document_id: doc.id }).then(() => mutate());
-                      }
-                    }}
-                  />
-                </div>
-                {doc.name}
-              </Link>
-            </li>
-          );
-        })}
+        {data?.map((doc) => (
+          <DocumentCard key={doc.id} doc={doc} mutate={mutate} />
+        ))}
 
-        <li>
-          <Link
-            title="create new document"
-            aria-label="create new document"
-            to={`/new`}
-            className={clsx(
-              'block',
-              'p-4',
-              'aspect-square',
-              'bg-white dark:bg-neutral-900',
-              'font-medium',
-              'rounded-lg',
-              'border',
-              'border-gray-200 dark:border-neutral-600',
-              'hover:shadow-lg',
-              'hover:scale-105',
-              'transition-all',
-              'flex',
-            )}
-          >
-            {' '}
-            <AiOutlinePlus size={28} />
-          </Link>
-        </li>
+        <NewDocumentCard />
       </ul>
     </AppContainer>
+  );
+}
+
+function DocumentCard({ doc, mutate }: { doc: ApiDocument; mutate: () => void }): JSX.Element {
+  return (
+    <LinkCard to={`document/${doc.id}`}>
+      <div className="w-full flex flex-row items-center justify-between relative">
+        {getTaskProgress(doc.tasks) < 1 ? (
+          <WorkerStatusWithData data={doc.tasks} />
+        ) : (
+          // we need to keep this div, because otherwise the trashbin jumps to the left
+          <div></div>
+        )}
+        <IconButton
+          label={'Delete Document'}
+          icon={IoMdTrash}
+          className={clsx('self-end -m-2')}
+          size={28}
+          onClick={(e) => {
+            e.preventDefault();
+            // TODO: Replace with modal
+            if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
+              // mutate marks the document list as stale, so SWR refreshes it
+              deleteDocument({ document_id: doc.id }).then(() => mutate());
+            }
+          }}
+        />
+      </div>
+      {doc.name}
+    </LinkCard>
+  );
+}
+
+function NewDocumentCard() {
+  return (
+    <LinkCard title="Create New Document" to={`/new`}>
+      {' '}
+      <AiOutlinePlus size={28} />
+    </LinkCard>
+  );
+}
+
+function LinkCard({ className, ...props }: ComponentProps<typeof Link>) {
+  if (props.title && !props['aria-label']) {
+    props['aria-label'] = props.title;
+  }
+  return (
+    <li>
+      <Link
+        {...props}
+        className={clsx(
+          'w-full h-full',
+          'flex flex-col',
+          'items-stretch justify-between',
+          'p-4',
+          'aspect-square',
+          'bg-white dark:bg-neutral-900',
+          'font-medium',
+          'rounded-lg',
+          'border',
+          'border-gray-200 dark:border-neutral-600',
+          'hover:shadow-lg',
+          'hover:scale-105',
+          'transition-all',
+          'break-word',
+          className,
+        )}
+      />
+    </li>
   );
 }

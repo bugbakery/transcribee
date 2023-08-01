@@ -74,8 +74,8 @@ export function TranscribeeExportBody({ onClose, outputNameBase, editor, documen
               );
 
               onClose();
-            } catch {
-              /* empty */
+            } catch (e) {
+              console.error('Error importing', e);
             }
             setLoading(false);
           }}

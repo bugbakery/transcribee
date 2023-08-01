@@ -50,6 +50,7 @@ from ..models import (
     DocumentMediaFile,
     DocumentMediaTag,
     DocumentShareToken,
+    DocumentUpdate,
     Task,
     TaskType,
     UserToken,
@@ -357,6 +358,58 @@ async def create_document(
     return document.as_api_document()
 
 
+@document_router.post("/import/")
+def import_document(
+    document_updates: List[UploadFile] = File(),
+    media_file: UploadFile = File(),
+    token: UserToken = Depends(get_user_token),
+    session: Session = Depends(get_session),
+    name: str = Form(),
+):
+
+    document = Document(
+        name=name,
+        user_id=token.user_id,
+        created_at=now_tz_aware(),
+        changed_at=now_tz_aware(),
+    )
+
+    session.add(document)
+
+    stored_file = media_storage.store_file(media_file.file)
+    media_file.file.seek(0)
+
+    db_media_file = DocumentMediaFile(
+        created_at=now_tz_aware(),
+        changed_at=now_tz_aware(),
+        document_id=document.id,
+        file=stored_file,
+        content_type=magic.from_descriptor(media_file.file.fileno(), mime=True),
+    )
+
+    session.add(db_media_file)
+
+    tag = DocumentMediaTag(media_file_id=db_media_file.id, tag="original")
+    session.add(tag)
+
+    reencode_task = Task(
+        task_type=TaskType.REENCODE,
+        task_parameters={},
+        document_id=document.id,
+    )
+    session.add(reencode_task)
+
+    for document_update in document_updates:
+        session.add(
+            DocumentUpdate(
+                document_id=document.id, change_bytes=document_update.file.read()
+            )
+        )
+
+    session.commit()
+    return document.as_api_document()
+
+
 @document_router.get("/")
 def list_documents(
     session: Session = Depends(get_session),
@@ -477,13 +530,13 @@ def set_duration(
     return doc.as_api_document()
 
 
-class DocumentUpdate(BaseModel):
+class DocumentUpdateRequest(BaseModel):
     name: Optional[str] = None
 
 
 @document_router.patch("/{document_id}/")
 def update_document(
-    update: DocumentUpdate,
+    update: DocumentUpdateRequest,
     auth: AuthInfo = Depends(get_doc_full_auth),
     session: Session = Depends(get_session),
 ) -> ApiDocument:

@@ -19,6 +19,10 @@ export interface paths {
     /** Create Document */
     post: operations["create_document_api_v1_documents__post"];
   };
+  "/api/v1/documents/import/": {
+    /** Import Document */
+    post: operations["import_document_api_v1_documents_import__post"];
+  };
   "/api/v1/documents/{document_id}/": {
     /** Get Document */
     get: operations["get_document_api_v1_documents__document_id___get"];
@@ -179,6 +183,18 @@ export interface components {
       /** Number Of Speakers */
       number_of_speakers?: number;
     };
+    /** Body_import_document_api_v1_documents_import__post */
+    Body_import_document_api_v1_documents_import__post: {
+      /** Document Updates */
+      document_updates: (string)[];
+      /**
+       * Media File
+       * Format: binary
+       */
+      media_file: string;
+      /** Name */
+      name: string;
+    };
     /** ChangePasswordRequest */
     ChangePasswordRequest: {
       /** New Password */
@@ -251,8 +267,8 @@ export interface components {
        */
       valid_until?: string;
     };
-    /** DocumentUpdate */
-    DocumentUpdate: {
+    /** DocumentUpdateRequest */
+    DocumentUpdateRequest: {
       /** Name */
       name?: string;
     };
@@ -488,6 +504,33 @@ export interface operations {
       };
     };
   };
+  /** Import Document */
+  import_document_api_v1_documents_import__post: {
+    parameters: {
+      header: {
+        authorization: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_import_document_api_v1_documents_import__post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   /** Get Document */
   get_document_api_v1_documents__document_id___get: {
     parameters: {
@@ -553,7 +596,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["DocumentUpdate"];
+        "application/json": components["schemas"]["DocumentUpdateRequest"];
       };
     };
     responses: {
