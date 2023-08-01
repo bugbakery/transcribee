@@ -60,11 +60,27 @@ class DocumentSyncConsumer:
 
     async def broadcast_sender(self):
         statement = select(DocumentUpdate).where(DocumentUpdate.document == self._doc)
-        message = bytes([SyncMessageType.FULL_DOCUMENT])
+
+        # START:
+        # Create a message as a list of bytes is hacky and only works for sure when using uvicorn
+        # with the `websockets` module as the ws implementation.
+        # `websockets` supports fragmenting the message into multiple frames, but you need to pass
+        # the message as a list/iterator of bytes|str. Each item of this iterator is then sent as a
+        # seperate frame.
+        # This is a quick workaround to prevent uvicorn hanging for many seconds on larger documents
+        #
+        # The message given to `send_bytes` is passed through to the `send` function of the
+        # websocket connection eventually. Since it is not touched on the way, we can pass a list of
+        # bytes here instead of just bytes as would be allowed by the asgi spec:
+        # https://asgi.readthedocs.io/en/latest/specs/www.html#send-send-event
+        message = [bytes([SyncMessageType.FULL_DOCUMENT])]
         for update in self._session.exec(statement):
-            message += update.change_bytes
-        await self._ws.send_bytes(message)
+            message.append(update.change_bytes)
+        await self._ws.send_bytes(message)  # type: ignore
+        # END
+
         await self._ws.send_bytes(bytes([SyncMessageType.CHANGE_BACKLOG_COMPLETE]))
+
         while True:
             msg = await self._msg_queue.get()
             await self._ws.send_bytes(bytes([SyncMessageType.CHANGE]) + msg)
