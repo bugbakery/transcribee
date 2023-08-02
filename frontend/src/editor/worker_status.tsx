@@ -33,7 +33,7 @@ function getColor(task: Task | null, dark: boolean): string {
   return (str && color_map[str]) || color_map['DEFAULT'];
 }
 
-function getWorkerStatusString(isWorking: boolean, isFailed: boolean): string {
+export function getWorkerStatusString(isWorking: boolean, isFailed: boolean): string {
   if (isFailed) {
     return 'failed';
   } else if (isWorking) {
@@ -43,9 +43,14 @@ function getWorkerStatusString(isWorking: boolean, isFailed: boolean): string {
   }
 }
 export function WorkerStatus({ documentId }: { documentId: string }) {
+  const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
+
+  return <WorkerStatusWithData data={data} />;
+}
+
+export function WorkerStatusWithData({ data }: { data: Task[] }) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
 
-  const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
   const isWorking = data?.some((task) => task.state !== 'COMPLETED');
   const isFailed = data?.some((task) => task.state == 'FAILED');
 
@@ -69,6 +74,9 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
           })}
         />
       }
+      onClick={(e) => {
+        e.preventDefault();
+      }}
     >
       <span className="pl-7 font-bold">Worker Tasks</span>
       <svg className="py-2" height={Math.max(...(yPositionsText || [0])) + 30} width={250}>

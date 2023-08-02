@@ -8,12 +8,14 @@ from transcribee_proto.api import DocumentMedia as ApiDocumentMedia
 
 from transcribee_backend import media_storage
 
-from .user import User
-
 
 class DocumentBase(SQLModel):
     name: str
     duration: Optional[float] = None  # In seconds
+
+
+class ApiDocumentWithTasks(ApiDocument):
+    tasks: List["TaskResponse"]
 
 
 class Document(DocumentBase, table=True):
@@ -24,7 +26,7 @@ class Document(DocumentBase, table=True):
         nullable=False,
     )
     user_id: uuid.UUID = Field(foreign_key="user.id")
-    user: User = Relationship()
+    user: "User" = Relationship()
     created_at: datetime.datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
@@ -38,9 +40,11 @@ class Document(DocumentBase, table=True):
     share_tokens: List["DocumentShareToken"] = Relationship(
         sa_relationship_kwargs={"cascade": "all,delete"}
     )
+    tasks: List["Task"] = Relationship(sa_relationship_kwargs={"cascade": "all,delete"})
 
-    def as_api_document(self) -> ApiDocument:
-        return ApiDocument(
+    def as_api_document(self) -> ApiDocumentWithTasks:
+        tasks = [TaskResponse.from_orm(task) for task in self.tasks]
+        return ApiDocumentWithTasks(
             id=str(self.id),
             name=self.name,
             created_at=self.created_at.isoformat(),
@@ -48,6 +52,7 @@ class Document(DocumentBase, table=True):
             media_files=[
                 media_file.as_api_media_file() for media_file in self.media_files
             ],
+            tasks=tasks,
         )
 
 
@@ -132,3 +137,12 @@ class DocumentShareToken(DocumentShareTokenBase, table=True):
         nullable=False,
     )
     document: Document = Relationship(back_populates="share_tokens")
+
+
+# Import here to break circular dependency
+
+from .task import Task, TaskResponse  # noqa: E402
+from .user import User  # noqa: E402
+
+ApiDocumentWithTasks.update_forward_refs()
+Document.update_forward_refs()

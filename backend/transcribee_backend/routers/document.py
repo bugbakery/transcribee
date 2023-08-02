@@ -38,7 +38,10 @@ from transcribee_backend.config import get_model_config, settings
 from transcribee_backend.db import get_session
 from transcribee_backend.helpers.sync import DocumentSyncConsumer
 from transcribee_backend.helpers.time import now_tz_aware
-from transcribee_backend.models.document import DocumentShareTokenBase
+from transcribee_backend.models.document import (
+    ApiDocumentWithTasks,
+    DocumentShareTokenBase,
+)
 from transcribee_backend.models.task import TaskAttempt, TaskResponse
 
 from .. import media_storage
@@ -358,7 +361,7 @@ async def create_document(
 def list_documents(
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
-) -> List[ApiDocument]:
+) -> List[ApiDocumentWithTasks]:
     statement = (
         select(Document)
         .where(Document.user == token.user)

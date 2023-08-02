@@ -8,9 +8,46 @@ import { AiOutlinePlus } from 'react-icons/ai';
 import { IoMdTrash } from 'react-icons/io';
 import { IconButton } from '../components/button';
 import { Version } from '../common/version';
+import { WorkerStatusWithData } from '../editor/worker_status';
+import { useEffect, useState } from 'react';
+
+type Tasks = ReturnType<typeof useListDocuments>['data'][0]['tasks'];
+
+function getTaskProgress(tasks: Tasks) {
+  if (tasks.length == 0) return 0;
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((task) => task.state == 'COMPLETED').length;
+  const runningTasks = tasks
+    .filter((task) => task.state == 'ASSIGNED')
+    .map((task) => task.current_attempt?.progress || 0)
+    .reduce((a, b) => a + b, 0);
+  return (completedTasks + runningTasks) / totalTasks;
+}
 
 export function UserHomePage() {
-  const { data, mutate } = useListDocuments({});
+  // Trusting the SWR documentation, we *should* be able to just set `refreshInterval` to a function
+  // which is then called after new data is fetched to calculate the interval after which the next
+  // data should be fetched. Sadly, this does not work, as SWR passed the stale data without an
+  // indication if the data is stale :(
+  // https://swr.vercel.app/docs/api#options
+  // https://github.com/vercel/swr/blob/d1b7169adf01feaf47f46c556208770680680f6f/core/src/use-swr.ts#L643-L657
+  const [refreshInterval, setRefreshInterval] = useState(5000);
+  const { data, mutate } = useListDocuments(
+    {},
+    {
+      refreshInterval: refreshInterval,
+      refreshWhenHidden: false,
+      revalidateOnFocus: true,
+    },
+  );
+  useEffect(() => {
+    const hasUnfinishedDocuments = data?.some((doc) => getTaskProgress(doc.tasks) < 1);
+    // Refresh every second if there are still unfinished documents to update the task progress
+    // and every hour otherwise
+    const refreshInterval =
+      hasUnfinishedDocuments || hasUnfinishedDocuments === undefined ? 1 : 60 * 60;
+    setRefreshInterval(refreshInterval * 1000);
+  }, [data]);
 
   return (
     <AppContainer>
@@ -57,20 +94,27 @@ export function UserHomePage() {
                   'break-word',
                 )}
               >
-                <IconButton
-                  label={'Delete Document'}
-                  icon={IoMdTrash}
-                  className={clsx('self-end -m-2')}
-                  size={28}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // TODO: Replace with modal
-                    if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
-                      // mutate marks the document list as stale, so SWR refreshes it
-                      deleteDocument({ document_id: doc.id }).then(() => mutate());
-                    }
-                  }}
-                />
+                <div className="w-full flex flex-row items-center justify-between">
+                  {getTaskProgress(doc.tasks) < 1 ? (
+                    <WorkerStatusWithData data={doc.tasks} />
+                  ) : (
+                    <div></div>
+                  )}
+                  <IconButton
+                    label={'Delete Document'}
+                    icon={IoMdTrash}
+                    className={clsx('self-end -m-2')}
+                    size={28}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // TODO: Replace with modal
+                      if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
+                        // mutate marks the document list as stale, so SWR refreshes it
+                        deleteDocument({ document_id: doc.id }).then(() => mutate());
+                      }
+                    }}
+                  />
+                </div>
                 {doc.name}
               </Link>
             </li>

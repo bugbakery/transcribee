@@ -57,7 +57,7 @@ class Task(TaskBase, table=True):
         sa_column=Column(GUID, ForeignKey("document.id", ondelete="CASCADE")),
         unique=False,
     )
-    document: Document = Relationship()
+    document: Document = Relationship(back_populates="tasks")
 
     task_parameters: dict = Field(sa_column=Column(JSON(), nullable=False))
 

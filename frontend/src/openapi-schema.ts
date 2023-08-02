@@ -117,6 +117,21 @@ export interface components {
        */
       task_type?: "ALIGN";
     };
+    /** ApiDocumentWithTasks */
+    ApiDocumentWithTasks: {
+      /** Changed At */
+      changed_at: string;
+      /** Created At */
+      created_at: string;
+      /** Id */
+      id: string;
+      /** Media Files */
+      media_files: (components["schemas"]["DocumentMedia"])[];
+      /** Name */
+      name: string;
+      /** Tasks */
+      tasks: (components["schemas"]["TaskResponse"])[];
+    };
     /** AssignedTaskResponse */
     AssignedTaskResponse: {
       current_attempt?: components["schemas"]["TaskAttemptResponse"];
@@ -435,7 +450,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": (components["schemas"]["Document"])[];
+          "application/json": (components["schemas"]["ApiDocumentWithTasks"])[];
         };
       };
       /** @description Validation Error */
