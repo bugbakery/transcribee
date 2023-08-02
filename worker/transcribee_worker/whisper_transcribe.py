@@ -40,6 +40,7 @@ def get_context(model_name: str) -> api.Context:
 def _transcription_work(
     queue: SubmissionQueue,
     data: NDArray[Any],
+    start_offset: float,
     model_name: str,
     lang_code: Optional[str],
     progress_callback: Optional[ProgressCallbackType],
@@ -112,9 +113,9 @@ def _transcription_work(
                         text=text,
                         conf=conf,
                         # 10·ms -> seconds
-                        start=start / 100,
+                        start=(start / 100) + start_offset,
                         # 10·ms -> seconads
-                        end=end / 100,
+                        end=(end / 100) + start_offset,
                         conf_ts=conf_ts,
                     )
                 )
@@ -161,10 +162,19 @@ def _transcription_work(
 
 
 def transcribe(
-    data: NDArray, model_name: str, lang_code="en", progress_callback=None
+    data: NDArray,
+    start_offset: float,
+    model_name: str,
+    lang_code="en",
+    progress_callback=None,
 ) -> AsyncIterator[Paragraph]:
     return async_task(
-        _transcription_work, data, model_name, lang_code, progress_callback
+        _transcription_work,
+        data,
+        start_offset,
+        model_name,
+        lang_code,
+        progress_callback,
     )
 
 
@@ -233,7 +243,11 @@ async def remove_leading_whitespace_from_paragraph(
 
 
 async def transcribe_clean(
-    data: NDArray, model_name: str, lang_code: str = "en", progress_callback=None
+    data: NDArray,
+    start_offset: float,
+    model_name: str,
+    lang_code: str = "en",
+    progress_callback=None,
 ):
     chain = (
         recombine_split_words,
@@ -243,6 +257,7 @@ async def transcribe_clean(
     iter = aiter(
         transcribe(
             data=data,
+            start_offset=start_offset,
             model_name=model_name,
             lang_code=lang_code,
             progress_callback=progress_callback,
