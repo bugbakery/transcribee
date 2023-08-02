@@ -20,6 +20,39 @@ components:
       - document_id
       title: AlignTask
       type: object
+    ApiDocumentWithTasks:
+      properties:
+        changed_at:
+          title: Changed At
+          type: string
+        created_at:
+          title: Created At
+          type: string
+        id:
+          title: Id
+          type: string
+        media_files:
+          items:
+            $ref: '#/components/schemas/DocumentMedia'
+          title: Media Files
+          type: array
+        name:
+          title: Name
+          type: string
+        tasks:
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+          title: Tasks
+          type: array
+      required:
+      - id
+      - name
+      - created_at
+      - changed_at
+      - media_files
+      - tasks
+      title: ApiDocumentWithTasks
+      type: object
     AssignedTaskResponse:
       properties:
         current_attempt:
@@ -516,7 +549,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/Document'
+                  $ref: '#/components/schemas/ApiDocumentWithTasks'
                 title: Response List Documents Api V1 Documents  Get
                 type: array
           description: Successful Response
