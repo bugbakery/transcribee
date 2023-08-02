@@ -62,6 +62,16 @@ def ensure_atom_invariants(doc: EditorDocument):
         prev_atom = atom
 
 
+def get_last_atom_end(doc: EditorDocument):
+    for paragraph_idx in reversed(range(len(doc.children))):
+        for atom_idx in reversed(range(len(doc.children[paragraph_idx].children))):
+            atom = doc.children[paragraph_idx].children[atom_idx]
+            if atom.end is not None:
+                return atom.end
+
+    return 0
+
+
 class Worker:
     base_url: str
     token: str
@@ -166,14 +176,21 @@ class Worker:
         audio = self.load_document_audio(task.document)
 
         async with self.api_client.document(task.document.id) as doc:
+
             async with doc.transaction("Reset Document") as d:
-                d.children = []
+                if d.children is None:
+                    d.children = []
+
+                start_offset = get_last_atom_end(d)
+
+            audio = audio[int(start_offset * settings.SAMPLE_RATE) :]
 
             async for paragraph in transcribe_clean(
-                audio,
-                task.task_parameters.model,
-                task.task_parameters.lang,
-                progress_callback,
+                data=audio,
+                start_offset=start_offset,
+                model_name=task.task_parameters.model,
+                lang_code=task.task_parameters.lang,
+                progress_callback=progress_callback,
             ):
                 async with doc.transaction("Automatic Transcription") as d:
                     p = paragraph.dict()
