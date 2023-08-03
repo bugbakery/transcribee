@@ -18,6 +18,8 @@ import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';
 
+import { useInView } from 'react-intersection-observer';
+
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
     return 'unknown';
@@ -42,6 +44,9 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
   const readOnly = useReadOnly();
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
+  const { ref, inView } = useInView({
+    fallbackInView: true,
+  });
 
   const speakerChanged = useSlateSelector((editor) => {
     const idx = ReactEditor.findPath(editor, element)[0];
@@ -123,8 +128,13 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
   );
 
   return (
-    <div className="flex flex-col md:flex-row mb-4 pl-6 md:pl-0 relative">
+    <div
+      className="flex flex-col md:flex-row mb-4 pl-6 md:pl-0 relative"
+      ref={ref}
+      contentEditable={!inView || undefined} // Prevent users from changing the text while the leafs are not rendered
+    >
       {/* speaker color indicator for large screens */}
+
       <div
         contentEditable={false}
         style={{
@@ -142,7 +152,10 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
       {metaInformation}
 
       <div {...attributes} lang={element.lang} spellCheck={false}>
-        {children}
+        {/* If the paragraph is out of view, we do not render the children (which would the the text
+          leafs). Instead we just add the plain text of the paragraph here to enable search and
+          scrolling without jumping content. */}
+        {inView ? children : element.children.map((x) => x.text).join('')}
       </div>
     </div>
   );
