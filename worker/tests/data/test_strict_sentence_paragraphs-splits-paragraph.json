@@ -1,0 +1,139 @@
+{
+  "input": [
+    {
+      "type": "paragraph",
+      "speaker": null,
+      "children": [
+        {
+          "text": "Willkommen ",
+          "start": 0.0,
+          "end": 0.82,
+          "conf": 0.4493102431297302,
+          "conf_ts": 0.0
+        },
+        {
+          "text": "zum ",
+          "start": 0.82,
+          "end": 1.07,
+          "conf": 0.9744400978088379,
+          "conf_ts": 0.005903157405555248
+        },
+        {
+          "text": "letzten ",
+          "start": 1.07,
+          "end": 1.65,
+          "conf": 0.9838394522666931,
+          "conf_ts": 0.01149927917867899
+        },
+        {
+          "text": "Token. ",
+          "start": 1.65,
+          "end": 2.06,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        },
+        {
+          "text": "Willkommen ",
+          "start": 0.0,
+          "end": 0.82,
+          "conf": 0.4493102431297302,
+          "conf_ts": 0.0
+        },
+        {
+          "text": "zum ",
+          "start": 0.82,
+          "end": 1.07,
+          "conf": 0.9744400978088379,
+          "conf_ts": 0.005903157405555248
+        },
+        {
+          "text": "letzten ",
+          "start": 1.07,
+          "end": 1.65,
+          "conf": 0.9838394522666931,
+          "conf_ts": 0.01149927917867899
+        },
+        {
+          "text": "Token.",
+          "start": 1.65,
+          "end": 2.06,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        }
+      ],
+      "lang": "de"
+    }
+  ],
+  "expected": [
+    {
+      "type": "paragraph",
+      "speaker": null,
+      "children": [
+        {
+          "text": "Willkommen ",
+          "start": 0.0,
+          "end": 0.82,
+          "conf": 0.4493102431297302,
+          "conf_ts": 0.0
+        },
+        {
+          "text": "zum ",
+          "start": 0.82,
+          "end": 1.07,
+          "conf": 0.9744400978088379,
+          "conf_ts": 0.005903157405555248
+        },
+        {
+          "text": "letzten ",
+          "start": 1.07,
+          "end": 1.65,
+          "conf": 0.9838394522666931,
+          "conf_ts": 0.01149927917867899
+        },
+        {
+          "text": "Token. ",
+          "start": 1.65,
+          "end": 2.06,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        }
+      ],
+      "lang": "de"
+    },
+    {
+      "type": "paragraph",
+      "speaker": null,
+      "children": [
+        {
+          "text": "Willkommen ",
+          "start": 0.0,
+          "end": 0.82,
+          "conf": 0.4493102431297302,
+          "conf_ts": 0.0
+        },
+        {
+          "text": "zum ",
+          "start": 0.82,
+          "end": 1.07,
+          "conf": 0.9744400978088379,
+          "conf_ts": 0.005903157405555248
+        },
+        {
+          "text": "letzten ",
+          "start": 1.07,
+          "end": 1.65,
+          "conf": 0.9838394522666931,
+          "conf_ts": 0.01149927917867899
+        },
+        {
+          "text": "Token.",
+          "start": 1.65,
+          "end": 2.06,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        }
+      ],
+      "lang": "de"
+    }
+  ]
+}

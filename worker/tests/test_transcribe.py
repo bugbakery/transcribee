@@ -1,8 +1,16 @@
 import asyncio
+import glob
+from pathlib import Path
 from typing import List
 
-from transcribee_proto.document import Atom, Paragraph
-from transcribee_worker.whisper_transcribe import combine_tokens_to_words
+import pytest
+from pydantic import BaseModel, parse_file_as
+from transcribee_proto.document import Paragraph
+from transcribee_worker.whisper_transcribe import (
+    combine_tokens_to_words,
+    move_space_to_prev_token,
+    strict_sentence_paragraphs,
+)
 
 
 async def list_to_async_iter(list):
@@ -10,87 +18,91 @@ async def list_to_async_iter(list):
         yield item
 
 
-async def wrap_combine_tokens_to_words(input: List[Paragraph]):
-    res = []
-    async for x in combine_tokens_to_words(list_to_async_iter(input)):
-        res.append(x)
-    return res
+def async_doc_chain_func_to_list(*funcs):
+    async def wrapper(input: List[Paragraph]):
+        res = []
+        iter = list_to_async_iter(input)
+        for func in funcs:
+            iter = func(iter)
+        async for x in iter:
+            res.append(x)
+        return res
+
+    return wrapper
 
 
-def test_combine_tokens_to_words():
-    input_para = Paragraph(
-        type="paragraph",
-        speaker=None,
-        children=[
-            Atom(
-                text=" Will",
-                start=0.0,
-                end=0.33,
-                conf=0.4493102431297302,
-                conf_ts=0.0,
-            ),
-            Atom(
-                text="kommen",
-                start=0.33,
-                end=0.82,
-                conf=0.9989925026893616,
-                conf_ts=0.008223438635468483,
-            ),
-            Atom(
-                text=" zum",
-                start=0.82,
-                end=1.07,
-                conf=0.9744400978088379,
-                conf_ts=0.005903157405555248,
-            ),
-            Atom(
-                text=" letzten",
-                start=1.07,
-                end=1.65,
-                conf=0.9838394522666931,
-                conf_ts=0.01149927917867899,
-            ),
-            Atom(
-                text=" Token.",
-                start=1.65,
-                end=2.06,
-                conf=0.9566531777381897,
-                conf_ts=0.0096774036064744,
-            ),
-        ],
-        lang="de",
+class SpecInput(BaseModel):
+    input: List[Paragraph]
+    expected: List[Paragraph]
+
+
+@pytest.mark.parametrize(
+    "data_file",
+    glob.glob(
+        str(Path(__file__).parent / "data" / "test_combine_tokens_to_words*.json"),
+    ),
+)
+def test_combine_tokens_to_words(data_file):
+    test_data = parse_file_as(SpecInput, data_file)
+
+    output = list(
+        asyncio.run(
+            async_doc_chain_func_to_list(combine_tokens_to_words)(test_data.input)
+        )
     )
+    assert output == test_data.expected
 
-    output = list(asyncio.run(wrap_combine_tokens_to_words([input_para])))
-    assert len(output) == 1
-    (output_para,) = output
-    assert output_para.children == [
-        Atom(
-            text=" Willkommen",
-            start=0.0,
-            end=0.82,
-            conf=0.4493102431297302,
-            conf_ts=0.0,
-        ),
-        Atom(
-            text=" zum",
-            start=0.82,
-            end=1.07,
-            conf=0.9744400978088379,
-            conf_ts=0.005903157405555248,
-        ),
-        Atom(
-            text=" letzten",
-            start=1.07,
-            end=1.65,
-            conf=0.9838394522666931,
-            conf_ts=0.01149927917867899,
-        ),
-        Atom(
-            text=" Token.",
-            start=1.65,
-            end=2.06,
-            conf=0.9566531777381897,
-            conf_ts=0.0096774036064744,
-        ),
-    ]
+
+@pytest.mark.parametrize(
+    "data_file",
+    glob.glob(
+        str(Path(__file__).parent / "data" / "test_strict_sentence_paragraphs*.json"),
+    ),
+)
+def test_strict_sentence_paragraphs(data_file):
+    test_data = parse_file_as(SpecInput, data_file)
+
+    output = list(
+        asyncio.run(
+            async_doc_chain_func_to_list(strict_sentence_paragraphs)(test_data.input)
+        )
+    )
+    assert output == test_data.expected
+
+
+@pytest.mark.parametrize(
+    "data_file",
+    glob.glob(
+        str(Path(__file__).parent / "data" / "test_move_space_to_prev_token*.json"),
+    ),
+)
+def test_move_space_to_prev_token(data_file):
+    test_data = parse_file_as(SpecInput, data_file)
+
+    output = list(
+        asyncio.run(
+            async_doc_chain_func_to_list(move_space_to_prev_token)(test_data.input)
+        )
+    )
+    assert output == test_data.expected
+
+
+@pytest.mark.parametrize(
+    "data_file",
+    glob.glob(
+        str(Path(__file__).parent / "data" / "test_space_and_sentences*.json"),
+    ),
+)
+def test_space_and_sentences(data_file):
+    test_data = parse_file_as(SpecInput, data_file)
+
+    output = list(
+        asyncio.run(
+            async_doc_chain_func_to_list(
+                move_space_to_prev_token, strict_sentence_paragraphs
+            )(test_data.input)
+        )
+    )
+    for p in output:
+        print(p.json())
+    assert output == test_data.expected

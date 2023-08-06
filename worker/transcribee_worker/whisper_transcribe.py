@@ -1,4 +1,3 @@
-import copy
 import logging
 from typing import TYPE_CHECKING, Any, AsyncIterator, List, Optional
 
@@ -194,39 +193,77 @@ async def recombine_split_words(
         yield last_paragraph
 
 
+def _para_move_space_to_prev_token(paragraph: Paragraph):
+    for prev_i, atom in enumerate(paragraph.children[1:]):
+        starts_with_whitespace = atom.text[:1].isspace()
+        if starts_with_whitespace:
+            paragraph.children[prev_i].text += atom.text[:1]
+            atom.text = atom.text[1:]
+    return paragraph
+
+
+async def move_space_to_prev_token(
+    iter: AsyncIterator[Paragraph],
+) -> AsyncIterator[Paragraph]:
+    last_paragraph = await anext(iter)
+    last_paragraph.children[0].text = last_paragraph.children[0].text.lstrip()
+    _para_move_space_to_prev_token(last_paragraph)
+
+    async for paragraph in iter:
+        para_starts_with_whitespace = paragraph.children[0].text[:1].isspace()
+        if para_starts_with_whitespace:
+            last_paragraph.children[-1].text += paragraph.children[0].text[:1]
+            paragraph.children[0].text = paragraph.children[0].text[1:]
+
+        yield last_paragraph
+        paragraph = _para_move_space_to_prev_token(paragraph)
+        last_paragraph = paragraph
+
+    if last_paragraph is not None:
+        yield last_paragraph
+
+
 async def strict_sentence_paragraphs(
     iter: AsyncIterator[Paragraph],
 ) -> AsyncIterator[Paragraph]:
     acc_paragraph = None
     async for paragraph in iter:
         if acc_paragraph is None:
-            acc_paragraph = copy.copy(paragraph)
+            acc_paragraph = Paragraph(
+                lang=paragraph.lang, speaker=paragraph.speaker, children=[]
+            )
 
-        elif acc_paragraph.lang != paragraph.lang:
-            yield acc_paragraph
-            acc_paragraph = copy.copy(paragraph)
-
-        else:
-            locale = Locale(paragraph.lang)
-            sentence_iter = BreakIterator.createSentenceInstance(locale)
-            sentence_iter.setText(acc_paragraph.text() + paragraph.text())
-            n_sent = len(list(sentence_iter))
-            if n_sent == 1:
-                acc_paragraph.children.extend(paragraph.children)
-            else:
+        elif (
+            acc_paragraph.lang != paragraph.lang
+            or acc_paragraph.speaker != paragraph.speaker
+        ):
+            if acc_paragraph.children:
                 yield acc_paragraph
-                acc_paragraph = copy.copy(paragraph)
+            acc_paragraph = Paragraph(
+                lang=paragraph.lang, speaker=paragraph.speaker, children=[]
+            )
 
-    if acc_paragraph is not None:
+        locale = Locale(paragraph.lang)
+        sentence_iter = BreakIterator.createSentenceInstance(locale)
+        sentence_iter.setText(acc_paragraph.text() + paragraph.text())
+        breaks = list(sentence_iter)[:-1]  # The last break is the end of the text
+        offset = 0
+        if offset + len(acc_paragraph.text()) in breaks:
+            yield acc_paragraph
+            offset += len(acc_paragraph.text())
+            acc_paragraph = Paragraph(
+                lang=paragraph.lang, speaker=paragraph.speaker, children=[]
+            )
+        for atom in paragraph.children:
+            acc_paragraph.children.append(atom)
+            if offset + len(acc_paragraph.text()) in breaks:
+                yield acc_paragraph
+                offset += len(acc_paragraph.text())
+                acc_paragraph = Paragraph(
+                    lang=paragraph.lang, speaker=paragraph.speaker, children=[]
+                )
+    if acc_paragraph is not None and acc_paragraph.children:
         yield acc_paragraph
-
-
-async def remove_leading_whitespace_from_paragraph(
-    iter: AsyncIterator[Paragraph],
-) -> AsyncIterator[Paragraph]:
-    async for paragraph in iter:
-        paragraph.children[0].text = paragraph.children[0].text.strip()
-        yield paragraph
 
 
 async def combine_tokens_to_words(
@@ -276,9 +313,9 @@ async def transcribe_clean(
 ):
     chain = (
         recombine_split_words,
+        move_space_to_prev_token,
         strict_sentence_paragraphs,
         combine_tokens_to_words,
-        remove_leading_whitespace_from_paragraph,
     )
     iter = aiter(
         transcribe(
