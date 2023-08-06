@@ -8,7 +8,6 @@ import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input, Select } from '../components/form';
 import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppCenter } from '../components/app';
-import { Version } from '../common/version';
 import { useGetConfig } from '../api/config';
 
 type FieldValues = {
@@ -327,8 +326,6 @@ export function NewDocumentPage() {
           </div>
         </form>
       </Dialog>
-
-      <Version />
     </AppCenter>
   );
 }

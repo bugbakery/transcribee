@@ -41,14 +41,12 @@ export function Version({ className = '' }: { className?: string }) {
   const lastCommit = version?.lastCommit;
 
   return (
-    <div className={clsx('mb-10')}>
+    <div className={clsx('mt-5')}>
       <div
         className={clsx(
-          'absolute bottom-0 ',
-          'h-10 text-xs',
+          'text-xs',
           'opacity-70 hover:opacity-100 duration-400 transition-all',
           'w-full text-center',
-          'left-1/2 -translate-x-1/2',
           className,
         )}
       >

@@ -184,8 +184,6 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
       </div>
-
-      <div className="pb-24" />
     </>
   );
 }

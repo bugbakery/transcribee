@@ -1,5 +1,4 @@
 import { AppCenter } from '../components/app';
-import { Version } from '../common/version';
 
 export function LoadingPage() {
   return (
@@ -8,7 +7,6 @@ export function LoadingPage() {
         <h1 className="font-medium text-4xl">Loading...</h1>
         <p>Transcribee is currently loading...</p>
       </div>
-      <Version />
     </AppCenter>
   );
 }
