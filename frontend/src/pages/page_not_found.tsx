@@ -1,7 +1,6 @@
 import { useLocation } from 'wouter';
 import { AppCenter } from '../components/app';
 import { PrimaryButton } from '../components/button';
-import { Version } from '../common/version';
 
 export function PageNotFoundPage() {
   const [_, navigate] = useLocation();
@@ -12,7 +11,6 @@ export function PageNotFoundPage() {
         <p>We couldn&apos;t find what you were looking for.</p>
         <PrimaryButton onClick={() => navigate('/')}>Go to Home</PrimaryButton>
       </div>
-      <Version />
     </AppCenter>
   );
 }

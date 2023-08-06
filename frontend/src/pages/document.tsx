@@ -15,7 +15,6 @@ import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_edito
 import { WebvttExportModal } from '../editor/webvtt_export';
 import { showModal } from '../components/modal';
 import { Tooltip } from '../components/tooltip';
-import { Version } from '../common/version';
 import { Input } from '../components/form';
 import { BiPencil } from 'react-icons/bi';
 import { SubmitHandler, useForm } from 'react-hook-form';
@@ -150,7 +149,7 @@ export function DocumentPage({
   const canGenVtt = useMemo(() => canGenerateVtt(editor.doc.children), [editor.doc]);
 
   return (
-    <AppContainer className="relative min-h-screen">
+    <AppContainer className="relative min-h-screen" versionClassName="mb-16">
       <Helmet>
         <title>{data?.name}</title>
       </Helmet>
@@ -213,8 +212,6 @@ export function DocumentPage({
       />
 
       <Suspense>{debugMode && <LazyDebugPanel editor={editor} />}</Suspense>
-
-      <Version className="bottom-16" />
     </AppContainer>
   );
 }
