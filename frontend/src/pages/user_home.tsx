@@ -94,10 +94,11 @@ export function UserHomePage() {
                   'break-word',
                 )}
               >
-                <div className="w-full flex flex-row items-center justify-between">
+                <div className="w-full flex flex-row items-center justify-between relative">
                   {getTaskProgress(doc.tasks) < 1 ? (
                     <WorkerStatusWithData data={doc.tasks} />
                   ) : (
+                    // we need to keep this div, because otherwise the trashbin jumps to the left
                     <div></div>
                   )}
                   <IconButton
