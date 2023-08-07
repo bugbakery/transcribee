@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import TYPE_CHECKING, Any, AsyncIterator, List, Optional
 
 import requests
@@ -13,6 +14,14 @@ if TYPE_CHECKING:
     from .icu import BreakIterator, Locale
 else:
     from icu import BreakIterator, Locale
+
+# Regexes that prevent the sentence splitting logic from breaking here
+DONT_SPLIT_HERE_RES = [
+    re.compile(r"\s\S\.\S\.\s?$"),  # Prevent splitting on "e.g.", "i.e.", "z.B."
+    re.compile(
+        r".*\d\.\s?$"
+    ),  # Don't split on numerals followed by a dot, e.g. "during the 20. century"
+]
 
 
 def get_model_file(model_name: str):
@@ -266,7 +275,10 @@ async def strict_sentence_paragraphs(
             )
         for atom in paragraph.children:
             acc_paragraph.children.append(atom)
-            if offset + len(acc_paragraph.text()) in breaks:
+            text = acc_paragraph.text()
+            if offset + len(text) in breaks and not any(
+                regex.search(text) for regex in DONT_SPLIT_HERE_RES
+            ):
                 yield acc_paragraph
                 offset += len(acc_paragraph.text())
                 acc_paragraph = Paragraph(
