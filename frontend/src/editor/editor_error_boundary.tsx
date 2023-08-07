@@ -9,6 +9,10 @@ export class ErrorBoundary extends React.Component<{ children: ReactNode; editor
     super(props);
   }
 
+  static getDerivedStateFromError() {
+    return {};
+  }
+
   componentDidCatch() {
     Transforms.deselect(this.props.editor);
   }
