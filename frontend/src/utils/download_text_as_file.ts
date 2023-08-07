@@ -1,20 +1,26 @@
-export function downloadTextAsFile(filename: string, mime_type: string, text: string) {
-  const elem = document.createElement('a');
-  elem.setAttribute('href', 'data:' + mime_type + ';charset=utf-8,' + encodeURIComponent(text));
-  elem.setAttribute('download', filename);
-  elem.style.display = 'none';
-  document.body.appendChild(elem);
-  elem.click();
-  document.body.removeChild(elem);
+// stolen & adapted from https://stackoverflow.com/questions/25354313/saving-a-uint8array-to-a-binary-file
+
+function downloadURL(data: string, fileName: string) {
+  const a = document.createElement('a');
+  a.href = data;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.style.display = 'none';
+  a.click();
+  a.remove();
 }
 
-export function downloadBinaryAsFile(filename: string, mime_type: string, bytes: Uint8Array) {
-  const elem = document.createElement('a');
-  const text = Array.from(bytes, (x) => String.fromCodePoint(x)).join('');
-  elem.setAttribute('href', 'data:' + mime_type + ';base64,' + btoa(text));
-  elem.setAttribute('download', filename);
-  elem.style.display = 'none';
-  document.body.appendChild(elem);
-  elem.click();
-  document.body.removeChild(elem);
+export function downloadBinaryAsFile(fileName: string, mimeType: string, data: Uint8Array) {
+  const blob = new Blob([data], {
+    type: mimeType,
+  });
+
+  const url = window.URL.createObjectURL(blob);
+  downloadURL(url, fileName);
+
+  setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+}
+
+export function downloadTextAsFile(fileName: string, mimeType: string, text: string) {
+  downloadURL('data:' + mimeType + ';charset=utf-8,' + encodeURIComponent(text), fileName);
 }
