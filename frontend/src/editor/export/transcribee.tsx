@@ -75,7 +75,7 @@ export function TranscribeeExportBody({ onClose, outputNameBase, editor, documen
 
               onClose();
             } catch (e) {
-              console.error('Error importing', e);
+              console.error('Error while exporting', e);
             }
             setLoading(false);
           }}
