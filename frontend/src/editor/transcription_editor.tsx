@@ -19,7 +19,7 @@ import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';
 
 import { useInView } from 'react-intersection-observer';
-import { ErrorBoundary, NeedsFullRender } from './editor_error_boundary';
+import { ErrorBoundary } from './editor_error_boundary';
 
 export function formattedTime(sec: number | undefined): string {
   if (sec === undefined) {
@@ -46,16 +46,10 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
 
-  /* This is a rather bad hack but saves A LOT of resources.
-     if an error is thrown, we catch it with our error boundary,
-     set needsRenderFull to true for one render and then set it to false again.
-     This way the editor is re-vived and we can still get the performance boost, this gives us.
-  */
+  // This is a rather bad hack but saves A LOT of resources.
   const { ref, inView } = useInView({
     fallbackInView: true,
   });
-  const needsFullRender = useContext(NeedsFullRender);
-  const renderFull = needsFullRender || inView;
 
   const speakerChanged = useSlateSelector((editor) => {
     const idx = ReactEditor.findPath(editor, element)[0];
@@ -163,7 +157,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
         {/* If the paragraph is out of view, we do not render the children (which would the the text
           leafs). Instead we just add the plain text of the paragraph here to enable search and
           scrolling without jumping content. */}
-        {renderFull ? children : element.children.map((x) => x.text).join('')}
+        {inView ? children : element.children.map((x) => x.text).join('')}
       </div>
     </div>
   );
@@ -252,7 +246,7 @@ export function TranscriptionEditor({
         }}
       >
         <SpeakerColorsProvider>
-          <ErrorBoundary>
+          <ErrorBoundary editor={editor}>
             <Editable
               readOnly={readOnly}
               renderElement={Paragraph}
