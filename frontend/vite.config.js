@@ -35,9 +35,11 @@ function gitVersionPlugin() {
       }
 
       if (id === virtualModuleId) {
+        const lastCommitOnMain = git("merge-base origin/main HEAD");
         const json = JSON.stringify({
           diffShort: git('diff --shortstat HEAD'),
           lastCommit: commitInfo('HEAD'),
+          lastCommitOnMain: commitInfo(lastCommitOnMain),
           branch: git('rev-parse --abbrev-ref HEAD'),
           date: new Date().toISOString(),
         });

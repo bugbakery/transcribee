@@ -38,8 +38,6 @@ export function CommitPopup({ commit, text }: { commit: Commit; text: string }) 
 }
 
 export function Version({ className = '' }: { className?: string }) {
-  const lastCommit = version?.lastCommit;
-
   return (
     <div className={clsx('mt-5')}>
       <div
@@ -50,19 +48,52 @@ export function Version({ className = '' }: { className?: string }) {
           className,
         )}
       >
-        Frontend built on {formatDate(version?.date)}. Last commit{' '}
-        {lastCommit?.hash && (
-          <a
-            href={`https://github.com/bugbakery/transcribee/commit/${lastCommit.hash}`}
-            target="_blank"
-            rel="noreferrer"
-            className="underline decoration-dashed"
-            title="View commit on GitHub"
-          >
-            {lastCommit.hash.substring(0, 10)} <IoMdOpen className="inline" />
-          </a>
-        )}{' '}
-        on {formatDate(lastCommit?.date)}.
+        Frontend built on {formatDate(version?.date)}.
+        {version?.lastCommitOnMain?.countSinceStart ? (
+          <>
+            {' '}
+            <CommitPopup
+              commit={version.lastCommitOnMain}
+              text={`${version.lastCommitOnMain.countSinceStart} commits on main`}
+            />
+            {version?.branch != 'main' &&
+              version.lastCommit &&
+              version.lastCommit?.countSinceStart &&
+              version.lastCommitOnMain?.countSinceStart && (
+                <>
+                  {' '}
+                  +{' '}
+                  <CommitPopup
+                    commit={version.lastCommit}
+                    text={`${
+                      version.lastCommit?.countSinceStart -
+                      version.lastCommitOnMain?.countSinceStart
+                    } commits on ${version.branch}`}
+                  />
+                </>
+              )}
+            {version.diffShort && <> + {version.diffShort}</>}
+          </>
+        ) : (
+          version?.lastCommit?.hash && (
+            <>
+              {' '}
+              Last commit{' '}
+              {version.lastCommit?.hash && (
+                <a
+                  href={`https://github.com/bugbakery/transcribee/commit/${version.lastCommit.hash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-dashed"
+                  title="View commit on GitHub"
+                >
+                  {version.lastCommit.hash.substring(0, 10)} <IoMdOpen className="inline" />
+                </a>
+              )}{' '}
+              on {formatDate(version.lastCommit?.date)}.
+            </>
+          )
+        )}
       </div>
     </div>
   );
