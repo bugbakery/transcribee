@@ -1,30 +1,19 @@
-// this file contains a hack to revive slate when it breaks because our other hacks kill it.
-// se transcription_editor.tsx for how its used
+// this file contains a hack to save slate when it breaks because our other hacks kill it.
+// Slate raises exceptions when handling selections. We just ignore these errors and deselct
 
 import React, { ReactNode } from 'react';
+import { Editor, Transforms } from 'slate';
 
-export const NeedsFullRender = React.createContext(false);
-
-export class ErrorBoundary extends React.Component<{ children: ReactNode }, { error: boolean }> {
-  constructor(props: { children: ReactNode }) {
+export class ErrorBoundary extends React.Component<{ children: ReactNode; editor: Editor }> {
+  constructor(props: { children: ReactNode; editor: Editor }) {
     super(props);
-    this.state = { error: false };
   }
 
-  static getDerivedStateFromError() {
-    return { error: true };
+  componentDidCatch() {
+    Transforms.deselect(this.props.editor);
   }
 
   render() {
-    if (this.state.error) {
-      setTimeout(() => {
-        this.setState({ error: false });
-      }, 0);
-    }
-    return (
-      <NeedsFullRender.Provider value={this.state.error}>
-        {this.props.children}
-      </NeedsFullRender.Provider>
-    );
+    return this.props.children;
   }
 }
