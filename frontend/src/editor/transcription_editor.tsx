@@ -267,6 +267,7 @@ export function TranscriptionEditor({
               <Editable
                 renderElement={Paragraph}
                 renderLeaf={renderLeaf}
+                readOnly={readOnly}
                 onClick={(e: React.MouseEvent) => {
                   const { selection } = editor;
 
@@ -284,14 +285,14 @@ export function TranscriptionEditor({
                 }}
                 className={clsx('2xl:-ml-20')}
               />
-              </ErrorBoundary>
+            </ErrorBoundary>
             <PlayerBar documentId={documentId} editor={editor} />
           </SpeakerColorsProvider>
         </Slate>
       ) : (
         <>
           <div className={clsx('grow-[2] flex items-center justify-center w-full h-full')}>
-              <LoadingBee size={200} className="" />
+            <LoadingBee size={200} className="" />
           </div>
           <div className="grow-[2] flex" />
         </>

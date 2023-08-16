@@ -9,7 +9,6 @@ import { updateDocument, useGetDocument } from '../api/document';
 import { TbFileExport, TbShare3 } from 'react-icons/tb';
 import { Suspense, lazy, useState, useCallback } from 'react';
 import { useDebugMode } from '../debugMode';
-import clsx from 'clsx';
 import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_editor';
 import { showModal } from '../components/modal';
 import { Input } from '../components/form';
@@ -130,15 +129,15 @@ export function DocumentPage({
 
   const [editor, initialValue] = useAutomergeWebsocketEditor(url, {
     onInitialSyncComplete: () => {
-      if (editor) {
-        const isNewDocument =
-          editor.doc.version === undefined &&
-          editor.doc.children === undefined &&
-          editor.doc.speaker_names === undefined;
-        if (!isNewDocument && editor.doc.version !== 2) {
-          alert('The document is in an unsupported version.');
-          navigate('/');
-        }
+      if (!editor) return;
+
+      const isNewDocument =
+        editor.doc.version === undefined &&
+        editor.doc.children === undefined &&
+        editor.doc.speaker_names === undefined;
+      if (!isNewDocument && editor.doc.version !== 2) {
+        alert('The document is in an unsupported version.');
+        navigate('/');
       }
     },
   });
@@ -180,20 +179,21 @@ export function DocumentPage({
               icon={TbShare3}
               label={'share...'}
               onClick={() => {
-                editor &&
-                  showModal(<ShareModal editor={editor} onClose={() => showModal(null)} />);
+                showModal(<ShareModal documentId={documentId} onClose={() => showModal(null)} />);
               }}
             />
           )}
-          <IconButton
-            icon={TbFileExport}
-            label={'export...'}
-            onClick={() => {
-              showModal(
-                <ExportModal editor={editor} onClose={() => showModal(null)} document={data} />,
-              );
-            }}
-          />
+          {editor && (
+            <IconButton
+              icon={TbFileExport}
+              label={'export...'}
+              onClick={() => {
+                showModal(
+                  <ExportModal editor={editor} onClose={() => showModal(null)} document={data} />,
+                );
+              }}
+            />
+          )}
           <WorkerStatus documentId={documentId} />
           {isLoggedIn && <MeButton />}
         </TopBarPart>
@@ -203,11 +203,11 @@ export function DocumentPage({
         editor={editor}
         documentId={documentId}
         initialValue={initialValue}
-        className={"grow flex flex-col"}
+        className={'grow flex flex-col'}
         readOnly={!data || !data.can_write}
       />
 
-      {editor && <Suspense>{debugMode && <LazyDebugPanel editor={editor} />}</Suspense>}
+      {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </AppContainer>
   );
 }
