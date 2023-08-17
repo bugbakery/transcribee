@@ -59,10 +59,12 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
   const speakerName = useSpeakerName(element.speaker);
 
   const metaInformation = (
-    <div className="md:w-[200px] lg:w-[280px] grid shrink-0 grid-cols-[auto_1fr_auto] select-none">
+    <div
+      className="md:w-[200px] lg:w-[280px] grid shrink-0 grid-cols-[auto_1fr_auto] select-none"
+      contentEditable={false}
+    >
       {/* start time */}
       <div
-        contentEditable={false}
         className={clsx(`text-slate-500 dark:text-neutral-400 tabular-nums`, 'md:mr-4')}
         onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
       >
@@ -71,10 +73,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
 
       {/* speaker names */}
       {speakerChanged && (
-        <div
-          contentEditable={false}
-          className="hidden md:block overflow-clip row-start-1 col-start-2"
-        >
+        <div className="hidden md:block overflow-clip row-start-1 col-start-2">
           <div
             className={clsx(
               '-mt-[0.1rem] py-1',
@@ -99,7 +98,6 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
       >
         {!readOnly && (
           <SpeakerDropdown
-            contentEditable={false}
             paragraph={element}
             buttonClassName={clsx(
               'text-neutral-500 md:text-neutral-600 md:dark:text-neutral-200',
@@ -115,7 +113,6 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
       {/* speaker color indicator */}
       <div className={clsx('relative w-2 h-full', 'mr-2 md:mr-4', 'hidden md:block')}>
         <div
-          contentEditable={false}
           style={{
             ...(element.speaker ? { backgroundColor: speakerColors[element.speaker] } : {}),
           }}
