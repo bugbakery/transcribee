@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
-import { favicons } from "favicons";
+import { favicons } from 'favicons';
 import topLevelAwait from 'vite-plugin-top-level-await';
 import { execSync } from 'child_process';
 import fs from 'fs';
@@ -36,9 +36,11 @@ function gitVersionPlugin() {
       }
 
       if (id === virtualModuleId) {
+        const lastCommitOnMain = git('merge-base origin/main HEAD');
         const json = JSON.stringify({
           diffShort: git('diff --shortstat HEAD'),
           lastCommit: commitInfo('HEAD'),
+          lastCommitOnMain: commitInfo(lastCommitOnMain),
           branch: git('rev-parse --abbrev-ref HEAD'),
           date: new Date().toISOString(),
         });
@@ -73,10 +75,10 @@ function faviconPlugin(originalPath) {
         },
       });
 
-      addFiles(this, "favicon.svg", fs.readFileSync(originalPath))
-      response.images.forEach(img => {
-        addFiles(this, img.file, img.contents)
-      })
+      addFiles(this, 'favicon.svg', fs.readFileSync(originalPath));
+      response.images.forEach((img) => {
+        addFiles(this, img.file, img.contents);
+      });
     },
     configureServer(server) {
       return () => {
@@ -86,9 +88,9 @@ function faviconPlugin(originalPath) {
             res.write(files[req.originalUrl]);
             res.end();
           }
-          next()
-        })
-      }
+          next();
+        });
+      };
     },
   };
 }
@@ -107,7 +109,7 @@ export default defineConfig({
     topLevelAwait(),
     wasm(),
     gitVersionPlugin(),
-    faviconPlugin("../doc/transcribee-logo.svg"),
+    faviconPlugin('../doc/transcribee-logo.svg'),
   ],
 
   // This is only necessary if you are using `SharedWorker` or `WebWorker`, as

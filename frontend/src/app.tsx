@@ -11,16 +11,20 @@ import { Helmet } from 'react-helmet';
 import { registerCopyHandler } from './utils/copy_text';
 import { useAuthData } from './utils/auth';
 import { LoadingPage } from './pages/loading';
+import { PagePage } from './pages/page';
+import { AboutPage } from './pages/about';
 
 registerCopyHandler();
+
+const LOCATIONS_WIHTOUT_AUTH = ['/about'];
 
 export function App() {
   const routerBase = trimTrailingSlash(import.meta.env.BASE_URL);
 
-  const [_location, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { isLoading, isLoggedIn, hasShareToken } = useAuthData();
   const isAuthenticated = isLoggedIn || hasShareToken;
-  if (!isAuthenticated && !isLoading) {
+  if (!isAuthenticated && !isLoading && !LOCATIONS_WIHTOUT_AUTH.includes(location)) {
     setTimeout(() => navigate('/login'), 0);
   }
 
@@ -30,6 +34,8 @@ export function App() {
       <ModalHolder />
       <Switch>
         <Route path="/login" component={LoginPage} />
+        <Route path="/page/:pageId" component={PagePage} />
+        <Route path="/about" component={AboutPage} />
 
         {isLoggedIn && (
           <>

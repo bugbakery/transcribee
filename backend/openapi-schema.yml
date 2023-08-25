@@ -359,6 +359,22 @@ components:
       - languages
       title: ModelConfig
       type: object
+    PageConfig:
+      properties:
+        footer_position:
+          title: Footer Position
+          type: integer
+        name:
+          title: Name
+          type: string
+        text:
+          title: Text
+          type: string
+      required:
+      - name
+      - text
+      title: PageConfig
+      type: object
     PublicConfig:
       properties:
         models:
@@ -378,6 +394,18 @@ components:
       required:
       - duration
       title: SetDurationRequest
+      type: object
+    ShortPageConfig:
+      properties:
+        footer_position:
+          title: Footer Position
+          type: integer
+        name:
+          title: Name
+          type: string
+      required:
+      - name
+      title: ShortPageConfig
       type: object
     SpeakerIdentificationTask:
       properties:
@@ -993,6 +1021,46 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Get Document Tasks
+  /api/v1/page/:
+    get:
+      operationId: get_pages_api_v1_page__get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  $ref: '#/components/schemas/ShortPageConfig'
+                title: Response Get Pages Api V1 Page  Get
+                type: object
+          description: Successful Response
+      summary: Get Pages
+  /api/v1/page/{page_id}:
+    get:
+      operationId: get_page_api_v1_page__page_id__get
+      parameters:
+      - in: path
+        name: page_id
+        required: true
+        schema:
+          title: Page Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageConfig'
+          description: Successful Response
+        '404':
+          description: Page not found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Page
   /api/v1/tasks/:
     get:
       operationId: list_tasks_api_v1_tasks__get

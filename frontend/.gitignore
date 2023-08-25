@@ -6,3 +6,5 @@ node_modules
 
 # typescript
 *.tsbuildinfo
+
+public/LICENSES.md
