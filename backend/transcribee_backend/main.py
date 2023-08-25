@@ -8,6 +8,7 @@ from transcribee_backend.helpers.periodic_tasks import run_periodic
 from transcribee_backend.helpers.tasks import remove_expired_tokens, timeout_attempts
 from transcribee_backend.routers.config import config_router
 from transcribee_backend.routers.document import document_router
+from transcribee_backend.routers.page import page_router
 from transcribee_backend.routers.task import task_router
 from transcribee_backend.routers.user import user_router
 
@@ -30,6 +31,7 @@ app.include_router(user_router, prefix="/api/v1/users")
 app.include_router(document_router, prefix="/api/v1/documents")
 app.include_router(task_router, prefix="/api/v1/tasks")
 app.include_router(config_router, prefix="/api/v1/config")
+app.include_router(page_router, prefix="/api/v1/page")
 
 
 @app.get("/")

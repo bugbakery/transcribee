@@ -1,6 +1,7 @@
 import { paths } from './openapi-schema';
 import { ApiResponse, Fetcher, Middleware } from 'openapi-typescript-fetch';
 import useSwr, { SWRConfiguration } from 'swr';
+import { defaultConfig } from 'swr/_internal';
 
 export function getShareToken(): string | null {
   return new URL(location.href).searchParams.get('share_token');
@@ -53,4 +54,19 @@ export function makeSwrHook<P, R>(
       },
       options,
     );
+}
+
+export function makeRetrySwrHook<P, R>(
+  id: string,
+  fn: (params: P, req?: RequestInit | undefined) => Promise<ApiResponse<R>>,
+) {
+  const swrHook = makeSwrHook(id, fn);
+  return (params: Parameters<typeof swrHook>[0], options?: Partial<SWRConfiguration>) =>
+    swrHook(params, {
+      onErrorRetry: (err, key, config, revalidate, opts) => {
+        if (err.status === 422) return;
+        else defaultConfig.onErrorRetry(err, key, config, revalidate, opts);
+      },
+      ...options,
+    });
 }

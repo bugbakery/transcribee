@@ -19,7 +19,7 @@ module.exports = {
       },
       animation: {
         rainbow: 'rainbow 6s linear infinite;',
-        'spin-slow': 'spin 1s linear infinite'
+        'spin-slow': 'spin 1s linear infinite',
       },
       width: { 'very-large-dialog': '60rem' },
     },
@@ -38,5 +38,5 @@ module.exports = {
       ],
     },
   },
-  plugins: [require('@tailwindcss/forms')],
+  plugins: [require('@tailwindcss/forms'), require('@tailwindcss/typography')],
 };

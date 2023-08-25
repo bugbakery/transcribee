@@ -53,6 +53,14 @@ export interface paths {
     /** Get Document Tasks */
     get: operations["get_document_tasks_api_v1_documents__document_id__tasks__get"];
   };
+  "/api/v1/page/": {
+    /** Get Pages */
+    get: operations["get_pages_api_v1_page__get"];
+  };
+  "/api/v1/page/{page_id}": {
+    /** Get Page */
+    get: operations["get_page_api_v1_page__page_id__get"];
+  };
   "/api/v1/tasks/": {
     /** List Tasks */
     get: operations["list_tasks_api_v1_tasks__get"];
@@ -313,6 +321,15 @@ export interface components {
       /** Name */
       name: string;
     };
+    /** PageConfig */
+    PageConfig: {
+      /** Footer Position */
+      footer_position?: number;
+      /** Name */
+      name: string;
+      /** Text */
+      text: string;
+    };
     /** PublicConfig */
     PublicConfig: {
       /** Models */
@@ -324,6 +341,13 @@ export interface components {
     SetDurationRequest: {
       /** Duration */
       duration: number;
+    };
+    /** ShortPageConfig */
+    ShortPageConfig: {
+      /** Footer Position */
+      footer_position?: number;
+      /** Name */
+      name: string;
     };
     /** SpeakerIdentificationTask */
     SpeakerIdentificationTask: {
@@ -776,6 +800,43 @@ export interface operations {
           "application/json": (components["schemas"]["TaskResponse"])[];
         };
       };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Get Pages */
+  get_pages_api_v1_page__get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": {
+            [key: string]: components["schemas"]["ShortPageConfig"] | undefined;
+          };
+        };
+      };
+    };
+  };
+  /** Get Page */
+  get_page_api_v1_page__page_id__get: {
+    parameters: {
+      path: {
+        page_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["PageConfig"];
+        };
+      };
+      /** @description Page not found */
+      404: never;
       /** @description Validation Error */
       422: {
         content: {

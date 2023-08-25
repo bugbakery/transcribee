@@ -53,6 +53,27 @@ If you do more development on transcribee, you may wish to do the following thin
 - Install the [`pre-commit`](https://pre-commit.com/) hook so that your changes are automatically
   linted before you commit them. Run: `pre-commit install`
 
+## Add pages
+
+`transcribee` contains a minimal page system.
+To add pages, add a markdown file to `backend/data/pages`.
+If the file contains a frontmatter with the `footer_position` attribute, the page is shown in the footer.
+To modify the name shown in the footer, set the `name` attribute in the frontmatter.
+Example file named `example.md`:
+
+```md
+---
+footer_position: 1
+name: Example Page
+---
+
+# Example Page Showing The Page Feature
+
+Lorem Ipsum Dolor Sit Amet....
+```
+
+This page would be available at `/pages/example.md` and shown in the footer with a link labelled `Example Page`.
+
 ## More!
 
 There are more specific instructions in the respective readme files of the

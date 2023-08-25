@@ -1,8 +1,10 @@
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from pydantic import BaseSettings, parse_file_as
-from pydantic.main import BaseModel
+import frontmatter
+from pydantic import BaseModel, BaseSettings, parse_file_as, parse_obj_as
+
+pages = None
 
 
 class Settings(BaseSettings):
@@ -15,6 +17,7 @@ class Settings(BaseSettings):
     media_url_base = "http://localhost:8000/"
 
     model_config_path: Path = Path("data/models.json")
+    pages_dir: Path = Path("data/pages/")
 
 
 class ModelConfig(BaseModel):
@@ -27,8 +30,42 @@ class PublicConfig(BaseModel):
     models: Dict[str, ModelConfig]
 
 
+class ShortPageConfig(BaseModel):
+    name: str
+    footer_position: Optional[int]
+
+
+class PageConfig(ShortPageConfig):
+    text: str
+
+
 def get_model_config():
     return parse_file_as(Dict[str, ModelConfig], settings.model_config_path)
+
+
+def load_pages_from_disk() -> Dict[str, PageConfig]:
+    global pages
+    if pages is None:
+        pages = {}
+        if settings.pages_dir.exists():
+            for file in settings.pages_dir.glob("*.md"):
+                page_id = file.stem
+                page = frontmatter.load(file)
+                pages[page_id] = PageConfig(
+                    name=page.metadata.get("name", file.stem),
+                    footer_position=page.metadata.get("footer_position"),
+                    text=page.content,
+                )
+
+    return pages
+
+
+def get_page_config():
+    return load_pages_from_disk()
+
+
+def get_short_page_config() -> Dict[str, ShortPageConfig]:
+    return parse_obj_as(Dict[str, ShortPageConfig], get_page_config())
 
 
 def get_public_config():

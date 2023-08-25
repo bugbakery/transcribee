@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Version } from '../common/version';
+import { Footer } from '../common/footer';
 
 export function AppContainer({
   children,
@@ -13,7 +13,7 @@ export function AppContainer({
       className={clsx('min-h-screen max-w-screen-xl p-6 mx-auto flex flex-col', className)}
     >
       <div className="flex-1">{children}</div>
-      <Version className={versionClassName} />
+      <Footer className={versionClassName} />
     </div>
   );
 }
@@ -33,7 +33,7 @@ export function AppCenter({
       )}
     >
       <div className="flex-1 flex items-center align-middle justify-center">{children}</div>
-      <Version className={versionClassName} />
+      <Footer className={versionClassName} />
     </div>
   );
 }
