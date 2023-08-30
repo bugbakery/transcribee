@@ -20,6 +20,7 @@ export function useAutomergeWebsocketEditor(
   { onInitialSyncComplete }: { onInitialSyncComplete: (editor?: Editor) => void },
 ): [Editor?, Paragraph[]?] {
   const debug = useDebugMode();
+  const sentChanges = useRef<Set<string>>(new Set());
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
     editor: Editor;
     initialValue: Paragraph[];
@@ -32,7 +33,11 @@ export function useAutomergeWebsocketEditor(
   function sendDocChange(newDoc: Document) {
     const lastChange = Automerge.getLastLocalChange(newDoc);
     if (lastChange && wsRef.current) {
-      wsRef.current.send(lastChange);
+      const decoded = Automerge.decodeChange(lastChange);
+      if (!sentChanges.current.has(decoded.hash)) {
+        wsRef.current.send(lastChange);
+        sentChanges.current.add(decoded.hash);
+      }
     }
   }
 
