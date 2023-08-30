@@ -1,6 +1,7 @@
 import { useLocation } from 'wouter';
 import { useEffect, useRef, useState } from 'react';
 import { Editor, createEditor } from 'slate';
+import { withHistory, HistoryEditor } from 'slate-history';
 import { withReact } from 'slate-react';
 import { withAutomergeDoc } from 'slate-automerge-doc';
 import { unstable as Automerge } from '@automerge/automerge';
@@ -53,7 +54,7 @@ export function useAutomergeWebsocketEditor(
     const createNewEditor = (doc: Automerge.Doc<Document>) => {
       const baseEditor = createEditor();
       const editorWithReact = withReact(baseEditor);
-      const editor = withAutomergeDoc(editorWithReact, Automerge.init());
+      const editor = withHistory(withAutomergeDoc(editorWithReact, Automerge.init()));
       editor.addDocChangeListener(sendDocChange);
 
       const migratedDoc = migrateDocument(doc as Automerge.Doc<Document>);
@@ -83,7 +84,9 @@ export function useAutomergeWebsocketEditor(
         const [newDoc] = Automerge.applyChanges(editorRef.current.doc, [msg]);
         console.timeEnd('automerge');
         console.time('setDoc');
-        editorRef.current?.setDoc(newDoc);
+        HistoryEditor.withoutSaving(editorRef.current, () => {
+          editorRef.current?.setDoc(newDoc);
+        });
         console.timeEnd('setDoc');
       } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
         console.info('backlog complete');
