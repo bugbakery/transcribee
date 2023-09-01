@@ -50,6 +50,7 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
   // This is a rather bad hack but saves A LOT of resources.
   const { ref, inView } = useInView({
     fallbackInView: true,
+    initialInView: true,
   });
 
   const speakerChanged = useSlateSelector((editor) => {
