@@ -13,7 +13,7 @@ import { useEvent } from '../utils/use_event';
 import { SeekToEvent, Paragraph } from './types';
 import { PlayerBar, startTimeToClassName } from './player';
 import clsx from 'clsx';
-import { ComponentProps, useContext, useCallback, memo } from 'react';
+import React, { ComponentProps, useContext, useCallback, memo, useState } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';
@@ -42,15 +42,29 @@ export function formattedTime(sec: number | undefined): string {
   return `${minutes}:${seconds}`;
 }
 
+export const LoadingContext = React.createContext<[boolean, (next: boolean) => void]>([
+  false,
+  (_x) => {
+    /* this is just a placeholder */
+  },
+]);
+
 function Paragraph({ element, children, attributes }: RenderElementProps): JSX.Element {
   const readOnly = useReadOnly();
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
+  const [loading, setLoading] = useContext(LoadingContext);
+
+  if (loading) {
+    setTimeout(() => {
+      setLoading(false);
+    }, 0);
+  }
 
   // This is a rather bad hack but saves A LOT of resources.
   const { ref, inView } = useInView({
     fallbackInView: true,
-    initialInView: true,
+    initialInView: !loading,
   });
 
   const speakerChanged = useSlateSelector((editor) => {
@@ -227,6 +241,8 @@ export function TranscriptionEditor({
     }
   });
 
+  const loadingState = useState(true);
+
   const renderLeaf = useCallback(
     (props: RenderLeafProps) => {
       const { leaf, children, attributes } = props;
@@ -246,7 +262,18 @@ export function TranscriptionEditor({
 
   return (
     <div {...props}>
-      {editor && initialValue ? (
+      {loadingState[0] && (
+        <>
+          <div
+            className={clsx(
+              'grow-[2] fixed left-0 top-0 flex items-center justify-center w-full h-full bg-white z-10',
+            )}
+          >
+            <LoadingBee size={200} className="" />
+          </div>
+        </>
+      )}
+      {editor && initialValue && (
         <Slate
           editor={editor}
           value={initialValue}
@@ -261,39 +288,34 @@ export function TranscriptionEditor({
           }}
         >
           <SpeakerColorsProvider>
-            <ErrorBoundary editor={editor}>
-              <Editable
-                renderElement={Paragraph}
-                renderLeaf={renderLeaf}
-                readOnly={readOnly}
-                onClick={(e: React.MouseEvent) => {
-                  const { selection } = editor;
+            <LoadingContext.Provider value={loadingState}>
+              <ErrorBoundary editor={editor}>
+                <Editable
+                  renderElement={Paragraph}
+                  renderLeaf={renderLeaf}
+                  readOnly={readOnly}
+                  onClick={(e: React.MouseEvent) => {
+                    const { selection } = editor;
 
-                  // fire a 'seek to' event when selection is changed by clicking outside of a text node
-                  // e.g. by clicking at the blank space on the right of a paragraph
-                  if (
-                    selection &&
-                    Range.isCollapsed(selection) &&
-                    e.target instanceof HTMLElement &&
-                    e.target.isContentEditable
-                  ) {
-                    const [leaf] = editor.leaf(selection.anchor);
-                    window.dispatchEvent(new SeekToEvent(leaf.start));
-                  }
-                }}
-                className={clsx('2xl:-ml-20')}
-              />
-            </ErrorBoundary>
-            <PlayerBar documentId={documentId} editor={editor} />
+                    // fire a 'seek to' event when selection is changed by clicking outside of a text node
+                    // e.g. by clicking at the blank space on the right of a paragraph
+                    if (
+                      selection &&
+                      Range.isCollapsed(selection) &&
+                      e.target instanceof HTMLElement &&
+                      e.target.isContentEditable
+                    ) {
+                      const [leaf] = editor.leaf(selection.anchor);
+                      window.dispatchEvent(new SeekToEvent(leaf.start));
+                    }
+                  }}
+                  className={clsx('2xl:-ml-20')}
+                />
+              </ErrorBoundary>
+              <PlayerBar documentId={documentId} editor={editor} />
+            </LoadingContext.Provider>
           </SpeakerColorsProvider>
         </Slate>
-      ) : (
-        <>
-          <div className={clsx('grow-[2] flex items-center justify-center w-full h-full')}>
-            <LoadingBee size={200} className="" />
-          </div>
-          <div className="grow-[2] flex" />
-        </>
       )}
     </div>
   );
