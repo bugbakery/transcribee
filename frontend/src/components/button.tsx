@@ -1,7 +1,7 @@
 import { primitiveWithClassname } from '../styled';
 import { IconType } from 'react-icons';
 import clsx from 'clsx';
-import { LoadingSpinner } from './loading_spinner';
+import { LoadingSpinner } from './loading_spinner/loading_spinner';
 import { ComponentProps } from 'react';
 
 export const PrimaryButton = primitiveWithClassname('button', [
