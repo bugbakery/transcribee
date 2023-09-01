@@ -10,7 +10,7 @@ import { Editor } from 'slate';
 import { useButtonHoldRepeat } from '../utils/button_hooks';
 import { useLocalStorage } from '../utils/use_local_storage';
 import { SpeakerColorsContext } from './speaker_colors';
-import { LoadingSpinner } from '../components/loading_spinner';
+import { LoadingSpinner } from '../components/loading_spinner/loading_spinner';
 import { getSpeakerName, useDocumentSelector } from '../utils/document';
 import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { minutesInMs } from '../utils/duration_in_ms';

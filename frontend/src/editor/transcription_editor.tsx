@@ -17,7 +17,7 @@ import { ComponentProps, useContext, useCallback, memo } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';
-import { LoadingBee } from '../components/loading_spinner';
+import { LoadingBee } from '../components/loading_spinner/loading_bee';
 
 import { useInView } from 'react-intersection-observer';
 import { ErrorBoundary } from './editor_error_boundary';
