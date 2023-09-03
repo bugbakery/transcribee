@@ -193,8 +193,6 @@ export interface components {
     };
     /** Body_import_document_api_v1_documents_import__post */
     Body_import_document_api_v1_documents_import__post: {
-      /** Document Updates */
-      document_updates: (string)[];
       /**
        * Media File
        * Format: binary
