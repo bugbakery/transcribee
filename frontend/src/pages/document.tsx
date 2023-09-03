@@ -16,8 +16,7 @@ import { BiPencil } from 'react-icons/bi';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { Helmet } from 'react-helmet';
 import { ShareModal } from '../editor/share';
-import { useAuthData } from '../utils/auth';
-import { getAuthToken, getShareToken } from '../api';
+import { getDocumentWsUrl, useAuthData } from '../utils/auth';
 import { ExportModal } from '../editor/export';
 
 const LazyDebugPanel = lazy(() =>
@@ -114,18 +113,7 @@ export function DocumentPage({
   const debugMode = useDebugMode();
   const { isLoggedIn } = useAuthData();
 
-  const url = new URL(`/api/v1/documents/sync/${documentId}/`, window.location.href);
-  url.protocol = url.protocol.replace('http', 'ws');
-
-  const authToken = getAuthToken();
-  if (authToken) {
-    url.searchParams.append('authorization', `Token ${authToken}`);
-  }
-
-  const shareToken = getShareToken();
-  if (shareToken) {
-    url.searchParams.append('share_token', shareToken);
-  }
+  const url = getDocumentWsUrl(documentId);
 
   const [editor, initialValue] = useAutomergeWebsocketEditor(url, {
     onInitialSyncComplete: () => {

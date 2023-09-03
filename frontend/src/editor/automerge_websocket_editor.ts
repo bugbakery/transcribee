@@ -17,7 +17,7 @@ enum MessageSyncType {
 }
 
 export function useAutomergeWebsocketEditor(
-  url: string | URL,
+  url: string,
   { onInitialSyncComplete }: { onInitialSyncComplete: (editor?: Editor) => void },
 ): [Editor?, Paragraph[]?] {
   const debug = useDebugMode();
@@ -45,7 +45,7 @@ export function useAutomergeWebsocketEditor(
   const [_, navigate] = useLocation();
 
   useEffect(() => {
-    const ws = new ReconnectingWebSocket(url.toString(), [], { debug });
+    const ws = new ReconnectingWebSocket(url, [], { debug });
 
     let bytesReceived = 0;
     console.time('initialSync');
@@ -114,7 +114,7 @@ export function useAutomergeWebsocketEditor(
       wsRef.current = null;
       ws.close();
     };
-  }, [url.toString(), setEditorAndInitialValue]);
+  }, [url, setEditorAndInitialValue]);
 
   return [editorAndInitialValue?.editor, editorAndInitialValue?.initialValue];
 }

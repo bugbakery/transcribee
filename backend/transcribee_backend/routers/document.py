@@ -50,7 +50,6 @@ from ..models import (
     DocumentMediaFile,
     DocumentMediaTag,
     DocumentShareToken,
-    DocumentUpdate,
     Task,
     TaskType,
     UserToken,
@@ -360,13 +359,11 @@ async def create_document(
 
 @document_router.post("/import/")
 def import_document(
-    document_updates: List[UploadFile] = File(),
     media_file: UploadFile = File(),
     token: UserToken = Depends(get_user_token),
     session: Session = Depends(get_session),
     name: str = Form(),
 ):
-
     document = Document(
         name=name,
         user_id=token.user_id,
@@ -398,13 +395,6 @@ def import_document(
         document_id=document.id,
     )
     session.add(reencode_task)
-
-    for document_update in document_updates:
-        session.add(
-            DocumentUpdate(
-                document_id=document.id, change_bytes=document_update.file.read()
-            )
-        )
 
     session.commit()
     return document.as_api_document()

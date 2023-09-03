@@ -3,6 +3,7 @@ import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
 
+import ReconnectingWebSocket from 'reconnecting-websocket';
 import { createDocument, importDocument } from '../api/document';
 import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input, Select } from '../components/form';
@@ -11,6 +12,7 @@ import { AppCenter } from '../components/app';
 import { useGetConfig } from '../api/config';
 import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
 import * as Automerge from '@automerge/automerge';
+import { getDocumentWsUrl } from '../utils/auth';
 
 type FieldValues = {
   name: string;
@@ -97,7 +99,7 @@ export function NewDocumentPage() {
       setLoading(true);
       let response;
       if (isImport) {
-        type DocumentImportParamPeters = Parameters<typeof importDocument>[0];
+        type DocumentImportParameters = Parameters<typeof importDocument>[0];
         const zipReader = new ZipReader(new BlobReader(data.audioFile[0]));
         const entries = await zipReader.getEntries();
         const [automergeFile, mediaFile] = await Promise.all([
@@ -114,13 +116,16 @@ export function NewDocumentPage() {
         }
         const doc = Automerge.load(new Uint8Array(await automergeFile.arrayBuffer()));
         const changes = Automerge.getChanges(Automerge.init(), doc).map((x) => new Blob([x]));
-        const documentParameters: DocumentImportParamPeters = {
+        const documentParameters: DocumentImportParameters = {
           name: data.name,
           media_file: mediaFile,
-          document_updates: changes,
         };
 
         response = await importDocument(documentParameters);
+        const ws = new ReconnectingWebSocket(getDocumentWsUrl(response.data.id), []);
+        for (const change of changes) {
+          ws.send(change);
+        }
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
         const documentParameters: DocumentCreateParameters = {

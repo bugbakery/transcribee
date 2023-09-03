@@ -133,12 +133,6 @@ components:
       type: object
     Body_import_document_api_v1_documents_import__post:
       properties:
-        document_updates:
-          items:
-            format: binary
-            type: string
-          title: Document Updates
-          type: array
         media_file:
           format: binary
           title: Media File
@@ -147,7 +141,6 @@ components:
           title: Name
           type: string
       required:
-      - document_updates
       - media_file
       - name
       title: Body_import_document_api_v1_documents_import__post
