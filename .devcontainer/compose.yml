@@ -6,6 +6,7 @@ services:
       args:
         USER_UID: ${UID:-1000}
         USER_GID: ${GID:-1000}
+      context: ./
     volumes:
       - ..:/workspace:cached
       - nix:/nix
