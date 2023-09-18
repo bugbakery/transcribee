@@ -266,10 +266,10 @@ export function TranscriptionEditor({
         <>
           <div
             className={clsx(
-              'grow-[2] fixed left-0 top-0 flex items-center justify-center w-full h-full bg-white z-10',
+              'grow-[2] fixed left-0 top-0 flex items-center justify-center w-full h-full bg-white dark:bg-neutral-900 z-10',
             )}
           >
-            <LoadingBee size={200} className="" />
+            <LoadingBee size={200} />
           </div>
         </>
       )}
