@@ -1,4 +1,4 @@
-import { Redirect, Route, Router, Switch, useLocation } from 'wouter';
+import { DefaultParams, Route, RouteProps, Router, Switch, useLocation } from 'wouter';
 
 import { trimTrailingSlash } from './utils/trim_trailing_slash';
 import { LoginPage } from './pages/login';
@@ -16,17 +16,39 @@ import { AboutPage } from './pages/about';
 
 registerCopyHandler();
 
-const LOCATIONS_WIHTOUT_AUTH = ['/about'];
+export function AuthenticatedRoute<T extends DefaultParams = DefaultParams>({
+  ...props
+}: RouteProps<T>) {
+  const [_, navigate] = useLocation();
+  const { isLoggedIn, hasShareToken, isLoading } = useAuthData();
+  const isAuthenticated = isLoggedIn || hasShareToken;
+  if (isLoading) {
+    return <Route component={LoadingPage} />;
+  }
+  if (!isAuthenticated) {
+    navigate('/login');
+    return null;
+  }
+  return <Route {...props} />;
+}
+
+export function LoggedInRoute<T extends DefaultParams = DefaultParams>({
+  ...props
+}: RouteProps<T>) {
+  const [_, navigate] = useLocation();
+  const { isLoggedIn, isLoading } = useAuthData();
+  if (isLoading) {
+    return <Route component={LoadingPage} />;
+  }
+  if (!isLoggedIn) {
+    navigate('/login');
+    return null;
+  }
+  return <Route {...props} />;
+}
 
 export function App() {
   const routerBase = trimTrailingSlash(import.meta.env.BASE_URL);
-
-  const [location, navigate] = useLocation();
-  const { isLoading, isLoggedIn, hasShareToken } = useAuthData();
-  const isAuthenticated = isLoggedIn || hasShareToken;
-  if (!isAuthenticated && !isLoading && !LOCATIONS_WIHTOUT_AUTH.includes(location)) {
-    setTimeout(() => navigate('/login'), 0);
-  }
 
   return (
     <Router base={routerBase}>
@@ -37,23 +59,11 @@ export function App() {
         <Route path="/page/:pageId" component={PagePage} />
         <Route path="/about" component={AboutPage} />
 
-        {isLoggedIn && (
-          <>
-            <Route path="/" component={UserHomePage} />
-            <Route path="/new" component={NewDocumentPage} />
-          </>
-        )}
+        <LoggedInRoute path="/" component={UserHomePage} />
+        <LoggedInRoute path="/new" component={NewDocumentPage} />
 
-        {(isLoggedIn || hasShareToken) && (
-          <Route path="/document/:documentId" component={DocumentPage} />
-        )}
-        {/* If the user has a share token, but is not logged in, we redirect them to the login page instead of showing a 404 */}
-        {hasShareToken && !isLoggedIn && (
-          <Route>
-            <Redirect to="/login" />
-          </Route>
-        )}
-        {isLoading && <Route component={LoadingPage} />}
+        <AuthenticatedRoute path="/document/:documentId" component={DocumentPage} />
+
         <Route component={PageNotFoundPage} />
       </Switch>
     </Router>
