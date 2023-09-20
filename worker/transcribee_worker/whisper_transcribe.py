@@ -22,6 +22,11 @@ DONT_SPLIT_HERE_RES = [
         r".*\d\.\s?$"
     ),  # Don't split on numerals followed by a dot, e.g. "during the 20. century"
 ]
+# Regexes that protect a paragraph from being recombined
+DONT_COMBINE_RES = [
+    re.compile(r"^\[[^\s]*\]$"),  # [MUSIC]
+    re.compile(r"^\*[^\s]*\*$"),  # *Applause*
+]
 
 
 def get_model_file(model_name: str):
@@ -261,6 +266,13 @@ async def strict_sentence_paragraphs(
             acc_paragraph = Paragraph(
                 lang=paragraph.lang, speaker=paragraph.speaker, children=[]
             )
+
+        elif any(regex.search(paragraph.text()) for regex in DONT_COMBINE_RES):
+            if acc_paragraph.children:
+                yield acc_paragraph
+            acc_paragraph = None
+            yield paragraph
+            continue
 
         locale = Locale(paragraph.lang)
         sentence_iter = BreakIterator.createSentenceInstance(locale)
