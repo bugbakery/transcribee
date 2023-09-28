@@ -183,7 +183,12 @@ def align(
             # Atoms).
             # We might want to consider not counting the word separator to the timing of a atom.
 
-            atom_index_to_timing_index = []
+            atom_index_to_timing_index: list[
+                tuple[
+                    tuple[int | None, int] | None,
+                    tuple[int | None, int] | None,
+                ]
+            ] = []
             tokens = []
 
             for atom in atoms:
@@ -257,7 +262,11 @@ def align(
                     waveform_segment.size(1) / (trellis.size(0) - 1)
                 ) / settings.SAMPLE_RATE
                 for i, atom in enumerate(atoms):
-                    (start, last_end), (end, next_start) = atom_index_to_timing_index[i]
+                    start_info, end_info = atom_index_to_timing_index[i]
+                    if start_info is None or end_info is None:
+                        continue
+
+                    (start, last_end), (end, next_start) = start_info, end_info
 
                     if start is None:
                         if last_end < 0:
