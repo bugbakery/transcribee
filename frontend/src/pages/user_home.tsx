@@ -72,11 +72,10 @@ export function UserHomePage() {
           'gap-6',
         )}
       >
+        <NewDocumentCard />
         {data?.map((doc) => (
           <DocumentCard key={doc.id} doc={doc} mutate={mutate} />
         ))}
-
-        <NewDocumentCard />
       </ul>
     </AppContainer>
   );
