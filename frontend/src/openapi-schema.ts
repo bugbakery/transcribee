@@ -330,6 +330,8 @@ export interface components {
     };
     /** PublicConfig */
     PublicConfig: {
+      /** Logged Out Redirect Url */
+      logged_out_redirect_url?: string;
       /** Models */
       models: {
         [key: string]: components["schemas"]["ModelConfig"] | undefined;

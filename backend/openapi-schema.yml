@@ -370,6 +370,9 @@ components:
       type: object
     PublicConfig:
       properties:
+        logged_out_redirect_url:
+          title: Logged Out Redirect Url
+          type: string
         models:
           additionalProperties:
             $ref: '#/components/schemas/ModelConfig'

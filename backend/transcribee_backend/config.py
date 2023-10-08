@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     task_attempt_limit = 5
 
     media_url_base = "http://localhost:8000/"
+    logged_out_redirect_url: None | str = None
 
     model_config_path: Path = Path("data/models.json")
     pages_dir: Path = Path("data/pages/")
@@ -28,6 +29,7 @@ class ModelConfig(BaseModel):
 
 class PublicConfig(BaseModel):
     models: Dict[str, ModelConfig]
+    logged_out_redirect_url: str | None
 
 
 class ShortPageConfig(BaseModel):
@@ -69,7 +71,10 @@ def get_short_page_config() -> Dict[str, ShortPageConfig]:
 
 
 def get_public_config():
-    return PublicConfig(models=get_model_config())
+    return PublicConfig(
+        models=get_model_config(),
+        logged_out_redirect_url=settings.logged_out_redirect_url,
+    )
 
 
 settings = Settings()
