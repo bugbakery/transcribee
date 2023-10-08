@@ -13,6 +13,7 @@ import { useAuthData } from './utils/auth';
 import { LoadingPage } from './pages/loading';
 import { PagePage } from './pages/page';
 import { AboutPage } from './pages/about';
+import { useGetConfig } from './api/config';
 
 registerCopyHandler();
 
@@ -47,6 +48,26 @@ export function LoggedInRoute<T extends DefaultParams = DefaultParams>({
   return <Route {...props} />;
 }
 
+export function LoggedInRedirectRoute<T extends DefaultParams = DefaultParams>({
+  ...props
+}: RouteProps<T>) {
+  const [_, navigate] = useLocation();
+  const { isLoggedIn, isLoading } = useAuthData();
+  const { data: config, isLoading: configLoading } = useGetConfig({});
+  if (isLoading) {
+    return <Route component={LoadingPage} />;
+  }
+  if (!isLoggedIn && !configLoading) {
+    if (config.logged_out_redirect_url) {
+      window.location.replace(config.logged_out_redirect_url);
+    } else {
+      navigate('/login');
+    }
+    return null;
+  }
+  return <Route {...props} />;
+}
+
 export function App() {
   const routerBase = trimTrailingSlash(import.meta.env.BASE_URL);
 
@@ -59,7 +80,7 @@ export function App() {
         <Route path="/page/:pageId" component={PagePage} />
         <Route path="/about" component={AboutPage} />
 
-        <LoggedInRoute path="/" component={UserHomePage} />
+        <LoggedInRedirectRoute path="/" component={UserHomePage} />
         <LoggedInRoute path="/new" component={NewDocumentPage} />
 
         <AuthenticatedRoute path="/document/:documentId" component={DocumentPage} />
