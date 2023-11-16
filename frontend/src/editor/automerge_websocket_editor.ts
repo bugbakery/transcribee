@@ -64,7 +64,11 @@ export function useAutomergeWebsocketEditor(
       onInitialSyncComplete(editor);
       setEditorAndInitialValue((oldValue) => {
         oldValue?.editor.removeDocChangeListener(sendDocChange);
-        return { editor: editor, initialValue: JSON.parse(JSON.stringify(migratedDoc.children)) };
+        const initialValue =
+          migratedDoc.children !== undefined
+            ? JSON.parse(JSON.stringify(migratedDoc.children))
+            : [];
+        return { editor: editor, initialValue: initialValue };
       });
     };
 
