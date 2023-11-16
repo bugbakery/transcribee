@@ -103,6 +103,10 @@ export interface paths {
     /** Read User */
     get: operations["read_user_api_v1_users_me__get"];
   };
+  "/api/v1/worker/create/": {
+    /** Create Worker Endpoint */
+    post: operations["create_worker_endpoint_api_v1_worker_create__post"];
+  };
   "/media/{file}": {
     /** Serve Media */
     get: operations["serve_media_media__file__get"];
@@ -226,6 +230,11 @@ export interface components {
       password: string;
       /** Username */
       username: string;
+    };
+    /** CreateWorker */
+    CreateWorker: {
+      /** Name */
+      name: string;
     };
     /** Document */
     Document: {
@@ -449,6 +458,23 @@ export interface components {
       msg: string;
       /** Error Type */
       type: string;
+    };
+    /** Worker */
+    Worker: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id?: string;
+      /**
+       * Last Seen
+       * Format: date-time
+       */
+      last_seen?: string;
+      /** Name */
+      name: string;
+      /** Token */
+      token: string;
     };
   };
   responses: never;
@@ -1123,6 +1149,33 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["UserBase"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Create Worker Endpoint */
+  create_worker_endpoint_api_v1_worker_create__post: {
+    parameters: {
+      header: {
+        "Api-Token": string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateWorker"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Worker"];
         };
       };
       /** @description Validation Error */

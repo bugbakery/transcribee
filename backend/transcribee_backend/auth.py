@@ -13,7 +13,14 @@ from sqlmodel import Session, col, or_, select
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists, UserDoesNotExist
 from transcribee_backend.helpers.time import now_tz_aware
-from transcribee_backend.models import DocumentShareToken, Task, User, UserToken, Worker
+from transcribee_backend.models import (
+    ApiToken,
+    DocumentShareToken,
+    Task,
+    User,
+    UserToken,
+    Worker,
+)
 
 
 class NotAuthorized(Exception):
@@ -194,3 +201,37 @@ def validate_share_authorization(
         return token
 
     raise HTTPException(status_code=401)
+
+
+def get_api_token(
+    session: Session = Depends(get_session),
+    api_token: str = Header(alias="Api-Token"),
+) -> Optional[ApiToken]:
+    return validate_api_token_authorization(session, api_token)
+
+
+def validate_api_token_authorization(session: Session, api_token: str):
+    statement = select(ApiToken).where(
+        ApiToken.token == api_token,
+    )
+    token = session.exec(statement).one_or_none()
+    if token:
+        return token
+
+    raise HTTPException(status_code=401)
+
+
+def create_worker(session: Session, name: str) -> Worker:
+    token = b64encode(os.urandom(32)).decode()
+    worker = Worker(name=name, token=token, last_seen=None)
+    session.add(worker)
+    session.commit()
+    return worker
+
+
+def create_api_token(session: Session, name: str) -> ApiToken:
+    token = b64encode(os.urandom(64)).decode()
+    token = ApiToken(name=name, token=token)
+    session.add(token)
+    session.commit()
+    return token
