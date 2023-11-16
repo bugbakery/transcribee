@@ -103,6 +103,10 @@ export interface paths {
     /** Read User */
     get: operations["read_user_api_v1_users_me__get"];
   };
+  "/api/v1/worker/": {
+    /** List Workers */
+    get: operations["list_workers_api_v1_worker__get"];
+  };
   "/api/v1/worker/create/": {
     /** Create Worker Endpoint */
     post: operations["create_worker_endpoint_api_v1_worker_create__post"];
@@ -475,6 +479,16 @@ export interface components {
       name: string;
       /** Token */
       token: string;
+    };
+    /** WorkerBase */
+    WorkerBase: {
+      /**
+       * Last Seen
+       * Format: date-time
+       */
+      last_seen?: string;
+      /** Name */
+      name: string;
     };
   };
   responses: never;
@@ -1149,6 +1163,28 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["UserBase"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** List Workers */
+  list_workers_api_v1_worker__get: {
+    parameters: {
+      header: {
+        "Api-Token": string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": (components["schemas"]["WorkerBase"])[];
         };
       };
       /** @description Validation Error */

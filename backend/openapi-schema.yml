@@ -591,6 +591,19 @@ components:
       - token
       title: Worker
       type: object
+    WorkerBase:
+      properties:
+        last_seen:
+          format: date-time
+          title: Last Seen
+          type: string
+        name:
+          title: Name
+          type: string
+      required:
+      - name
+      title: WorkerBase
+      type: object
 info:
   title: FastAPI
   version: 0.1.0
@@ -1424,6 +1437,33 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Read User
+  /api/v1/worker/:
+    get:
+      operationId: list_workers_api_v1_worker__get
+      parameters:
+      - in: header
+        name: Api-Token
+        required: true
+        schema:
+          title: Api-Token
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/WorkerBase'
+                title: Response List Workers Api V1 Worker  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Workers
   /api/v1/worker/create/:
     post:
       operationId: create_worker_endpoint_api_v1_worker_create__post
