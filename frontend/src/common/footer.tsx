@@ -176,6 +176,16 @@ export function Footer({ className = '' }: { className?: string }) {
           </Link>
         </PipeListItem>
         <FooterPages />
+        <PipeListItem>
+          <a
+            href={`https://github.com/bugbakery/transcribee/issues/new`}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-dashed"
+          >
+            Report Bug
+          </a>
+        </PipeListItem>
       </ul>
     </div>
   );
