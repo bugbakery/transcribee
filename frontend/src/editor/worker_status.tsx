@@ -48,8 +48,34 @@ export function WorkerStatus({ documentId }: { documentId: string }) {
   return <WorkerStatusWithData data={data} />;
 }
 
-export function WorkerStatusWithData({ data }: { data: Task[] }) {
+function isSuperset<T>(set: Set<T>, subset: Set<T>) {
+  for (const elem of subset) {
+    if (!set.has(elem)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function WorkerStatusWithData({ data: unsortedData }: { data: Task[] | undefined }) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+
+  const data: Task[] = [];
+  if (unsortedData !== undefined) {
+    const unsortedDataCopy = [...unsortedData];
+    const seenIds = new Set();
+    while (unsortedDataCopy.length > 0) {
+      const item = unsortedDataCopy.shift();
+      if (!item) break;
+      const dependencyIds = new Set(item.dependencies);
+      if (isSuperset(seenIds, dependencyIds)) {
+        data.push(item);
+        seenIds.add(item.id);
+      } else {
+        unsortedDataCopy.push(item);
+      }
+    }
+  }
 
   const isWorking = data?.some((task) => task.state !== 'COMPLETED');
   const isFailed = data?.some((task) => task.state == 'FAILED');
