@@ -53,6 +53,9 @@ pkgs.mkShell {
     file
 
     icu.dev
+
+    # Our database
+    postgresql
   ] ++
 
   # accelerates whisper.cpp on M{1,2} Macs

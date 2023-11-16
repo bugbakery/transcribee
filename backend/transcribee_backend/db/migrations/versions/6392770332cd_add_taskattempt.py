@@ -50,8 +50,6 @@ def upgrade_with_autocommit() -> None:
     with op.batch_alter_table("taskattempt", schema=None) as batch_op:
         batch_op.create_index(batch_op.f("ix_taskattempt_id"), ["id"], unique=False)
 
-    op.execute("PRAGMA foreign_keys=OFF")
-
     with op.batch_alter_table("task", schema=None) as batch_op:
         batch_op.add_column(
             sa.Column("current_attempt_id", sqlmodel.sql.sqltypes.GUID(), nullable=True)
@@ -61,10 +59,15 @@ def upgrade_with_autocommit() -> None:
                 "attempt_counter", sa.Integer(), nullable=True, server_default="0"
             )
         )
+        taskstate_enum = sa.Enum(
+            "NEW", "ASSIGNED", "COMPLETED", "FAILED", name="taskstate"
+        )
+        bind = batch_op.get_bind()
+        taskstate_enum.create(bind=bind)
         batch_op.add_column(
             sa.Column(
                 "state",
-                sa.Enum("NEW", "ASSIGNED", "COMPLETED", "FAILED", name="taskstate"),
+                taskstate_enum,
                 nullable=False,
                 server_default="NEW",
             )
@@ -84,8 +87,6 @@ def upgrade_with_autocommit() -> None:
             ondelete="SET NULL",
             use_alter=True,
         )
-
-    op.execute("PRAGMA foreign_keys=ON")
 
     Task = sa.table(
         "task",
@@ -154,7 +155,6 @@ def upgrade_with_autocommit() -> None:
             .values(remaining_attempts=settings.task_attempt_limit)
         )
 
-    op.execute("PRAGMA foreign_keys=OFF")
     with op.batch_alter_table("task", schema=None) as batch_op:
         batch_op.drop_column("completed_at")
         batch_op.drop_column("is_completed")
@@ -172,8 +172,6 @@ def upgrade_with_autocommit() -> None:
         batch_op.alter_column(
             "attempt_counter", existing_type=sa.INTEGER(), nullable=False
         )
-
-    op.execute("PRAGMA foreign_keys=ON")
 
 
 def downgrade() -> None:

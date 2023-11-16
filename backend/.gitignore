@@ -7,3 +7,4 @@ storage/
 data/
 !data/pages/.gitkeep
 .pdm.toml
+db/

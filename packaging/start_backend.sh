@@ -8,4 +8,6 @@ if [ !  -z "${TRANSCRIBEE_DYLD_LIBRARY_PATH:-}" ]; then
     export DYLD_LIBRARY_PATH=$LD_LIBRARY_PATH:${DYLD_LIBRARY_PATH:-}
 fi
 
+./setup_backend.sh
+
 pdm run -p ../backend/ dev
