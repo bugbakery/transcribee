@@ -11,6 +11,7 @@ from transcribee_backend.routers.document import document_router
 from transcribee_backend.routers.page import page_router
 from transcribee_backend.routers.task import task_router
 from transcribee_backend.routers.user import user_router
+from transcribee_backend.routers.worker import worker_router
 
 from .media_storage import serve_media
 
@@ -32,6 +33,7 @@ app.include_router(document_router, prefix="/api/v1/documents")
 app.include_router(task_router, prefix="/api/v1/tasks")
 app.include_router(config_router, prefix="/api/v1/config")
 app.include_router(page_router, prefix="/api/v1/page")
+app.include_router(worker_router, prefix="/api/v1/worker")
 
 
 @app.get("/")

@@ -1,3 +1,4 @@
+from .api import ApiToken
 from .document import (
     Document,
     DocumentMediaFile,
@@ -19,6 +20,7 @@ from .user import CreateUser, User, UserBase, UserToken
 from .worker import Worker
 
 __all__ = [
+    "ApiToken",
     "Document",
     "DocumentMediaFile",
     "DocumentMediaTag",

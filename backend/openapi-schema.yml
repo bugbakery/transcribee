@@ -189,6 +189,15 @@ components:
       - password
       title: CreateUser
       type: object
+    CreateWorker:
+      properties:
+        name:
+          title: Name
+          type: string
+      required:
+      - name
+      title: CreateWorker
+      type: object
     Document:
       properties:
         changed_at:
@@ -560,6 +569,27 @@ components:
       - msg
       - type
       title: ValidationError
+      type: object
+    Worker:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        last_seen:
+          format: date-time
+          title: Last Seen
+          type: string
+        name:
+          title: Name
+          type: string
+        token:
+          title: Token
+          type: string
+      required:
+      - name
+      - token
+      title: Worker
       type: object
 info:
   title: FastAPI
@@ -1394,6 +1424,36 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Read User
+  /api/v1/worker/create/:
+    post:
+      operationId: create_worker_endpoint_api_v1_worker_create__post
+      parameters:
+      - in: header
+        name: Api-Token
+        required: true
+        schema:
+          title: Api-Token
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorker'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Worker'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Create Worker Endpoint
   /media/{file}:
     get:
       operationId: serve_media_media__file__get
