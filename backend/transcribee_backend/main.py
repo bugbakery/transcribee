@@ -1,5 +1,7 @@
 import asyncio
 
+from aioprometheus.asgi.middleware import MetricsMiddleware
+from aioprometheus.asgi.starlette import metrics
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -16,6 +18,9 @@ from transcribee_backend.routers.worker import worker_router
 from .media_storage import serve_media
 
 app = FastAPI()
+app.add_middleware(MetricsMiddleware)
+app.add_route("/metrics", metrics)
+
 
 origins = ["*"]
 
