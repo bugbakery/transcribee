@@ -49,7 +49,7 @@ def login(user: CreateUser, session: Session = Depends(get_session)) -> LoginRes
 @user_router.post("/logout/")
 def logout(
     token: UserToken = Depends(get_user_token), session: Session = Depends(get_session)
-):
+) -> None:
     session.delete(token)
     session.commit()
 
@@ -58,10 +58,10 @@ def logout(
 def read_user(
     token: UserToken = Depends(get_user_token),
     session: Session = Depends(get_session),
-):
+) -> UserBase:
     statement = select(User).where(User.id == token.user_id)
     user = session.exec(statement).one()
-    return {"username": user.username}
+    return UserBase(username=user.username)
 
 
 @user_router.post("/change_password/")
@@ -69,7 +69,7 @@ def change_password(
     body: ChangePasswordRequest,
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
-):
+) -> UserBase:
     try:
         authorized_user = authorize_user(
             session=session, username=token.user.username, password=body.old_password
@@ -84,4 +84,4 @@ def change_password(
     )
     session.execute(delete(UserToken).where(UserToken.user_id == authorized_user.id))
     session.commit()
-    return {"username": user.username}
+    return UserBase(username=user.username)

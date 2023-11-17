@@ -5,8 +5,9 @@ import { BsRobot } from 'react-icons/bs';
 import clsx from 'clsx';
 import React from 'react';
 import { useMediaQuery } from '../utils/use_media_query';
+import { RequestDataType } from '../api';
 
-type Task = ReturnType<typeof useGetDocumentTasks>['data'][0];
+type Task = RequestDataType<typeof useGetDocumentTasks>[0];
 
 function formatProgress(task: Task | null): string | undefined {
   if (!task) return;
@@ -45,7 +46,7 @@ export function getWorkerStatusString(isWorking: boolean, isFailed: boolean): st
 export function WorkerStatus({ documentId }: { documentId: string }) {
   const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
 
-  return <WorkerStatusWithData data={data} />;
+  return <WorkerStatusWithData data={data !== undefined ? data : []} />;
 }
 
 function isSuperset<T>(set: Set<T>, subset: Set<T>) {

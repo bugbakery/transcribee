@@ -531,6 +531,15 @@ components:
       - document_id
       title: UnknownTask
       type: object
+    UserBase:
+      properties:
+        username:
+          title: Username
+          type: string
+      required:
+      - username
+      title: UserBase
+      type: object
     ValidationError:
       properties:
         loc:
@@ -654,7 +663,8 @@ paths:
         '200':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/Document'
           description: Successful Response
         '422':
           content:
@@ -1282,7 +1292,8 @@ paths:
         '200':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/UserBase'
           description: Successful Response
         '422':
           content:
@@ -1373,7 +1384,8 @@ paths:
         '200':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/UserBase'
           description: Successful Response
         '422':
           content:

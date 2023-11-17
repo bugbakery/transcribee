@@ -9,9 +9,10 @@ import { IoMdTrash } from 'react-icons/io';
 import { IconButton } from '../components/button';
 import { WorkerStatusWithData } from '../editor/worker_status';
 import { ComponentProps, useEffect, useState } from 'react';
+import { RequestDataType } from '../api';
 
-type ApiDocument = ReturnType<typeof useListDocuments>['data'][0];
-type Tasks = ReturnType<typeof useListDocuments>['data'][0]['tasks'];
+type ApiDocument = RequestDataType<typeof useListDocuments>[0];
+type Tasks = RequestDataType<typeof useListDocuments>[0]['tasks'];
 
 function getTaskProgress(tasks: Tasks) {
   if (tasks.length == 0) return 0;

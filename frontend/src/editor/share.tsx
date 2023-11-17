@@ -9,8 +9,9 @@ import { HiOutlineClipboardCopy } from 'react-icons/hi';
 import clsx from 'clsx';
 import { DialogSeparator } from '../components/dialog';
 import { Tooltip } from '../components/tooltip';
+import { RequestDataType } from '../api';
 
-type ShareToken = ReturnType<typeof useListShareTokens>['data'][0];
+type ShareToken = RequestDataType<typeof useListShareTokens>[0];
 
 function pad(number: number) {
   if (number < 10) {
@@ -235,7 +236,7 @@ export function ShareModal({
         </section>
         <section className="w-full pt-4 border-t-2 sm:border-t-0 sm:border-l-2 sm:pb-6 sm:pl-6 sm:w-1/2 sm:-mb-6">
           <ShareTokenTable
-            shareTokens={shareTokens}
+            shareTokens={shareTokens !== undefined ? shareTokens : []}
             mutateShareTokens={mutateShareTokens}
             documentId={documentId}
           />
