@@ -6,6 +6,7 @@ import { Modal } from '../../components/modal';
 import { WebVttExportBody } from './webvtt';
 import { TranscribeeExportBody } from './transcribee';
 import { ApiDocument } from '../../api/document';
+import { PlaintextExportBody } from './plaintext';
 
 export type ExportProps = {
   outputNameBase: string;
@@ -28,6 +29,10 @@ const exportTypes: ExportType[] = [
   {
     name: 'Subtitles',
     component: WebVttExportBody,
+  },
+  {
+    name: 'Plaintext',
+    component: PlaintextExportBody,
   },
   {
     name: 'Transcribee Archive',
