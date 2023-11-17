@@ -57,7 +57,7 @@ export function LoggedInRedirectRoute<T extends DefaultParams = DefaultParams>({
   if (isLoading) {
     return <Route component={LoadingPage} />;
   }
-  if (!isLoggedIn && !configLoading) {
+  if (!isLoggedIn && !configLoading && config !== undefined) {
     if (config.logged_out_redirect_url) {
       window.location.replace(config.logged_out_redirect_url);
     } else {

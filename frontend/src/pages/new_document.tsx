@@ -13,6 +13,7 @@ import { useGetConfig } from '../api/config';
 import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
 import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../utils/auth';
+import { RequestDataType } from '../api';
 
 type FieldValues = {
   name: string;
@@ -23,7 +24,7 @@ type FieldValues = {
   numberOfSpeakers: number;
 };
 
-type ModelConfig = ReturnType<typeof useGetConfig>['data']['models'];
+type ModelConfig = RequestDataType<typeof useGetConfig>['models'];
 
 export function getLanguages(models: ModelConfig, model: string | undefined): string[] | null {
   if (model === undefined) {
@@ -53,6 +54,7 @@ export function NewDocumentPage() {
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const { data: config, isLoading } = useGetConfig({});
+  const models = config !== undefined ? config.models : {};
   const {
     register,
     handleSubmit,
@@ -290,7 +292,7 @@ export function NewDocumentPage() {
                       className="flex-grow mr-2"
                     >
                       <Select {...register('model')}>
-                        {Object.values(config.models).map((cur_model) =>
+                        {Object.values(models).map((cur_model) =>
                           cur_model !== undefined ? (
                             <option value={cur_model.id} key={cur_model.id}>
                               {cur_model.name}
@@ -307,7 +309,7 @@ export function NewDocumentPage() {
                       className="flex-grow"
                     >
                       <Select {...register('language')}>
-                        {getLanguages(config.models, model)?.map((lang) => (
+                        {getLanguages(models, model)?.map((lang) => (
                           <option value={lang} key={lang}>
                             {lang}
                           </option>

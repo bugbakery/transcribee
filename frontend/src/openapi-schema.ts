@@ -138,17 +138,17 @@ export interface components {
       /** Id */
       id: string;
       /** Media Files */
-      media_files: (components["schemas"]["DocumentMedia"])[];
+      media_files: components["schemas"]["DocumentMedia"][];
       /** Name */
       name: string;
       /** Tasks */
-      tasks: (components["schemas"]["TaskResponse"])[];
+      tasks: components["schemas"]["TaskResponse"][];
     };
     /** AssignedTaskResponse */
     AssignedTaskResponse: {
       current_attempt?: components["schemas"]["TaskAttemptResponse"];
       /** Dependencies */
-      dependencies: (string)[];
+      dependencies: string[];
       document: components["schemas"]["Document"];
       /**
        * Document Id
@@ -173,7 +173,7 @@ export interface components {
        */
       file: string;
       /** Tags */
-      tags: (string)[];
+      tags: string[];
     };
     /** Body_create_document_api_v1_documents__post */
     Body_create_document_api_v1_documents__post: {
@@ -236,7 +236,7 @@ export interface components {
       /** Id */
       id: string;
       /** Media Files */
-      media_files: (components["schemas"]["DocumentMedia"])[];
+      media_files: components["schemas"]["DocumentMedia"][];
       /** Name */
       name: string;
     };
@@ -245,7 +245,7 @@ export interface components {
       /** Content Type */
       content_type: string;
       /** Tags */
-      tags: (string)[];
+      tags: string[];
       /** Url */
       url: string;
     };
@@ -291,14 +291,14 @@ export interface components {
       /** Id */
       id: string;
       /** Media Files */
-      media_files: (components["schemas"]["DocumentMedia"])[];
+      media_files: components["schemas"]["DocumentMedia"][];
       /** Name */
       name: string;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
-      detail?: (components["schemas"]["ValidationError"])[];
+      detail?: components["schemas"]["ValidationError"][];
     };
     /** KeepaliveBody */
     KeepaliveBody: {
@@ -315,7 +315,7 @@ export interface components {
       /** Id */
       id: string;
       /** Languages */
-      languages: (string)[];
+      languages: string[];
       /** Name */
       name: string;
     };
@@ -334,7 +334,7 @@ export interface components {
       logged_out_redirect_url?: string;
       /** Models */
       models: {
-        [key: string]: components["schemas"]["ModelConfig"] | undefined;
+        [key: string]: components["schemas"]["ModelConfig"];
       };
     };
     /** SetDurationRequest */
@@ -374,7 +374,7 @@ export interface components {
     TaskResponse: {
       current_attempt?: components["schemas"]["TaskAttemptResponse"];
       /** Dependencies */
-      dependencies: (string)[];
+      dependencies: string[];
       /**
        * Document Id
        * Format: uuid
@@ -436,6 +436,11 @@ export interface components {
       /** Task Type */
       task_type: string;
     };
+    /** UserBase */
+    UserBase: {
+      /** Username */
+      username: string;
+    };
     /** ValidationError */
     ValidationError: {
       /** Location */
@@ -453,6 +458,8 @@ export interface components {
   pathItems: never;
 }
 
+export type $defs = Record<string, never>;
+
 export type external = Record<string, never>;
 
 export interface operations {
@@ -463,7 +470,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": unknown;
         };
       };
     };
@@ -490,7 +497,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": (components["schemas"]["ApiDocumentWithTasks"])[];
+          "application/json": components["schemas"]["ApiDocumentWithTasks"][];
         };
       };
       /** @description Validation Error */
@@ -544,7 +551,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["Document"];
         };
       };
       /** @description Validation Error */
@@ -558,7 +565,7 @@ export interface operations {
   /** Get Document */
   get_document_api_v1_documents__document_id___get: {
     parameters: {
-      header: {
+      header?: {
         authorization?: string;
         "Share-Token"?: string;
       };
@@ -584,7 +591,7 @@ export interface operations {
   /** Delete Document */
   delete_document_api_v1_documents__document_id___delete: {
     parameters: {
-      header: {
+      header?: {
         authorization?: string;
         "Share-Token"?: string;
       };
@@ -596,7 +603,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
@@ -610,7 +617,7 @@ export interface operations {
   /** Update Document */
   update_document_api_v1_documents__document_id___patch: {
     parameters: {
-      header: {
+      header?: {
         authorization?: string;
         "Share-Token"?: string;
       };
@@ -701,7 +708,7 @@ export interface operations {
   /** List Share Tokens */
   list_share_tokens_api_v1_documents__document_id__share_tokens__get: {
     parameters: {
-      header: {
+      header?: {
         authorization?: string;
         "Share-Token"?: string;
       };
@@ -713,7 +720,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": (components["schemas"]["DocumentShareTokenBase"])[];
+          "application/json": components["schemas"]["DocumentShareTokenBase"][];
         };
       };
       /** @description Validation Error */
@@ -758,7 +765,7 @@ export interface operations {
   /** Delete Share Tokens */
   delete_share_tokens_api_v1_documents__document_id__share_tokens__token_id___delete: {
     parameters: {
-      header: {
+      header?: {
         authorization?: string;
         "Share-Token"?: string;
       };
@@ -771,7 +778,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
@@ -785,7 +792,7 @@ export interface operations {
   /** Get Document Tasks */
   get_document_tasks_api_v1_documents__document_id__tasks__get: {
     parameters: {
-      header: {
+      header?: {
         authorization?: string;
         "Share-Token"?: string;
       };
@@ -797,7 +804,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": (components["schemas"]["TaskResponse"])[];
+          "application/json": components["schemas"]["TaskResponse"][];
         };
       };
       /** @description Validation Error */
@@ -815,7 +822,7 @@ export interface operations {
       200: {
         content: {
           "application/json": {
-            [key: string]: components["schemas"]["ShortPageConfig"] | undefined;
+            [key: string]: components["schemas"]["ShortPageConfig"];
           };
         };
       };
@@ -836,7 +843,9 @@ export interface operations {
         };
       };
       /** @description Page not found */
-      404: never;
+      404: {
+        content: never;
+      };
       /** @description Validation Error */
       422: {
         content: {
@@ -856,7 +865,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": (components["schemas"]["TaskResponse"])[];
+          "application/json": components["schemas"]["TaskResponse"][];
         };
       };
       /** @description Validation Error */
@@ -898,7 +907,7 @@ export interface operations {
   claim_unassigned_task_api_v1_tasks_claim_unassigned_task__post: {
     parameters: {
       query: {
-        task_type: (components["schemas"]["TaskType"])[];
+        task_type: components["schemas"]["TaskType"][];
       };
       header: {
         authorization: string;
@@ -1025,7 +1034,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["UserBase"];
         };
       };
       /** @description Validation Error */
@@ -1047,7 +1056,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
@@ -1091,7 +1100,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
@@ -1113,7 +1122,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["UserBase"];
         };
       };
       /** @description Validation Error */
@@ -1130,8 +1139,8 @@ export interface operations {
       query: {
         "X-Transcribee-Signature": string;
       };
-      header: {
-        range?: Record<string, never>;
+      header?: {
+        range?: unknown;
       };
       path: {
         file: string;
@@ -1141,7 +1150,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": Record<string, never>;
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */

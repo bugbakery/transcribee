@@ -1,6 +1,6 @@
 import { paths } from './openapi-schema';
 import { ApiResponse, Fetcher, Middleware } from 'openapi-typescript-fetch';
-import useSwr, { SWRConfiguration } from 'swr';
+import useSwr, { SWRConfiguration, SWRResponse } from 'swr';
 import { defaultConfig } from 'swr/_internal';
 
 export function getShareToken(): string | null {
@@ -70,3 +70,8 @@ export function makeRetrySwrHook<P, R>(
       ...options,
     });
 }
+
+export type RequestDataType<T extends (...args: never) => SWRResponse> = Exclude<
+  ReturnType<T>['data'],
+  undefined
+>;

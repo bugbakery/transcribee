@@ -363,7 +363,7 @@ def import_document(
     token: UserToken = Depends(get_user_token),
     session: Session = Depends(get_session),
     name: str = Form(),
-):
+) -> ApiDocument:
     document = Document(
         name=name,
         user_id=token.user_id,
