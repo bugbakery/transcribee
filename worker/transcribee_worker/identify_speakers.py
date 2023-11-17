@@ -35,7 +35,14 @@ async def identify_speakers(
 
         segments = [
             (
-                time_to_sample(child.children[0].start),
+                min(
+                    time_to_sample(child.children[0].start),
+                    # we always use at least 0.1s,
+                    # otherwise the fingerprinting model explodes sometimes
+                    # since the start of the segment might be less than 0.1s
+                    # from end of the audio, we use this as a safety
+                    len(audio) - time_to_sample(0.1),
+                ),
                 max(
                     time_to_sample(child.children[-1].end),
                     # we always use at least 0.1s,
