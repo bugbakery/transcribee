@@ -42,7 +42,7 @@ def store_file(file: BinaryIO) -> str:
     return name
 
 
-def force_bytes(v: bytes | str):
+def force_bytes(v: bytes | str) -> bytes:
     if isinstance(v, str):
         return v.encode()
     return v
