@@ -111,7 +111,9 @@ def validate_worker_authorization(session: Session, authorization: str) -> Worke
     if token_type != "Worker":
         raise HTTPException(status_code=401)
 
-    statement = select(Worker).where(Worker.token == token)
+    statement = select(Worker).where(
+        Worker.token == token, col(Worker.deactivated_at).is_(None)
+    )
     worker = session.exec(statement).one_or_none()
     if worker is None:
         raise HTTPException(status_code=401)
@@ -223,7 +225,7 @@ def validate_api_token_authorization(session: Session, api_token: str):
 
 def create_worker(session: Session, name: str) -> Worker:
     token = b64encode(os.urandom(32)).decode()
-    worker = Worker(name=name, token=token, last_seen=None)
+    worker = Worker(name=name, token=token, last_seen=None, deactivated_at=None)
     session.add(worker)
     session.commit()
     return worker
