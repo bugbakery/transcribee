@@ -95,6 +95,12 @@ class Task(TaskBase, table=True):
             "secondaryjoin": "Task.id==TaskDependency.dependant_on_id",
         },
     )
+    dependency_links: List[TaskDependency] = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "Task.id==TaskDependency.dependent_task_id",
+            "viewonly": True,
+        },
+    )
     dependants: List["Task"] = Relationship(
         back_populates="dependencies",
         link_model=TaskDependency,
@@ -155,12 +161,29 @@ class TaskResponse(TaskBase):
 
     @classmethod
     def from_orm(cls, task: Task, update={}) -> Self:
-        return super().from_orm(
-            task,
-            update={
-                "dependencies": [x.id for x in task.dependencies],
-                **update,
-            },
+        # The following code is equivalent to this:
+        #     return super().from_orm(
+        #         task,
+        #         update={
+        #             "dependencies": [x.dependant_on_id for x in task.dependency_links],
+        #             **update,
+        #         },
+        #     )
+        # But much faster, because from_orm destructures the `obj` to mix it
+        # with the `update` dict, which causes an access to all attributes,
+        # including `dependencies`/`dependents` which are then all seperately
+        # selected from the database, causing many query
+        # Even with a small number of document this cuts the loading time of
+        # the `/api/v1/documents/` endpoint roughly in half on my test machine
+        return cls(
+            id=task.id,
+            state=task.state,
+            dependencies=[x.dependant_on_id for x in task.dependency_links],
+            current_attempt=None,
+            document_id=task.document_id,
+            task_type=task.task_type,
+            task_parameters=task.task_parameters,
+            **update,
         )
 
 

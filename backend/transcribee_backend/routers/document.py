@@ -22,6 +22,7 @@ from fastapi import (
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from pydantic.error_wrappers import ErrorWrapper
+from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, col, select
 from transcribee_proto.api import Document as ApiDocument
@@ -409,6 +410,12 @@ def list_documents(
         select(Document)
         .where(Document.user == token.user)
         .order_by(desc(Document.changed_at), Document.id)
+        .options(
+            selectinload("tasks"),
+            selectinload("media_files"),
+            selectinload("media_files.tags"),
+            selectinload("tasks.dependency_links"),
+        )
     )
     results = session.exec(statement)
     return [doc.as_api_document() for doc in results]
