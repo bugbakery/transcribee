@@ -56,6 +56,7 @@ pkgs.mkShell {
 
     # Our database
     postgresql
+    openssl # needed for psycopg2
   ] ++
 
   # accelerates whisper.cpp on M{1,2} Macs
