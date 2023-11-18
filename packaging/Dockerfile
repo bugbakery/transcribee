@@ -13,7 +13,6 @@ RUN nix-build shell.nix
 COPY . /app/
 
 RUN nix-shell shell.nix --command ./packaging/install_dependencies.sh
-RUN nix-shell shell.nix --command ./packaging/setup_backend.sh
 
 EXPOSE 5173
 
