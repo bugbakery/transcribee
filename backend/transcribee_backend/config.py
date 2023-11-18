@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     model_config_path: Path = Path("data/models.json")
     pages_dir: Path = Path("data/pages/")
 
+    metrics_username = "transcribee"
+    metrics_password = "transcribee"
+
 
 class ModelConfig(BaseModel):
     id: str

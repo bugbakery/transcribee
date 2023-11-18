@@ -626,10 +626,14 @@ components:
       - name
       title: WorkerWithId
       type: object
+  securitySchemes:
+    HTTPBasic:
+      scheme: basic
+      type: http
 info:
   title: FastAPI
   version: 0.1.0
-openapi: 3.0.2
+openapi: 3.1.0
 paths:
   /:
     get:
@@ -1576,3 +1580,16 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Serve Media
+  /metrics:
+    get:
+      description: Endpoint that serves Prometheus metrics.
+      operationId: metrics_metrics_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      security:
+      - HTTPBasic: []
+      summary: Metrics

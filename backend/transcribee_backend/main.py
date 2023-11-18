@@ -1,13 +1,13 @@
 import asyncio
 
-from aioprometheus.asgi.middleware import MetricsMiddleware
-from aioprometheus.asgi.starlette import metrics
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from transcribee_backend.config import settings
 from transcribee_backend.helpers.periodic_tasks import run_periodic
 from transcribee_backend.helpers.tasks import remove_expired_tokens, timeout_attempts
+from transcribee_backend.metrics import init_metrics, metrics_auth, refresh_metrics
 from transcribee_backend.routers.config import config_router
 from transcribee_backend.routers.document import document_router
 from transcribee_backend.routers.page import page_router
@@ -18,9 +18,8 @@ from transcribee_backend.routers.worker import worker_router
 from .media_storage import serve_media
 
 app = FastAPI()
-app.add_middleware(MetricsMiddleware)
-app.add_route("/metrics", metrics)
-
+Instrumentator().instrument(app).expose(app, dependencies=[Depends(metrics_auth)])
+init_metrics()
 
 origins = ["*"]
 
@@ -55,3 +54,4 @@ async def setup_periodic_tasks():
         run_periodic(timeout_attempts, seconds=min(30, settings.worker_timeout))
     )
     asyncio.create_task(run_periodic(remove_expired_tokens, seconds=60 * 60))  # 1 hour
+    asyncio.create_task(run_periodic(refresh_metrics, seconds=1))
