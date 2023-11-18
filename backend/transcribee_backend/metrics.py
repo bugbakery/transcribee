@@ -104,7 +104,7 @@ METRICS: List[Metric] = []
 
 
 def refresh_metrics():
-    with SessionContextManager() as session:
+    with SessionContextManager(path="repeating_task:refresh_metrics") as session:
         for metric in METRICS:
             metric.refresh(session)
 

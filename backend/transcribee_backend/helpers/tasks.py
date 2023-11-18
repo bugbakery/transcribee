@@ -57,7 +57,7 @@ def timeouted_tasks(session: Session) -> Iterable[Task]:
 
 def timeout_attempts():
     now = now_tz_aware()
-    with SessionContextManager() as session:
+    with SessionContextManager(path="repeating_task:timeout_attempts") as session:
         for task in timeouted_tasks(session):
             finish_current_attempt(
                 session=session, task=task, now=now, successful=False
@@ -72,7 +72,7 @@ def expired_tokens(session: Session) -> Iterable[UserToken]:
 
 
 def remove_expired_tokens():
-    with SessionContextManager() as session:
+    with SessionContextManager(path="repeating_task:remove_expired_tokens") as session:
         for user_token in expired_tokens(session):
             session.delete(user_token)
 

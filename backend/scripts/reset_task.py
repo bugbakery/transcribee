@@ -12,7 +12,7 @@ if __name__ == "__main__":
         "--uuid", required=True, type=uuid.UUID, help="Task UUID or Document UUID"
     )
     args = parser.parse_args()
-    with SessionContextManager() as session:
+    with SessionContextManager(path="mangement_comment:reset_task") as session:
         task = session.execute(
             update(Task)
             .where(

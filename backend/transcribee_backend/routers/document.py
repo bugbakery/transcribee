@@ -1,8 +1,8 @@
 import datetime
 import enum
+import pathlib
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Annotated, Callable, List, Optional
 
 import magic
@@ -13,6 +13,7 @@ from fastapi import (
     Form,
     Header,
     HTTPException,
+    Path,
     Query,
     UploadFile,
     WebSocket,
@@ -36,7 +37,10 @@ from transcribee_backend.auth import (
     validate_worker_authorization,
 )
 from transcribee_backend.config import get_model_config, settings
-from transcribee_backend.db import get_session
+from transcribee_backend.db import (
+    get_session,
+    get_session_ws,
+)
 from transcribee_backend.helpers.sync import DocumentSyncConsumer
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.document import (
@@ -201,7 +205,7 @@ def get_doc_auth_function(
 def auth_fn_to_ws(f: Callable):
     def func(
         document_id: uuid.UUID,
-        session: Session = Depends(get_session),
+        session: Session = Depends(get_session_ws),
         authorization: Optional[str] = Query(default=None),
         share_token: Optional[str] = Query(default=None, alias="share_token"),
     ):
@@ -437,7 +441,7 @@ def delete_document(
     auth: AuthInfo = Depends(get_doc_full_auth),
     session: Session = Depends(get_session),
 ) -> None:
-    paths_to_delete: List[Path] = []
+    paths_to_delete: List[pathlib.Path] = []
     media_files = select(DocumentMediaFile).where(
         DocumentMediaFile.document == auth.document
     )
@@ -474,7 +478,7 @@ def get_document_tasks(
 async def websocket_endpoint(
     websocket: WebSocket,
     auth: AuthInfo = Depends(ws_get_doc_min_readonly_or_worker_auth),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session_ws),
 ):
     connection = DocumentSyncConsumer(
         document=auth.document,
