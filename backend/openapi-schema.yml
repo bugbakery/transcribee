@@ -198,6 +198,16 @@ components:
       - name
       title: CreateWorker
       type: object
+    DeactivateWorker:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+      required:
+      - id
+      title: DeactivateWorker
+      type: object
     Document:
       properties:
         changed_at:
@@ -572,6 +582,10 @@ components:
       type: object
     Worker:
       properties:
+        deactivated_at:
+          format: date-time
+          title: Deactivated At
+          type: string
         id:
           format: uuid
           title: Id
@@ -591,8 +605,16 @@ components:
       - token
       title: Worker
       type: object
-    WorkerBase:
+    WorkerWithId:
       properties:
+        deactivated_at:
+          format: date-time
+          title: Deactivated At
+          type: string
+        id:
+          format: uuid
+          title: Id
+          type: string
         last_seen:
           format: date-time
           title: Last Seen
@@ -602,7 +624,7 @@ components:
           type: string
       required:
       - name
-      title: WorkerBase
+      title: WorkerWithId
       type: object
 info:
   title: FastAPI
@@ -1453,7 +1475,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/WorkerBase'
+                  $ref: '#/components/schemas/WorkerWithId'
                 title: Response List Workers Api V1 Worker  Get
                 type: array
           description: Successful Response
@@ -1494,6 +1516,35 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Create Worker Endpoint
+  /api/v1/worker/deactivate/:
+    post:
+      operationId: deactivate_worker_endpoint_api_v1_worker_deactivate__post
+      parameters:
+      - in: header
+        name: Api-Token
+        required: true
+        schema:
+          title: Api-Token
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeactivateWorker'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Deactivate Worker Endpoint
   /media/{file}:
     get:
       operationId: serve_media_media__file__get

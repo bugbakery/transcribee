@@ -111,6 +111,10 @@ export interface paths {
     /** Create Worker Endpoint */
     post: operations["create_worker_endpoint_api_v1_worker_create__post"];
   };
+  "/api/v1/worker/deactivate/": {
+    /** Deactivate Worker Endpoint */
+    post: operations["deactivate_worker_endpoint_api_v1_worker_deactivate__post"];
+  };
   "/media/{file}": {
     /** Serve Media */
     get: operations["serve_media_media__file__get"];
@@ -239,6 +243,14 @@ export interface components {
     CreateWorker: {
       /** Name */
       name: string;
+    };
+    /** DeactivateWorker */
+    DeactivateWorker: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
     };
     /** Document */
     Document: {
@@ -466,6 +478,11 @@ export interface components {
     /** Worker */
     Worker: {
       /**
+       * Deactivated At
+       * Format: date-time
+       */
+      deactivated_at?: string;
+      /**
        * Id
        * Format: uuid
        */
@@ -480,8 +497,18 @@ export interface components {
       /** Token */
       token: string;
     };
-    /** WorkerBase */
-    WorkerBase: {
+    /** WorkerWithId */
+    WorkerWithId: {
+      /**
+       * Deactivated At
+       * Format: date-time
+       */
+      deactivated_at?: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id?: string;
       /**
        * Last Seen
        * Format: date-time
@@ -1184,7 +1211,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": (components["schemas"]["WorkerBase"])[];
+          "application/json": components["schemas"]["WorkerWithId"][];
         };
       };
       /** @description Validation Error */
@@ -1212,6 +1239,33 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["Worker"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Deactivate Worker Endpoint */
+  deactivate_worker_endpoint_api_v1_worker_deactivate__post: {
+    parameters: {
+      header: {
+        "Api-Token": string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeactivateWorker"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
