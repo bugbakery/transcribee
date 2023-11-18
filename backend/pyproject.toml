@@ -21,7 +21,7 @@ dependencies = [
     "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
     "python-frontmatter>=1.0.0",
     "psycopg2>=2.9.9",
-    "aioprometheus[starlette] @ git+https://github.com/bugbakery/aioprometheus.git@2eaf503426eb0e71c8d4d51924a45a10f2937bec",
+    "prometheus-fastapi-instrumentator>=6.1.0",
 ]
 requires-python = ">=3.10"
 readme = "./README.md"

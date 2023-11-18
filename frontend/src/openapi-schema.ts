@@ -119,6 +119,13 @@ export interface paths {
     /** Serve Media */
     get: operations["serve_media_media__file__get"];
   };
+  "/metrics": {
+    /**
+     * Metrics
+     * @description Endpoint that serves Prometheus metrics.
+     */
+    get: operations["metrics_metrics_get"];
+  };
 }
 
 export type webhooks = Record<string, never>;
@@ -1300,6 +1307,20 @@ export interface operations {
       422: {
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * Metrics
+   * @description Endpoint that serves Prometheus metrics.
+   */
+  metrics_metrics_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
         };
       };
     };

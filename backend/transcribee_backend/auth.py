@@ -118,6 +118,11 @@ def validate_worker_authorization(session: Session, authorization: str) -> Worke
     worker = session.exec(statement).one_or_none()
     if worker is None:
         raise HTTPException(status_code=401)
+
+    worker.last_seen = now_tz_aware()
+    session.add(worker)
+    session.commit()
+
     return worker
 
 
