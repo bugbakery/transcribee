@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.exceptions import HTTPException
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 from sqlalchemy.sql.operators import is_
 from sqlmodel import Session, col, select
 from transcribee_proto.api import KeepaliveBody
@@ -104,7 +104,7 @@ def keepalive(
     keepalive_data: KeepaliveBody = Body(),
     session: Session = Depends(get_session),
     task: Task = Depends(get_authorized_task),
-) -> Optional[AssignedTaskResponse]:
+):
     # mostly to please the type checker, get_authorized_task already ensures
     # that the task has a current attempt
     if task.current_attempt is None:
@@ -115,7 +115,6 @@ def keepalive(
         session.add(task.current_attempt)
     session.add(task)
     session.commit()
-    return AssignedTaskResponse.from_orm(task)
 
 
 @task_router.post("/{task_id}/mark_completed/")
@@ -124,11 +123,10 @@ def mark_completed(
     session: Session = Depends(get_session),
     task: Task = Depends(get_authorized_task),
     now: datetime.datetime = Depends(now_tz_aware),
-) -> Optional[AssignedTaskResponse]:
+):
     finish_current_attempt(
         session=session, task=task, now=now, extra_data=extra_data, successful=True
     )
-    return AssignedTaskResponse.from_orm(task)
 
 
 @task_router.post("/{task_id}/mark_failed/")
@@ -137,14 +135,12 @@ def mark_failed(
     session: Session = Depends(get_session),
     task: Task = Depends(get_authorized_task),
     now: datetime.datetime = Depends(now_tz_aware),
-) -> Optional[AssignedTaskResponse]:
+):
     now = now_tz_aware()
 
     finish_current_attempt(
         session=session, task=task, now=now, extra_data=extra_data, successful=False
     )
-
-    return AssignedTaskResponse.from_orm(task)
 
 
 @task_router.get("/")
@@ -152,6 +148,11 @@ def list_tasks(
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
 ) -> List[TaskResponse]:
-    statement = select(Task).join(Document).where(Document.user == token.user)
+    statement = (
+        select(Task)
+        .join(Document)
+        .where(Document.user == token.user)
+        .options(selectinload(Task.dependency_links))
+    )
     results = session.exec(statement)
     return [TaskResponse.from_orm(x) for x in results]

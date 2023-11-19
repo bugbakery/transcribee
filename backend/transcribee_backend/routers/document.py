@@ -462,7 +462,11 @@ def get_document_tasks(
     auth: AuthInfo = Depends(get_doc_min_readonly_auth),
     session: Session = Depends(get_session),
 ) -> List[TaskResponse]:
-    statement = select(Task).where(Task.document_id == auth.document.id)
+    statement = (
+        select(Task)
+        .where(Task.document_id == auth.document.id)
+        .options(selectinload(Task.dependency_links))
+    )
     return [TaskResponse.from_orm(x) for x in session.exec(statement)]
 
 

@@ -1014,7 +1014,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["AssignedTaskResponse"];
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
@@ -1044,7 +1044,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["AssignedTaskResponse"];
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
@@ -1074,7 +1074,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["AssignedTaskResponse"];
+          "application/json": unknown;
         };
       };
       /** @description Validation Error */
