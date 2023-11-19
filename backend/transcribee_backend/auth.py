@@ -8,6 +8,7 @@ from base64 import b64decode, b64encode
 from typing import Optional, Tuple
 
 from fastapi import Depends, Header, HTTPException
+from sqlalchemy.orm import joinedload
 from sqlmodel import Session, col, or_, select
 
 from transcribee_backend.db import get_session
@@ -157,7 +158,9 @@ def get_authorized_task(
     session: Session = Depends(get_session),
     authorized_worker: Worker = Depends(get_authorized_worker),
 ):
-    statement = select(Task).where(Task.id == task_id)
+    statement = (
+        select(Task).where(Task.id == task_id).options(joinedload(Task.current_attempt))
+    )
     task = session.exec(statement).one_or_none()
     if task is None:
         raise HTTPException(status_code=404)

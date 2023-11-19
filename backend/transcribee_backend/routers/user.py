@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, delete
 from transcribee_proto.api import LoginResponse
 
 from transcribee_backend.auth import (
@@ -12,7 +12,7 @@ from transcribee_backend.auth import (
 )
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists
-from transcribee_backend.models import CreateUser, User, UserBase, UserToken
+from transcribee_backend.models import CreateUser, UserBase, UserToken
 from transcribee_backend.models.user import ChangePasswordRequest
 
 user_router = APIRouter()
@@ -57,11 +57,8 @@ def logout(
 @user_router.get("/me/")
 def read_user(
     token: UserToken = Depends(get_user_token),
-    session: Session = Depends(get_session),
 ) -> UserBase:
-    statement = select(User).where(User.id == token.user_id)
-    user = session.exec(statement).one()
-    return UserBase(username=user.username)
+    return UserBase(username=token.user.username)
 
 
 @user_router.post("/change_password/")
