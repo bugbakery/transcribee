@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from prometheus_client import Gauge
 from sqlmodel import Session, col, func
+from transcribee_proto.api import TaskType
 
 from transcribee_backend.config import settings
 from transcribee_backend.db import SessionContextManager
@@ -25,15 +26,23 @@ class Metric:
 
 class TasksInState(Metric):
     def __init__(self):
-        self.collector = Gauge("tasks", "Number of tasks", ["state"])
+        self.collector = Gauge(
+            "transcribee_tasks", "Number of tasks", ["state", "task_type"]
+        )
 
     def refresh(self, session: Session):
-        result = session.query(Task.state, func.count()).group_by(Task.state).all()
-        counts = {x: 0 for x in TaskState}
-        for state, count in result:
-            counts[state] = count
-        for state, count in counts.items():
-            self.collector.labels(state=state.value).set(count)
+        result = (
+            session.query(Task.state, Task.task_type, func.count())
+            .group_by(Task.state, Task.task_type)
+            .all()
+        )
+        counts = {(x, y): 0 for x in TaskState for y in TaskType}
+        for state, task_type, count in result:
+            counts[(state, task_type)] = count
+        for (state, task_type), count in counts.items():
+            self.collector.labels(state=state.value, task_type=task_type.value).set(
+                count
+            )
 
 
 class Workers(Metric):
@@ -80,11 +89,14 @@ class Documents(Metric):
 
 class Queue(Metric):
     def __init__(self):
-        self.collector = Gauge("queue", "Queue length in seconds")
+        self.collector = Gauge(
+            "transcribee_queue_seconds", "Queue length in seconds", ["task_type"]
+        )
 
     def refresh(self, session: Session):
-        (result,) = (
+        result = (
             session.query(
+                Task.task_type,
                 func.coalesce(
                     func.sum(
                         Document.duration * (1 - func.coalesce(TaskAttempt.progress, 0))
@@ -94,9 +106,14 @@ class Queue(Metric):
             )
             .join(Task, Task.document_id == Document.id)
             .join(TaskAttempt, Task.current_attempt_id == TaskAttempt.id, isouter=True)
+            .group_by(Task.task_type)
             .where(col(Task.state).in_(["NEW", "ASSIGNED"]))
-        ).one()
-        self.collector.set(result)
+        ).all()
+        counts = {x: 0 for x in TaskType}
+        for task_type, count in result:
+            counts[task_type] = count
+        for task_type, count in counts.items():
+            self.collector.labels(task_type=task_type.value).set(count)
 
 
 METRIC_CLASSES: List[type[Metric]] = [TasksInState, Workers, Users, Documents, Queue]
