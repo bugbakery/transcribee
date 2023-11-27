@@ -67,6 +67,7 @@ def test_strict_sentence_paragraphs(data_file):
             async_doc_chain_func_to_list(strict_sentence_paragraphs)(test_data.input)
         )
     )
+    assert [x.text() for x in output] == [x.text() for x in test_data.expected]
     assert output == test_data.expected
 
 
