@@ -251,12 +251,30 @@ async def strict_sentence_paragraphs(
     iter: AsyncIterator[Paragraph],
 ) -> AsyncIterator[Paragraph]:
     acc_paragraph = None
+    acc_used_paras = []
+    combination_active = True
     async for paragraph in iter:
-        if acc_paragraph is None:
+        if not combination_active:
+            yield paragraph
+            continue
+        elif acc_paragraph is None:
             acc_paragraph = Paragraph(
                 lang=paragraph.lang, speaker=paragraph.speaker, children=[]
             )
-
+            acc_used_paras = []
+        elif (
+            (start := acc_paragraph.start()) is not None
+            and (end := paragraph.end()) is not None
+            and end - start > 30
+        ):
+            # It seems like whisper doesn't produce sentence breaks. Ignore the
+            # current `acc_paragraph` and yield the original paras instead,
+            # disable this step until the end of the document
+            combination_active = False
+            for para in acc_used_paras:
+                yield para
+            yield paragraph
+            continue
         elif (
             acc_paragraph.lang != paragraph.lang
             or acc_paragraph.speaker != paragraph.speaker
@@ -266,6 +284,7 @@ async def strict_sentence_paragraphs(
             acc_paragraph = Paragraph(
                 lang=paragraph.lang, speaker=paragraph.speaker, children=[]
             )
+            acc_used_paras = []
 
         elif any(regex.search(paragraph.text()) for regex in DONT_COMBINE_RES):
             if acc_paragraph.children:
@@ -285,7 +304,9 @@ async def strict_sentence_paragraphs(
             acc_paragraph = Paragraph(
                 lang=paragraph.lang, speaker=paragraph.speaker, children=[]
             )
-        for atom in paragraph.children:
+            acc_used_paras = []
+        acc_yield_offset = 0
+        for i, atom in enumerate(paragraph.children):
             acc_paragraph.children.append(atom)
             text = acc_paragraph.text()
             if offset + len(text) in breaks and not any(
@@ -296,7 +317,15 @@ async def strict_sentence_paragraphs(
                 acc_paragraph = Paragraph(
                     lang=paragraph.lang, speaker=paragraph.speaker, children=[]
                 )
-    if acc_paragraph is not None and acc_paragraph.children:
+                acc_yield_offset = i
+        acc_used_paras.append(
+            Paragraph(
+                lang=paragraph.lang,
+                speaker=paragraph.speaker,
+                children=paragraph.children[acc_yield_offset:],
+            )
+        )
+    if acc_paragraph is not None and acc_paragraph.children and combination_active:
         yield acc_paragraph
 
 
