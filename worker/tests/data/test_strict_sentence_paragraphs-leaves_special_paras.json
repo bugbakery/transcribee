@@ -1,0 +1,167 @@
+{
+  "input": [
+    {
+      "type": "paragraph",
+      "speaker": null,
+      "lang": "de",
+      "children": [
+        {
+          "text": "*",
+          "start": 0.0,
+          "end": 0.82,
+          "conf": 0.4493102431297302,
+          "conf_ts": 0.0
+        },
+        {
+          "text": "Klirren",
+          "start": 0.82,
+          "end": 1.0,
+          "conf": 0.9744400978088379,
+          "conf_ts": 0.005903157405555248
+        },
+        {
+          "text": "*",
+          "start": 1.0,
+          "end": 1.07,
+          "conf": 0.9744400978088379,
+          "conf_ts": 0.005903157405555248
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "speaker": null,
+      "lang": "de",
+      "children": [
+        {
+          "text": "Ich ",
+          "start": 1.07,
+          "end": 1.65,
+          "conf": 0.9838394522666931,
+          "conf_ts": 0.01149927917867899
+        },
+        {
+          "text": "will ",
+          "start": 1.65,
+          "end": 2.0,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        },
+        {
+          "text": "Infos, ",
+          "start": 2.0,
+          "end": 2.07,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "speaker": null,
+      "lang": "de",
+      "children": [
+        {
+          "text": "Ich ",
+          "start": 2.07,
+          "end": 2.65,
+          "conf": 0.9838394522666931,
+          "conf_ts": 0.01149927917867899
+        },
+        {
+          "text": "will ",
+          "start": 2.65,
+          "end": 3.06,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        },
+        {
+          "text": "Fakten, ",
+          "start": 3.06,
+          "end": 3.09,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        }
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "type": "paragraph",
+      "speaker": null,
+      "lang": "de",
+      "children": [
+        {
+          "text": "*",
+          "start": 0.0,
+          "end": 0.82,
+          "conf": 0.4493102431297302,
+          "conf_ts": 0.0
+        },
+        {
+          "text": "Klirren",
+          "start": 0.82,
+          "end": 1.0,
+          "conf": 0.9744400978088379,
+          "conf_ts": 0.005903157405555248
+        },
+        {
+          "text": "*",
+          "start": 1.0,
+          "end": 1.07,
+          "conf": 0.9744400978088379,
+          "conf_ts": 0.005903157405555248
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "speaker": null,
+      "lang": "de",
+      "children": [
+        {
+          "text": "Ich ",
+          "start": 1.07,
+          "end": 1.65,
+          "conf": 0.9838394522666931,
+          "conf_ts": 0.01149927917867899
+        },
+        {
+          "text": "will ",
+          "start": 1.65,
+          "end": 2.0,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        },
+        {
+          "text": "Infos, ",
+          "start": 2.0,
+          "end": 2.07,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        },
+        {
+          "text": "Ich ",
+          "start": 2.07,
+          "end": 2.65,
+          "conf": 0.9838394522666931,
+          "conf_ts": 0.01149927917867899
+        },
+        {
+          "text": "will ",
+          "start": 2.65,
+          "end": 3.06,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        },
+        {
+          "text": "Fakten, ",
+          "start": 3.06,
+          "end": 3.09,
+          "conf": 0.9566531777381897,
+          "conf_ts": 0.0096774036064744
+        }
+      ]
+    }
+  ]
+}

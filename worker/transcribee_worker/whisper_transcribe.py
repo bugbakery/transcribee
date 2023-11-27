@@ -286,7 +286,7 @@ async def strict_sentence_paragraphs(
             )
             acc_used_paras = []
 
-        elif any(regex.search(paragraph.text()) for regex in DONT_COMBINE_RES):
+        if any(regex.search(paragraph.text()) for regex in DONT_COMBINE_RES):
             if acc_paragraph.children:
                 yield acc_paragraph
             acc_paragraph = None
