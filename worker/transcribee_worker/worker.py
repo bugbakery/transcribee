@@ -28,7 +28,9 @@ from transcribee_worker.reencode import get_duration, reencode
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import aenumerate, load_audio
-from transcribee_worker.whisper_transcribe import transcribe_clean
+from transcribee_worker.whisper_transcribe import (
+    transcribe_clean_async,
+)
 
 
 def normalize_for_automerge(value):
@@ -176,7 +178,6 @@ class Worker:
         audio = self.load_document_audio(task.document)
 
         async with self.api_client.document(task.document.id) as doc:
-
             async with doc.transaction("Reset Document") as d:
                 if d.children is None:
                     d.children = []
@@ -185,11 +186,16 @@ class Worker:
 
             audio = audio[int(start_offset * settings.SAMPLE_RATE) :]
 
-            async for paragraph in transcribe_clean(
+            async for paragraph in transcribe_clean_async(
                 data=audio,
+                sr=settings.SAMPLE_RATE,
                 start_offset=start_offset,
                 model_name=task.task_parameters.model,
-                lang_code=task.task_parameters.lang,
+                lang_code=(
+                    task.task_parameters.lang
+                    if task.task_parameters.lang != "auto"
+                    else None
+                ),
                 progress_callback=progress_callback,
             ):
                 async with doc.transaction("Automatic Transcription") as d:

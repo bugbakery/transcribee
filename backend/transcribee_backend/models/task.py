@@ -179,7 +179,11 @@ class TaskResponse(TaskBase):
             id=task.id,
             state=task.state,
             dependencies=[x.dependant_on_id for x in task.dependency_links],
-            current_attempt=None,
+            current_attempt=(
+                TaskAttemptResponse.from_orm(task.current_attempt)
+                if task.current_attempt is not None
+                else None
+            ),
             document_id=task.document_id,
             task_type=task.task_type,
             task_parameters=task.task_parameters,
