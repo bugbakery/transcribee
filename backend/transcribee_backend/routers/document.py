@@ -282,20 +282,12 @@ def create_default_tasks_for_document(
     )
     session.add(transcribe_task)
 
-    align_task = Task(
-        task_type=TaskType.ALIGN,
-        task_parameters={},
-        document_id=document.id,
-        dependencies=[transcribe_task],
-    )
-    session.add(align_task)
-
     if number_of_speakers != 0 and number_of_speakers != 1:
         speaker_identification_task = Task(
             task_type=TaskType.IDENTIFY_SPEAKERS,
             task_parameters={"number_of_speakers": number_of_speakers},
             document_id=document.id,
-            dependencies=[align_task],
+            dependencies=[transcribe_task],
         )
         session.add(speaker_identification_task)
 

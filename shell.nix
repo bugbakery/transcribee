@@ -20,6 +20,8 @@ let
   });
   ld_packages = [
     pkgs.file
+    # for ctranslate2
+    pkgs.stdenv.cc.cc.lib
   ];
 
 in
@@ -67,7 +69,7 @@ pkgs.mkShell {
     # Some libraries are not found if not added directly to LD_LIBRARY_PATH / DYLD_LIBRARY_PATH (on darwin)
     # However just adding them there is not enough, because macOS purges the DYLD_* variables in some conditions
     # This means we have to set them again in some script (e.g. ./start_backend.sh) -> we need a "safe" env var to pass them to the script
-    export TRANSCRIBEE_DYLD_LIBRARY_PATH=${builtins.concatStringsSep ":" (map (x: x + "/lib") ld_packages)}
+    export TRANSCRIBEE_DYLD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath ld_packages}
     export LD_LIBRARY_PATH=$LD_SEARCH_PATH:$TRANSCRIBEE_DYLD_LIBRARY_PATH
   '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
     export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
