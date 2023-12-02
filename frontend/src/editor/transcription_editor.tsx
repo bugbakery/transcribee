@@ -266,7 +266,7 @@ export function TranscriptionEditor({
         <>
           <div
             className={clsx(
-              'grow-[2] fixed left-0 top-0 flex items-center justify-center w-full h-full bg-white dark:bg-neutral-900 z-50',
+              'grow-[2] fixed left-0 top-0 flex items-center justify-center w-full h-full bg-white dark:bg-neutral-900 z-30',
             )}
           >
             <LoadingBee size={200} />
