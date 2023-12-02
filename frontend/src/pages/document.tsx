@@ -135,7 +135,7 @@ export function DocumentPage({
       <Helmet>
         <title>{data?.name}</title>
       </Helmet>
-      <TopBar className="!items-start">
+      <TopBar className="!items-start z-40 relative">
         <TopBarPart className={isLoggedIn ? 'sticky left-4 -ml-12 !items-start' : ''}>
           {isLoggedIn && (
             <IconButton

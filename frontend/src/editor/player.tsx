@@ -146,7 +146,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
       <div
         className={clsx(
-          'fixed bottom-0 inset-x-6 mx-auto z-30',
+          'fixed bottom-0 inset-x-6 mx-auto z-20',
           'max-w-screen-xl height-8 my-2',
           'flex',
           'p-2',
