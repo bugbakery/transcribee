@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--pass", required=True)
     args = parser.parse_args()
 
-    with SessionContextManager(path="mangement_comment:set_password") as session:
+    with SessionContextManager(path="management_command:set_password") as session:
         try:
             user = change_user_password(
                 session=session, username=args.user, new_password=getattr(args, "pass")

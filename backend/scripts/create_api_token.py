@@ -7,6 +7,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", required=True)
     args = parser.parse_args()
-    with SessionContextManager() as session:
+    with SessionContextManager(path="management_command:create_api_token") as session:
         token = create_api_token(session=session, name=args.name)
         print(f"Token created: {token.token}")

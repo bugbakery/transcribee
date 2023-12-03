@@ -13,7 +13,7 @@ if __name__ == "__main__":
     if args.token is None:
         args.token = utils.get_random_string()
 
-    with SessionContextManager(path="mangement_comment:create_worker") as session:
+    with SessionContextManager(path="management_command:create_worker") as session:
         statement = select(Worker).where(Worker.token == args.token)
         results = session.exec(statement)
         existing_worker = results.one_or_none()
