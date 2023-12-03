@@ -9,7 +9,7 @@ if __name__ == "__main__":
     parser.add_argument("--user", required=True)
     parser.add_argument("--pass", required=True)
     args = parser.parse_args()
-    with SessionContextManager(path="mangement_comment:create_user") as session:
+    with SessionContextManager(path="management_command:create_user") as session:
         try:
             user = create_user(
                 session=session, username=args.user, password=getattr(args, "pass")
