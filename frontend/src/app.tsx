@@ -54,18 +54,19 @@ export function LoggedInRedirectRoute<T extends DefaultParams = DefaultParams>({
   const [_, navigate] = useLocation();
   const { isLoggedIn, isLoading } = useAuthData();
   const { data: config, isLoading: configLoading } = useGetConfig({});
-  if (isLoading) {
-    return <Route component={LoadingPage} />;
-  }
-  if (!isLoggedIn && !configLoading && config !== undefined) {
+  if (!isLoggedIn && !isLoading && !configLoading && config !== undefined) {
     if (config.logged_out_redirect_url) {
       window.location.replace(config.logged_out_redirect_url);
     } else {
       navigate('/login');
     }
-    return null;
   }
-  return <Route {...props} />;
+
+  if (isLoggedIn) {
+    return <Route {...props} />;
+  } else {
+    return <Route component={LoadingPage} />;
+  }
 }
 
 export function App() {
