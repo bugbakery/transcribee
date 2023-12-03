@@ -10,7 +10,6 @@ import { ModalHolder } from './components/modal';
 import { Helmet } from 'react-helmet';
 import { registerCopyHandler } from './utils/copy_text';
 import { useAuthData } from './utils/auth';
-import { LoadingPage } from './pages/loading';
 import { PagePage } from './pages/page';
 import { AboutPage } from './pages/about';
 import { useGetConfig } from './api/config';
@@ -24,7 +23,7 @@ export function AuthenticatedRoute<T extends DefaultParams = DefaultParams>({
   const { isLoggedIn, hasShareToken, isLoading } = useAuthData();
   const isAuthenticated = isLoggedIn || hasShareToken;
   if (isLoading) {
-    return <Route component={LoadingPage} />;
+    return null;
   }
   if (!isAuthenticated) {
     navigate('/login');
@@ -39,7 +38,7 @@ export function LoggedInRoute<T extends DefaultParams = DefaultParams>({
   const [_, navigate] = useLocation();
   const { isLoggedIn, isLoading } = useAuthData();
   if (isLoading) {
-    return <Route component={LoadingPage} />;
+    return null;
   }
   if (!isLoggedIn) {
     navigate('/login');
@@ -65,7 +64,7 @@ export function LoggedInRedirectRoute<T extends DefaultParams = DefaultParams>({
   if (isLoggedIn) {
     return <Route {...props} />;
   } else {
-    return <Route component={LoadingPage} />;
+    return null;
   }
 }
 
