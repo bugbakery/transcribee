@@ -3,7 +3,6 @@ import { AppCenter } from '../components/app';
 import ReactMarkdown from 'react-markdown';
 import { getPage, useGetPage } from '../api/pages';
 import { PageNotFoundPage } from './page_not_found';
-import { LoadingPage } from './loading';
 
 export function PagePage({ params: { pageId } }: RouteComponentProps<{ pageId: string }>) {
   const { data, error } = useGetPage({ page_id: pageId });
@@ -14,7 +13,7 @@ export function PagePage({ params: { pageId } }: RouteComponentProps<{ pageId: s
     }
   }
   if (!data) {
-    return <LoadingPage />;
+    return null;
   }
   return (
     <AppCenter>
