@@ -449,6 +449,37 @@ components:
           type: number
       title: TaskAttemptResponse
       type: object
+    TaskQueueInfoResponse:
+      properties:
+        open_tasks:
+          items:
+            $ref: '#/components/schemas/TaskQueueInfoTaskEntry'
+          title: Open Tasks
+          type: array
+      required:
+      - open_tasks
+      title: TaskQueueInfoResponse
+      type: object
+    TaskQueueInfoTaskEntry:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        remaining_cost:
+          title: Remaining Cost
+          type: number
+        state:
+          $ref: '#/components/schemas/TaskState'
+        task_type:
+          $ref: '#/components/schemas/TaskType'
+      required:
+      - id
+      - task_type
+      - state
+      - remaining_cost
+      title: TaskQueueInfoTaskEntry
+      type: object
     TaskResponse:
       properties:
         current_attempt:
@@ -1228,6 +1259,30 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Claim Unassigned Task
+  /api/v1/tasks/queue_info/:
+    get:
+      operationId: queue_info_api_v1_tasks_queue_info__get
+      parameters:
+      - in: header
+        name: Api-Token
+        required: true
+        schema:
+          title: Api-Token
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskQueueInfoResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Queue Info
   /api/v1/tasks/{task_id}/keepalive/:
     post:
       operationId: keepalive_api_v1_tasks__task_id__keepalive__post

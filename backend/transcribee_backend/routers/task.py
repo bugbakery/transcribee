@@ -3,16 +3,21 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.exceptions import HTTPException
-from sqlalchemy.orm import aliased, selectinload
+from sqlalchemy.orm import aliased, joinedload, selectinload
 from sqlalchemy.sql.operators import is_
 from sqlmodel import Session, col, select
 from transcribee_proto.api import KeepaliveBody
 
-from transcribee_backend.auth import get_authorized_task, get_authorized_worker
+from transcribee_backend.auth import (
+    get_api_token,
+    get_authorized_task,
+    get_authorized_worker,
+)
 from transcribee_backend.db import get_session
 from transcribee_backend.helpers.tasks import finish_current_attempt
 from transcribee_backend.helpers.time import now_tz_aware
-from transcribee_backend.models.task import TaskState
+from transcribee_backend.models.api import ApiToken
+from transcribee_backend.models.task import TaskQueueInfoResponse, TaskState
 
 from ..models import (
     AssignedTaskResponse,
@@ -97,6 +102,37 @@ def claim_unassigned_task(
     session.add(task)
     session.commit()
     return AssignedTaskResponse.from_orm(task)
+
+
+@task_router.get("/queue_info/")
+def queue_info(
+    session: Session = Depends(get_session),
+    _token: ApiToken = Depends(get_api_token),
+) -> TaskQueueInfoResponse:
+    taskalias = aliased(Task)
+    blocking_tasks_exist = (
+        select(TaskDependency)
+        .join(
+            taskalias,
+            taskalias.id == TaskDependency.dependant_on_id,
+        )
+        .where(
+            taskalias.state != TaskState.COMPLETED,
+            Task.id == TaskDependency.dependent_task_id,
+        )
+    ).exists()
+
+    statement = (
+        select(Task)
+        .where(
+            ~(col(Task.state).in_([TaskState.COMPLETED, TaskState.FAILED])),
+            ~blocking_tasks_exist,
+        )
+        .options(joinedload(Task.document))
+    )
+
+    tasks = session.exec(statement).all()
+    return TaskQueueInfoResponse.from_orm(open_tasks=tasks)
 
 
 @task_router.post("/{task_id}/keepalive/")
