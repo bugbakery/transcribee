@@ -71,6 +71,10 @@ export interface paths {
     /** Claim Unassigned Task */
     post: operations["claim_unassigned_task_api_v1_tasks_claim_unassigned_task__post"];
   };
+  "/api/v1/tasks/queue_info/": {
+    /** Queue Info */
+    get: operations["queue_info_api_v1_tasks_queue_info__get"];
+  };
   "/api/v1/tasks/{task_id}/keepalive/": {
     /** Keepalive */
     post: operations["keepalive_api_v1_tasks__task_id__keepalive__post"];
@@ -401,6 +405,23 @@ export interface components {
     TaskAttemptResponse: {
       /** Progress */
       progress?: number;
+    };
+    /** TaskQueueInfoResponse */
+    TaskQueueInfoResponse: {
+      /** Open Tasks */
+      open_tasks: components["schemas"]["TaskQueueInfoTaskEntry"][];
+    };
+    /** TaskQueueInfoTaskEntry */
+    TaskQueueInfoTaskEntry: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Remaining Cost */
+      remaining_cost: number;
+      state: components["schemas"]["TaskState"];
+      task_type: components["schemas"]["TaskType"];
     };
     /** TaskResponse */
     TaskResponse: {
@@ -992,6 +1013,28 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["AssignedTaskResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Queue Info */
+  queue_info_api_v1_tasks_queue_info__get: {
+    parameters: {
+      header: {
+        "Api-Token": string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TaskQueueInfoResponse"];
         };
       };
       /** @description Validation Error */

@@ -1,6 +1,7 @@
 import datetime
 import enum
 import uuid
+from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
 from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel, col
@@ -63,6 +64,28 @@ class Task(TaskBase, table=True):
 
     state: TaskState = TaskState.NEW
     state_changed_at: datetime.datetime = Field(default_factory=now_tz_aware)
+
+    @property
+    def initial_cost(self) -> float | None:
+        """
+        Guess the initial cost of a task based on the media duration.
+        One point should be roughly equivalent to a minute of processing time on some
+        reference hardware as of 2023.
+        This is mainly used for autoscaling.
+        """
+
+        # Assume 10 minutes if no duration is set. This should only affect the
+        # reecode task, since it is the first and reports the duration.
+        media_duration = self.document.duration or (60 * 10)
+
+        if self.task_type == TaskType.REENCODE:
+            return 0.05 + (media_duration / 60) / 50
+        elif self.task_type == TaskType.TRANSCRIBE:
+            return 1 + (media_duration / 60)
+        elif self.task_type == TaskType.ALIGN:
+            return 1 + (media_duration / 60)
+        elif self.task_type == TaskType.IDENTIFY_SPEAKERS:
+            return 0.1 + (media_duration / 60) / 10
 
     attempts: List["TaskAttempt"] = Relationship(
         sa_relationship_kwargs={
@@ -201,6 +224,49 @@ class AssignedTaskResponse(TaskResponse):
             update={
                 "document": task.document.as_api_document(),
             },
+        )
+
+
+@dataclass
+class TaskQueueInfoTaskEntry:
+    id: uuid.UUID
+    task_type: TaskType
+    state: TaskState
+    remaining_cost: float | None
+
+    @staticmethod
+    def _remaining_task_cost(task: Task) -> float | None:
+        cost = task.initial_cost
+        if cost is None:
+            return None
+
+        if (
+            task.current_attempt is not None
+            and task.current_attempt.progress is not None
+        ):
+            cost = cost * (1 - task.current_attempt.progress)
+
+        return cost
+
+    @classmethod
+    def from_task(cls, task: Task) -> Self:
+        return cls(
+            id=task.id,
+            task_type=task.task_type,
+            state=task.state,
+            remaining_cost=cls._remaining_task_cost(task),
+        )
+
+
+@dataclass
+class TaskQueueInfoResponse:
+    # tasks that are running or can be claimed
+    open_tasks: list[TaskQueueInfoTaskEntry]
+
+    @classmethod
+    def from_orm(cls, open_tasks: list[Task]) -> Self:
+        return cls(
+            open_tasks=[TaskQueueInfoTaskEntry.from_task(task) for task in open_tasks],
         )
 
 
