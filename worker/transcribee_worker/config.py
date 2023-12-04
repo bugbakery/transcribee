@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     KEEPALIVE_INTERVAL: float = 0.5
 
+    CPU_THREADS: int = 4
+
     class Config:
         env_file = ".env"
 

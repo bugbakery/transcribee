@@ -175,6 +175,7 @@ def transcribe_clean(
         strict_sentence_paragraphs,
     )
     model = WhisperModel(
+        cpu_threads=settings.CPU_THREADS,
         model_size_or_path=model_name,
         download_root=str((settings.MODELS_DIR / "faster_whisper").absolute()),
     )
