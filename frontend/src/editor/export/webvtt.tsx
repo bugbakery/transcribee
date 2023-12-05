@@ -5,7 +5,7 @@ import { Checkbox, FormControl, Input, Select } from '../../components/form';
 import { canGenerateVtt, generateWebVtt } from '../../utils/export/webvtt';
 import { SubtitleFormat } from '@audapolis/webvtt-writer';
 import { downloadTextAsFile } from '../../utils/download_text_as_file';
-import { pushToPodlove } from '../../utils/export_to_podlove';
+import { pushToPodlove, checkIsPodloveExportPossible } from '../../utils/export_to_podlove';
 import { ExportProps } from '.';
 import { PrimaryButton, SecondaryButton, IconButton } from '../../components/button';
 import { BsEye, BsEyeSlash } from 'react-icons/bs';
@@ -20,6 +20,7 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
   const [podloveShowApplicationId, setPodloveShowApplicationId] = useState(false);
   const [podloveApplicationId, setPodloveId] = useState('');
   const [podloveUrl, setPodloveUrl] = useState('');
+  const [podloveExportPossible, setPodloveExportPossible] = useState(true);
   const [format, setFormat] = useState('vtt' as SubtitleFormat);
   const canExport = useMemo(() => canGenerateVtt(editor.doc.children), [editor.v]);
 
@@ -29,39 +30,47 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
         <Select
           value={format}
           onChange={(e) => {
-            if (e.target.value === 'srt' || e.target.value === 'vtt' || e.target.value === 'podlove') {
+            if (
+              e.target.value === 'srt' ||
+              e.target.value === 'vtt' ||
+              e.target.value === 'podlove'
+            ) {
               setFormat(e.target.value);
+              if (e.target.value == 'srt' || e.target.value == 'vtt') {
+                setPodloveExportPossible(true);
+              } else {
+                setPodloveExportPossible(false);
+              }
             }
           }}
         >
           <option value="vtt">WebVTT</option>
           <option value="srt">SRT</option>
-          <option value="podlove">Podlove</option>
+          <option value="podlove">Upload to Podlove Publisher</option>
         </Select>
       </FormControl>
+      {format == 'vtt' || format == 'podlove' ? (
+        <Checkbox
+          label="Include Speaker Names"
+          value={(format == 'vtt' || format == 'podlove') && includeSpeakerNames}
+          onChange={(x) => setIncludeSpeakerNames(x)}
+        />
+      ) : (
+        <></>
+      )}
       {format == 'vtt' ? (
-        <>
-          <Checkbox
-            label="Include Speaker Names"
-            value={format == 'vtt' && includeSpeakerNames}
-            onChange={(x) => setIncludeSpeakerNames(x)}
-          />
-          <Checkbox
-            label="Include Word-Timings"
-            value={format == 'vtt' && includeWordTimings}
-            onChange={(x) => setIncludeWordTimings(x)}
-          />
-        </>
+        <Checkbox
+          label="Include Word-Timings"
+          value={format == 'vtt' && includeWordTimings}
+          onChange={(x) => {
+            setIncludeWordTimings(x);
+          }}
+        />
       ) : (
         <></>
       )}
       {format == 'podlove' ? (
         <>
-          <Checkbox
-            label="Include Speaker Names"
-            value={format == 'podlove' && includeSpeakerNames}
-            onChange={(x) => setIncludeSpeakerNames(x)}
-          />
           <FormControl label={'Episode (id)'}>
             <Input
               autoFocus
@@ -69,6 +78,13 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
               type="number"
               onChange={(e) => {
                 setPodloveEpisodeId(parseInt(e.target.value));
+                checkIsPodloveExportPossible(
+                  parseInt(e.target.value),
+                  podloveUser,
+                  podloveApplicationId,
+                  podloveUrl,
+                  setPodloveExportPossible,
+                );
               }}
             />
           </FormControl>
@@ -79,6 +95,13 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
               type="string"
               onChange={(e) => {
                 setPodloveUser(e.target.value);
+                checkIsPodloveExportPossible(
+                  podloveEpisodeId,
+                  e.target.value,
+                  podloveApplicationId,
+                  podloveUrl,
+                  setPodloveExportPossible,
+                );
               }}
             />
           </FormControl>
@@ -87,27 +110,30 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
               <Input
                 autoFocus
                 value={podloveApplicationId}
-                type={
-                  podloveShowApplicationId ? "text" : "password"
-                }
+                type={podloveShowApplicationId ? 'text' : 'password'}
                 onChange={(e) => {
                   setPodloveId(e.target.value);
+                  checkIsPodloveExportPossible(
+                    podloveEpisodeId,
+                    podloveUser,
+                    e.target.value,
+                    podloveUrl,
+                    setPodloveExportPossible,
+                  );
                 }}
               />
               <IconButton
-                icon={podloveShowApplicationId ? BsEyeSlash : BsEye }
+                icon={podloveShowApplicationId ? BsEyeSlash : BsEye}
                 size={20}
                 onClick={(e) => {
-                    e.preventDefault();
-                    setPodloveShowApplicationId(!podloveShowApplicationId);
-                  }
-                }
-                label="Show / Hide"
+                  e.preventDefault();
+                  setPodloveShowApplicationId(!podloveShowApplicationId);
+                }}
+                label={podloveShowApplicationId ? 'Hide' : 'Show'}
                 iconClassName="inline-block -mt-1"
                 className="rounded-xl px-4 py-1"
                 iconAfter={true}
-              >
-              </IconButton>
+              ></IconButton>
             </div>
           </FormControl>
           <FormControl label={'Podlove Publisher baseUrl'}>
@@ -117,10 +143,16 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
               type="string"
               onChange={(e) => {
                 setPodloveUrl(e.target.value);
+                checkIsPodloveExportPossible(
+                  podloveEpisodeId,
+                  podloveUser,
+                  podloveApplicationId,
+                  e.target.value,
+                  setPodloveExportPossible,
+                );
               }}
             />
           </FormControl>
-
         </>
       ) : (
         <></>
@@ -166,13 +198,18 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
                 `text/${format}`,
                 vtt.toString(format),
               );
-            }
-            else {
-              pushToPodlove(podloveEpisodeId, podloveUser, podloveApplicationId, podloveUrl, vtt.toString('vtt'));
+            } else {
+              pushToPodlove(
+                podloveEpisodeId,
+                podloveUser,
+                podloveApplicationId,
+                podloveUrl,
+                vtt.toString('vtt'),
+              );
             }
             onClose();
           }}
-          disabled={!canExport.canGenerate}
+          disabled={!canExport.canGenerate || !podloveExportPossible}
         >
           Export
         </PrimaryButton>
