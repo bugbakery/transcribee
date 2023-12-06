@@ -49,6 +49,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   const audio = useAudio({
     playbackRate,
     sources,
+    videoPreview: true,
   });
 
   // calculate the start of the current element to color it

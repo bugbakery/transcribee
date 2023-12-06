@@ -1,12 +1,13 @@
-import { actions, audio, events, props } from '@podlove/html5-audio-driver';
+import { actions, video, events, props, audio } from '@podlove/html5-audio-driver';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type UseAudioOptions = {
   playbackRate?: number;
   sources: Array<{ src: string; type: string }>;
+  videoPreview?: boolean;
 };
 
-export function useAudio({ sources, playbackRate }: UseAudioOptions) {
+export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOptions) {
   const [playing, setPlayingState] = useState(false);
   const [duration, setDuration] = useState<number | undefined>();
   const [buffering, setBuffering] = useState(false);
@@ -16,11 +17,22 @@ export function useAudio({ sources, playbackRate }: UseAudioOptions) {
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const myAudioElement = audio([]);
+    const myAudioElement = videoPreview ? video([]) : audio([]);
+
     setAudioElement(myAudioElement);
 
     const e = events(myAudioElement);
     e.onDurationChange(() => {
+      if (videoPreview && myAudioElement.videoHeight > 0) {
+        myAudioElement.style = `
+          position: fixed;
+          bottom: 90px;
+          right: 20px;
+          height: 170px;
+          width: 300px;
+        `;
+      }
+
       setDuration(props(myAudioElement).duration);
     });
     e.onPlay(() => setPlayingState(true));
