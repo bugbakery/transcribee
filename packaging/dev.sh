@@ -9,4 +9,4 @@ set -euxo pipefail
 ./packaging/install_dependencies.sh
 
 echo -e "\n\n\033[1m# starting application:\033[0m\n"
-overmind start -f packaging/Procfile
+overmind start -f packaging/Procfile $@
