@@ -17,10 +17,13 @@ class Settings(BaseSettings):
             "audio_bitrate": "128k",
             "ac": "1",
         },
-        "m4a": {
+        "video:mp4": {
             "format": "mp4",
             "audio_bitrate": "128k",
             "ac": "1",
+            "c:v": "libx264",
+            "crf": "26",
+            "preset": "faster",
         },
     }
 

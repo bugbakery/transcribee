@@ -257,7 +257,7 @@ class Worker:
 
         n_profiles = len(settings.REENCODE_PROFILES)
         for i, (profile, parameters) in enumerate(settings.REENCODE_PROFILES.items()):
-            output_path = self._get_tmpfile(f"reencode_{profile}")
+            output_path = self._get_tmpfile(f"reencode_{profile.replace(':', '_')}")
 
             await reencode(
                 document_audio,
@@ -269,6 +269,7 @@ class Worker:
                     **kwargs,
                 ),
                 duration,
+                include_video=(profile.startswith("video:")),
             )
 
             tags = [f"profile:{profile}"] + [f"{k}:{v}" for k, v in parameters.items()]
