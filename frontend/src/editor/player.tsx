@@ -35,13 +35,16 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
 
   const sources = useMemo(() => {
-    const mappedFiles =
-      data?.media_files.map((media) => {
-        return {
-          src: media.url,
-          type: media.content_type,
-        };
-      }) || [];
+    // do not play the original file, it may be large
+    const relevantMediaFiles =
+      data?.media_files.filter((media) => !media.tags.includes('original')) || [];
+
+    const mappedFiles = relevantMediaFiles.map((media) => {
+      return {
+        src: media.url,
+        type: media.content_type,
+      };
+    });
 
     return sortMediaFiles(mappedFiles);
   }, [data?.media_files]);

@@ -10,27 +10,37 @@ def get_duration(input_path: Path):
     return float(ffmpeg.probe(input_path)["format"]["duration"])
 
 
+def has_video(input_path: Path):
+    streams = ffmpeg.probe(input_path)["streams"]
+    for stream in streams:
+        if stream["codec_type"] == "video":
+            return True
+    return False
+
+
 async def reencode(
     input_path: Path,
     output_path: Path,
     output_params: dict[str, str],
     progress_callback: ProgressCallbackType,
     duration: float,
+    include_video: bool,
 ):
     def work(_):
-        cmd: subprocess.Popen = (
-            ffmpeg.input(input_path)
-            .output(
-                filename=output_path,
-                map="0:a",
-                loglevel="quiet",
-                stats=None,
-                progress="-",
-                map_metadata="-1",
-                **output_params
-            )
-            .run_async(pipe_stdout=True)
-        )
+        pipeline = ffmpeg.input(input_path)
+        streams = [pipeline.audio]
+        if include_video and has_video(input_path):
+            streams.append(pipeline.video)
+
+        cmd: subprocess.Popen = ffmpeg.output(
+            *streams,
+            filename=output_path,
+            loglevel="quiet",
+            stats=None,
+            progress="-",
+            map_metadata="-1",
+            **output_params
+        ).run_async(pipe_stdout=True)
         assert cmd.stdout
         raw_line: bytes
         progress_dict = {}
