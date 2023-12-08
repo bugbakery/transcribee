@@ -88,6 +88,10 @@ def media_has_video(path: Path):
     return False
 
 
+def is_video_profile(profile_name: str):
+    return profile_name.startswith("video:")
+
+
 class Worker:
     base_url: str
     token: str
@@ -269,17 +273,17 @@ class Worker:
         duration = get_duration(document_audio)
         self.set_duration(task, duration)
 
-        n_profiles = len(settings.REENCODE_PROFILES)
-
         has_video = media_has_video(document_audio)
+        applicable_profiles = {
+            profile_name: parameters
+            for profile_name, parameters in settings.REENCODE_PROFILES.items()
+            if has_video or not is_video_profile(profile_name)
+        }
+        n_profiles = len(applicable_profiles)
 
-        for i, (profile, parameters) in enumerate(settings.REENCODE_PROFILES.items()):
+        for i, (profile, parameters) in enumerate(applicable_profiles.items()):
             output_path = self._get_tmpfile(f"reencode_{profile.replace(':', '_')}")
-
-            video_profile = profile.startswith("video:")
-
-            if video_profile and not has_video:
-                continue
+            video_profile = is_video_profile(profile)
 
             await reencode(
                 document_audio,
