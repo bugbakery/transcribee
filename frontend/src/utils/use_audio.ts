@@ -18,21 +18,24 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
 
   useEffect(() => {
     const myAudioElement = videoPreview ? video([]) : audio([]);
-
     setAudioElement(myAudioElement);
+
+    if (videoPreview) {
+      myAudioElement.style = `
+        position: fixed;
+        bottom: 90px;
+        right: 20px;
+        height: 170px;
+        width: 300px;
+      `;
+    } else {
+      myAudioElement.style = `
+        display: none;
+      `;
+    }
 
     const e = events(myAudioElement);
     e.onDurationChange(() => {
-      if (videoPreview && myAudioElement.videoHeight > 0) {
-        myAudioElement.style = `
-          position: fixed;
-          bottom: 90px;
-          right: 20px;
-          height: 170px;
-          width: 300px;
-        `;
-      }
-
       setDuration(props(myAudioElement).duration);
     });
     e.onPlay(() => setPlayingState(true));
@@ -52,7 +55,7 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
       myAudioElement.innerHTML = '';
       myAudioElement.remove();
     };
-  }, []);
+  }, [videoPreview]);
 
   useEffect(() => {
     if (!audioElement) return;
