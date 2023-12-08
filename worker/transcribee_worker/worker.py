@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Optional, Tuple
 
 import automerge
+import ffmpeg
 import numpy.typing as npt
 from pydantic import parse_raw_as
 from transcribee_proto.api import (
@@ -72,6 +73,19 @@ def get_last_atom_end(doc: EditorDocument):
                 return atom.end
 
     return 0
+
+
+def media_has_video(path: Path):
+    streams = ffmpeg.probe(path)["streams"]
+    for stream in streams:
+        if stream["codec_type"] == "video":
+            if stream["disposition"]["attached_pic"] != 0:
+                # ignore album covers
+                continue
+
+            return True
+
+    return False
 
 
 class Worker:
@@ -256,8 +270,16 @@ class Worker:
         self.set_duration(task, duration)
 
         n_profiles = len(settings.REENCODE_PROFILES)
+
+        has_video = media_has_video(document_audio)
+
         for i, (profile, parameters) in enumerate(settings.REENCODE_PROFILES.items()):
             output_path = self._get_tmpfile(f"reencode_{profile.replace(':', '_')}")
+
+            video_profile = profile.startswith("video:")
+
+            if video_profile and not has_video:
+                continue
 
             await reencode(
                 document_audio,
@@ -269,10 +291,13 @@ class Worker:
                     **kwargs,
                 ),
                 duration,
-                include_video=(profile.startswith("video:")),
+                include_video=video_profile,
             )
 
             tags = [f"profile:{profile}"] + [f"{k}:{v}" for k, v in parameters.items()]
+
+            if video_profile:
+                tags.append("video")
 
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(

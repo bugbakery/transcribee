@@ -39,7 +39,10 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
     const relevantMediaFiles =
       data?.media_files.filter((media) => !media.tags.includes('original')) || [];
 
-    const mappedFiles = relevantMediaFiles.map((media) => {
+    const videoFiles = relevantMediaFiles.filter((media) => media.tags.includes('video'));
+    const audioFiles = relevantMediaFiles.filter((media) => !media.tags.includes('video'));
+
+    const mappedFiles = [...videoFiles, ...audioFiles].map((media) => {
       return {
         src: media.url,
         type: media.content_type,
