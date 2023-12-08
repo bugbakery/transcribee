@@ -17,6 +17,11 @@ class Settings(BaseSettings):
             "audio_bitrate": "128k",
             "ac": "1",
         },
+        "m4a": {
+            "format": "mp4",
+            "audio_bitrate": "128k",
+            "ac": "1",
+        },
         "video:mp4": {
             "format": "mp4",
             "audio_bitrate": "128k",
@@ -24,6 +29,10 @@ class Settings(BaseSettings):
             "c:v": "libx264",
             "crf": "26",
             "preset": "faster",
+            # downscale to 480p and pad to multiple of 2 (needed for libx264)
+            "vf": "scale='min(854,iw)':'min(480,ih)'"
+            ":force_original_aspect_ratio=decrease,"
+            "pad='iw+mod(iw\\,2)':'ih+mod(ih\\,2)",
         },
     }
 

@@ -10,14 +10,6 @@ def get_duration(input_path: Path):
     return float(ffmpeg.probe(input_path)["format"]["duration"])
 
 
-def has_video(input_path: Path):
-    streams = ffmpeg.probe(input_path)["streams"]
-    for stream in streams:
-        if stream["codec_type"] == "video":
-            return True
-    return False
-
-
 async def reencode(
     input_path: Path,
     output_path: Path,
@@ -29,7 +21,7 @@ async def reencode(
     def work(_):
         pipeline = ffmpeg.input(input_path)
         streams = [pipeline.audio]
-        if include_video and has_video(input_path):
+        if include_video:
             streams.append(pipeline.video)
 
         cmd: subprocess.Popen = ffmpeg.output(
