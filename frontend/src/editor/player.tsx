@@ -23,7 +23,15 @@ const SKIP_SHORTCUT_SEC = 3;
 
 let lastTabPressTs = 0;
 
-export function PlayerBar({ documentId, editor }: { documentId: string; editor: Editor }) {
+export function PlayerBar({
+  documentId,
+  editor,
+  onShowVideo,
+}: {
+  documentId: string;
+  editor: Editor;
+  onShowVideo?: (show: boolean) => void;
+}) {
   const { data } = useGetDocument(
     { document_id: documentId },
     {
@@ -60,6 +68,12 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
     sources,
     videoPreview: hasVideo,
   });
+
+  useEffect(() => {
+    if (onShowVideo) {
+      onShowVideo(hasVideo);
+    }
+  }, [hasVideo]);
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);

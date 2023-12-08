@@ -112,6 +112,7 @@ export function DocumentPage({
   const [_location, navigate] = useLocation();
   const debugMode = useDebugMode();
   const { isLoggedIn } = useAuthData();
+  const [videoVisible, setVideoVisible] = useState(false);
 
   const url = getDocumentWsUrl(documentId);
 
@@ -188,12 +189,16 @@ export function DocumentPage({
       </TopBar>
 
       <TranscriptionEditor
+        onShowVideo={setVideoVisible}
         editor={editor}
         documentId={documentId}
         initialValue={initialValue}
         className={'grow flex flex-col'}
         readOnly={!data || !data.can_write}
       />
+
+      {/* Spacer to prevent video preview from hiding text */}
+      {videoVisible && <div className="h-36"></div>}
 
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </AppContainer>
