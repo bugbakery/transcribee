@@ -34,7 +34,7 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
 
-  const sources = useMemo(() => {
+  const { sources, hasVideo } = useMemo(() => {
     // do not play the original file, it may be large
     const relevantMediaFiles =
       data?.media_files.filter((media) => !media.tags.includes('original')) || [];
@@ -49,13 +49,16 @@ export function PlayerBar({ documentId, editor }: { documentId: string; editor: 
       };
     });
 
-    return sortMediaFiles(mappedFiles);
+    return {
+      sources: sortMediaFiles(mappedFiles),
+      hasVideo: videoFiles.length > 0,
+    };
   }, [data?.media_files]);
 
   const audio = useAudio({
     playbackRate,
     sources,
-    videoPreview: true,
+    videoPreview: hasVideo,
   });
 
   // calculate the start of the current element to color it
