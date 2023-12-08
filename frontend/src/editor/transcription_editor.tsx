@@ -224,12 +224,14 @@ export function TranscriptionEditor({
   documentId,
   readOnly,
   initialValue,
+  onShowVideo,
   ...props
 }: {
   editor?: Editor;
   documentId: string;
   readOnly: boolean;
   initialValue?: Paragraph[];
+  onShowVideo?: (show: boolean) => void;
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   // prevent ctrl+s
@@ -312,7 +314,7 @@ export function TranscriptionEditor({
                   className={clsx('2xl:-ml-20')}
                 />
               </ErrorBoundary>
-              <PlayerBar documentId={documentId} editor={editor} />
+              <PlayerBar documentId={documentId} editor={editor} onShowVideo={onShowVideo} />
             </LoadingContext.Provider>
           </SpeakerColorsProvider>
         </Slate>
