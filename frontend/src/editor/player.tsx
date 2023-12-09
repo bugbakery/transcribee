@@ -16,6 +16,7 @@ import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { minutesInMs } from '../utils/duration_in_ms';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
+import { BiVideo, BiVideoOff } from 'react-icons/bi';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -42,7 +43,7 @@ export function PlayerBar({
 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
 
-  const { sources, hasVideo } = useMemo(() => {
+  const { videoSources, audioSources, hasVideo } = useMemo(() => {
     // do not play the original file, it may be large
     const relevantMediaFiles =
       data?.media_files.filter((media) => !media.tags.includes('original')) || [];
@@ -50,30 +51,36 @@ export function PlayerBar({
     const videoFiles = relevantMediaFiles.filter((media) => media.tags.includes('video'));
     const audioFiles = relevantMediaFiles.filter((media) => !media.tags.includes('video'));
 
-    const mappedFiles = [...videoFiles, ...audioFiles].map((media) => {
+    const mapFile = (media: (typeof relevantMediaFiles)[0]) => {
       return {
         src: media.url,
         type: media.content_type,
       };
-    });
+    };
+
+    const mappedVideoFiles = videoFiles.map(mapFile);
+    const mappedAudioFiles = audioFiles.map(mapFile);
 
     return {
-      sources: sortMediaFiles(mappedFiles),
+      videoSources: sortMediaFiles(mappedVideoFiles),
+      audioSources: sortMediaFiles(mappedAudioFiles),
       hasVideo: videoFiles.length > 0,
     };
   }, [data?.media_files]);
 
+  const [showVideo, setShowVideo] = useState(hasVideo);
+
   const audio = useAudio({
     playbackRate,
-    sources,
-    videoPreview: hasVideo,
+    sources: reallyShowVideo ? videoSources : audioSources,
+    videoPreview: reallyShowVideo,
   });
 
   useEffect(() => {
     if (onShowVideo) {
-      onShowVideo(hasVideo);
+      onShowVideo(reallyShowVideo);
     }
-  }, [hasVideo]);
+  }, [reallyShowVideo]);
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
@@ -207,6 +214,13 @@ export function PlayerBar({
         </div>
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
+        {hasVideo && (
+          <IconButton
+            icon={reallyShowVideo ? BiVideoOff : BiVideo}
+            label={reallyShowVideo ? 'disable video preview' : 'enable video preview'}
+            onClick={() => setShowVideo(!reallyShowVideo)}
+          />
+        )}
       </div>
     </>
   );
