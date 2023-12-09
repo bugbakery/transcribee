@@ -45,8 +45,17 @@ export function PlayerBar({
 
   const { videoSources, audioSources, hasVideo } = useMemo(() => {
     // do not play the original file, it may be large
-    const relevantMediaFiles =
+    let relevantMediaFiles =
       data?.media_files.filter((media) => !media.tags.includes('original')) || [];
+
+    // but if the original is all we have, better play this than nothing at all
+    if (
+      relevantMediaFiles.length == 0 &&
+      data?.media_files !== undefined &&
+      data?.media_files.length > 0
+    ) {
+      relevantMediaFiles = data.media_files;
+    }
 
     const videoFiles = relevantMediaFiles.filter((media) => media.tags.includes('video'));
     const audioFiles = relevantMediaFiles.filter((media) => !media.tags.includes('video'));
