@@ -87,6 +87,8 @@ async def run(args):
     finish_event = asyncio.Event()
     # stop the worker gracefully on SIGTERM
     asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, finish_event.set)
+    # allow to cancel shutdown via SIGUSR1
+    asyncio.get_running_loop().add_signal_handler(signal.SIGUSR1, finish_event.clear)
 
     worker = Worker(
         base_url=f"{args.coordinator}/api/v1/tasks",
