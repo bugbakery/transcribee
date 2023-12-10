@@ -152,9 +152,16 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
           disabled={!limitLineLength}
         />
       </FormControl>
-      {!canExport.canGenerate && canExport.reason && (
+      {((!canExport.canGenerate && canExport.reason) ||
+        (format === 'podlove' && !podloveExportPossible)) && (
         <div className="block bg-red-100 px-2 py-2 rounded text-center text-red-700">
-          {canExport.reason}
+          <p>{canExport.reason}</p>
+          {format === 'podlove' && !podloveExportPossible && (
+            <p>
+              Configured episode could not be found in the podlove publisher instance. Please check
+              that the publisher url, credentials and episode id are correct.
+            </p>
+          )}
         </div>
       )}
       <div className="flex justify-between">
