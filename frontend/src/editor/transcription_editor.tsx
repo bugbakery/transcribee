@@ -314,7 +314,9 @@ export function TranscriptionEditor({
                   className={clsx('2xl:-ml-20')}
                 />
               </ErrorBoundary>
-              <PlayerBar documentId={documentId} editor={editor} onShowVideo={onShowVideo} />
+              {!loadingState[0] && (
+                <PlayerBar documentId={documentId} editor={editor} onShowVideo={onShowVideo} />
+              )}
             </LoadingContext.Provider>
           </SpeakerColorsProvider>
         </Slate>

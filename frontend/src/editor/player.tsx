@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import { IconButton } from '../components/button';
 import { ImBackward2, ImPause2, ImPlay3 } from 'react-icons/im';
 import { useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react';
-import { useGetDocument } from '../api/document';
+import { ApiDocument, useGetDocument } from '../api/document';
 import { CssRule } from '../utils/cssdom';
 import { SEEK_TO_EVENT, SeekToEvent } from './types';
 import { useEvent } from '../utils/use_event';
@@ -24,6 +24,28 @@ const SKIP_SHORTCUT_SEC = 3;
 
 let lastTabPressTs = 0;
 
+export function splitAndSortMediaFiles(mediaFiles: ApiDocument['media_files']) {
+  const videoFiles = mediaFiles.filter((media) => media.tags.includes('video'));
+  const audioFiles = mediaFiles.filter((media) => !media.tags.includes('video'));
+
+  const mapFile = (media: (typeof mediaFiles)[0]) => {
+    return {
+      src: media.url,
+      type: media.content_type,
+      tags: media.tags,
+    };
+  };
+
+  const mappedVideoFiles = videoFiles.map(mapFile);
+  const mappedAudioFiles = audioFiles.map(mapFile);
+
+  return {
+    videoSources: sortMediaFiles(mappedVideoFiles),
+    audioSources: sortMediaFiles(mappedAudioFiles),
+    hasVideo: videoFiles.length > 0,
+  };
+}
+
 export function PlayerBar({
   documentId,
   editor,
@@ -41,43 +63,15 @@ export function PlayerBar({
     },
   );
 
+  const { videoSources, audioSources, hasVideo } = useMemo(
+    () => splitAndSortMediaFiles(data?.media_files || []),
+    [data?.media_files],
+  );
+
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
 
-  const { videoSources, audioSources, hasVideo } = useMemo(() => {
-    // do not play the original file, it may be large
-    let relevantMediaFiles =
-      data?.media_files.filter((media) => !media.tags.includes('original')) || [];
-
-    // but if the original is all we have, better play this than nothing at all
-    if (
-      relevantMediaFiles.length == 0 &&
-      data?.media_files !== undefined &&
-      data?.media_files.length > 0
-    ) {
-      relevantMediaFiles = data.media_files;
-    }
-
-    const videoFiles = relevantMediaFiles.filter((media) => media.tags.includes('video'));
-    const audioFiles = relevantMediaFiles.filter((media) => !media.tags.includes('video'));
-
-    const mapFile = (media: (typeof relevantMediaFiles)[0]) => {
-      return {
-        src: media.url,
-        type: media.content_type,
-      };
-    };
-
-    const mappedVideoFiles = videoFiles.map(mapFile);
-    const mappedAudioFiles = audioFiles.map(mapFile);
-
-    return {
-      videoSources: sortMediaFiles(mappedVideoFiles),
-      audioSources: sortMediaFiles(mappedAudioFiles),
-      hasVideo: videoFiles.length > 0,
-    };
-  }, [data?.media_files]);
-
-  const [showVideo, setShowVideo] = useState(hasVideo);
+  const [showVideo, setShowVideo] = useState(true);
+  const reallyShowVideo = showVideo && hasVideo;
 
   const audio = useAudio({
     playbackRate,
