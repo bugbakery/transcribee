@@ -3,9 +3,10 @@
 import argparse
 import asyncio
 import logging
+import signal
 import traceback
 import urllib.parse
-from multiprocessing import Event, Process
+from multiprocessing import Process
 from pathlib import Path
 
 import requests.exceptions
@@ -51,54 +52,64 @@ def main():
     if args.reload:
         path = Path(__file__).parent
 
-        p, event = run_sync_in_process(args)
+        p = run_sync_in_process(args)
         for _ in watch(path):
             logging.info("Source code change detected, reloading worker")
-            event.set()
+            p.terminate()
             p.join()
-            p, event = run_sync_in_process(args)
+            p = run_sync_in_process(args)
 
     else:
-        run_sync(args, Event())
+        run_sync(args)
 
 
 def run_sync_in_process(args):
-    event = Event()
-    p = Process(target=run_sync, args=(args, event))
+    p = Process(target=run_sync, args=(args,))
     p.start()
-    return p, event
+    return p
 
 
-def run_sync(args, event):
-    asyncio.run(run(args, event))
+def run_sync(args):
+    asyncio.run(run(args))
 
 
-async def run(args, event: Event):
+async def wait_for_event(event: asyncio.Event, timeout: int):
+    try:
+        await asyncio.wait_for(event.wait(), timeout=timeout)
+    except asyncio.TimeoutError:
+        pass
+
+
+async def run(args):
     # Needs to be done after settings.setup_env
     from transcribee_worker.worker import Worker  # noqa
+
+    finish_event = asyncio.Event()
+    # stop the worker gracefully on SIGTERM
+    asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, finish_event.set)
 
     worker = Worker(
         base_url=f"{args.coordinator}/api/v1/tasks",
         websocket_base_url=args.websocket_base_url,
         token=args.token,
     )
-    while not event.is_set():
+    while not finish_event.is_set():
         try:
             no_work = await worker.run_task(
                 mark_completed=not args.run_once_and_dont_complete
             )
             if no_work:
-                event.wait(5)
+                await wait_for_event(finish_event, timeout=5)
             elif args.run_once_and_dont_complete:
                 break
         except requests.exceptions.ConnectionError:
             logging.warn("could not connect to backend")
-            event.wait(5)
+            await wait_for_event(finish_event, timeout=5)
         except Exception:
             logging.warn(
                 f"an error occured during worker execution:\n{traceback.format_exc()}"
             )
-            event.wait(5)
+            await wait_for_event(finish_event, timeout=5)
 
 
 if __name__ == "__main__":
