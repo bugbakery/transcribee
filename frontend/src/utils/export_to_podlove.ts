@@ -38,60 +38,32 @@ export function pushToPodlove(
     .catch((err) => console.error(err));
 }
 
-export function checkIsPodloveExportPossible(
+export async function checkIsPodloveExportPossible(
   episodeId: number,
   user: string,
   appId: string,
   url: string,
-  setIsPodloveUploadPossible: (v: boolean) => void,
-) {
+): Promise<boolean> {
   if (url.length < 1 || appId.length < 1 || user.length < 1 || episodeId < 1) {
-    setIsPodloveUploadPossible(false);
+    return false;
   }
 
-  const podloveUrlEpispde = url + '/wp-json/podlove/v2/episodes/' + episodeId.toString();
-  fetch(podloveUrlEpispde, {
-    method: 'GET',
-  })
-    .then((response) => {
-      // export the vtt to the podlove publisher
-      if (response.status === 200) {
-        setIsPodloveUploadPossible(true);
-      } else {
-        if (response.status === 401) {
-          fetch(podloveUrlEpispde, {
-            method: 'GET',
-            headers: {
-              'Content-type': 'application/json;charset=UTF-8',
-              Authorization: `Basic ${btoa(`${user}:${appId}`)}`,
-            },
-          })
-            .then((response) => {
-              if (response.status === 200) {
-                setIsPodloveUploadPossible(true);
-              } else {
-                if (response.status === 401) {
-                  setIsPodloveUploadPossible(false);
-                }
-                if (response.status === 404) {
-                  setIsPodloveUploadPossible(false);
-                }
-                setIsPodloveUploadPossible(false);
-              }
-            })
-            .catch((err) => {
-              console.error(err);
-              setIsPodloveUploadPossible(false);
-            });
-        }
-        if (response.status === 404) {
-          setIsPodloveUploadPossible(false);
-        }
-        setIsPodloveUploadPossible(false);
-      }
-    })
-    .catch((err) => {
-      console.error(err);
-      setIsPodloveUploadPossible(false);
+  const podloveUrlEpisode = url + '/wp-json/podlove/v2/episodes/' + episodeId.toString();
+  try {
+    const response = await fetch(podloveUrlEpisode, {
+      method: 'GET',
+      headers: {
+        'Content-type': 'application/json;charset=UTF-8',
+        Authorization: `Basic ${btoa(`${user}:${appId}`)}`,
+      },
     });
+    if (response.status === 200) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (err) {
+    console.log(err);
+    return false;
+  }
 }
