@@ -57,7 +57,11 @@ def main():
         stop_watching_event = asyncio.Event()
         p = run_sync_in_process(stop_watching_event, args)
 
-        for _ in watch(path, stop_event=stop_watching_event):
+        def watch_filter(change, path: str):
+            # do not reload when models are downloaded
+            return not path.startswith(settings.MODELS_DIR.absolute().as_posix())
+
+        for _ in watch(path, watch_filter=watch_filter, stop_event=stop_watching_event):
             logging.info("Source code change detected, reloading worker")
             p.terminate()
             p.join()
