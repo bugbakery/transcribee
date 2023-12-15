@@ -61,6 +61,7 @@ python3Packages.buildPythonApplication rec {
   + ''
     export PDM_TMP=$(mktemp -d)
     export PDM_CONFIG_FILE=$PDM_TMP/config
+    export CARGO_HOME=$(mktemp -d)
 
     pdm config cache_dir $PDM_TMP/cache
     TERM=dumb pdm install --no-lock --check --prod
