@@ -49,14 +49,13 @@ def SessionContextManager(path: str):
 
 @contextmanager
 def query_counter(session: Session, path: Optional[str]):
-    engine = session.connection().engine
     count = 0
 
     def callback(*args, **kwargs):
         nonlocal count
         count += 1
 
-    event.listen(engine, "before_cursor_execute", callback)
+    event.listen(session, "do_orm_execute", callback)
     yield
-    event.remove(engine, "before_cursor_execute", callback)
+    event.remove(session, "do_orm_execute", callback)
     query_histogram.labels(path=path).observe(count)
