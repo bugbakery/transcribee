@@ -1,13 +1,14 @@
 { config, pkgs, lib, ... }:
 with lib;
 let
-  common = import ../common.nix;
   python3Packages = pkgs.python3.pkgs;
+  pyproject = builtins.fromTOML (builtins.readFile ../../worker/pyproject.toml);
 in
 python3Packages.buildPythonApplication rec {
-  pname = "${common.name}-worker";
-  version = common.version;
+  pname = pyproject.project.name;
+  version = pyproject.project.version;
   src = ../..;
+
   format = "pyproject";
 
   nativeBuildInputs = [

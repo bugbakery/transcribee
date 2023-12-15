@@ -1,10 +1,11 @@
 { pkgs, stdenv }:
 let
   common = import ../common.nix;
+  package = builtins.fromJSON (builtins.readFile ../../frontend/package.json);
 in
 stdenv.mkDerivation {
-  pname = "${common.name}-frontend";
-  version = common.version;
+  pname = package.name;
+  version = package.version;
   src = ../..;
 
   nativeBuildInputs = [

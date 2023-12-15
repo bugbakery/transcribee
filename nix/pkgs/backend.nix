@@ -5,10 +5,11 @@
 }:
 let
   common = import ../common.nix;
+  pyproject = builtins.fromTOML (builtins.readFile ../../backend/pyproject.toml);
 in
 python3Packages.buildPythonApplication rec {
-  pname = "${common.name}-backend";
-  version = common.version;
+  pname = pyproject.project.name;
+  version = pyproject.project.version;
   src = ../..;
 
   format = "pyproject";
