@@ -36,6 +36,9 @@ pkgs.mkShell {
 
     nodePackages.pnpm
 
+    # nix tooling
+    nixpkgs-fmt
+
     # required by whispercppy
     cmake
 
