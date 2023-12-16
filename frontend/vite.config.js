@@ -6,6 +6,8 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import * as mime from 'mime-types';
 
+import pkg from './package.json';
+
 function gitVersionPlugin() {
   const virtualModuleId = 'virtual:git-version';
 
@@ -27,22 +29,21 @@ function gitVersionPlugin() {
         return stdout;
       }
 
-      function commitInfo(ref) {
+      function commitInfo() {
+        const hash = process.env.COMMIT_HASH || git('rev-parse HEAD');
+
         return {
-          hash: git(`rev-parse ${ref}`),
-          date: git(`show -s --format=%cI ${ref}`),
-          countSinceStart: parseInt(git(`rev-list --count ${ref}`)),
+          hash: hash,
+          date: process.env.COMMIT_DATE || git('show -s --format=%cI HEAD'),
+          url: process.env.COMMIT_URL || `https://github.com/bugbakery/transcribee/commit/${hash}`,
         };
       }
 
       if (id === virtualModuleId) {
-        const lastCommitOnMain = git('merge-base origin/main HEAD');
         const json = JSON.stringify({
-          diffShort: git('diff --shortstat HEAD'),
-          lastCommit: commitInfo('HEAD'),
-          lastCommitOnMain: commitInfo(lastCommitOnMain),
-          branch: git('rev-parse --abbrev-ref HEAD'),
-          date: new Date().toISOString(),
+          name: process.env.VERSION_NAME || pkg.version,
+          commit: commitInfo('HEAD'),
+          buildDate: new Date().toISOString(),
         });
         return `
           const version = ${json};
