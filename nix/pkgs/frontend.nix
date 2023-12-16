@@ -19,7 +19,6 @@ stdenv.mkDerivation {
     cd frontend/
   '';
 
-
   installPhase =
     let
       versionExports = ([ ]
@@ -29,6 +28,9 @@ stdenv.mkDerivation {
       );
     in
     ''
+      # npm is used by some packages
+      export NPM_CONFIG_CACHE="$(mktemp -d)"
+
       pnpm install --frozen-lockfile
 
       ${lib.concatStringsSep "\n" versionExports}
