@@ -1,4 +1,7 @@
-{ pkgs, stdenv }:
+{ pkgs
+, stdenv
+, versionInfo ? { }
+}:
 let
   common = import ../common.nix;
   package = builtins.fromJSON (builtins.readFile ../../frontend/package.json);
@@ -16,11 +19,22 @@ stdenv.mkDerivation {
     cd frontend/
   '';
 
-  installPhase = ''
-    pnpm install --frozen-lockfile
-    pnpm build
 
-    mkdir -p $out
-    cp -r dist/* dist/.* $out/
-  '';
+  installPhase =
+    let
+      versionExports = ([ ]
+        ++ (lib.optional versionInfo.commitHash "export COMMIT_HASH=\"${versionInfo.commitHash}\"")
+        ++ (lib.optional versionInfo.commitDate "export COMMIT_DATE=\"${versionInfo.commitDate}\"")
+        ++ (lib.optional versionInfo.commitUrl "export COMMIT_URL=\"${versionInfo.commitUrl}\"")
+      );
+    in
+    ''
+      pnpm install --frozen-lockfile
+
+      ${lib.concatStringsSep "\n" versionExports}
+      pnpm build
+
+      mkdir -p $out
+      cp -r dist/* dist/.* $out/
+    '';
 }
