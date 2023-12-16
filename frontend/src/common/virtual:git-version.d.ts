@@ -1,16 +1,14 @@
 declare module 'virtual:git-version' {
   export interface Commit {
-    countSinceStart?: number;
-    date?: string;
     hash?: string;
+    date?: string;
+    url?: string;
   }
 
   export interface Version {
-    branch?: string;
-    diffShort?: string;
-    lastCommit?: Commit;
-    lastCommitOnMain?: Commit;
-    date?: string;
+    name?: string;
+    buildDate?: string;
+    commit?: Commit;
   }
 
   let version: Version | undefined;
