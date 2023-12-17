@@ -1,5 +1,6 @@
 { pkgs
 , stdenv
+, lib
 , versionInfo ? { }
 }:
 let
