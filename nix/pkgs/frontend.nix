@@ -23,9 +23,9 @@ stdenv.mkDerivation {
   installPhase =
     let
       versionExports = ([ ]
-        ++ (lib.optional versionInfo.commitHash "export COMMIT_HASH=\"${versionInfo.commitHash}\"")
-        ++ (lib.optional versionInfo.commitDate "export COMMIT_DATE=\"${versionInfo.commitDate}\"")
-        ++ (lib.optional versionInfo.commitUrl "export COMMIT_URL=\"${versionInfo.commitUrl}\"")
+        ++ (lib.optional (versionInfo ? "commitHash") "export COMMIT_HASH=\"${versionInfo.commitHash}\"")
+        ++ (lib.optional (versionInfo ? "commitDate") "export COMMIT_DATE=\"${versionInfo.commitDate}\"")
+        ++ (lib.optional (versionInfo ? "commitUrl") "export COMMIT_URL=\"${versionInfo.commitUrl}\"")
       );
     in
     ''
