@@ -35,7 +35,7 @@ async def reencode(
 ):
     def work(_):
         pipeline = ffmpeg.input(input_path)
-        streams = [pipeline.audio]
+        streams = [pipeline["a:0"]]  # use only first audio stream
         if include_video:
             streams.append(pipeline.video)
 
