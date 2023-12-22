@@ -4,7 +4,7 @@ let
   python3Packages = pkgs.python3.pkgs;
   pyproject = builtins.fromTOML (builtins.readFile ../../worker/pyproject.toml);
 in
-python3Packages.buildPythonApplication rec {
+python3Packages.buildPythonApplication {
   pname = pyproject.project.name;
   version = pyproject.project.version;
   src = ../..;
