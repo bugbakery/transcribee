@@ -2,7 +2,6 @@
 with lib;
 let
   cfg = config.services.transcribee-worker;
-  worker = (pkgs.callPackage ../pkgs/worker.nix {});
 in
 {
   options.services.transcribee-worker = {
@@ -26,10 +25,8 @@ in
         Restart = "always";
       };
       script = ''
-        ${pkgs.pdm}/bin/pdm run -s -p ${worker} ${worker}/run.py --coordinator ${cfg.coordinator} --token ${cfg.token}
       '';
       environment = {
-        LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${worker}/__pypackages__/3.10/lib/numpy.libs/:${worker}/__pypackages__/3.10/lib/tokenizers.libs/";
         MODELS_DIR = cfg.modelsDir;
       };
       path = [ pkgs.ffmpeg.bin ];
