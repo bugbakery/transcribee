@@ -1,7 +1,8 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, options, ... }:
 with lib;
 let
   cfg = config.services.transcribee-worker;
+  worker = (pkgs.callPackage ../pkgs/worker.nix {});
 in
 {
   options.services.transcribee-worker = {
@@ -20,37 +21,27 @@ in
   config = mkIf cfg.enable {
     systemd.services.transcribee-worker = {
       enable = true;
-      unitConfig = {
-        Type = "simple";
+      serviceConfig = {
+        TimeoutStopSec = "infinity";
         Restart = "always";
       };
       script = ''
+        # add native libs to LD_LIBRARY_PATH
+        # FIXME: why do we need this? there should be a better way to do this
+        for lib_path in $(${pkgs.fd}/bin/fd "\\.libs" "${worker}/__pypackages__" --type=d);
+        do
+          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$lib_path"
+        done
+
+        ${pkgs.pdm}/bin/pdm run -s -p ${worker} ${worker}/run.py --coordinator ${cfg.coordinator} --token ${cfg.token}
       '';
       environment = {
+        LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
         MODELS_DIR = cfg.modelsDir;
+        CPU_THREADS = "8";
       };
       path = [ pkgs.ffmpeg.bin ];
       wantedBy = [ "multi-user.target" ];
     };
-
-    # launchd.daemons.transcribee-worker = {
-    #   script = ''
-    #     ${pkgs.pdm}/bin/pdm run -s -p ${worker} ${worker}/run.py --coordinator ${cfg.coordinator} --token ${cfg.token}
-    #   '';
-    #   environment = {
-    #     LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${worker}/__pypackages__/3.10/lib/numpy.libs/:${worker}/__pypackages__/3.10/lib/tokenizers.libs/";
-    #     MODELS_DIR = cfg.modelsDir;
-    #   };
-    #   path = [
-    #     pkgs.ffmpeg.bin
-    #     pkgs.pkg-config
-    #   ];
-    #   serviceConfig = {
-    #     KeepAlive = true;
-    #     RunAtLoad = true;
-    #     StandardOutPath = "/var/log/transcribee-worker.log";
-    #     StandardErrorPath = "/var/log/transcribee-worker.log";
-    #   };
-    # };
   };
 }
