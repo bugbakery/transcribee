@@ -40,17 +40,18 @@ def pw_cmp(salt, hash, pw, N=14) -> bool:
     )
 
 
-def generate_user_token(user: User):
+def generate_user_token(user: User, valid_until: datetime.datetime):
     raw_token = b64encode(os.urandom(32)).decode()
     salt, hash = pw_hash(
         raw_token, N=5
     )  # We can use a much lower N here since we do not need to protect against weak passwords
     token = b64encode(f"{user.id}:{raw_token}".encode()).decode()
+
     return token, UserToken(
         user_id=user.id,
         token_hash=hash,
         token_salt=salt,
-        valid_until=now_tz_aware() + datetime.timedelta(days=7),
+        valid_until=valid_until,
     )
 
 

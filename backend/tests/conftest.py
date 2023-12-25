@@ -1,3 +1,4 @@
+import datetime
 import tempfile
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from transcribee_backend.auth import (
 from transcribee_backend.config import settings
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists
+from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.main import app
 from transcribee_backend.models import User
 
@@ -104,7 +106,9 @@ def user(memory_session: Session):
 
 @pytest.fixture
 def auth_token(user: User, memory_session: Session):
-    user_token, db_token = generate_user_token(user)
+    user_token, db_token = generate_user_token(
+        user, valid_until=now_tz_aware() + datetime.timedelta(days=1)
+    )
     memory_session.add(db_token)
     memory_session.commit()
     return user_token
@@ -126,7 +130,9 @@ def user_2(memory_session: Session):
 
 @pytest.fixture
 def auth_token_user_2(user_2: User, memory_session: Session):
-    user_token, db_token = generate_user_token(user_2)
+    user_token, db_token = generate_user_token(
+        user_2, valid_until=now_tz_aware() + datetime.timedelta(days=1)
+    )
     memory_session.add(db_token)
     memory_session.commit()
     return user_token

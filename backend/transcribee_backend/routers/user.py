@@ -1,3 +1,5 @@
+import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, delete
 from transcribee_proto.api import LoginResponse
@@ -12,6 +14,7 @@ from transcribee_backend.auth import (
 )
 from transcribee_backend.db import get_session
 from transcribee_backend.exceptions import UserAlreadyExists
+from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models import CreateUser, UserBase, UserToken
 from transcribee_backend.models.user import ChangePasswordRequest
 
@@ -40,7 +43,9 @@ def login(user: CreateUser, session: Session = Depends(get_session)) -> LoginRes
     except NotAuthorized:
         raise HTTPException(403)
 
-    user_token, db_token = generate_user_token(authorized_user)
+    user_token, db_token = generate_user_token(
+        authorized_user, valid_until=now_tz_aware() + datetime.timedelta(days=7)
+    )
     session.add(db_token)
     session.commit()
     return LoginResponse(token=user_token)
