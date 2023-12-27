@@ -31,6 +31,7 @@ stdenv.mkDerivation {
     ''
       # npm is used by some packages
       export NPM_CONFIG_CACHE="$(mktemp -d)"
+      export NODE_EXTRA_CA_CERTS="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
 
       pnpm install --frozen-lockfile
 
