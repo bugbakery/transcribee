@@ -33,6 +33,8 @@ stdenv.mkDerivation {
       export NPM_CONFIG_CACHE="$(mktemp -d)"
       export NODE_EXTRA_CA_CERTS="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
 
+      echo "store-dir = $(mktemp -d)" > .npmrc
+
       pnpm install --frozen-lockfile
 
       ${lib.concatStringsSep "\n" versionExports}
