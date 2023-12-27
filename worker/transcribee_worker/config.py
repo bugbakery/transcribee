@@ -40,6 +40,8 @@ class Settings(BaseSettings):
 
     CPU_THREADS: int = 4
 
+    COMPUTE_TYPE: str = "int8"
+
     class Config:
         env_file = ".env"
 
