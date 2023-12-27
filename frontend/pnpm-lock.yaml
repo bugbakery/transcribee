@@ -66,7 +66,7 @@ dependencies:
     version: 0.94.1
   slate-automerge-doc:
     specifier: github:bugbakery/slate-automerge-doc
-    version: github.com/bugbakery/slate-automerge-doc/17b57f8481356f7025775ed46ded556a9aa6ea87(slate@0.94.1)
+    version: github.com/bugbakery/slate-automerge-doc/ddeccfc36cad1e96941d68e29633f656df3c1481(slate@0.94.1)
   slate-history:
     specifier: ^0.93.0
     version: 0.93.0(slate@0.94.1)
@@ -6225,11 +6225,13 @@ packages:
     requiresBuild: true
     dev: false
 
-  github.com/bugbakery/slate-automerge-doc/17b57f8481356f7025775ed46ded556a9aa6ea87(slate@0.94.1):
-    resolution: {tarball: https://codeload.github.com/bugbakery/slate-automerge-doc/tar.gz/17b57f8481356f7025775ed46ded556a9aa6ea87}
-    id: github.com/bugbakery/slate-automerge-doc/17b57f8481356f7025775ed46ded556a9aa6ea87
+  github.com/bugbakery/slate-automerge-doc/ddeccfc36cad1e96941d68e29633f656df3c1481(slate@0.94.1):
+    resolution: {tarball: https://codeload.github.com/bugbakery/slate-automerge-doc/tar.gz/ddeccfc36cad1e96941d68e29633f656df3c1481}
+    id: github.com/bugbakery/slate-automerge-doc/ddeccfc36cad1e96941d68e29633f656df3c1481
     name: slate-automerge-doc
     version: 0.1.0
+    prepare: true
+    requiresBuild: true
     peerDependencies:
       slate: '>=0.91.0'
     dependencies:
