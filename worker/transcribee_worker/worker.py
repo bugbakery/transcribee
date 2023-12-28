@@ -15,6 +15,8 @@ from pydantic import parse_raw_as
 from transcribee_proto.api import (
     AlignTask,
     AssignedTask,
+    ExportFormat,
+    ExportTask,
     ReencodeTask,
     SpeakerIdentificationTask,
     TaskType,
@@ -29,6 +31,8 @@ from transcribee_worker.reencode import get_duration, reencode
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import aenumerate, load_audio
+from transcribee_worker.webvtt.export_webvtt import generate_web_vtt
+from transcribee_worker.webvtt.webvtt_writer import SubtitleFormat
 from transcribee_worker.whisper_transcribe import (
     transcribe_clean_async,
 )
@@ -116,6 +120,7 @@ class Worker:
                 TaskType.ALIGN,
                 TaskType.TRANSCRIBE,
                 TaskType.REENCODE,
+                TaskType.EXPORT,
             ]
 
     def claim_task(self) -> Optional[AssignedTask]:
@@ -185,6 +190,8 @@ class Worker:
             await self.align(task, progress_callback)
         elif task.task_type == TaskType.REENCODE:
             await self.reencode(task, progress_callback)
+        elif task.task_type == TaskType.EXPORT:
+            await self.export(task, progress_callback)
         else:
             raise ValueError(f"Invalid task type: '{task.task_type}'")
 
@@ -307,6 +314,36 @@ class Worker:
             await loop.run_in_executor(
                 None, self.add_document_media_file, task, output_path, tags
             )
+
+    async def export(self, task: ExportTask, progress_callback: ProgressCallbackType):
+        async with self.api_client.document(task.document.id) as doc:
+            params = task.task_parameters
+            res = None
+            try:
+                vtt = generate_web_vtt(
+                    EditorDocument.parse_obj(automerge.dump(doc.doc)),
+                    params.include_speaker_names,
+                    params.include_word_timing,
+                    params.max_line_length,
+                )
+
+                if params.format == ExportFormat.VTT:
+                    res = vtt.to_string(SubtitleFormat.VTT)
+                elif params.format == ExportFormat.SRT:
+                    res = vtt.to_string(SubtitleFormat.SRT)
+
+                res = {"result": res}
+            except ValueError as e:
+                res = {"error": str(e)}
+
+            if res is not None:
+                logging.info(
+                    f"Uploading document export for {task.document.id=} {res=}"
+                )
+                self.api_client.post(
+                    f"documents/{task.document.id}/add_export_result/?task_id={task.id}",
+                    json=res,
+                )
 
     def set_duration(self, task: AssignedTask, duration: float):
         logging.debug(

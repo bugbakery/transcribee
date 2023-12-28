@@ -6,9 +6,13 @@ from typing import Optional
 from fastapi import Request
 from prometheus_client import Histogram
 from prometheus_fastapi_instrumentator import routing
+from redis.asyncio import Redis
 from sqlalchemy import event
 from sqlmodel import Session, create_engine
 from starlette.websockets import WebSocket
+
+from transcribee_backend.config import settings
+from transcribee_backend.util.redis_task_channel import RedisTaskChannel
 
 DEFAULT_SOCKET_PATH = Path(__file__).parent.parent.parent / "db" / "sockets"
 
@@ -22,6 +26,8 @@ engine = create_engine(
     pool_size=32,
     max_overflow=1024,  # we keep open a database connection for every worker
 )
+redis = Redis(host=settings.redis_host, port=settings.redis_port)
+redis_task_channel = RedisTaskChannel(redis)
 
 query_histogram = Histogram(
     "sql_queries",
@@ -29,6 +35,10 @@ query_histogram = Histogram(
     ["path"],
     buckets=[1, 2, 4, 8, 16, 32, 128, 256, 512],
 )
+
+
+def get_redis_task_channel():
+    return redis_task_channel
 
 
 def get_session(request: Request):

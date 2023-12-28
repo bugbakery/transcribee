@@ -11,6 +11,7 @@ class TaskType(str, enum.Enum):
     TRANSCRIBE = "TRANSCRIBE"
     ALIGN = "ALIGN"
     REENCODE = "REENCODE"
+    EXPORT = "EXPORT"
 
 
 class DocumentMedia(BaseModel):
@@ -52,6 +53,18 @@ class TranscribeTaskParameters(BaseModel):
     model: str
 
 
+class ExportFormat(str, enum.Enum):
+    VTT = "VTT"
+    SRT = "SRT"
+
+
+class ExportTaskParameters(BaseModel):
+    format: ExportFormat
+    include_speaker_names: bool
+    include_word_timing: bool
+    max_line_length: int | None
+
+
 class TranscribeTask(TaskBase):
     task_type: Literal[TaskType.TRANSCRIBE] = TaskType.TRANSCRIBE
     task_parameters: TranscribeTaskParameters
@@ -67,7 +80,14 @@ class ReencodeTask(TaskBase):
     task_parameters: Dict[str, Any]
 
 
-AssignedTask = SpeakerIdentificationTask | TranscribeTask | AlignTask | ReencodeTask
+class ExportTask(TaskBase):
+    task_type: Literal[TaskType.EXPORT] = TaskType.EXPORT
+    task_parameters: ExportTaskParameters
+
+
+AssignedTask = (
+    SpeakerIdentificationTask | TranscribeTask | AlignTask | ReencodeTask | ExportTask
+)
 
 
 class LoginResponse(BaseModel):

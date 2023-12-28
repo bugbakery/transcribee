@@ -31,9 +31,17 @@ export interface paths {
     /** Update Document */
     patch: operations["update_document_api_v1_documents__document_id___patch"];
   };
+  "/api/v1/documents/{document_id}/add_export_result/": {
+    /** Add Export Result */
+    post: operations["add_export_result_api_v1_documents__document_id__add_export_result__post"];
+  };
   "/api/v1/documents/{document_id}/add_media_file/": {
     /** Add Media File */
     post: operations["add_media_file_api_v1_documents__document_id__add_media_file__post"];
+  };
+  "/api/v1/documents/{document_id}/export/": {
+    /** Export */
+    get: operations["export_api_v1_documents__document_id__export__get"];
   };
   "/api/v1/documents/{document_id}/set_duration/": {
     /** Set Duration */
@@ -331,6 +339,47 @@ export interface components {
       /** Name */
       name: string;
     };
+    /** ExportError */
+    ExportError: {
+      /** Error */
+      error: string;
+    };
+    /**
+     * ExportFormat
+     * @description An enumeration.
+     * @enum {string}
+     */
+    ExportFormat: "VTT" | "SRT";
+    /** ExportResult */
+    ExportResult: {
+      /** Result */
+      result: string;
+    };
+    /** ExportTask */
+    ExportTask: {
+      /**
+       * Document Id
+       * Format: uuid
+       */
+      document_id: string;
+      task_parameters: components["schemas"]["ExportTaskParameters"];
+      /**
+       * Task Type
+       * @default EXPORT
+       * @enum {string}
+       */
+      task_type?: "EXPORT";
+    };
+    /** ExportTaskParameters */
+    ExportTaskParameters: {
+      format: components["schemas"]["ExportFormat"];
+      /** Include Speaker Names */
+      include_speaker_names: boolean;
+      /** Include Word Timing */
+      include_word_timing: boolean;
+      /** Max Line Length */
+      max_line_length?: number;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -454,7 +503,7 @@ export interface components {
      * @description An enumeration.
      * @enum {string}
      */
-    TaskType: "IDENTIFY_SPEAKERS" | "TRANSCRIBE" | "ALIGN" | "REENCODE";
+    TaskType: "IDENTIFY_SPEAKERS" | "TRANSCRIBE" | "ALIGN" | "REENCODE" | "EXPORT";
     /** TranscribeTask */
     TranscribeTask: {
       /**
@@ -740,6 +789,40 @@ export interface operations {
       };
     };
   };
+  /** Add Export Result */
+  add_export_result_api_v1_documents__document_id__add_export_result__post: {
+    parameters: {
+      query: {
+        task_id: string;
+      };
+      header?: {
+        authorization?: string;
+        "Share-Token"?: string;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ExportResult"] | components["schemas"]["ExportError"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   /** Add Media File */
   add_media_file_api_v1_documents__document_id__add_media_file__post: {
     parameters: {
@@ -760,6 +843,38 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["Document"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Export */
+  export_api_v1_documents__document_id__export__get: {
+    parameters: {
+      query: {
+        format: components["schemas"]["ExportFormat"];
+        include_speaker_names: boolean;
+        include_word_timing: boolean;
+        max_line_length?: number;
+      };
+      header?: {
+        authorization?: string;
+        "Share-Token"?: string;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "text/plain": string;
         };
       };
       /** @description Validation Error */
@@ -980,7 +1095,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["SpeakerIdentificationTask"] | components["schemas"]["TranscribeTask"] | components["schemas"]["AlignTask"] | components["schemas"]["UnknownTask"];
+        "application/json": components["schemas"]["SpeakerIdentificationTask"] | components["schemas"]["TranscribeTask"] | components["schemas"]["AlignTask"] | components["schemas"]["ExportTask"] | components["schemas"]["UnknownTask"];
       };
     };
     responses: {

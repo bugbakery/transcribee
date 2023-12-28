@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Literal, Optional
 from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel, col
 from sqlmodel.sql.sqltypes import GUID
 from transcribee_proto.api import Document as ApiDocument
-from transcribee_proto.api import TaskType
+from transcribee_proto.api import ExportTaskParameters, TaskType
 from typing_extensions import Self
 
 from transcribee_backend.config import settings
@@ -291,9 +291,16 @@ class AlignTask(TaskBase):
     task_parameters: Dict[str, Any]
 
 
+class ExportTask(TaskBase):
+    task_type: Literal[TaskType.EXPORT] = TaskType.EXPORT
+    task_parameters: ExportTaskParameters
+
+
 class UnknownTask(TaskBase):
     task_type: str
     task_parameters: Dict[str, Any]
 
 
-CreateTask = SpeakerIdentificationTask | TranscribeTask | AlignTask | UnknownTask
+CreateTask = (
+    SpeakerIdentificationTask | TranscribeTask | AlignTask | ExportTask | UnknownTask
+)

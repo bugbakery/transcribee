@@ -61,6 +61,10 @@ pkgs.mkShell {
 
     # Our database
     postgresql
+
+    # Our database2 ?
+    redis
+
     openssl # needed for psycopg2
   ] ++
 
