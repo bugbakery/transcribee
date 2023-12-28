@@ -39,7 +39,10 @@ class SyncedDocument:
             await self._send_change(change)
 
     async def _discard_messages(self):
-        pending = [self._stop.wait(), self.conn.recv()]
+        pending = [
+            asyncio.create_task(self._stop.wait()),
+            asyncio.create_task(self.conn.recv()),
+        ]
         while True:
             done, pending = await asyncio.wait(
                 pending, return_when=asyncio.FIRST_COMPLETED
@@ -49,7 +52,7 @@ class SyncedDocument:
                     task.cancel()
                     return
             else:
-                pending.add(self.conn.recv())
+                pending.add(asyncio.create_task(self.conn.recv()))
 
     def stop(self):
         self._stop.set()
