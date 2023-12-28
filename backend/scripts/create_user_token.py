@@ -30,5 +30,7 @@ if __name__ == "__main__":
 
         key, user_token = generate_user_token(user, valid_until=valid_until)
         session.add(user_token)
+        session.commit()
+
         print(f"User token created and valid until {valid_until}")
         print(f"Secret: {key}")
