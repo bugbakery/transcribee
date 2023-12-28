@@ -10,6 +10,7 @@ authors = [
 ]
 
 dependencies = [
+    "redis>=5.0.1",
     "fastapi>=0.92.0",
     "uvicorn[standard]>=0.20.0",
     "sqlmodel @ git+https://github.com/transcribee/sqlmodel.git@transcribee_main",

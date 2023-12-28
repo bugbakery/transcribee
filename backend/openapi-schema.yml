@@ -327,6 +327,69 @@ components:
       - has_full_access
       title: DocumentWithAccessInfo
       type: object
+    ExportError:
+      properties:
+        error:
+          title: Error
+          type: string
+      required:
+      - error
+      title: ExportError
+      type: object
+    ExportFormat:
+      description: An enumeration.
+      enum:
+      - VTT
+      - SRT
+      title: ExportFormat
+      type: string
+    ExportResult:
+      properties:
+        result:
+          title: Result
+          type: string
+      required:
+      - result
+      title: ExportResult
+      type: object
+    ExportTask:
+      properties:
+        document_id:
+          format: uuid
+          title: Document Id
+          type: string
+        task_parameters:
+          $ref: '#/components/schemas/ExportTaskParameters'
+        task_type:
+          default: EXPORT
+          enum:
+          - EXPORT
+          title: Task Type
+          type: string
+      required:
+      - task_parameters
+      - document_id
+      title: ExportTask
+      type: object
+    ExportTaskParameters:
+      properties:
+        format:
+          $ref: '#/components/schemas/ExportFormat'
+        include_speaker_names:
+          title: Include Speaker Names
+          type: boolean
+        include_word_timing:
+          title: Include Word Timing
+          type: boolean
+        max_line_length:
+          title: Max Line Length
+          type: integer
+      required:
+      - format
+      - include_speaker_names
+      - include_word_timing
+      title: ExportTaskParameters
+      type: object
     HTTPValidationError:
       properties:
         detail:
@@ -529,6 +592,7 @@ components:
       - TRANSCRIBE
       - ALIGN
       - REENCODE
+      - EXPORT
       title: TaskType
       type: string
     TranscribeTask:
@@ -887,6 +951,57 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Update Document
+  /api/v1/documents/{document_id}/add_export_result/:
+    post:
+      operationId: add_export_result_api_v1_documents__document_id__add_export_result__post
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: query
+        name: task_id
+        required: true
+        schema:
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/ExportResult'
+              - $ref: '#/components/schemas/ExportError'
+              title: Result
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Add Export Result
   /api/v1/documents/{document_id}/add_media_file/:
     post:
       operationId: add_media_file_api_v1_documents__document_id__add_media_file__post
@@ -924,6 +1039,66 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Add Media File
+  /api/v1/documents/{document_id}/export/:
+    get:
+      operationId: export_api_v1_documents__document_id__export__get
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: query
+        name: format
+        required: true
+        schema:
+          $ref: '#/components/schemas/ExportFormat'
+      - in: query
+        name: include_speaker_names
+        required: true
+        schema:
+          title: Include Speaker Names
+          type: boolean
+      - in: query
+        name: include_word_timing
+        required: true
+        schema:
+          title: Include Word Timing
+          type: boolean
+      - in: query
+        name: max_line_length
+        required: false
+        schema:
+          title: Max Line Length
+          type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          title: Authorization
+          type: string
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          title: Share-Token
+          type: string
+      responses:
+        '200':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Export
   /api/v1/documents/{document_id}/set_duration/:
     post:
       operationId: set_duration_api_v1_documents__document_id__set_duration__post
@@ -1211,6 +1386,7 @@ paths:
               - $ref: '#/components/schemas/SpeakerIdentificationTask'
               - $ref: '#/components/schemas/TranscribeTask'
               - $ref: '#/components/schemas/AlignTask'
+              - $ref: '#/components/schemas/ExportTask'
               - $ref: '#/components/schemas/UnknownTask'
               title: Task
         required: true

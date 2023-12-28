@@ -1,5 +1,6 @@
 import datetime
 import enum
+import json
 import pathlib
 import uuid
 from dataclasses import dataclass
@@ -21,13 +22,15 @@ from fastapi import (
     status,
 )
 from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel
+from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel, parse_obj_as
 from pydantic.error_wrappers import ErrorWrapper
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, col, select
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import DocumentWithAccessInfo as ApiDocumentWithAccessInfo
+from transcribee_proto.api import ExportTaskParameters
 
 from transcribee_backend.auth import (
     generate_share_token,
@@ -38,6 +41,7 @@ from transcribee_backend.auth import (
 )
 from transcribee_backend.config import get_model_config, settings
 from transcribee_backend.db import (
+    get_redis_task_channel,
     get_session,
     get_session_ws,
 )
@@ -48,6 +52,7 @@ from transcribee_backend.models.document import (
     DocumentShareTokenBase,
 )
 from transcribee_backend.models.task import TaskAttempt, TaskResponse
+from transcribee_backend.util.redis_task_channel import RedisTaskChannel
 
 from .. import media_storage
 from ..models import (
@@ -601,3 +606,49 @@ def delete_share_tokens(
         session.delete(token)
         session.commit()
         return
+
+
+class ExportResult(BaseModel):
+    result: str
+
+
+class ExportError(BaseModel):
+    error: str
+
+
+ExportRes = ExportResult | ExportError
+
+
+@document_router.get("/{document_id}/export/", response_class=PlainTextResponse)
+async def export(
+    export_parameters: ExportTaskParameters = Depends(),
+    auth: AuthInfo = Depends(get_doc_min_readonly_auth),
+    redis_task_channel: RedisTaskChannel = Depends(get_redis_task_channel),
+    session: Session = Depends(get_session),
+):
+    export_task = Task(
+        task_type=TaskType.EXPORT,
+        task_parameters=export_parameters.dict(),
+        document_id=auth.document.id,
+    )
+    session.add(export_task)
+    session.commit()
+
+    result = parse_obj_as(
+        ExportRes,
+        json.loads(await redis_task_channel.wait_for_result(str(export_task.id))),
+    )
+    if isinstance(result, ExportError):
+        raise Exception(result.error)
+    else:
+        return result.result
+
+
+@document_router.post("/{document_id}/add_export_result/")
+async def add_export_result(
+    result: ExportRes,
+    task_id: str,
+    auth: AuthInfo = Depends(get_doc_worker_auth),
+    redis_task_channel: RedisTaskChannel = Depends(get_redis_task_channel),
+) -> None:
+    await redis_task_channel.put_result(task_id, result.json())

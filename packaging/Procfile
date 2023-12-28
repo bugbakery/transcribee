@@ -2,3 +2,4 @@ backend: ./start_backend.sh
 worker: pdm run -p ../worker/ start --coordinator http://127.0.0.1:8000 --token dev_worker --reload
 frontend: pnpm --prefix ../frontend/ dev --clearScreen false
 db: ./start_db.sh
+redis: redis-server
