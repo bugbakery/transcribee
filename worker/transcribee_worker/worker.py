@@ -365,14 +365,16 @@ class Worker:
                     self.keepalive(task_id, self.progress)
                 except Exception as exc:
                     logging.error("Keepliave failed", exc_info=exc)
-                await asyncio.sleep(seconds)
+                finally:
+                    await asyncio.sleep(seconds)
 
         task = asyncio.create_task(_work())
 
-        yield
-
-        stop_event.set()
-        await task
+        try:
+            yield
+        finally:
+            stop_event.set()
+            await task
 
     async def run_task(self, mark_completed=True):
         task = self.claim_task()
