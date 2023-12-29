@@ -11,6 +11,39 @@ function atomToString(item: Text, includeWordTimings: boolean): string {
   }
 }
 
+function createVttCue({
+  cueStart,
+  cueEnd,
+  cuePayload,
+  includeSpeakerNames,
+  paragraph,
+  speakerNames,
+}: {
+  cueStart: number;
+  cueEnd: number;
+  cuePayload: string;
+  paragraph: Paragraph;
+  includeSpeakerNames: boolean;
+  speakerNames: Record<string, string>;
+}) {
+  if (cueStart >= cueEnd) {
+    console.log(
+      `found cueStart=${cueStart} that is not before cueEnd=${cueEnd}, fixing the end to be behind cueStart`,
+    );
+    cueEnd = cueStart + 0.02;
+  }
+
+  return new VttCue({
+    startTime: cueStart,
+    endTime: cueEnd,
+    payload:
+      (includeSpeakerNames && paragraph.speaker
+        ? `<v ${escapeVttString(getSpeakerName(paragraph.speaker, speakerNames))}>`
+        : '') + cuePayload,
+    payloadEscaped: true,
+  });
+}
+
 export function canGenerateVtt(paras: Paragraph[] | undefined): {
   canGenerate: boolean;
   reason: string;
@@ -62,16 +95,16 @@ function paragraphToCues(
       cueLength + atom.text.length > maxLineLength
     ) {
       cues.push(
-        new VttCue({
-          startTime: cueStart,
-          endTime: cueEnd,
-          payload:
-            (includeSpeakerNames && paragraph.speaker
-              ? `<v ${escapeVttString(getSpeakerName(paragraph.speaker, speaker_names))}>`
-              : '') + cuePayload,
-          payloadEscaped: true,
+        createVttCue({
+          cueStart,
+          cueEnd,
+          cuePayload,
+          includeSpeakerNames,
+          paragraph,
+          speakerNames: speaker_names,
         }),
       );
+
       cuePayload = '';
       cueLength = 0;
       cueStart = null;
@@ -96,15 +129,15 @@ function paragraphToCues(
         'Paragraph contains no timings, cannot generate cue(s). Make sure to only call this function if `canGenerateVtt` returns true',
       );
     }
+
     cues.push(
-      new VttCue({
-        startTime: cueStart,
-        endTime: cueEnd,
-        payload:
-          (includeSpeakerNames && paragraph.speaker
-            ? `<v ${escapeVttString(getSpeakerName(paragraph.speaker, speaker_names))}>`
-            : '') + cuePayload,
-        payloadEscaped: true,
+      createVttCue({
+        cueStart,
+        cueEnd,
+        cuePayload,
+        includeSpeakerNames,
+        paragraph,
+        speakerNames: speaker_names,
       }),
     );
   }
