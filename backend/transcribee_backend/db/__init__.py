@@ -17,7 +17,11 @@ DATABASE_URL = os.environ.get(
     f"postgresql:///transcribee?host={DEFAULT_SOCKET_PATH}",
 )
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=32,
+    max_overflow=1024,  # we keep open a database connection for every worker
+)
 
 query_histogram = Histogram(
     "sql_queries",
