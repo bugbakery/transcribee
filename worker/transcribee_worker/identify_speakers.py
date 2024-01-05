@@ -4,13 +4,35 @@ import automerge
 import numpy as np
 import numpy.typing as npt
 import torch
-from sklearn.cluster import AgglomerativeClustering
+from spectralcluster import refinement, spectral_clusterer
 from speechbrain.pretrained import EncoderClassifier
 from transcribee_proto.document import Document
 from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import alist, async_task
 
 from .config import settings
+
+RefinementName = refinement.RefinementName
+RefinementOptions = refinement.RefinementOptions
+ThresholdType = refinement.ThresholdType
+SymmetrizeType = refinement.SymmetrizeType
+SpectralClusterer = spectral_clusterer.SpectralClusterer
+
+ICASSP2018_REFINEMENT_SEQUENCE = [
+    RefinementName.CropDiagonal,
+    RefinementName.RowWiseThreshold,
+    RefinementName.Symmetrize,
+    RefinementName.Diffuse,
+    RefinementName.RowWiseNormalize,
+]
+
+icassp2018_refinement_options = RefinementOptions(
+    gaussian_blur_sigma=5,
+    p_percentile=0.95,
+    thresholding_soft_multiplier=0.05,
+    thresholding_type=ThresholdType.RowMax,
+    refinement_sequence=ICASSP2018_REFINEMENT_SEQUENCE,
+)
 
 
 async def identify_speakers(
@@ -75,24 +97,26 @@ async def identify_speakers(
             progress=len(segments) / (len(segments) + 1),
         )
 
-        clustering = AgglomerativeClustering(
-            compute_full_tree=True,  # type: ignore
-            linkage="complete",
-            n_clusters=number_of_speakers,  # type: ignore
-            # distance_threshold curtesty of
-            # https://huggingface.co/pyannote/speaker-diarization/blob/369ac1852c71759894a48c9bb1c6f499a54862fe/config.yaml#L15
-            distance_threshold=0.7153 if number_of_speakers is None else None,
-            metric="cosine",
+        clusterer = SpectralClusterer(
+            min_clusters=1 if number_of_speakers is None else number_of_speakers,
+            max_clusters=100
+            if number_of_speakers is None
+            else number_of_speakers,  # TODO(robin): arbitrary upper limit
+            autotune=None,
+            laplacian_type=None,
+            refinement_options=icassp2018_refinement_options,
+            custom_dist="cosine",
         )
-        clustering.fit(np.array(embeddings))
+
+        labels = clusterer.predict(np.vstack(embeddings))
 
         # we now re-shuffle the labels so that the first occuring speaker is 1, the second is 2, ...
         label_map = {}
-        for label in clustering.labels_:
+        for label in labels:
             if label not in label_map:
                 label_map[label] = str(len(label_map) + 1)
 
-        for para, label in zip(doc.children, clustering.labels_):
+        for para, label in zip(doc.children, labels):
             para.speaker = automerge.Text(label_map[label])
 
-    await alist(aiter(async_task(work)))
+    return await alist(aiter(async_task(work)))
