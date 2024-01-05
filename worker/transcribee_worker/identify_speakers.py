@@ -41,7 +41,7 @@ async def identify_speakers(
     doc: Document,
     progress_callback: ProgressCallbackType,
 ):
-    def work(_queue):
+    def work(queue):
         logging.info("Running Speaker Identification")
 
         if len(doc.children) == 0:
@@ -91,6 +91,7 @@ async def identify_speakers(
             wav_tensor = torch.tensor(wav[np.newaxis, :])
             embedding = classifier.encode_batch(wav_tensor)
             embeddings.append(embedding[0, 0].detach().numpy())
+            queue.submit(embedding[0, 0].detach().numpy())
 
         progress_callback(
             step="clustering speaker embeddings",
