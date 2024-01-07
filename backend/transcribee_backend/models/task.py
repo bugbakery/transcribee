@@ -22,6 +22,9 @@ class TaskState(enum.Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
+    def __str__(self):
+        return self.value
+
 
 class TaskBase(SQLModel):
     task_type: TaskType
