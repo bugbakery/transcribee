@@ -25,11 +25,8 @@ jobs:
         if: runner.os == 'macOS'
         run: wait4path /nix/var/nix/profiles/per-user
 
-      - name: setup direnv
-        uses: JRMurr/direnv-nix-action@v4.1.0
-        with:
-          install-nix: "false" # we already install nix
-          cache-store: "false" # turned out to be faster without the cache
+      - name: Initialize nix environment
+        run: nix-shell --run true
 
       - name: Setup backend pypackages cache
         uses: actions/cache@v3
@@ -46,7 +43,7 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('worker/pdm.lock', 'proto/transcribee_proto/*.py') }}
 
       - name: install dependencies
-        run: ./packaging/install_dependencies.sh
+        run: nix-shell --run ./packaging/install_dependencies.sh
 
       - name: cache pre-commit env
         uses: actions/cache@v3
@@ -55,4 +52,4 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: run pre-commit
-        run: pre-commit run --show-diff-on-failure --color=always --all-files
+        run: nix-shell --run 'pre-commit run --show-diff-on-failure --color=always --all-files'
