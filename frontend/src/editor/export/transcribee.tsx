@@ -5,23 +5,19 @@ import { Checkbox } from '../../components/form';
 import { downloadBinaryAsFile } from '../../utils/download_text_as_file';
 import { ExportProps } from '.';
 import { HttpReader, Uint8ArrayReader, ZipWriter, Uint8ArrayWriter } from '@zip.js/zip.js';
-import { sortMediaFiles } from '../../utils/use_audio';
 import { LoadingSpinnerButton, SecondaryButton } from '../../components/button';
+import { splitAndSortMediaFiles } from '../player';
 
 export function TranscribeeExportBody({ onClose, outputNameBase, editor, document }: ExportProps) {
   const [loading, setLoading] = useState(false);
   const [includeOriginalMediaFile, setIncludeOriginalMediaFile] = useState(false);
 
   const bestMediaUrl = useMemo(() => {
-    const mappedFiles =
-      document?.media_files.map((media) => {
-        return {
-          src: media.url,
-          type: media.content_type,
-        };
-      }) || [];
-
-    return sortMediaFiles(mappedFiles)[0].src;
+    const { videoSources, audioSources, hasVideo } = splitAndSortMediaFiles(
+      document?.media_files || [],
+    );
+    const bestSource = hasVideo ? videoSources[0] : audioSources[0];
+    return bestSource.src;
   }, [document?.media_files]);
 
   const originalMediaUrl = useMemo(() => {
