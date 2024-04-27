@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
+import languageNames from './languageNames.json';
 
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { createDocument, importDocument } from '../api/document';
@@ -318,7 +319,7 @@ export function NewDocumentPage() {
                     <Select {...register('language')}>
                       {getLanguages(models)?.map((lang) => (
                         <option value={lang} key={lang}>
-                          {lang}
+                          {languageNames[lang as keyof typeof languageNames]}
                         </option>
                       ))}
                     </Select>
