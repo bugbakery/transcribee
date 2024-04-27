@@ -98,7 +98,7 @@ export function useAutomergeWebsocketEditor(
       } else if (msg_type === MessageSyncType.FullDoc) {
         console.info('Received new document');
         console.time('automerge');
-        doc = Automerge.load(msg);
+        doc = Automerge.load(msg, { allowMissingChanges: true });
         console.timeEnd('automerge');
         createNewEditor(doc as Automerge.Doc<Document>);
         console.info(`ws: ${(bytesReceived / 1e6).toFixed(2)} MB recieved so far`);
