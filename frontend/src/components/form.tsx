@@ -1,4 +1,4 @@
-import { ComponentProps, ReactNode } from 'react';
+import { ComponentProps, ReactNode, forwardRef } from 'react';
 import { primitiveWithClassname } from '../styled';
 import clsx from 'clsx';
 
@@ -97,3 +97,49 @@ export const Select = primitiveWithClassname('select', [
   'dark:bg-neutral-900',
   'dark:focus:ring-blue-400 dark:focus:border-blue-400',
 ]);
+
+export const Slider = forwardRef<HTMLInputElement>(
+  ({ ...props }: Omit<ComponentProps<'input'>, 'type'>, ref) => {
+    return (
+      <input
+        type="range"
+        className={clsx(
+          'w-full',
+          'h-1',
+
+          '[&::-moz-range-track]:rounded-full',
+          '[&::-moz-range-track]:bg-neutral-400',
+          '[&::-moz-range-track]:h-1',
+
+          '[&::-moz-range-progress]:bg-black',
+          '[&::-moz-range-progress]:rounded-full',
+          '[&::-moz-range-progress]:h-1',
+
+          '[&::-moz-range-thumb]:appearance-none',
+          '[&::-moz-range-thumb]:h-4',
+          '[&::-moz-range-thumb]:w-4',
+          '[&::-moz-range-thumb]:bg-black',
+          '[&::-moz-range-thumb]:rounded-full',
+          '[&::-moz-range-thumb]:border-white',
+
+          'accent-black',
+          'bg-neutral-400',
+
+          '[&::-webkit-slider-runnable-track]:rounded-full',
+          '[&::-webkit-slider-runnable-track]:h-1',
+          '[&::-webkit-slider-runnable-track]:border-white',
+
+          '[&::-webkit-slider-thumb]:appearance-none',
+          '[&::-webkit-slider-thumb]:h-4',
+          '[&::-webkit-slider-thumb]:w-4',
+          '[&::-webkit-slider-thumb]:-mt-1.5',
+          '[&::-webkit-slider-thumb]:rounded-full',
+          '[&::-webkit-slider-thumb]:bg-black',
+        )}
+        ref={ref}
+        {...props}
+      />
+    );
+  },
+);
+Slider.displayName = 'slider';

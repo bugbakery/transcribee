@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
@@ -6,7 +6,7 @@ import { useLocation } from 'wouter';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { createDocument, importDocument } from '../api/document';
 import { Dialog, DialogTitle } from '../components/dialog';
-import { FormControl, Input, Select } from '../components/form';
+import { FormControl, Input, Select, Slider } from '../components/form';
 import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppCenter } from '../components/app';
 import { useGetConfig } from '../api/config';
@@ -18,7 +18,7 @@ import { RequestDataType } from '../api';
 type FieldValues = {
   name: string;
   audioFile: FileList | undefined;
-  model: string;
+  quality: number;
   language: string;
   speakerDetection: 'off' | 'on' | 'advanced';
   numberOfSpeakers: number;
@@ -26,11 +26,8 @@ type FieldValues = {
 
 type ModelConfig = RequestDataType<typeof useGetConfig>['models'];
 
-export function getLanguages(models: ModelConfig, model: string | undefined): string[] | null {
-  if (model === undefined) {
-    return null;
-  }
-  return models[model]?.languages || [];
+export function getLanguages(models: ModelConfig): string[] {
+  return models['base']?.languages;
 }
 
 async function getEntry(
@@ -53,7 +50,7 @@ export function NewDocumentPage() {
   const [dropIndicator, setDropIndicator] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
-  const { data: config, isLoading } = useGetConfig({});
+  const { data: config } = useGetConfig({});
   const models = config !== undefined ? config.models : {};
   const {
     register,
@@ -63,8 +60,8 @@ export function NewDocumentPage() {
     watch,
   } = useForm<FieldValues>({
     values: {
-      model: 'base',
-      language: '',
+      quality: 4,
+      language: 'auto',
       audioFile: undefined,
       name: '',
       speakerDetection: 'on',
@@ -79,14 +76,8 @@ export function NewDocumentPage() {
   });
 
   const audioFile = watch('audioFile');
-  const model = watch('model');
   const speakerDetection = watch('speakerDetection');
-
-  // set initial language based on selected model
-  useEffect(() => {
-    if (!config) return;
-    setValue('language', getLanguages(config.models, model)?.[0] || 'auto');
-  }, [config, model]);
+  const quality = watch('quality');
 
   // Switch to import mode if a .transcribee file is selected
   const isImport = useMemo(() => audioFile?.[0]?.name.endsWith('.transcribee'), [audioFile]);
@@ -130,10 +121,17 @@ export function NewDocumentPage() {
         }
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
+
+        const modelRanking = ['tiny', 'base', 'small', 'medium', 'large-v3'];
+        let model = modelRanking[data.quality - 1];
+        if (`${model}.${data.language}` in models) {
+          model = `${model}.${data.language}`;
+        }
+
         const documentParameters: DocumentCreateParameters = {
           name: data.name,
           file: data.audioFile[0],
-          model: data.model,
+          model,
           language: data.language,
         };
         if (data.speakerDetection == 'off') {
@@ -284,42 +282,48 @@ export function NewDocumentPage() {
               </div>
             ) : (
               <>
-                {!isLoading ? (
-                  <div className="flex row">
-                    <FormControl
-                      label="Model"
-                      error={errors.model?.message}
-                      className="flex-grow mr-2"
-                    >
-                      <Select {...register('model')}>
-                        {Object.values(models).map((cur_model) =>
-                          cur_model !== undefined ? (
-                            <option value={cur_model.id} key={cur_model.id}>
-                              {cur_model.name}
-                            </option>
-                          ) : (
-                            <></>
-                          ),
-                        )}
-                      </Select>
-                    </FormControl>
-                    <FormControl
-                      label="Language"
-                      error={errors.language?.message}
-                      className="flex-grow"
-                    >
-                      <Select {...register('language')}>
-                        {getLanguages(models, model)?.map((lang) => (
-                          <option value={lang} key={lang}>
-                            {lang}
-                          </option>
-                        ))}
-                      </Select>
-                    </FormControl>
+                <FormControl
+                  label="Transcription Quality"
+                  error={errors.quality?.message}
+                  className="relative mb-6"
+                >
+                  <div>
+                    <Slider min={1} max={5} {...register('quality')} />
+                    <span className="text-sm text-gray-500 dark:text-gray-400 absolute start-0 -bottom-6">
+                      Fastest
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400 absolute end-0 -bottom-6">
+                      Best
+                    </span>
                   </div>
+                </FormControl>
+
+                {quality < 3 ? (
+                  <>
+                    <div className="block bg-red-100 px-2 py-2 rounded text-red-700">
+                      It is not recommended to use a low quality setting for real work. The result
+                      will be very underwhelming.
+                    </div>
+                  </>
                 ) : (
                   <></>
                 )}
+
+                <FormControl
+                  label="Language"
+                  error={errors.language?.message}
+                  className="flex-grow"
+                >
+                  <div>
+                    <Select {...register('language')}>
+                      {getLanguages(models)?.map((lang) => (
+                        <option value={lang} key={lang}>
+                          {lang}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </FormControl>
 
                 <FormControl label={'Speaker Detection'}>
                   <div className="flex">
