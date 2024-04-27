@@ -4,7 +4,7 @@ import { Editor, createEditor } from 'slate';
 import { withHistory, HistoryEditor } from 'slate-history';
 import { withReact } from 'slate-react';
 import { withAutomergeDoc } from 'slate-automerge-doc';
-import { unstable as Automerge } from '@automerge/automerge';
+import { next as Automerge } from '@automerge/automerge';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { useDebugMode } from '../debugMode';
 import { Document, Paragraph } from './types';

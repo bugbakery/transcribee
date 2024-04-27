@@ -1,7 +1,7 @@
 import { expect, test } from '@jest/globals';
 import { migrateDocument } from './document';
 import { Document } from './editor/types';
-import { unstable as Automerge } from '@automerge/automerge';
+import { next as Automerge } from '@automerge/automerge';
 import * as fs from 'fs';
 
 function testMigrate(baseName: string) {
