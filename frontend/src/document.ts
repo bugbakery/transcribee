@@ -1,5 +1,5 @@
 import { Document } from './editor/types';
-import { unstable as Automerge } from '@automerge/automerge';
+import { next as Automerge } from '@automerge/automerge';
 import * as AutomergeStable from '@automerge/automerge';
 
 function convertString(s: string): string {
