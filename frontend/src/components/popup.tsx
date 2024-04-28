@@ -3,15 +3,20 @@ import { cloneElement, ComponentProps, ReactElement, ReactNode, useState } from 
 import { usePopper } from 'react-popper';
 import { useOnClickOutside } from '../utils/use_on_click_outside';
 import { useStateDelayed } from '../utils/use_state_delayed';
+import { IoHelpCircleOutline } from 'react-icons/io5';
+import { IconButton } from './button';
+import { Placement } from '@popperjs/core';
 
 export function Popup({
   children,
   button,
   popupClassName = '',
+  placement = 'bottom',
   ...props
 }: {
   children?: ReactNode;
   button: ReactElement;
+  placement?: Placement;
   popupClassName?: string;
 } & ComponentProps<'div'>) {
   const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
@@ -19,12 +24,12 @@ export function Popup({
   const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
 
   const { styles, attributes, update } = usePopper(referenceElement, popperElement, {
-    placement: 'bottom',
+    placement: placement,
     modifiers: [
       {
         name: 'flip',
         options: {
-          fallbackPlacements: ['top'],
+          fallbackPlacements: ['bottom', 'top', 'right', 'left'],
           flipVariations: true,
         },
       },
@@ -88,14 +93,30 @@ export function Popup({
             ref={setArrowElement}
             style={styles.arrow}
             className={clsx(
-              'top-[-7px]',
+              attributes?.popper?.['data-popper-placement'] == 'bottom' && [
+                'top-[-7px]',
+                'before:rotate-45',
+              ],
+              attributes?.popper?.['data-popper-placement'] == 'top' && [
+                'bottom-[4px]',
+                'before:rotate-[225deg]',
+              ],
+              attributes?.popper?.['data-popper-placement'] == 'right' && [
+                'left-[-1px]',
+                'before:top-[-8px]',
+                'before:rotate-[-45deg]',
+              ],
+              attributes?.popper?.['data-popper-placement'] == 'left' && [
+                'right-[-2px]',
+                'before:top-[-8px]',
+                'before:rotate-[135deg]',
+              ],
               'before:absolute',
               'before:w-[11px]',
               'before:h-[11px]',
               'before:bg-white dark:before:bg-neutral-900',
               "before:content-['']",
               'before:translate-x-[-6px]',
-              'before:rotate-45',
               'before:border-l-2',
               'before:border-t-2',
               'before:border-solid',
@@ -105,5 +126,27 @@ export function Popup({
         </div>
       )}
     </div>
+  );
+}
+
+export function HelpPopup({ children, className }: { children?: ReactNode; className?: string }) {
+  return (
+    <Popup
+      className={clsx('inline-block align-text-top absolute right-0', className)}
+      popupClassName="w-[300px]"
+      button={
+        <IconButton
+          className="inline-block !p-0 !bg-transparent"
+          icon={IoHelpCircleOutline}
+          label={`help`}
+        />
+      }
+      placement="right"
+      onClick={(e) => {
+        e.preventDefault();
+      }}
+    >
+      {children}
+    </Popup>
   );
 }
