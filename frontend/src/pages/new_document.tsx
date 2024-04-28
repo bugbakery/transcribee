@@ -15,6 +15,7 @@ import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
 import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../utils/auth';
 import { RequestDataType } from '../api';
+import { HelpPopup } from '../components/popup';
 
 type FieldValues = {
   name: string;
@@ -159,6 +160,9 @@ export function NewDocumentPage() {
         <form onSubmit={handleSubmit(submitHandler)}>
           <div className="flex flex-col gap-6">
             <FormControl label="Name" error={errors.name && 'This field is required.'}>
+              <HelpPopup>
+                <p>This name will be used in the overview to identify the transcript.</p>
+              </HelpPopup>
               <Input autoFocus {...register('name', { required: true })} />
             </FormControl>
 
@@ -286,35 +290,62 @@ export function NewDocumentPage() {
                 <FormControl
                   label="Transcription Quality"
                   error={errors.quality?.message}
-                  className="relative mb-6"
+                  className={clsx('p-3 -mx-3 rounded', quality < 3 && 'bg-red-100 text-black')}
                 >
-                  <div>
+                  <HelpPopup className="mr-3">
+                    <p className="pb-2 dark:text-white">
+                      With this slider you can influence the quality of the transcription.
+                    </p>
+                    <p className="pb-2 dark:text-white">
+                      Moving the slider to the right produces better transcripts at the cost of
+                      longer wait times. Moving it to the left produces worse transcripts but
+                      shortens the transcription time.
+                    </p>
+                    <p className="dark:text-white">
+                      The default position of the slider should be a good tradeoff for most uses.
+                    </p>
+                  </HelpPopup>
+                  <div className="relative mb-6">
                     <Slider min={1} max={5} {...register('quality')} />
-                    <span className="text-sm text-gray-500 dark:text-gray-400 absolute start-0 -bottom-6">
+                    <span
+                      className={clsx(
+                        'text-sm text-gray-500 dark:text-gray-400 absolute start-0 -bottom-6',
+                        quality < 3 && 'dark:text-gray-700',
+                      )}
+                    >
                       Fastest
                     </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400 absolute end-0 -bottom-6">
+                    <span
+                      className={clsx(
+                        'text-sm text-gray-500 dark:text-gray-400 absolute end-0 -bottom-6',
+                        quality < 3 && 'dark:text-gray-700',
+                      )}
+                    >
                       Best
                     </span>
                   </div>
+
+                  {quality < 3 ? (
+                    <>
+                      <p className="py-2 text-red-700">
+                        It is not recommended to use a low quality setting for real work. The result
+                        will be very underwhelming.
+                      </p>
+                    </>
+                  ) : (
+                    <></>
+                  )}
                 </FormControl>
 
-                {quality < 3 ? (
-                  <>
-                    <div className="block bg-red-100 px-2 py-2 rounded text-red-700">
-                      It is not recommended to use a low quality setting for real work. The result
-                      will be very underwhelming.
-                    </div>
-                  </>
-                ) : (
-                  <></>
-                )}
-
-                <FormControl
-                  label="Language"
-                  error={errors.language?.message}
-                  className="flex-grow"
-                >
+                <FormControl label="Language" error={errors.language?.message}>
+                  <HelpPopup>
+                    <p className="pb-2">
+                      If you know the language of your document (and if only one language is
+                      spoken), you can set it here explicitly. Doing so might result in slightly
+                      better & faster transcriptions.
+                    </p>
+                    <p className="pb-2">It is also fine to leave this control on auto-detect.</p>
+                  </HelpPopup>
                   <div>
                     <Select {...register('language')}>
                       {getLanguages(models)?.map((lang) => (
@@ -327,6 +358,20 @@ export function NewDocumentPage() {
                 </FormControl>
 
                 <FormControl label={'Speaker Detection'}>
+                  <HelpPopup>
+                    <p className="pb-2">
+                      If multiple persons speek in your recording, transcribee can try to annotate
+                      your text with speaker information. Leaving this setting on &quot;On&quot;
+                      will result in transcribee trying to guess how many people are speaking in the
+                      recording and detect them.
+                    </p>
+                    <p className="pb-2">
+                      If you know how many people speek in your recording, you can set this control
+                      to advanced and manually enter the number of speakers. If only one person is
+                      speeking (or if you dont need speaker information) you can turn the speaker
+                      detection off.
+                    </p>
+                  </HelpPopup>
                   <div className="flex">
                     <input
                       type="radio"

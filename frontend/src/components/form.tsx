@@ -12,7 +12,7 @@ export type FormControlProps = {
 
 export function FormControl({ label, error, disabled, children, className }: FormControlProps) {
   return (
-    <label className={clsx('block', className)}>
+    <label className={clsx('block', 'relative', className)}>
       <span
         className={clsx(
           'text-sm font-medium',
