@@ -61,8 +61,12 @@ def main():
             # do not reload when models are downloaded
             return not path.startswith(settings.MODELS_DIR.absolute().as_posix())
 
-        for _ in watch(path, watch_filter=watch_filter, stop_event=stop_watching_event):
+        for changed_files in watch(
+            path, watch_filter=watch_filter, stop_event=stop_watching_event
+        ):
             logging.info("Source code change detected, reloading worker")
+            for _, path in changed_files:
+                logging.info(f"file changed: {path}")
             p.terminate()
             p.join()
             p = run_sync_in_process(stop_watching_event, args)
