@@ -136,7 +136,8 @@ export function HelpPopup({ children, className }: { children?: ReactNode; class
       popupClassName="w-[300px]"
       button={
         <IconButton
-          className="inline-block !p-0 !bg-transparent"
+          className="inline-block"
+          discreet={true}
           icon={IoHelpCircleOutline}
           label={`help`}
         />

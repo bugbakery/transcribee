@@ -52,6 +52,7 @@ export function IconButton({
   size,
   iconClassName,
   iconAfter = false,
+  discreet = false,
   ...props
 }: {
   icon: IconType;
@@ -59,6 +60,7 @@ export function IconButton({
   size?: number;
   iconClassName?: string;
   iconAfter?: boolean;
+  discreet?: boolean;
 } & ComponentProps<'button'>) {
   const Icon = icon;
 
@@ -68,9 +70,8 @@ export function IconButton({
       title={label}
       aria-label={label}
       className={clsx(
-        'hover:bg-gray-200 dark:hover:bg-neutral-700',
+        !discreet && 'p-2 hover:bg-gray-200 dark:hover:bg-neutral-700',
         'rounded-full',
-        'p-2',
         props.className,
       )}
     >
