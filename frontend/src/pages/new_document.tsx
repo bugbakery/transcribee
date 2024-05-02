@@ -9,7 +9,7 @@ import { createDocument, importDocument } from '../api/document';
 import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input, Select, Slider } from '../components/form';
 import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
-import { AppCenter } from '../components/app';
+import { AppContainer } from '../components/app';
 import { useGetConfig } from '../api/config';
 import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
 import * as Automerge from '@automerge/automerge';
@@ -154,7 +154,11 @@ export function NewDocumentPage() {
   };
 
   return (
-    <AppCenter onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
+    <AppContainer
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => e.preventDefault()}
+      className="items-center pt-[max(25px,calc(50vh-400px))]"
+    >
       <Dialog className={'w-96'}>
         <DialogTitle>New Document</DialogTitle>
         <form onSubmit={handleSubmit(submitHandler)}>
@@ -290,18 +294,18 @@ export function NewDocumentPage() {
                 <FormControl
                   label="Transcription Quality"
                   error={errors.quality?.message}
-                  className={clsx('p-3 -mx-3 rounded', quality < 3 && 'bg-red-100 text-black')}
+                  className={clsx('p-3 -mx-3 rounded', quality < 3 && 'bg-red-500 bg-opacity-10')}
                 >
                   <HelpPopup className="mr-3">
-                    <p className="pb-2 dark:text-white">
+                    <p className="pb-2">
                       With this slider you can influence the quality of the transcription.
                     </p>
-                    <p className="pb-2 dark:text-white">
+                    <p className="pb-2">
                       Moving the slider to the right produces better transcripts at the cost of
                       longer wait times. Moving it to the left produces worse transcripts but
                       shortens the transcription time.
                     </p>
-                    <p className="dark:text-white">
+                    <p>
                       The default position of the slider should be a good tradeoff for most uses.
                     </p>
                   </HelpPopup>
@@ -310,7 +314,6 @@ export function NewDocumentPage() {
                     <span
                       className={clsx(
                         'text-sm text-gray-500 dark:text-gray-400 absolute start-0 -bottom-6',
-                        quality < 3 && 'dark:text-gray-700',
                       )}
                     >
                       Fastest
@@ -318,7 +321,6 @@ export function NewDocumentPage() {
                     <span
                       className={clsx(
                         'text-sm text-gray-500 dark:text-gray-400 absolute end-0 -bottom-6',
-                        quality < 3 && 'dark:text-gray-700',
                       )}
                     >
                       Best
@@ -327,7 +329,7 @@ export function NewDocumentPage() {
 
                   {quality < 3 ? (
                     <>
-                      <p className="py-2 text-red-700">
+                      <p className="py-2 text-red-700 dark:text-red-400">
                         It is not recommended to use a low quality setting for real work. The result
                         will be very underwhelming.
                       </p>
@@ -453,6 +455,6 @@ export function NewDocumentPage() {
           </div>
         </form>
       </Dialog>
-    </AppCenter>
+    </AppContainer>
   );
 }
