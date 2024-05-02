@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
@@ -80,6 +80,16 @@ export function NewDocumentPage() {
   const audioFile = watch('audioFile');
   const speakerDetection = watch('speakerDetection');
   const quality = watch('quality');
+  const name = watch('name');
+
+  useEffect(() => {
+    if (audioFile?.[0] && !name) {
+      const fileName = audioFile?.[0].name;
+      const parts = fileName.split('.');
+      const niceFileName = parts.slice(0, -1).join(' ').replaceAll('_', ' ').replaceAll('-', ' ');
+      setValue('name', niceFileName);
+    }
+  }, [audioFile]);
 
   // Switch to import mode if a .transcribee file is selected
   const isImport = useMemo(() => audioFile?.[0]?.name.endsWith('.transcribee'), [audioFile]);
@@ -177,9 +187,8 @@ export function NewDocumentPage() {
                   'border-b-0',
                   'border-black dark:border-neutral-200',
                   'rounded-t',
-                  'h-32',
+                  'h-28',
                   'flex',
-                  'items-center',
                   'justify-center',
                   'relative',
                 )}
@@ -233,39 +242,53 @@ export function NewDocumentPage() {
                     <p className="font-medium">Drop audio or transcribee file…</p>
                   </div>
                 </div>
-                <div className={clsx('text-center', dropIndicator && 'hidden')}>
-                  <p className="font-medium">Drag audio or transcribee file here</p>
-                  <p className="relative">
-                    or{' '}
-                    <input
-                      {...audioFileRegister}
-                      ref={(ref) => {
-                        audioFileRegisterRef(ref);
-                        audioFileRef.current = ref;
-                      }}
-                      type="file"
-                      className="opacity-0 absolute peer w-full"
-                      accept="audio/*,video/*,.transcribee"
-                    />
-                    <a
-                      href="#"
-                      className={clsx(
-                        'inline-block',
-                        'relative',
-                        'link',
-                        'underline',
-                        'rounded-sm',
-                        'pointer-events-none',
-                        'hover:opacity-60',
-                        'peer-hover:opacity-60',
-                        'peer-focus-visible:outline',
-                        'peer-focus-visible:outline-3',
-                        'peer-focus-visible:outline-blue-600',
-                      )}
-                    >
-                      choose file
-                    </a>
-                  </p>
+                <div
+                  className={clsx(
+                    'text-center max-w-full flex flex-col h-full justify-center',
+                    dropIndicator && 'hidden',
+                  )}
+                >
+                  {audioFile?.[0] && (
+                    <>
+                      <p className="mx-4 mt-4 text-sm text-neutral-400 font-medium">
+                        Selected file
+                      </p>
+                      <p className="mx-4 break-words flex-grow flex items-center mb-2">
+                        {audioFile?.[0].name}
+                      </p>
+                    </>
+                  )}
+                  {!audioFile?.[0] && (
+                    <>
+                      <p className="font-medium">Drag audio or transcribee file here</p>
+                      <p className="relative">
+                        or{' '}
+                        <input
+                          {...audioFileRegister}
+                          ref={(ref) => {
+                            audioFileRegisterRef(ref);
+                            audioFileRef.current = ref;
+                          }}
+                          type="file"
+                          className="opacity-0 absolute peer w-full"
+                          accept="audio/*,video/*,.transcribee"
+                        />
+                        <span
+                          className={clsx(
+                            'relative',
+                            'underline',
+                            'pointer-events-none',
+                            'peer-hover:opacity-60',
+                            'peer-focus-visible:outline',
+                            'peer-focus-visible:outline-3',
+                            'peer-focus-visible:outline-blue-600',
+                          )}
+                        >
+                          choose file
+                        </span>
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
               <div
@@ -281,7 +304,21 @@ export function NewDocumentPage() {
                   'rounded-b',
                 )}
               >
-                {audioFile?.[0]?.name || 'No file selected.'}
+                {(audioFile?.[0] && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue('audioFile', undefined);
+                      if (audioFileRef.current) {
+                        audioFileRef.current.value = '';
+                      }
+                    }}
+                    className="underline hover:opacity-60"
+                  >
+                    Remove selection
+                  </button>
+                )) ||
+                  'No file selected.'}
               </div>
               {errors.audioFile && <p className="text-red-600 text-sm mt-0.5">File is required.</p>}
             </div>
@@ -346,7 +383,9 @@ export function NewDocumentPage() {
                       spoken), you can set it here explicitly. Doing so might result in slightly
                       better & faster transcriptions.
                     </p>
-                    <p className="pb-2">It is also fine to leave this control on auto-detect.</p>
+                    <p className="pb-2">
+                      It is also fine to leave this control on &lsquo;Auto Detect&rsquo;.
+                    </p>
                   </HelpPopup>
                   <div>
                     <Select {...register('language')}>
