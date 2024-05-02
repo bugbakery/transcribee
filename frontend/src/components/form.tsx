@@ -1,4 +1,12 @@
-import { ComponentProps, ReactNode, forwardRef } from 'react';
+import {
+  ComponentProps,
+  ReactNode,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from 'react';
 import { primitiveWithClassname } from '../styled';
 import clsx from 'clsx';
 
@@ -100,43 +108,74 @@ export const Select = primitiveWithClassname('select', [
 
 export const Slider = forwardRef<HTMLInputElement>(
   ({ ...props }: Omit<ComponentProps<'input'>, 'type'>, ref) => {
+    const innerRef = useRef<HTMLInputElement>(null as unknown as HTMLInputElement);
+    useImperativeHandle(ref, () => innerRef.current);
+
+    const listener = useCallback(() => {
+      if (!innerRef.current) {
+        return;
+      }
+      const percent =
+        ((parseFloat(innerRef.current.value) - parseFloat(innerRef.current.min)) /
+          (parseFloat(innerRef.current.max) - parseFloat(innerRef.current.min))) *
+        100;
+      innerRef.current?.style.setProperty('--progress', `${percent}%`);
+    }, []);
+
+    useEffect(() => {
+      const current = innerRef.current;
+      if (!current) {
+        return;
+      }
+
+      current.addEventListener('input', listener);
+      listener();
+
+      return () => {
+        current.removeEventListener('input', listener);
+      };
+    }, []);
+
     return (
       <input
         type="range"
         className={clsx(
+          'appearance-none',
+
           'w-full',
           'h-1',
+          'rounded-full',
+
+          'bg-neutral-400',
+          'bg-[linear-gradient(to_right,rgba(0,0,0,0.8),rgba(0,0,0,0.8)_var(--progress),transparent_var(--progress))]',
+          'dark:bg-[linear-gradient(to_right,white,white_var(--progress),transparent_var(--progress))]',
 
           '[&::-moz-range-track]:rounded-full',
-          '[&::-moz-range-track]:bg-neutral-400',
-          '[&::-moz-range-track]:h-1',
-
-          '[&::-moz-range-progress]:bg-black',
-          '[&::-moz-range-progress]:rounded-full',
-          '[&::-moz-range-progress]:h-1',
 
           '[&::-moz-range-thumb]:appearance-none',
-          '[&::-moz-range-thumb]:h-4',
-          '[&::-moz-range-thumb]:w-4',
-          '[&::-moz-range-thumb]:bg-black',
+          '[&::-mox-range-thumb]:box-content', // box-border does not seem to work in firefox
+          '[&::-moz-range-thumb]:h-3',
+          '[&::-moz-range-thumb]:w-3',
+          '[&::-moz-range-thumb]:bg-white',
+          'dark:[&::-moz-range-thumb]:bg-black',
           '[&::-moz-range-thumb]:rounded-full',
-          '[&::-moz-range-thumb]:border-white',
-
-          'accent-black',
-          'bg-neutral-400',
-
-          '[&::-webkit-slider-runnable-track]:rounded-full',
-          '[&::-webkit-slider-runnable-track]:h-1',
-          '[&::-webkit-slider-runnable-track]:border-white',
+          '[&::-moz-range-thumb]:border-black',
+          'dark:[&::-moz-range-thumb]:border-white',
+          '[&::-moz-range-thumb]:border-2',
 
           '[&::-webkit-slider-thumb]:appearance-none',
-          '[&::-webkit-slider-thumb]:h-4',
-          '[&::-webkit-slider-thumb]:w-4',
-          '[&::-webkit-slider-thumb]:-mt-1.5',
+          '[&::-webkit-slider-thumb]:box-content', // box-border does not seem to work in firefox
+          '[&::-webkit-slider-thumb]:h-3',
+          '[&::-webkit-slider-thumb]:w-3',
+          '[&::-webkit-slider-thumb]:bg-white',
+          'dark:[&::-webkit-slider-thumb]:bg-black',
           '[&::-webkit-slider-thumb]:rounded-full',
-          '[&::-webkit-slider-thumb]:bg-black',
+          '[&::-webkit-slider-thumb]:border-black',
+          'dark:[&::-webkit-slider-thumb]:border-white',
+          '[&::-webkit-slider-thumb]:border-2',
+          '[&::-webkit-slider-thumb]:border-solid',
         )}
-        ref={ref}
+        ref={innerRef}
         {...props}
       />
     );
