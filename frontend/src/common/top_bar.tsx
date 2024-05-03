@@ -1,4 +1,6 @@
+import clsx from 'clsx';
 import { useLocation } from 'wouter';
+
 import { storeAuthToken } from '../api';
 import { logout } from '../api/user';
 import { primitiveWithClassname } from '../styled';
@@ -8,7 +10,28 @@ import { Popup } from '../components/popup';
 import { showModal } from '../components/modal';
 import { ChangePasswordModal } from '../components/change_password';
 import { useAuthData } from '../utils/auth';
-export const TopBar = primitiveWithClassname('div', 'mb-8 flex items-center gap-4 justify-between');
+
+const TopBarBg = primitiveWithClassname(
+  'div',
+  'fixed left-0 right-0 top-0 bg-black h-[52px] -z-10 bg-white dark:bg-neutral-900',
+);
+
+export function TopBar({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={clsx(
+        'sticky top-0 z-10',
+        '-mx-6 px-6 -mt-6 mb-6 py-2',
+        'flex items-center gap-4 justify-between',
+        'bg-white dark:bg-neutral-900',
+        className,
+      )}
+    >
+      <TopBarBg />
+      {children}
+    </div>
+  );
+}
 export const TopBarTitle = primitiveWithClassname('h2', 'text-xl font-bold');
 export const TopBarPart = primitiveWithClassname('div', 'gap-4 flex items-center');
 
