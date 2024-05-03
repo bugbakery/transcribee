@@ -111,11 +111,22 @@ class Users(GaugeMetric):
 
 class Documents(GaugeMetric):
     def __init__(self):
-        self.collector = Gauge("transcribee_documents", "Documents")
+        self.collector = Gauge("transcribe_documents", "Documents", ["group"])
 
     def refresh(self, session: Session):
         (result,) = session.query(func.count(Document.id)).one()
-        self.collector.set(result)
+        self.collector.labels(group="all").set(result)
+
+        now = now_tz_aware()
+        document_timeout_active = now - datetime.timedelta(hours=1)
+        (result,) = (
+            session.query(func.count(func.distinct(Document.id)))
+            .where(
+                col(Document.changed_at) >= document_timeout_active,
+            )
+            .one()
+        )
+        self.collector.labels(group="active").set(result)
 
 
 class Queue(GaugeMetric):
