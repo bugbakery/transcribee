@@ -141,7 +141,9 @@ def create_user(session: Session, username: str, password: str) -> User:
     if existing_user is not None:
         raise UserAlreadyExists()
     salt, hash = pw_hash(password)
-    user = User(username=username, password_hash=hash, password_salt=salt)
+    user = User(
+        username=username, password_hash=hash, password_salt=salt, last_seen=None
+    )
     session.add(user)
     session.commit()
     return user

@@ -14,17 +14,17 @@ from transcribee_backend.db import SessionContextManager
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.document import Document
 from transcribee_backend.models.task import Task, TaskAttempt, TaskState
-from transcribee_backend.models.user import User
+from transcribee_backend.models.user import User, UserToken
 from transcribee_backend.models.worker import Worker
 
 
-class Metric:
+class GaugeMetric:
     @abstractmethod
     def refresh(self, session: Session):
         pass
 
 
-class TasksInState(Metric):
+class TasksInState(GaugeMetric):
     def __init__(self):
         self.collector = Gauge(
             "transcribee_tasks", "Number of tasks", ["state", "task_type"]
@@ -45,7 +45,7 @@ class TasksInState(Metric):
             )
 
 
-class Workers(Metric):
+class Workers(GaugeMetric):
     def __init__(self):
         self.collector = Gauge("transcribee_workers", "Workers", ["group"])
 
@@ -69,25 +69,56 @@ class Workers(Metric):
         self.collector.labels(group="alive").set(result)
 
 
-class Users(Metric):
+class Users(GaugeMetric):
     def __init__(self):
-        self.collector = Gauge("transcribee_users", "Registered users")
+        self.collector = Gauge(
+            "transcribee_users", "Users at the Transcribee Instance", ["group"]
+        )
 
     def refresh(self, session: Session):
         (result,) = session.query(func.count(User.id)).one()
-        self.collector.set(result)
+        self.collector.labels(group="all").set(result)
+
+        now = now_tz_aware()
+        user_timeout_active = now - datetime.timedelta(hours=1)
+        (result,) = (
+            session.query(func.count(User.id))
+            .where(
+                col(User.last_seen) >= user_timeout_active,
+            )
+            .one()
+        )
+        self.collector.labels(group="active").set(result)
+
+        now = now_tz_aware()
+        user_timeout_active = now - datetime.timedelta(hours=1)
+        (result,) = (
+            session.query(func.count(User.id))
+            .where(col(User.last_seen).is_not(None))
+            .one()
+        )
+        self.collector.labels(group="ever_logged_in").set(result)
+
+        (result,) = (
+            session.query(func.count(func.distinct(UserToken.user_id)))
+            .where(
+                col(UserToken.valid_until) >= now,
+            )
+            .one()
+        )
+        self.collector.labels(group="with_token").set(result)
 
 
-class Documents(Metric):
+class Documents(GaugeMetric):
     def __init__(self):
-        self.collector = Gauge("transcribe_documents", "Documents")
+        self.collector = Gauge("transcribee_documents", "Documents")
 
     def refresh(self, session: Session):
         (result,) = session.query(func.count(Document.id)).one()
         self.collector.set(result)
 
 
-class Queue(Metric):
+class Queue(GaugeMetric):
     def __init__(self):
         self.collector = Gauge(
             "transcribee_queue_seconds", "Queue length in seconds", ["task_type"]
@@ -116,19 +147,25 @@ class Queue(Metric):
             self.collector.labels(task_type=task_type.value).set(count)
 
 
-METRIC_CLASSES: List[type[Metric]] = [TasksInState, Workers, Users, Documents, Queue]
-METRICS: List[Metric] = []
+GAUGE_METRIC_CLASSES: List[type[GaugeMetric]] = [
+    TasksInState,
+    Workers,
+    Users,
+    Documents,
+    Queue,
+]
+GAUGE_METRICS: List[GaugeMetric] = []
 
 
 def refresh_metrics():
     with SessionContextManager(path="repeating_task:refresh_metrics") as session:
-        for metric in METRICS:
+        for metric in GAUGE_METRICS:
             metric.refresh(session)
 
 
 def init_metrics():
-    for klass in METRIC_CLASSES:
-        METRICS.append(klass())
+    for klass in GAUGE_METRIC_CLASSES:
+        GAUGE_METRICS.append(klass())
 
 
 security = HTTPBasic()
