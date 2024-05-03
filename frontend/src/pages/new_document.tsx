@@ -253,9 +253,9 @@ export function NewDocumentPage() {
                       <p className="mx-4 mt-4 text-sm text-neutral-400 font-medium">
                         Selected file
                       </p>
-                      <p className="mx-4 break-words flex-grow flex items-center mb-2">
-                        {audioFile?.[0].name}
-                      </p>
+                      <div className="mx-4 flex-grow flex items-center mb-2">
+                        <p className="max-w-full break-words">{audioFile?.[0].name}</p>
+                      </div>
                     </>
                   )}
                   {!audioFile?.[0] && (
