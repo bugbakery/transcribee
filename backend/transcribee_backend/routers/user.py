@@ -62,7 +62,12 @@ def logout(
 @user_router.get("/me/")
 def read_user(
     token: UserToken = Depends(get_user_token),
+    session: Session = Depends(get_session),
 ) -> UserBase:
+    token.user.last_seen = now_tz_aware()
+    session.add(token.user)
+    session.commit()
+
     return UserBase(username=token.user.username)
 
 

@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from typing import Optional
 
 from pydantic import BaseModel, ConstrainedStr
 from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
@@ -18,6 +19,9 @@ class User(UserBase, table=True):
     )
     password_hash: bytes
     password_salt: bytes
+    last_seen: Optional[datetime.datetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
 
 class CreateUser(UserBase):
