@@ -9,6 +9,7 @@ import { generatePlaintext } from '../../utils/export/plaintext';
 
 export function PlaintextExportBody({ onClose, outputNameBase, editor }: ExportProps) {
   const [includeSpeakerNames, setIncludeSpeakerNames] = useState(true);
+  const [includeTimestamps, setIncludeTimestamps] = useState(true);
 
   return (
     <form className="flex flex-col gap-4 mt-4">
@@ -16,6 +17,11 @@ export function PlaintextExportBody({ onClose, outputNameBase, editor }: ExportP
         label="Include Speaker Names"
         value={includeSpeakerNames}
         onChange={(x) => setIncludeSpeakerNames(x)}
+      />
+      <Checkbox
+        label="Include Timestamps"
+        value={includeTimestamps}
+        onChange={(x) => setIncludeTimestamps(x)}
       />
       <div className="flex justify-between pt-4">
         <SecondaryButton type="button" onClick={onClose}>
@@ -25,7 +31,11 @@ export function PlaintextExportBody({ onClose, outputNameBase, editor }: ExportP
           type="submit"
           onClick={async (e) => {
             e.preventDefault();
-            const plaintext = generatePlaintext(Automerge.toJS(editor.doc), includeSpeakerNames);
+            const plaintext = generatePlaintext(
+              Automerge.toJS(editor.doc),
+              includeSpeakerNames,
+              includeTimestamps,
+            );
             downloadTextAsFile(`${outputNameBase}.txt`, `text/plain`, plaintext);
             onClose();
           }}
