@@ -158,16 +158,21 @@ const MEDIA_PRIORITY = [
   'audio/mpeg',
 ];
 
-export function sortMediaFiles<T extends { type: string }>(mediaFiles: T[]) {
+export function sortMediaFiles<T extends { type: string; tags: string[] }>(mediaFiles: T[]) {
   const sorted = [];
 
+  const relevantMediaFiles = mediaFiles.filter((media) => !media.tags.includes('original'));
+  const originalMediaFiles = mediaFiles.filter((media) => media.tags.includes('original'));
+
   for (const contentType of MEDIA_PRIORITY) {
-    const files = mediaFiles.filter((file) => file.type == contentType);
+    const files = relevantMediaFiles.filter((file) => file.type == contentType);
     sorted.push(...files);
   }
 
-  const rest = mediaFiles.filter((file) => !MEDIA_PRIORITY.includes(file.type));
+  const rest = relevantMediaFiles.filter((file) => !MEDIA_PRIORITY.includes(file.type));
   sorted.push(...rest);
+
+  sorted.push(...originalMediaFiles);
 
   return sorted;
 }
