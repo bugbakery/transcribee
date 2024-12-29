@@ -1,19 +1,26 @@
-{ config, pkgs, lib, ... }:
+{ pkgs, lib, ... }:
 with lib;
 let
   python3Packages = pkgs.python3.pkgs;
   pyproject = builtins.fromTOML (builtins.readFile ../../worker/pyproject.toml);
+  pdmFixedPkgs = (import (builtins.fetchTarball {
+    name = "nixos-unstable-with-fixed-pdm";
+    url = "https://github.com/nixos/nixpkgs/archive/9482c3b0cffed8365f686c22c83df318b4473a3e.tar.gz";
+    sha256 = "05rgyl1i09jzsvhwg3blvac7x9mayj3kqpp55h287qxsimsslh0x";
+  }) {});
 in
 python3Packages.buildPythonApplication rec {
   pname = pyproject.project.name;
+  # expose this because we want to use the same version when using `pdm run` externally to run this package
+  pdm = pdmFixedPkgs.pdm;
   version = pyproject.project.version;
   src = ../..;
 
   format = "pyproject";
 
   nativeBuildInputs = [
-    pkgs.pdm
-    python3Packages.pdm-pep517
+    pdmFixedPkgs.pdm
+    pdmFixedPkgs.python3.pkgs.pdm-pep517
     pkgs.git
     pkgs.cacert
     pkgs.maturin
