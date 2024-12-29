@@ -16,6 +16,7 @@ python3Packages.buildPythonApplication rec {
   version = pyproject.project.version;
   src = ../..;
 
+  dontCheckRuntimeDeps = true;
   format = "pyproject";
 
   nativeBuildInputs = [
