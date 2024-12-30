@@ -22,8 +22,10 @@ python3.pkgs.buildPythonApplication rec {
   pdm = pdmFixedPkgs.pdm;
 
   nativeBuildInputs = [
-    pdmFixedPkgs.pdm
-    pdmFixedPkgs.python3.pkgs.pdm-pep517
+    (pdmFixedPkgs.pdm.override {
+      python3 = python3;
+    })
+    python3.pkgs.pdm-pep517
     pkgs.git
     pkgs.cacert
     pkgs.postgresql
