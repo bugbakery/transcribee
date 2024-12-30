@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     COMPUTE_TYPE: str = "int8"
 
-    class Config:
+    class Config(BaseSettings.Config):
         env_file = ".env"
 
     def setup_env_vars(self):

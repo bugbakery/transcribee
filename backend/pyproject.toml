@@ -24,7 +24,7 @@ dependencies = [
     "psycopg2>=2.9.9",
     "prometheus-fastapi-instrumentator>=6.1.0",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 readme = "./README.md"
 license = { text = "AGPL-3.0" }
 

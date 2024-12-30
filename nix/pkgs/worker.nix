@@ -1,8 +1,8 @@
 { pkgs, lib, ... }:
 with lib;
 let
-  python3Packages = pkgs.python3.pkgs;
-  pyproject = builtins.fromTOML (builtins.readFile ../../worker/pyproject.toml);
+  python3Packages = pkgs.python312.pkgs;
+  pyprojectInfo = builtins.fromTOML (builtins.readFile ../../worker/pyproject.toml);
   pdmFixedPkgs = (import (builtins.fetchTarball {
     name = "nixos-unstable-with-fixed-pdm";
     url = "https://github.com/nixos/nixpkgs/archive/9482c3b0cffed8365f686c22c83df318b4473a3e.tar.gz";
@@ -10,13 +10,13 @@ let
   }) {});
 in
 python3Packages.buildPythonApplication rec {
-  pname = pyproject.project.name;
+  pname = pyprojectInfo.project.name;
   # expose this because we want to use the same version when using `pdm run` externally to run this package
   pdm = pdmFixedPkgs.pdm;
-  version = pyproject.project.version;
+  version = pyprojectInfo.project.version;
   src = ../..;
 
-  format = "pyproject";
+  pyproject = true;
 
   nativeBuildInputs = [
     pdmFixedPkgs.pdm
@@ -57,6 +57,7 @@ python3Packages.buildPythonApplication rec {
 
 
   doCheck = false;
+  dontCheckRuntimeDeps = true;
 
   configurePhase = ''
     cd worker/

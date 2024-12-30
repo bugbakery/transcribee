@@ -1,11 +1,11 @@
 {
     "python.autoComplete.extraPaths": [
-        "backend/__pypackages__/3.10/lib",
-        "worker/__pypackages__/3.10/lib"
+        "backend/__pypackages__/3.11/lib",
+        "worker/__pypackages__/3.11/lib"
     ],
     "python.analysis.extraPaths": [
-        "backend/__pypackages__/3.10/lib",
-        "worker/__pypackages__/3.10/lib"
+        "backend/__pypackages__/3.11/lib",
+        "worker/__pypackages__/3.11/lib"
     ],
     "python.analysis.typeCheckingMode": "basic",
     "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
