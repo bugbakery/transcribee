@@ -1,27 +1,27 @@
 {pkgs ? import <nixpkgs> {}}:
 let
-  pkgs = import
-    (fetchTarball {
-      name = "nixpkgs-stable-2024-03-08";
-      url = "https://github.com/NixOS/nixpkgs/archive/880992dcc006a5e00dd0591446fdf723e6a51a64.tar.gz"; # keep in sync with .github/workflows/lint.yml
-    })
-    { };
+  pkgs = (import (builtins.fetchTarball {
+    name = "nixos-unstable-with-fixed-pdm";
+    url = "https://github.com/nixos/nixpkgs/archive/9482c3b0cffed8365f686c22c83df318b4473a3e.tar.gz";
+    sha256 = "05rgyl1i09jzsvhwg3blvac7x9mayj3kqpp55h287qxsimsslh0x";
+  }) {});
   ld_packages = [
     pkgs.file
     # for ctranslate2
     pkgs.stdenv.cc.cc.lib
   ];
+  ourPython = pkgs.python311;
 
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [
     overmind
     wait4x
-    pre-commit
+    (pre-commit.override { python3Packages = ourPython.pkgs; })
 
-    python310
-    python310Packages.black
-    pdm
+    ourPython
+    ourPython.pkgs.black
+    (pdm.override { python3 = ourPython; })
 
     nodejs_20
     nodePackages.pnpm
@@ -34,7 +34,7 @@ pkgs.mkShell {
 
     # required by pre-commit
     git
-    ruff
+    ourPython.pkgs.ruff
 
     ffmpeg
 
@@ -42,7 +42,7 @@ pkgs.mkShell {
     libiconv
     rustc
     cargo
-    maturin
+    (maturin.override { python3 = ourPython; })
 
     # provides libmagic which is needed by python-magic in the worker
     file

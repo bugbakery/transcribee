@@ -128,7 +128,8 @@ class Worker:
         req = self.api_client.post(
             "tasks/claim_unassigned_task/", params={"task_type": self.task_types}
         )
-        return parse_raw_as(Optional[AssignedTask], req.text)
+
+        return parse_raw_as(Optional[AssignedTask], req.text)  # type: ignore
 
     def _get_tmpfile(self, filename: str) -> Path:
         if self.tmpdir is None:
@@ -162,9 +163,7 @@ class Worker:
     def load_document_audio(self, document: ApiDocument) -> npt.NDArray:
         document_audio = self.get_document_audio_path(document)
         if document_audio is None:
-            raise ValueError(
-                f"Document {document} has no audio attached. Cannot identify speakers."
-            )
+            raise ValueError(f"Document {document} has no audio attached.")
         return load_audio(document_audio)[0]
 
     def keepalive(self, task_id: str, progress: Optional[float]):

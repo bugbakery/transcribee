@@ -12,7 +12,7 @@ authors = [
 dependencies = [
     "pydantic>=1.10.5",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "AGPL-3.0"}
 

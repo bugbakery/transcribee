@@ -1,6 +1,4 @@
-from typing import Iterable
-
-from typing_extensions import Self
+from typing import Iterable, Self
 
 class Locale:
     def __init__(self, locale: str): ...
