@@ -52,8 +52,8 @@ python3.pkgs.buildPythonApplication rec {
     export PDM_TMP=$(mktemp -d)
     export PDM_CONFIG_FILE=$PDM_TMP/config
 
-    pdm config cache_dir $PDM_TMP/cache
-    TERM=dumb pdm install --no-lock --check --prod
+    ${pdmFixedPkgs.pdm}/bin/pdm config cache_dir $PDM_TMP/cache
+    TERM=dumb ${pdmFixedPkgs.pdm}/bin/pdm install --no-lock --check --prod
 
     for i in __pypackages__/*/lib/magic/loader.py; do
       substituteInPlace "$i" --replace "find_library('magic')" "'${pkgs.file}/lib/libmagic${stdenv.hostPlatform.extensions.sharedLibrary}'";
