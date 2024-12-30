@@ -3,7 +3,7 @@
 
 [metadata]
 groups = ["default", "dev", "notebooks"]
-strategy = ["cross_platform"]
+strategy = []
 lock_version = "4.5.0"
 content_hash = "sha256:406176e4b481b40a5cabaf8a50a9cc5e1020d2869bc6d10735c4563907b4c946"
 
