@@ -1,7 +1,10 @@
-{ pkgs, lib, ... }:
+{ lib
+, pkgs
+, python3 ? pkgs.python311
+, ...
+}:
 with lib;
 let
-  python3Packages = pkgs.python312.pkgs;
   pyprojectInfo = builtins.fromTOML (builtins.readFile ../../worker/pyproject.toml);
   pdmFixedPkgs = (import (builtins.fetchTarball {
     name = "nixos-unstable-with-fixed-pdm";
@@ -9,11 +12,10 @@ let
     sha256 = "05rgyl1i09jzsvhwg3blvac7x9mayj3kqpp55h287qxsimsslh0x";
   }) {});
 in
-python3Packages.buildPythonApplication rec {
+python3.pkgs.buildPythonApplication rec {
   pname = pyprojectInfo.project.name;
   version = pyprojectInfo.project.version;
   src = ../..;
-
   pyproject = true;
 
   # expose this because we want to use the same version when using `pdm run` externally to run this package
