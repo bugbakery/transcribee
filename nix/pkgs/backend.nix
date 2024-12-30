@@ -6,6 +6,11 @@
 let
   common = import ../common.nix;
   pyproject = builtins.fromTOML (builtins.readFile ../../backend/pyproject.toml);
+  pdmFixedPkgs = (import (builtins.fetchTarball {
+    name = "nixos-unstable-with-fixed-pdm";
+    url = "https://github.com/nixos/nixpkgs/archive/9482c3b0cffed8365f686c22c83df318b4473a3e.tar.gz";
+    sha256 = "05rgyl1i09jzsvhwg3blvac7x9mayj3kqpp55h287qxsimsslh0x";
+  }) {});
 in
 python3Packages.buildPythonApplication rec {
   pname = pyproject.project.name;
@@ -18,7 +23,7 @@ python3Packages.buildPythonApplication rec {
   pdm = pdmFixedPkgs.pdm;
 
   nativeBuildInputs = [
-    pkgs.pdm
+    pdmFixedPkgs.pdm
     python3Packages.pdm-pep517
     pkgs.git
     pkgs.cacert
