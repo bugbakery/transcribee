@@ -11,12 +11,13 @@ let
 in
 python3Packages.buildPythonApplication rec {
   pname = pyprojectInfo.project.name;
-  # expose this because we want to use the same version when using `pdm run` externally to run this package
-  pdm = pdmFixedPkgs.pdm;
   version = pyprojectInfo.project.version;
   src = ../..;
 
   pyproject = true;
+
+  # expose this because we want to use the same version when using `pdm run` externally to run this package
+  pdm = pdmFixedPkgs.pdm;
 
   nativeBuildInputs = [
     pdmFixedPkgs.pdm

@@ -14,6 +14,9 @@ python3Packages.buildPythonApplication rec {
 
   format = "pyproject";
 
+  # expose this because we want to use the same version when using `pdm run` externally to run this package
+  pdm = pdmFixedPkgs.pdm;
+
   nativeBuildInputs = [
     pkgs.pdm
     python3Packages.pdm-pep517
