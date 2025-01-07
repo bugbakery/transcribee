@@ -110,7 +110,7 @@ export default defineConfig({
     topLevelAwait(),
     wasm(),
     gitVersionPlugin(),
-    faviconPlugin('../doc/transcribee-logo.svg'),
+    faviconPlugin('./public/logo.svg'),
   ],
 
   // This is only necessary if you are using `SharedWorker` or `WebWorker`, as
