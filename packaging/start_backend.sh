@@ -10,4 +10,4 @@ fi
 
 ./setup_backend.sh
 
-pdm run -p ../backend/ dev
+poe -C ../backend/ dev
