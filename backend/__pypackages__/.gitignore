@@ -1,5 +1,0 @@
-# We need to keep the __pypackages__ directory to make pdm use PEP 582 mode and not create a venv.
-# Thus we use this .gitignore file to keep the directory but no contents.
-
-*
-!.gitignore

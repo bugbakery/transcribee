@@ -1,67 +1,43 @@
-{ lib
-, pkgs
-, python3 ? pkgs.python311
-, stdenv
+{
+  pkgs,
+  lib,
+  python,
+  uv2nix,
+  pyproject-nix,
+  pyproject-build-systems,
+  system,
+  ...
 }:
 let
-  common = import ../common.nix;
-  pyprojectInfo = builtins.fromTOML (builtins.readFile ../../backend/pyproject.toml);
-  pdmFixedPkgs = (import (builtins.fetchTarball {
-    name = "nixos-unstable-with-fixed-pdm";
-    url = "https://github.com/nixos/nixpkgs/archive/9482c3b0cffed8365f686c22c83df318b4473a3e.tar.gz";
-    sha256 = "05rgyl1i09jzsvhwg3blvac7x9mayj3kqpp55h287qxsimsslh0x";
-  }) {});
-in
-python3.pkgs.buildPythonApplication rec {
-  pname = pyprojectInfo.project.name;
-  version = pyprojectInfo.project.version;
-  src = ../..;
-  pyproject = true;
+  workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ../../backend; };
 
-  # expose this because we want to use the same version when using `pdm run` externally to run this package
-  pdm = pdmFixedPkgs.pdm;
+  overlay = workspace.mkPyprojectOverlay {
+    sourcePreference = "wheel";
+  };
 
-  nativeBuildInputs = [
-    (pdmFixedPkgs.pdm.override {
-      python3 = python3;
-    })
-    python3.pkgs.pdm-pep517
-    pkgs.git
-    pkgs.cacert
-    pkgs.postgresql
-  ];
+  pyprojectOverrides = final: prev: {
+    psycopg2 = prev.psycopg2.overrideAttrs (old: {
+      nativeBuildInputs = old.nativeBuildInputs ++ [
+        final.setuptools
+        pkgs.postgresql_14
+      ];
 
-  propagatedBuildInputs = with pkgs; [
-    # for automerge-py
-    libiconv
-    rustc
-    cargo
-    maturin
+      buildInputs = (old.buildInputs or []) ++ [
+        pkgs.openssl
+      ];
+    });
+  };
 
-    # provides libmagic
-    file
+  pythonSet =
+    (pkgs.callPackage pyproject-nix.build.packages {
+      inherit python;
+    }).overrideScope
+      (
+        lib.composeManyExtensions [
+          pyproject-build-systems.overlays.default
+          overlay
+          pyprojectOverrides
+        ]
+      );
 
-    openssl
-  ];
-
-  doCheck = false;
-
-  configurePhase = ''
-    cd backend/
-  '';
-
-  installPhase = ''
-    export PDM_TMP=$(mktemp -d)
-    export PDM_CONFIG_FILE=$PDM_TMP/config
-
-    ${pdmFixedPkgs.pdm}/bin/pdm config cache_dir $PDM_TMP/cache
-    TERM=dumb ${pdmFixedPkgs.pdm}/bin/pdm install --no-lock --check --prod
-
-    for i in __pypackages__/*/lib/magic/loader.py; do
-      substituteInPlace "$i" --replace "find_library('magic')" "'${pkgs.file}/lib/libmagic${stdenv.hostPlatform.extensions.sharedLibrary}'";
-    done
-
-    mkdir -p $out
-    cp -r * .* $out/
-  '';
-}
+in pythonSet.mkVirtualEnv "transcribee-backend-env" workspace.deps.default
