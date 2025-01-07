@@ -13,9 +13,9 @@ trap 'kill 0' SIGINT
 
 pids=()
 
-pdm install -p backend/ & pids+=($!)
-pdm install -p worker/ & pids+=($!)
-pnpm --prefix frontend/ install & pids+=($!)
+uv --directory backend sync & pids+=($!)
+uv --directory worker sync & pids+=($!)
+npm --prefix frontend/ install & pids+=($!)
 
 # Wait until all install commands are finished
 error=false
