@@ -13,7 +13,7 @@ dependencies = [
     "redis>=5.0.1",
     "fastapi>=0.92.0",
     "uvicorn[standard]>=0.20.0",
-    "sqlmodel @ git+https://github.com/transcribee/sqlmodel.git@transcribee_main",
+    "sqlmodel~=0.0.22",
     "alembic>=1.11.1",
     "python-multipart>=0.0.6",
     "filetype>=1.2.0",
@@ -38,7 +38,7 @@ notebooks = [
 ]
 
 
-[tool.pdm.dev-dependencies]
+[dependency-groups]
 dev = [
     "pyyaml>=6.0",
     "pytest>=7.3.1",
@@ -47,7 +47,8 @@ dev = [
     "pyright>=1.1.314",
 ]
 
-[tool.pdm.scripts]
+
+[tool.poe.tasks]
 start = "uvicorn transcribee_backend.main:app --ws websockets"
 dev = "uvicorn transcribee_backend.main:app --reload --ws websockets"
 migrate = "alembic upgrade head"
@@ -59,6 +60,5 @@ reset_task = "scripts/reset_task.py"
 generate_openapi = "python -m scripts.generate_openapi"
 test = "pytest tests/"
 
-[build-system]
-requires = ["pdm-pep517>=1.0"]
-build-backend = "pdm.pep517.api"
+[tool.setuptools]
+packages = ["transcribee_backend"]

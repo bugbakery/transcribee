@@ -9,3 +9,4 @@ data/
 .pdm.toml
 /db/
 .pdm-python
+.venv/
