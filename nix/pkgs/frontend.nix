@@ -1,26 +1,32 @@
-{ pkgs
-, stdenv
-, lib
-, versionInfo ? { }
+{
+  pkgs,
+  lib,
+  system,
+  versionInfo ? { },
+  npmDepsHash,
+  ...
 }:
-let
-  common = import ../common.nix;
-  package = builtins.fromJSON (builtins.readFile ../../frontend/package.json);
-in
-stdenv.mkDerivation {
-  pname = package.name;
-  version = package.version;
-  src = ../..;
+pkgs.buildNpmPackage rec {
+  inherit npmDepsHash;
 
-  nativeBuildInputs = [
-    pkgs.nodePackages.pnpm
+  pname = "transcribee-frontend";
+  version = "0.1.0";
+
+  src = ../../frontend;
+
+  buildInputs = [
+    pkgs.vips
   ];
 
-  configurePhase = ''
-    cd frontend/
-  '';
+  nativeBuildInputs = [
+    pkgs.git
+    pkgs.openssh
+  ];
 
-  installPhase =
+  forceGitDeps = true;
+  makeCacheWritable = true;
+
+  buildPhase =
     let
       versionExports = ([ ]
         ++ (lib.optional (versionInfo ? "commitHash") "export COMMIT_HASH=\"${versionInfo.commitHash}\"")
@@ -29,18 +35,17 @@ stdenv.mkDerivation {
       );
     in
     ''
-      # npm is used by some packages
-      export NPM_CONFIG_CACHE="$(mktemp -d)"
-      export NODE_EXTRA_CA_CERTS="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-
-      echo "store-dir = $(mktemp -d)" > .npmrc
-
-      pnpm install --frozen-lockfile
+      runHook preBuild
 
       ${lib.concatStringsSep "\n" versionExports}
-      pnpm build
+      npm run build
 
-      mkdir -p $out
-      cp -r dist/* dist/.* $out/
+      runHook postBuild
     '';
+
+  installPhase = ''
+    runHook preInstall
+    cp -r dist $out
+    runHook postInstall
+  '';
 }
