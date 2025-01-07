@@ -38,9 +38,6 @@ dev = ["black>=23.1.0", "inquirer>=3.1.3", "pyright>=1.1.391", "pytest>=7.3.1"]
 start = "python run.py"
 test = "pytest tests/"
 
-[build-system]
-requires = ["pdm-pep517>=1.0"]
-build-backend = "pdm.pep517.api"
 
 [tool.pdm.resolution.overrides]
 soundfile = "0.11.0"
