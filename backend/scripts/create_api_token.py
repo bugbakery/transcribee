@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import argparse
 
 from transcribee_backend.auth import create_api_token
