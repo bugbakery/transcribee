@@ -50,7 +50,7 @@ class SyncedDocument:
             if self._stop.is_set():
                 for task in pending:
                     task.cancel()
-                    return
+                return
             else:
                 pending.add(asyncio.create_task(self.conn.recv()))
 
