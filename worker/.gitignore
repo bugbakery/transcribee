@@ -1,7 +1,6 @@
 *.pyc
 __pycache__/
-.pdm.toml
 .env
 .data/
-.pdm-python
 .venv/
+*.egg-info

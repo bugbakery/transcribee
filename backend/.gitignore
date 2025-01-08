@@ -6,7 +6,6 @@ storage/
 !storage/.gitkeep
 data/
 !data/pages/.gitkeep
-.pdm.toml
 /db/
-.pdm-python
 .venv/
+*.egg-info
