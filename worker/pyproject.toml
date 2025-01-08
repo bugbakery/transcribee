@@ -31,21 +31,37 @@ requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "AGPL-3.0" }
 
-[tool.pdm.dev-dependencies]
-dev = ["black>=23.1.0", "inquirer>=3.1.3", "pyright>=1.1.391", "pytest>=7.3.1"]
+[dependency-groups]
+dev = [
+  "black>=23.1.0",
+  "inquirer>=3.1.3",
+  "pyright>=1.1.391",
+  "pytest>=7.3.1",
+]
 
-[tool.pdm.scripts]
-start = "python run.py"
+[project.scripts]
+transcribee-worker = "transcribee_worker.run:main"
+
+[tool.poe.tasks]
+start = "transcribee-worker"
 test = "pytest tests/"
 
+[tool.uv]
+override-dependencies = [
+  "soundfile==0.11.0"
+]
 
-[tool.pdm.resolution.overrides]
-soundfile = "0.11.0"
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
+[tool.setuptools]
+packages = ["transcribee_worker"]
 
-
-[[tool.pdm.source]]
-type = "find_links"
-url = "https://download.pytorch.org/whl/cpu/torch_stable.html"
-name = "torch"
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
