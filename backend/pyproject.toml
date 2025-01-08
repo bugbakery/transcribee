@@ -37,7 +37,6 @@ notebooks = [
     "seaborn>=0.12.2",
 ]
 
-
 [dependency-groups]
 dev = [
     "pyyaml>=6.0",
@@ -46,7 +45,6 @@ dev = [
     "pytest-alembic>=0.10.4",
     "pyright>=1.1.314",
 ]
-
 
 [tool.poe.tasks]
 start = "uvicorn transcribee_backend.main:app --ws websockets"
@@ -62,3 +60,7 @@ test = "pytest tests/"
 
 [tool.setuptools]
 packages = ["transcribee_backend"]
+
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
