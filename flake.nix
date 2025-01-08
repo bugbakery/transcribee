@@ -40,6 +40,13 @@
           pkgs = nixpkgs.legacyPackages.${system};
           lib = nixpkgs.lib;
           python = pkgs.python311;
+
+          ld_packages = [
+            pkgs.file # provides libmagic
+
+            # for ctranslate2
+            pkgs.stdenv.cc.cc.lib
+          ];
         in
         {
           packages = rec {
@@ -51,13 +58,12 @@
             packages = [
               python
               pkgs.uv
+              python.pkgs.black
+              pkgs.poethepoet
 
               pkgs.overmind
               pkgs.wait4x
               pkgs.pre-commit
-
-              python.pkgs.black
-              pkgs.poethepoet
 
               pkgs.nodejs_20
               pkgs.nodePackages.pnpm
@@ -79,10 +85,8 @@
               pkgs.rustc
               pkgs.cargo
 
-              # provides libmagic which is needed by python-magic in the worker
-              pkgs.file
-
               pkgs.icu.dev
+              pkgs.file # libmagic
 
               # Our database
               pkgs.postgresql_14
@@ -94,6 +98,13 @@
             shellHook = ''
               unset PYTHONPATH
               export UV_PYTHON_DOWNLOADS=never
+
+              export TRANSCRIBEE_DYLD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath ld_packages}
+              export LD_LIBRARY_PATH=$LD_SEARCH_PATH:$TRANSCRIBEE_DYLD_LIBRARY_PATH
+            '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
+              # `dyld` needs to find the libraries
+              export DYLD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DYLD_LIBRARY_PATH
             '';
           };
         }
