@@ -27,6 +27,13 @@ let
       };
     });
 
+    torchaudio = prev.torchaudio.overrideAttrs (old: {
+      autoPatchelfIgnoreMissingDeps = true;
+      preFixup = pkgs.lib.optionals (!pkgs.stdenv.isDarwin) ''
+        addAutoPatchelfSearchPath "${final.torch}/${final.python.sitePackages}/torch/lib"
+      '';
+    });
+
     pyicu = prev.pyicu.overrideAttrs (old: {
       nativeBuildInputs = old.nativeBuildInputs ++ [
         pkgs.icu.dev
