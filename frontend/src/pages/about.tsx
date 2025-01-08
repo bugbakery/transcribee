@@ -15,7 +15,7 @@ export function AboutPage() {
           <a href={`${routerBase}/LICENSES.md`}>Open Acknowledgements</a>
         </p>
         <p>
-          transcribee was founded from March until August 2023
+          transcribee was funded from March until August 2023
           <img
             className="w-full"
             src={pf_funding_svg}
