@@ -1,5 +1,5 @@
 backend: ./start_backend.sh
 worker: poe -C ../worker/ start --coordinator http://127.0.0.1:8000 --token dev_worker --reload
-frontend: npm --prefix ../frontend/ dev --clearScreen false
+frontend: npm --prefix ../frontend/ run dev --clearScreen false
 db: ./start_db.sh
-redis: redis-server --dir "$(realpath ../backend/db)"
+redis: LC_ALL=C.utf8 redis-server --dir "$(realpath ../backend/db)"
