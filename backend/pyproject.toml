@@ -57,6 +57,7 @@ create_api_token = "scripts/create_api_token.py"
 reset_task = "scripts/reset_task.py"
 generate_openapi = "python -m scripts.generate_openapi"
 test = "pytest tests/"
+pyright = "pyright transcribee_backend/"
 
 [tool.setuptools]
 packages = ["transcribee_backend"]
