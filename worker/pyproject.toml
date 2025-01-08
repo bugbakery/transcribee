@@ -45,6 +45,7 @@ transcribee-worker = "transcribee_worker.run:main"
 [tool.poe.tasks]
 start = "transcribee-worker"
 test = "pytest tests/"
+pyright = "pyright transcribee_worker/"
 
 [tool.uv]
 override-dependencies = [

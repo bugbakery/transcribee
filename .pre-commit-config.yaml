@@ -9,7 +9,6 @@ repos:
       - id: check-merge-conflict
       - id: check-toml
       - id: check-yaml
-        exclude: .*/pnpm-lock.yaml$
       - id: debug-statements
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -30,7 +29,7 @@ repos:
     hooks:
       - id: backend-pyright
         name: Run typechecker for backend
-        entry: pdm run -p backend/ pyright backend/transcribee_backend
+        entry: poe -C worker/ pyright
         language: system
         files: backend/.*
         pass_filenames: false
@@ -38,7 +37,7 @@ repos:
     hooks:
       - id: worker-pyright
         name: Run typechecker for worker
-        entry: pdm run -p worker/ pyright worker/transcribee_worker
+        entry: poe -C worker/ pyright
         language: system
         files: worker/.*
         pass_filenames: false
@@ -46,7 +45,7 @@ repos:
     hooks:
       - id: backend-openapi
         name: update openapi-schema of the backend
-        entry: pdm run -p backend/ generate_openapi --file openapi-schema.yml
+        entry: poe -C backend/ generate_openapi --file openapi-schema.yml
         language: system
         files: backend/.*
         pass_filenames: false
@@ -54,7 +53,7 @@ repos:
     hooks:
       - id: backend-tests
         name: run backend tests
-        entry: pdm run -p backend/ test
+        entry: poe -C backend/ test
         language: system
         files: backend/.*
         pass_filenames: false
@@ -62,7 +61,7 @@ repos:
     hooks:
       - id: backend-tests
         name: run worker tests
-        entry: pdm run -p worker/ test
+        entry: poe -C worker/ test
         language: system
         files: worker/.*
         pass_filenames: false
@@ -72,7 +71,7 @@ repos:
     hooks:
       - id: eslint
         name: eslint
-        entry: pnpm --prefix frontend/ run check:eslint
+        entry: npm --prefix frontend/ run check:eslint
         language: system
         files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
         pass_filenames: false
@@ -80,7 +79,7 @@ repos:
     hooks:
       - id: openapi-typescript
         name: openapi-typescript
-        entry: pnpm --prefix frontend/ run generate-openapi
+        entry: npm --prefix frontend/ run generate-openapi
         language: system
         files: backend/openapi-schema.yml
         pass_filenames: false
@@ -88,7 +87,7 @@ repos:
     hooks:
       - id: tsc
         name: tsc
-        entry: pnpm --prefix frontend/ run check:tsc
+        entry: npm --prefix frontend/ run check:tsc
         language: system
         files: frontend/.*
         pass_filenames: false
@@ -96,15 +95,15 @@ repos:
     hooks:
       - id: format
         name: format
-        entry: pnpm --prefix frontend/ run format
+        entry: npm --prefix frontend/ run format
         language: system
         files: frontend/.*
         pass_filenames: false
   - repo: local
     hooks:
-      - id: pnpm_test
-        name: pnpm test
-        entry: pnpm --prefix frontend/ run test
+      - id: npm_test
+        name: npm test
+        entry: npm --prefix frontend/ run test
         language: system
         files: frontend/.*
         pass_filenames: false
