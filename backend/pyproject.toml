@@ -10,40 +10,43 @@ authors = [
 ]
 
 dependencies = [
-    "redis>=5.0.1",
-    "fastapi>=0.92.0",
-    "uvicorn[standard]>=0.20.0",
-    "sqlmodel~=0.0.22",
-    "alembic>=1.11.1",
-    "python-multipart>=0.0.6",
-    "filetype>=1.2.0",
-    "websockets>=10.4",
-    "python-magic>=0.4.27",
+    "redis~=5.0.1",
+    "fastapi~=0.92.0",
+    "uvicorn[standard]~=0.20.0",
+    "sqlmodel~=0.0.11",
+    "alembic~=1.11.1",
+    "python-multipart~=0.0.6",
+    "filetype~=1.2.0",
+    "websockets~=10.4",
+    "python-magic~=0.4.27",
     "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
-    "python-frontmatter>=1.0.0",
-    "psycopg2>=2.9.9",
-    "prometheus-fastapi-instrumentator>=6.1.0",
+    "python-frontmatter~=1.0.0",
+    "psycopg2~=2.9.9",
+    "prometheus-fastapi-instrumentator~=6.1.0",
 ]
 requires-python = ">=3.11"
 readme = "./README.md"
 license = { text = "AGPL-3.0" }
 
-[project.optional-dependencies]
-notebooks = [
-    "jupyter>=1.0.0",
-    "pandas>=2.0.1",
-    "tabulate>=0.9.0",
-    "matplotlib>=3.7.1",
-    "seaborn>=0.12.2",
-]
-
 [dependency-groups]
 dev = [
-    "pyyaml>=6.0",
-    "pytest>=7.3.1",
-    "httpx>=0.24.0",
-    "pytest-alembic>=0.10.4",
-    "pyright>=1.1.314",
+    "pyyaml~=6.0",
+    "pytest~=7.3.1",
+    "httpx~=0.24.0",
+    "pytest-alembic~=0.10.4",
+    "pyright~=1.1.314",
+]
+notebooks = [
+    "jupyter~=1.0.0",
+    "pandas~=2.0.1",
+    "tabulate~=0.9.0",
+    "matplotlib~=3.7.1",
+    "seaborn~=0.12.2",
+]
+
+[tool.uv]
+override-dependencies = [
+  "sqlalchemy==1.4.41"
 ]
 
 [tool.poe.tasks]

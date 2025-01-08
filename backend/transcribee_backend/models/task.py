@@ -41,12 +41,10 @@ class TaskDependency(SQLModel, table=True):
     )
 
     dependent_task_id: uuid.UUID = Field(
-        sa_column=Column(GUID, ForeignKey("task.id", ondelete="CASCADE")),
-        unique=False,
+        sa_column=Column(GUID, ForeignKey("task.id", ondelete="CASCADE"), unique=False),
     )
     dependant_on_id: uuid.UUID = Field(
-        sa_column=Column(GUID, ForeignKey("task.id", ondelete="CASCADE")),
-        unique=False,
+        sa_column=Column(GUID, ForeignKey("task.id", ondelete="CASCADE"), unique=False),
     )
 
 
@@ -58,8 +56,7 @@ class Task(TaskBase, table=True):
         nullable=False,
     )
     document_id: uuid.UUID = Field(
-        sa_column=Column(GUID, ForeignKey("document.id", ondelete="CASCADE")),
-        unique=False,
+        sa_column=Column(GUID, ForeignKey("document.id", ondelete="CASCADE"), unique=False),
     )
     document: Document = Relationship(back_populates="tasks")
 
@@ -147,9 +144,8 @@ class TaskAttempt(SQLModel, table=True):
 
     task_id: uuid.UUID = Field(
         sa_column=Column(
-            GUID, ForeignKey(col(Task.id), ondelete="CASCADE"), nullable=False
+            GUID, ForeignKey(col(Task.id), ondelete="CASCADE"), nullable=False, unique=False
         ),
-        unique=False,
     )
     task: Task = Relationship(
         back_populates="attempts",
