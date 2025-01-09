@@ -56,7 +56,9 @@ class Task(TaskBase, table=True):
         nullable=False,
     )
     document_id: uuid.UUID = Field(
-        sa_column=Column(GUID, ForeignKey("document.id", ondelete="CASCADE"), unique=False),
+        sa_column=Column(
+            GUID, ForeignKey("document.id", ondelete="CASCADE"), unique=False
+        ),
     )
     document: Document = Relationship(back_populates="tasks")
 
@@ -144,7 +146,10 @@ class TaskAttempt(SQLModel, table=True):
 
     task_id: uuid.UUID = Field(
         sa_column=Column(
-            GUID, ForeignKey(col(Task.id), ondelete="CASCADE"), nullable=False, unique=False
+            GUID,
+            ForeignKey(col(Task.id), ondelete="CASCADE"),
+            nullable=False,
+            unique=False,
         ),
     )
     task: Task = Relationship(
