@@ -21,7 +21,7 @@ pkgs.buildNpmPackage (lib.fix (self: {
     in lib.attrsets.mapAttrs (name: pkgInfo:
       let
         src = builtins.fetchGit {
-          url = pkgInfo.resolved;
+          url = "https" + lib.removePrefix "git+ssh" pkgInfo.resolved;
           rev = lib.last (lib.splitString "#" pkgInfo.resolved);
           allRefs = true;
         };
