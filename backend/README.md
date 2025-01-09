@@ -4,10 +4,10 @@ This folder contains the backend of transcribee.
 
 ## Installation
 
-We use pdm for dependency management. To install all dependencies locally, run:
+We use uv for dependency management. To install all dependencies locally, run:
 
 ```shell
-pdm install
+uv sync --dev
 ```
 
 ## Usage
@@ -16,19 +16,19 @@ The default development configuration uses a sqlite database in `db.sqlite3`. To
 database, run all migrations with
 
 ```shell
-pdm run migrate
+poe migrate
 ```
 
 To create a new admin user, you can now run:
 
 ```shell
-pdm run create_user --user admin --pass admin
+poe create_user --user admin --pass admin
 ```
 
 Now you can start the development server with
 
 ```shell
-pdm run dev
+poe dev
 ```
 
 ## Deployment
