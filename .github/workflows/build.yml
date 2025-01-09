@@ -15,18 +15,11 @@ jobs:
         with:
           node-version: 22
 
-      - uses: pnpm/action-setup@v2
-        name: Install pnpm
-        id: pnpm-install
-        with:
-          version: 9
-          run_install: false
-
       - name: Install dependencies
-        run: pnpm --prefix frontend/ install
+        run: npm --prefix frontend/ install
 
       - name: build frontend
-        run: pnpm --prefix frontend/ build
+        run: npm --prefix frontend/ run build
 
       - name: create frontend archive
         uses: ksm2/archive-action@v1
