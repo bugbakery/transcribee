@@ -1,17 +1,5 @@
 import clsx, { ClassValue } from 'clsx';
-import { ComponentType, createElement, forwardRef, ReactHTML } from 'react';
-
-export function withClassname<P extends { className?: string }>(
-  Component: ComponentType<P>,
-  classValue: ClassValue,
-) {
-  const C = forwardRef((props: JSX.IntrinsicAttributes & P, ref) => {
-    return <Component {...props} className={clsx(classValue, props.className)} ref={ref} />;
-  });
-
-  C.displayName = (Component.displayName || 'Anonymous') + 'WithClassname';
-  return C;
-}
+import { createElement, forwardRef, ReactHTML } from 'react';
 
 export function primitiveWithClassname<T extends keyof ReactHTML>(type: T, classValue: ClassValue) {
   const C = forwardRef((props: JSX.IntrinsicElements[T], ref) => {
