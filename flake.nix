@@ -32,6 +32,7 @@
       pyproject-nix,
       pyproject-build-systems,
       flake-utils,
+      self,
       ...
     }:
     (flake-utils.lib.eachDefaultSystem
@@ -50,8 +51,15 @@
         in
         {
           packages = rec {
-            worker = (import ./nix/pkgs/worker.nix { inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems system; });
-            backend = (import ./nix/pkgs/backend.nix { inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems system; });
+            worker = (import ./nix/pkgs/worker.nix { inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems; });
+            backend = (import ./nix/pkgs/backend.nix { inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems; });
+            frontend = (import ./nix/pkgs/frontend.nix {
+              inherit pkgs lib;
+              versionInfo = {
+                commitHash = if (self ? rev) then self.rev else self.dirtyRev;
+                commitDate = lib.readFile "${pkgs.runCommand "timestamp" { env.when = self.lastModified; } "echo -n `date -d @$when --iso-8601=s` > $out"}";
+              };
+            });
           };
 
           devShells.default = pkgs.mkShell {
@@ -88,7 +96,6 @@
               pkgs.cargo
 
               pkgs.icu.dev
-              pkgs.file # libmagic
 
               # Our database
               pkgs.postgresql_14
@@ -110,17 +117,5 @@
             '';
           };
         }
-      )) // {
-        lib = {
-          # the frontend uses a fixed output hash for its npm dependencies
-          # maybe we can get rid of the hash in the future by using a tool like dream2nix or use importNpmLock
-          # but this seems to be a bit more complicated since we use git dependencies
-          buildFrontendPackage = { system, npmDepsHash, versionInfo ? { } }:
-            let
-              pkgs = nixpkgs.legacyPackages.${system};
-              lib = nixpkgs.lib;
-            in
-            (import ./nix/pkgs/frontend.nix { inherit pkgs lib system npmDepsHash versionInfo; });
-        };
-      };
+      ));
 }
