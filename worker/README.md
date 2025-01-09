@@ -7,10 +7,10 @@ It thus does all the CPU / GPU intense heavy lifting.
 
 ## Installation
 
-We use pdm for dependency management. To install all dependencies locally, run:
+We use uv for dependency management. To install all dependencies locally, run:
 
 ```shell
-pdm install
+uv sync --dev
 ```
 
 ## Configuration
