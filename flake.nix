@@ -102,6 +102,8 @@
 
               # Our database2 ?
               pkgs.redis
+
+              pkgs.glibcLocales
             ];
 
             shellHook = ''
