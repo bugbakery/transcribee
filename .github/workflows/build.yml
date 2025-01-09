@@ -10,23 +10,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 22
+      - uses: cachix/install-nix-action@v30
 
-      - name: Install dependencies
-        run: npm --prefix frontend/ install
-
-      - name: build frontend
-        run: npm --prefix frontend/ run build
+      - name: Initialize nix environment
+        run: nix build .#frontend
 
       - name: create frontend archive
         uses: ksm2/archive-action@v1
         with:
           format: "tar.gz"
           name: frontend
-          root-directory: "frontend/dist/"
+          root-directory: "result"
 
       - name: commit to transcribee-frontend-releases repo
         if: github.ref == 'refs/heads/main'
