@@ -1,6 +1,6 @@
 import { AppCenter } from '../components/app';
 import { LongVersion } from '../common/footer';
-// import pf_funding_svg from '../../../doc/pf_funding_logos.svg';
+import pf_funding_svg from '../../public/pf_funding_logos.svg';
 import { trimTrailingSlash } from '../utils/trim_trailing_slash';
 
 export function AboutPage() {
@@ -18,7 +18,7 @@ export function AboutPage() {
           transcribee was funded from March until August 2023
           <img
             className="w-full"
-            // src={pf_funding_svg}
+            src={pf_funding_svg}
             alt='logos of the "Bundesministerium für Bildung und Forschung", Prototype Fund and OKFN-Deutschland'
           />
         </p>
