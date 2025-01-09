@@ -1,6 +1,6 @@
 *.pyc
 __pycache__/
 .env
-.data/
 .venv/
 *.egg-info
+transcribee_worker/.data
