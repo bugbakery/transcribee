@@ -66,7 +66,6 @@
               pkgs.pre-commit
 
               pkgs.nodejs_20
-              pkgs.nodePackages.pnpm
 
               # nix tooling
               pkgs.nixpkgs-fmt
