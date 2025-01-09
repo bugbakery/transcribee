@@ -110,7 +110,7 @@ export default defineConfig({
     topLevelAwait(),
     wasm(),
     gitVersionPlugin(),
-    faviconPlugin('./public/logo.svg'),
+    faviconPlugin('./assets/logo.svg'),
   ],
 
   // This is only necessary if you are using `SharedWorker` or `WebWorker`, as
