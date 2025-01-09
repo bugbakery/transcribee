@@ -5,7 +5,6 @@
   uv2nix,
   pyproject-nix,
   pyproject-build-systems,
-  system,
   ...
 }:
 let
