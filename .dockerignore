@@ -1,5 +1,11 @@
 worker/transcribee_worker/.data
+backend/db
+backend/storage
 backend/__pypackages__
 worker/__pypackages__
+backend/.venv
+worker/.venv
 frontend/node_modules/
+frontend/testData
+.git
 packaging/Dockerfile
