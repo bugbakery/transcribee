@@ -78,6 +78,9 @@
               pkgs.git
               pkgs.ruff
 
+              # required by psycopg2
+              pkgs.openssl
+
               pkgs.ffmpeg
 
               # for automerge-py
