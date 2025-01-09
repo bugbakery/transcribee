@@ -1,6 +1,3 @@
-__pypackages__/
 __pycache__/
-.pdm.toml
-pdm.lock
-
-.data/
+*.egg-info
+dist/
