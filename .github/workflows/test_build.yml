@@ -10,8 +10,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [["ubuntu-latest"], ["self-hosted", "macOS"]]
-        target: ["backend", "worker"]
+        os: [ubuntu-latest, macOS-latest]
+        target: [backend, worker]
 
     runs-on: ${{ matrix.os }}
 
