@@ -1158,7 +1158,7 @@ wheels = [
 [[package]]
 name = "transcribee-proto"
 version = "0.1.0"
-source = { directory = "../proto" }
+source = { editable = "../proto" }
 dependencies = [
     { name = "pydantic" },
 ]
@@ -1211,7 +1211,7 @@ requires-dist = [
     { name = "speechbrain", specifier = "~=0.5.14" },
     { name = "torch", specifier = "~=2.0", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torchaudio", specifier = "~=2.0", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "transcribee-proto", directory = "../proto" },
+    { name = "transcribee-proto", editable = "../proto" },
     { name = "transformers", specifier = "~=4.26" },
     { name = "watchfiles", specifier = "~=0.19.0" },
     { name = "websockets", specifier = "~=10.4" },

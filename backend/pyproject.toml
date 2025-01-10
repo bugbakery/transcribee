@@ -19,7 +19,7 @@ dependencies = [
     "filetype~=1.2.0",
     "websockets~=10.4",
     "python-magic~=0.4.27",
-    "transcribee-proto @ file:///${PROJECT_ROOT}/../proto",
+    "transcribee-proto",
     "python-frontmatter~=1.0.0",
     "psycopg2~=2.9.9",
     "prometheus-fastapi-instrumentator~=6.1.0",
@@ -48,6 +48,10 @@ notebooks = [
 override-dependencies = [
   "sqlalchemy==1.4.41"
 ]
+config-settings = { editable_mode = "compat" }
+
+[tool.uv.sources]
+transcribee-proto = { path = "../proto", editable = true }
 
 [tool.poe.tasks]
 start = "uvicorn transcribee_backend.main:app --ws websockets"

@@ -2144,7 +2144,7 @@ requires-dist = [
     { name = "python-multipart", specifier = "~=0.0.6" },
     { name = "redis", specifier = "~=5.0.1" },
     { name = "sqlmodel", specifier = "~=0.0.11" },
-    { name = "transcribee-proto", directory = "../proto" },
+    { name = "transcribee-proto", editable = "../proto" },
     { name = "uvicorn", extras = ["standard"], specifier = "~=0.20.0" },
     { name = "websockets", specifier = "~=10.4" },
 ]
@@ -2168,7 +2168,7 @@ notebooks = [
 [[package]]
 name = "transcribee-proto"
 version = "0.1.0"
-source = { directory = "../proto" }
+source = { editable = "../proto" }
 dependencies = [
     { name = "pydantic" },
 ]
