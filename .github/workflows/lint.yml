@@ -30,14 +30,14 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            backend/__pypackages__/
+            backend/.venv/
           key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('backend/uv.lock', 'proto/transcribee_proto/*.py') }}
 
       - name: Setup worker pypackages cache
         uses: actions/cache@v3
         with:
           path: |
-            worker/__pypackages__/
+            worker/.venv/
           key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('worker/uv.lock', 'proto/transcribee_proto/*.py') }}
 
       - name: install dependencies
