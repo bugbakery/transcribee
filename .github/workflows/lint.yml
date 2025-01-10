@@ -26,28 +26,8 @@ jobs:
       - name: Initialize nix environment
         run: nix develop .
 
-      - name: Setup backend pypackages cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            backend/.venv/
-          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('backend/uv.lock', 'proto/transcribee_proto/*.py') }}
-
-      - name: Setup worker pypackages cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            worker/.venv/
-          key: ${{ runner.os }}-${{ runner.arch }}-pypackages-${{ hashFiles('worker/uv.lock', 'proto/transcribee_proto/*.py') }}
-
       - name: install dependencies
         run: nix develop --command ./packaging/install_dependencies.sh
-
-      - name: cache pre-commit env
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pre-commit
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: run pre-commit
         run: nix develop --command pre-commit run --show-diff-on-failure --color=always --all-files
