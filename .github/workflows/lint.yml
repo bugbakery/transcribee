@@ -10,7 +10,7 @@ jobs:
   pre-commit:
     strategy:
       matrix:
-        os: [["ubuntu-latest"], ["self-hosted", "macOS"]]
+        os: [ubuntu-latest, macOS-latest]
 
     runs-on: ${{ matrix.os }}
 
