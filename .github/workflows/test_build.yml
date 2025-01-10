@@ -1,0 +1,28 @@
+name: test_build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [["ubuntu-latest"], ["self-hosted", "macOS"]]
+        target: ["backend", "worker"]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: cachix/install-nix-action@v30
+
+      - name: Wait for nix daemon to start
+        if: runner.os == 'macOS'
+        run: wait4path /nix/var/nix/profiles/per-user
+
+      - name: Build the target
+        run: nix build .#${{ matrix.target }}
