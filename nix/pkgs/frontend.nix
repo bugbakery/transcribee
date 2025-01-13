@@ -17,7 +17,7 @@ pkgs.buildNpmPackage (lib.fix (self: {
       gitDeps = (lib.attrsets.filterAttrs (name: pkgInfo:
         (lib.hasPrefix "node_modules/" name)
         && (lib.hasPrefix "git" (pkgInfo.resolved or "")))
-        (pkgs.lib.importJSON (self.src + "/package-lock.json")).packages);
+        (lib.importJSON (self.src + "/package-lock.json")).packages);
     in lib.attrsets.mapAttrs (name: pkgInfo:
       let
         src = builtins.fetchGit {

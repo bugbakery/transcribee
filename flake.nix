@@ -35,10 +35,38 @@
       self,
       ...
     }:
+    {
+      overlays.default = (final: prev:
+        let
+          pkgs = prev;
+          lib = pkgs.lib;
+        in
+        {
+          transcribee-backend = import ./nix/pkgs/backend.nix {
+            inherit pkgs lib uv2nix pyproject-nix pyproject-build-systems;
+            python = prev.python311;
+          };
+
+          transcribee-frontend = import ./nix/pkgs/frontend.nix {
+            inherit pkgs lib;
+
+            versionInfo = {
+              commitHash = if (self ? rev) then self.rev else self.dirtyRev;
+              commitDate = lib.readFile "${prev.runCommand "timestamp" { env.when = self.lastModified; } "echo -n `date -d @$when --iso-8601=s` > $out"}";
+            };
+          };
+        });
+
+      nixosModules.default = {
+        nixpkgs.overlays = [ self.overlays.default ];
+      };
+    } //
     (flake-utils.lib.eachDefaultSystem
       (system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = import nixpkgs {
+            inherit system;
+          };
           lib = nixpkgs.lib;
           python = pkgs.python311;
 
@@ -50,7 +78,7 @@
           ];
         in
         {
-          packages = rec {
+          packages = {
             worker = (import ./nix/pkgs/worker.nix { inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems; });
             backend = (import ./nix/pkgs/backend.nix { inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems; });
             frontend = (import ./nix/pkgs/frontend.nix {
