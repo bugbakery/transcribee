@@ -156,7 +156,7 @@ export interface components {
       /**
        * Task Type
        * @default ALIGN
-       * @enum {string}
+       * @constant
        */
       task_type?: "ALIGN";
     };
@@ -166,7 +166,10 @@ export interface components {
       changed_at: string;
       /** Created At */
       created_at: string;
-      /** Id */
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string;
       /** Media Files */
       media_files: components["schemas"]["DocumentMedia"][];
@@ -177,7 +180,7 @@ export interface components {
     };
     /** AssignedTaskResponse */
     AssignedTaskResponse: {
-      current_attempt?: components["schemas"]["TaskAttemptResponse"];
+      current_attempt: components["schemas"]["TaskAttemptResponse"] | null;
       /** Dependencies */
       dependencies: string[];
       document: components["schemas"]["Document"];
@@ -220,7 +223,7 @@ export interface components {
       /** Name */
       name: string;
       /** Number Of Speakers */
-      number_of_speakers?: number;
+      number_of_speakers?: number | null;
     };
     /** Body_import_document_api_v1_documents_import__post */
     Body_import_document_api_v1_documents_import__post: {
@@ -245,11 +248,8 @@ export interface components {
       can_write: boolean;
       /** Name */
       name: string;
-      /**
-       * Valid Until
-       * Format: date-time
-       */
-      valid_until?: string;
+      /** Valid Until */
+      valid_until?: string | null;
     };
     /** CreateUser */
     CreateUser: {
@@ -277,7 +277,10 @@ export interface components {
       changed_at: string;
       /** Created At */
       created_at: string;
-      /** Id */
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string;
       /** Media Files */
       media_files: components["schemas"]["DocumentMedia"][];
@@ -311,16 +314,13 @@ export interface components {
       name: string;
       /** Token */
       token: string;
-      /**
-       * Valid Until
-       * Format: date-time
-       */
-      valid_until?: string;
+      /** Valid Until */
+      valid_until: string | null;
     };
     /** DocumentUpdateRequest */
     DocumentUpdateRequest: {
       /** Name */
-      name?: string;
+      name?: string | null;
     };
     /** DocumentWithAccessInfo */
     DocumentWithAccessInfo: {
@@ -332,7 +332,10 @@ export interface components {
       created_at: string;
       /** Has Full Access */
       has_full_access: boolean;
-      /** Id */
+      /**
+       * Id
+       * Format: uuid
+       */
       id: string;
       /** Media Files */
       media_files: components["schemas"]["DocumentMedia"][];
@@ -346,7 +349,6 @@ export interface components {
     };
     /**
      * ExportFormat
-     * @description An enumeration.
      * @enum {string}
      */
     ExportFormat: "VTT" | "SRT";
@@ -366,7 +368,7 @@ export interface components {
       /**
        * Task Type
        * @default EXPORT
-       * @enum {string}
+       * @constant
        */
       task_type?: "EXPORT";
     };
@@ -378,7 +380,7 @@ export interface components {
       /** Include Word Timing */
       include_word_timing: boolean;
       /** Max Line Length */
-      max_line_length?: number;
+      max_line_length?: number | null;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -388,7 +390,7 @@ export interface components {
     /** KeepaliveBody */
     KeepaliveBody: {
       /** Progress */
-      progress?: number;
+      progress?: number | null;
     };
     /** LoginResponse */
     LoginResponse: {
@@ -407,7 +409,7 @@ export interface components {
     /** PageConfig */
     PageConfig: {
       /** Footer Position */
-      footer_position?: number;
+      footer_position?: number | null;
       /** Name */
       name: string;
       /** Text */
@@ -416,7 +418,7 @@ export interface components {
     /** PublicConfig */
     PublicConfig: {
       /** Logged Out Redirect Url */
-      logged_out_redirect_url?: string;
+      logged_out_redirect_url?: string | null;
       /** Models */
       models: {
         [key: string]: components["schemas"]["ModelConfig"];
@@ -430,7 +432,7 @@ export interface components {
     /** ShortPageConfig */
     ShortPageConfig: {
       /** Footer Position */
-      footer_position?: number;
+      footer_position?: number | null;
       /** Name */
       name: string;
     };
@@ -446,14 +448,14 @@ export interface components {
       /**
        * Task Type
        * @default IDENTIFY_SPEAKERS
-       * @enum {string}
+       * @constant
        */
       task_type?: "IDENTIFY_SPEAKERS";
     };
     /** TaskAttemptResponse */
     TaskAttemptResponse: {
       /** Progress */
-      progress?: number;
+      progress: number | null;
     };
     /** TaskQueueInfoResponse */
     TaskQueueInfoResponse: {
@@ -468,13 +470,13 @@ export interface components {
        */
       id: string;
       /** Remaining Cost */
-      remaining_cost: number;
+      remaining_cost: number | null;
       state: components["schemas"]["TaskState"];
       task_type: components["schemas"]["TaskType"];
     };
     /** TaskResponse */
     TaskResponse: {
-      current_attempt?: components["schemas"]["TaskAttemptResponse"];
+      current_attempt: components["schemas"]["TaskAttemptResponse"] | null;
       /** Dependencies */
       dependencies: string[];
       /**
@@ -494,13 +496,11 @@ export interface components {
     };
     /**
      * TaskState
-     * @description An enumeration.
-     * @enum {unknown}
+     * @enum {string}
      */
     TaskState: "NEW" | "ASSIGNED" | "COMPLETED" | "FAILED";
     /**
      * TaskType
-     * @description An enumeration.
      * @enum {string}
      */
     TaskType: "IDENTIFY_SPEAKERS" | "TRANSCRIBE" | "ALIGN" | "REENCODE" | "EXPORT";
@@ -515,7 +515,7 @@ export interface components {
       /**
        * Task Type
        * @default TRANSCRIBE
-       * @enum {string}
+       * @constant
        */
       task_type?: "TRANSCRIBE";
     };
@@ -554,21 +554,15 @@ export interface components {
     };
     /** Worker */
     Worker: {
-      /**
-       * Deactivated At
-       * Format: date-time
-       */
-      deactivated_at?: string;
+      /** Deactivated At */
+      deactivated_at: string | null;
       /**
        * Id
        * Format: uuid
        */
       id?: string;
-      /**
-       * Last Seen
-       * Format: date-time
-       */
-      last_seen?: string;
+      /** Last Seen */
+      last_seen: string | null;
       /** Name */
       name: string;
       /** Token */
@@ -576,21 +570,15 @@ export interface components {
     };
     /** WorkerWithId */
     WorkerWithId: {
-      /**
-       * Deactivated At
-       * Format: date-time
-       */
-      deactivated_at?: string;
+      /** Deactivated At */
+      deactivated_at: string | null;
       /**
        * Id
        * Format: uuid
        */
       id?: string;
-      /**
-       * Last Seen
-       * Format: date-time
-       */
-      last_seen?: string;
+      /** Last Seen */
+      last_seen: string | null;
       /** Name */
       name: string;
     };
@@ -710,8 +698,8 @@ export interface operations {
   get_document_api_v1_documents__document_id___get: {
     parameters: {
       header?: {
-        authorization?: string;
-        "Share-Token"?: string;
+        authorization?: string | null;
+        "Share-Token"?: string | null;
       };
       path: {
         document_id: string;
@@ -736,8 +724,8 @@ export interface operations {
   delete_document_api_v1_documents__document_id___delete: {
     parameters: {
       header?: {
-        authorization?: string;
-        "Share-Token"?: string;
+        authorization?: string | null;
+        "Share-Token"?: string | null;
       };
       path: {
         document_id: string;
@@ -762,8 +750,8 @@ export interface operations {
   update_document_api_v1_documents__document_id___patch: {
     parameters: {
       header?: {
-        authorization?: string;
-        "Share-Token"?: string;
+        authorization?: string | null;
+        "Share-Token"?: string | null;
       };
       path: {
         document_id: string;
@@ -796,8 +784,8 @@ export interface operations {
         task_id: string;
       };
       header?: {
-        authorization?: string;
-        "Share-Token"?: string;
+        authorization?: string | null;
+        "Share-Token"?: string | null;
       };
       path: {
         document_id: string;
@@ -860,11 +848,11 @@ export interface operations {
         format: components["schemas"]["ExportFormat"];
         include_speaker_names: boolean;
         include_word_timing: boolean;
-        max_line_length?: number;
+        max_line_length?: number | null;
       };
       header?: {
-        authorization?: string;
-        "Share-Token"?: string;
+        authorization?: string | null;
+        "Share-Token"?: string | null;
       };
       path: {
         document_id: string;
@@ -919,8 +907,8 @@ export interface operations {
   list_share_tokens_api_v1_documents__document_id__share_tokens__get: {
     parameters: {
       header?: {
-        authorization?: string;
-        "Share-Token"?: string;
+        authorization?: string | null;
+        "Share-Token"?: string | null;
       };
       path: {
         document_id: string;
@@ -946,7 +934,7 @@ export interface operations {
     parameters: {
       header: {
         authorization: string;
-        "Share-Token"?: string;
+        "Share-Token"?: string | null;
       };
       path: {
         document_id: string;
@@ -976,8 +964,8 @@ export interface operations {
   delete_share_tokens_api_v1_documents__document_id__share_tokens__token_id___delete: {
     parameters: {
       header?: {
-        authorization?: string;
-        "Share-Token"?: string;
+        authorization?: string | null;
+        "Share-Token"?: string | null;
       };
       path: {
         token_id: string;
@@ -1003,8 +991,8 @@ export interface operations {
   get_document_tasks_api_v1_documents__document_id__tasks__get: {
     parameters: {
       header?: {
-        authorization?: string;
-        "Share-Token"?: string;
+        authorization?: string | null;
+        "Share-Token"?: string | null;
       };
       path: {
         document_id: string;
@@ -1127,7 +1115,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["AssignedTaskResponse"];
+          "application/json": components["schemas"]["AssignedTaskResponse"] | null;
         };
       };
       /** @description Validation Error */

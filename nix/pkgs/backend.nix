@@ -25,12 +25,6 @@ let
         pkgs.openssl
       ];
     });
-
-    sqlalchemy = prev.sqlalchemy.overrideAttrs (old: {
-      nativeBuildInputs = old.nativeBuildInputs ++ [
-        final.setuptools
-      ];
-    });
   };
 
   pythonSet =

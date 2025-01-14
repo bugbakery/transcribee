@@ -84,6 +84,6 @@ def change_password(
         username=authorized_user.username,
         new_password=body.new_password,
     )
-    session.execute(delete(UserToken).where(UserToken.user_id == authorized_user.id))
+    session.exec(delete(UserToken).where(UserToken.user_id == authorized_user.id))
     session.commit()
     return UserBase(username=user.username)

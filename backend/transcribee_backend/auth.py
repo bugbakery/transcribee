@@ -72,7 +72,7 @@ def validate_user_authorization(session: Session, authorization: str):
         raise HTTPException(status_code=400, detail="Invalid Token")
     user_id, provided_token = token_data.split(":", maxsplit=1)
     statement = select(UserToken).where(
-        UserToken.user_id == user_id, UserToken.valid_until >= now_tz_aware()
+        UserToken.user_id == uuid.UUID(user_id), UserToken.valid_until >= now_tz_aware()
     )
     results = session.exec(statement)
     for token in results:

@@ -11,9 +11,9 @@ authors = [
 
 dependencies = [
     "redis~=5.0.1",
-    "fastapi~=0.92.0",
+    "fastapi~=0.115",
     "uvicorn[standard]~=0.20.0",
-    "sqlmodel~=0.0.11",
+    "sqlmodel~=0.0.22",
     "alembic~=1.11.1",
     "python-multipart~=0.0.6",
     "filetype~=1.2.0",
@@ -23,6 +23,8 @@ dependencies = [
     "python-frontmatter~=1.0.0",
     "psycopg2~=2.9.9",
     "prometheus-fastapi-instrumentator~=6.1.0",
+    "pydantic~=2.2",
+    "pydantic-settings>=2.7.1",
 ]
 requires-python = ">=3.11"
 readme = "./README.md"
@@ -49,9 +51,6 @@ transcribee-migrate = "transcribee_backend.db.run_migrations:main"
 transcribee-admin = "transcribee_backend.admin_cli:main"
 
 [tool.uv]
-override-dependencies = [
-  "sqlalchemy==1.4.41"
-]
 config-settings = { editable_mode = "compat" }
 
 [tool.uv.sources]

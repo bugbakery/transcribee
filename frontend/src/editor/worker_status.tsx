@@ -11,8 +11,9 @@ type Task = RequestDataType<typeof useGetDocumentTasks>[0];
 
 function formatProgress(task: Task | null): string | undefined {
   if (!task) return;
-  if (task.state == 'ASSIGNED' && task.current_attempt?.progress !== undefined)
-    return `${(task.current_attempt?.progress * 100).toFixed(0)}%`;
+  const progress = task.current_attempt?.progress;
+  if (task.state == 'ASSIGNED' && progress !== null && progress !== undefined)
+    return `${(progress * 100).toFixed(0)}%`;
   else return task.state;
 }
 

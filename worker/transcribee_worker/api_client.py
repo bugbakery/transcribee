@@ -3,6 +3,7 @@
 import urllib.parse
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from uuid import UUID
 
 import requests
 from transcribee_worker.document import SyncedDocument
@@ -36,7 +37,7 @@ class ApiClient:
         return req
 
     @asynccontextmanager
-    async def document(self, id: str) -> AsyncGenerator[SyncedDocument, None]:
+    async def document(self, id: UUID) -> AsyncGenerator[SyncedDocument, None]:
         params = urllib.parse.urlencode(self._get_headers())
         async with connect(
             f"{self.websocket_base_url}{id}/?{params}", max_size=None

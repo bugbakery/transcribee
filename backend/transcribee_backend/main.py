@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +18,28 @@ from transcribee_backend.routers.worker import worker_router
 
 from .media_storage import serve_media
 
-app = FastAPI()
+
+async def setup_periodic_tasks():
+    return [
+        asyncio.create_task(
+            run_periodic(timeout_attempts, seconds=min(30, settings.worker_timeout))
+        ),
+        asyncio.create_task(
+            run_periodic(remove_expired_tokens, seconds=60 * 60)
+        ),  # 1 hour
+        asyncio.create_task(run_periodic(refresh_metrics, seconds=1)),
+    ]
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    tasks = await setup_periodic_tasks()
+    yield
+    for task in tasks:
+        task.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
 Instrumentator().instrument(app).expose(app, dependencies=[Depends(metrics_auth)])
 init_metrics()
 
@@ -46,12 +68,3 @@ async def root():
 
 
 app.get("/media/{file}")(serve_media)
-
-
-@app.on_event("startup")
-async def setup_periodic_tasks():
-    asyncio.create_task(
-        run_periodic(timeout_attempts, seconds=min(30, settings.worker_timeout))
-    )
-    asyncio.create_task(run_periodic(remove_expired_tokens, seconds=60 * 60))  # 1 hour
-    asyncio.create_task(run_periodic(refresh_metrics, seconds=1))

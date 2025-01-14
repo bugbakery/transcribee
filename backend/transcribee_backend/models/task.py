@@ -4,8 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
-from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel, col
-from sqlmodel.sql.sqltypes import GUID
+from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel, Uuid
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import ExportTaskParameters, TaskType
 from typing_extensions import Self
@@ -41,10 +40,10 @@ class TaskDependency(SQLModel, table=True):
     )
 
     dependent_task_id: uuid.UUID = Field(
-        sa_column=Column(GUID, ForeignKey("task.id", ondelete="CASCADE"), unique=False),
+        foreign_key="task.id", ondelete="CASCADE", unique=False
     )
     dependant_on_id: uuid.UUID = Field(
-        sa_column=Column(GUID, ForeignKey("task.id", ondelete="CASCADE"), unique=False),
+        foreign_key="task.id", ondelete="CASCADE", unique=False
     )
 
 
@@ -56,9 +55,7 @@ class Task(TaskBase, table=True):
         nullable=False,
     )
     document_id: uuid.UUID = Field(
-        sa_column=Column(
-            GUID, ForeignKey("document.id", ondelete="CASCADE"), unique=False
-        ),
+        foreign_key="document.id", ondelete="CASCADE", unique=False
     )
     document: Document = Relationship(back_populates="tasks")
 
@@ -98,7 +95,9 @@ class Task(TaskBase, table=True):
 
     current_attempt_id: Optional[uuid.UUID] = Field(
         sa_column=Column(
-            GUID, ForeignKey("taskattempt.id", ondelete="SET NULL", use_alter=True)
+            Uuid,
+            ForeignKey("taskattempt.id", ondelete="SET NULL", use_alter=True),
+            nullable=True,
         ),
         default=None,
     )
@@ -145,12 +144,7 @@ class TaskAttempt(SQLModel, table=True):
     )
 
     task_id: uuid.UUID = Field(
-        sa_column=Column(
-            GUID,
-            ForeignKey(col(Task.id), ondelete="CASCADE"),
-            nullable=False,
-            unique=False,
-        ),
+        foreign_key="task.id", ondelete="CASCADE", nullable=False, unique=False
     )
     task: Task = Relationship(
         back_populates="attempts",
@@ -207,7 +201,7 @@ class TaskResponse(TaskBase):
             state=task.state,
             dependencies=[x.dependant_on_id for x in task.dependency_links],
             current_attempt=(
-                TaskAttemptResponse.from_orm(task.current_attempt)
+                TaskAttemptResponse.model_validate(task.current_attempt)
                 if task.current_attempt is not None
                 else None
             ),

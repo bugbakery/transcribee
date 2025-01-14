@@ -1,6 +1,5 @@
 import datetime
 import enum
-import json
 import pathlib
 import uuid
 from dataclasses import dataclass
@@ -23,8 +22,7 @@ from fastapi import (
 )
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, parse_obj_as
-from pydantic.error_wrappers import ErrorWrapper
+from pydantic import BaseModel, TypeAdapter
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, col, select
@@ -311,18 +309,14 @@ async def create_document(
 
     if model not in model_configs:
         raise RequestValidationError(
-            [ErrorWrapper(ValueError(f"Unknown model '{model}'"), ("body", "model"))]
+            [ValueError(f"Unknown model '{model}'"), ("body", "model")]
         )
 
     if language not in model_configs[model].languages:
         raise RequestValidationError(
             [
-                ErrorWrapper(
-                    ValueError(
-                        f"Model '{model}' does not support language '{language}'"
-                    ),
-                    ("body", "language"),
-                )
+                ValueError(f"Model '{model}' does not support language '{language}'"),
+                ("body", "language"),
             ]
         )
 
@@ -412,10 +406,8 @@ def list_documents(
         .where(Document.user == token.user)
         .order_by(desc(Document.changed_at), Document.id)
         .options(
-            selectinload("tasks"),
-            selectinload("media_files"),
-            selectinload("media_files.tags"),
-            selectinload("tasks.dependency_links"),
+            selectinload(Document.tasks).selectinload(Task.dependency_links),
+            selectinload(Document.media_files).selectinload(DocumentMediaFile.tags),
         )
     )
     results = session.exec(statement)
@@ -553,7 +545,7 @@ def update_document(
 
 class CreateShareToken(BaseModel):
     name: str
-    valid_until: Optional[datetime.datetime]
+    valid_until: Optional[datetime.datetime] = None
     can_write: bool
 
 
@@ -572,6 +564,7 @@ def share(
     )
     session.add(db_token)
     session.commit()
+    session.refresh(db_token)
     return db_token
 
 
@@ -628,15 +621,14 @@ async def export(
 ):
     export_task = Task(
         task_type=TaskType.EXPORT,
-        task_parameters=export_parameters.dict(),
+        task_parameters=export_parameters.model_dump(),
         document_id=auth.document.id,
     )
     session.add(export_task)
     session.commit()
 
-    result = parse_obj_as(
-        ExportRes,
-        json.loads(await redis_task_channel.wait_for_result(str(export_task.id))),
+    result = TypeAdapter(ExportRes).validate_json(
+        await redis_task_channel.wait_for_result(str(export_task.id))
     )
     if isinstance(result, ExportError):
         raise Exception(result.error)
@@ -651,4 +643,4 @@ async def add_export_result(
     auth: AuthInfo = Depends(get_doc_worker_auth),
     redis_task_channel: RedisTaskChannel = Depends(get_redis_task_channel),
 ) -> None:
-    await redis_task_channel.put_result(task_id, result.json())
+    await redis_task_channel.put_result(task_id, result.model_dump_json())

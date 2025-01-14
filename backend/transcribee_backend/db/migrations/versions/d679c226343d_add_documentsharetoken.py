@@ -22,9 +22,9 @@ def upgrade() -> None:
     op.create_table(
         "documentsharetoken",
         sa.Column("valid_until", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
         sa.Column("name", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("document_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("document_id", sa.Uuid, nullable=False),
         sa.Column("token", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("can_write", sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(
