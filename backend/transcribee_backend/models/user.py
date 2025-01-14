@@ -1,8 +1,9 @@
-import datetime
 import uuid
+from typing import Annotated
 
-from pydantic import BaseModel, ConstrainedStr
-from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
+from pydantic import BaseModel, StringConstraints
+from pydantic.types import AwareDatetime
+from sqlmodel import DateTime, Field, Relationship, SQLModel
 
 
 class UserBase(SQLModel):
@@ -39,15 +40,9 @@ class UserToken(UserTokenBase, table=True):
     user: User = Relationship()
     token_hash: bytes
     token_salt: bytes
-    valid_until: datetime.datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
-
-
-class PasswordConstrainedStr(ConstrainedStr):
-    min_length = 6
+    valid_until: AwareDatetime = Field(sa_type=DateTime(timezone=True))
 
 
 class ChangePasswordRequest(BaseModel):
     old_password: str
-    new_password: PasswordConstrainedStr
+    new_password: Annotated[str, StringConstraints(min_length=6)]

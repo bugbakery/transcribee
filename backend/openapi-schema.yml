@@ -10,9 +10,8 @@ components:
           title: Task Parameters
           type: object
         task_type:
+          const: ALIGN
           default: ALIGN
-          enum:
-          - ALIGN
           title: Task Type
           type: string
       required:
@@ -29,6 +28,7 @@ components:
           title: Created At
           type: string
         id:
+          format: uuid
           title: Id
           type: string
         media_files:
@@ -56,7 +56,9 @@ components:
     AssignedTaskResponse:
       properties:
         current_attempt:
-          $ref: '#/components/schemas/TaskAttemptResponse'
+          anyOf:
+          - $ref: '#/components/schemas/TaskAttemptResponse'
+          - type: 'null'
         dependencies:
           items:
             format: uuid
@@ -87,6 +89,7 @@ components:
       - id
       - state
       - dependencies
+      - current_attempt
       - document
       title: AssignedTaskResponse
       type: object
@@ -122,8 +125,11 @@ components:
           title: Name
           type: string
         number_of_speakers:
+          anyOf:
+          - minimum: 0.0
+            type: integer
+          - type: 'null'
           title: Number Of Speakers
-          type: integer
       required:
       - name
       - model
@@ -168,9 +174,11 @@ components:
           title: Name
           type: string
         valid_until:
-          format: date-time
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
           title: Valid Until
-          type: string
       required:
       - name
       - can_write
@@ -217,6 +225,7 @@ components:
           title: Created At
           type: string
         id:
+          format: uuid
           title: Id
           type: string
         media_files:
@@ -274,12 +283,15 @@ components:
           title: Token
           type: string
         valid_until:
-          format: date-time
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
           title: Valid Until
-          type: string
       required:
       - id
       - name
+      - valid_until
       - document_id
       - token
       - can_write
@@ -288,8 +300,10 @@ components:
     DocumentUpdateRequest:
       properties:
         name:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Name
-          type: string
       title: DocumentUpdateRequest
       type: object
     DocumentWithAccessInfo:
@@ -307,6 +321,7 @@ components:
           title: Has Full Access
           type: boolean
         id:
+          format: uuid
           title: Id
           type: string
         media_files:
@@ -337,7 +352,6 @@ components:
       title: ExportError
       type: object
     ExportFormat:
-      description: An enumeration.
       enum:
       - VTT
       - SRT
@@ -361,9 +375,8 @@ components:
         task_parameters:
           $ref: '#/components/schemas/ExportTaskParameters'
         task_type:
+          const: EXPORT
           default: EXPORT
-          enum:
-          - EXPORT
           title: Task Type
           type: string
       required:
@@ -382,8 +395,10 @@ components:
           title: Include Word Timing
           type: boolean
         max_line_length:
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Max Line Length
-          type: integer
       required:
       - format
       - include_speaker_names
@@ -402,8 +417,10 @@ components:
     KeepaliveBody:
       properties:
         progress:
+          anyOf:
+          - type: number
+          - type: 'null'
           title: Progress
-          type: number
       title: KeepaliveBody
       type: object
     LoginResponse:
@@ -437,8 +454,10 @@ components:
     PageConfig:
       properties:
         footer_position:
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Footer Position
-          type: integer
         name:
           title: Name
           type: string
@@ -453,8 +472,10 @@ components:
     PublicConfig:
       properties:
         logged_out_redirect_url:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Logged Out Redirect Url
-          type: string
         models:
           additionalProperties:
             $ref: '#/components/schemas/ModelConfig'
@@ -476,8 +497,10 @@ components:
     ShortPageConfig:
       properties:
         footer_position:
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Footer Position
-          type: integer
         name:
           title: Name
           type: string
@@ -495,9 +518,8 @@ components:
           title: Task Parameters
           type: object
         task_type:
+          const: IDENTIFY_SPEAKERS
           default: IDENTIFY_SPEAKERS
-          enum:
-          - IDENTIFY_SPEAKERS
           title: Task Type
           type: string
       required:
@@ -508,8 +530,12 @@ components:
     TaskAttemptResponse:
       properties:
         progress:
+          anyOf:
+          - type: number
+          - type: 'null'
           title: Progress
-          type: number
+      required:
+      - progress
       title: TaskAttemptResponse
       type: object
     TaskQueueInfoResponse:
@@ -530,8 +556,10 @@ components:
           title: Id
           type: string
         remaining_cost:
+          anyOf:
+          - type: number
+          - type: 'null'
           title: Remaining Cost
-          type: number
         state:
           $ref: '#/components/schemas/TaskState'
         task_type:
@@ -546,7 +574,9 @@ components:
     TaskResponse:
       properties:
         current_attempt:
-          $ref: '#/components/schemas/TaskAttemptResponse'
+          anyOf:
+          - $ref: '#/components/schemas/TaskAttemptResponse'
+          - type: 'null'
         dependencies:
           items:
             format: uuid
@@ -575,18 +605,18 @@ components:
       - id
       - state
       - dependencies
+      - current_attempt
       title: TaskResponse
       type: object
     TaskState:
-      description: An enumeration.
       enum:
       - NEW
       - ASSIGNED
       - COMPLETED
       - FAILED
       title: TaskState
+      type: string
     TaskType:
-      description: An enumeration.
       enum:
       - IDENTIFY_SPEAKERS
       - TRANSCRIBE
@@ -604,9 +634,8 @@ components:
         task_parameters:
           $ref: '#/components/schemas/TranscribeTaskParameters'
         task_type:
+          const: TRANSCRIBE
           default: TRANSCRIBE
-          enum:
-          - TRANSCRIBE
           title: Task Type
           type: string
       required:
@@ -678,17 +707,21 @@ components:
     Worker:
       properties:
         deactivated_at:
-          format: date-time
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
           title: Deactivated At
-          type: string
         id:
           format: uuid
           title: Id
           type: string
         last_seen:
-          format: date-time
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
           title: Last Seen
-          type: string
         name:
           title: Name
           type: string
@@ -697,28 +730,36 @@ components:
           type: string
       required:
       - name
+      - last_seen
+      - deactivated_at
       - token
       title: Worker
       type: object
     WorkerWithId:
       properties:
         deactivated_at:
-          format: date-time
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
           title: Deactivated At
-          type: string
         id:
           format: uuid
           title: Id
           type: string
         last_seen:
-          format: date-time
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
           title: Last Seen
-          type: string
         name:
           title: Name
           type: string
       required:
       - name
+      - last_seen
+      - deactivated_at
       title: WorkerWithId
       type: object
   securitySchemes:
@@ -728,7 +769,7 @@ components:
 info:
   title: FastAPI
   version: 0.1.0
-openapi: 3.0.2
+openapi: 3.1.0
 paths:
   /:
     get:
@@ -852,14 +893,18 @@ paths:
         name: authorization
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Authorization
-          type: string
       - in: header
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       responses:
         '200':
           content:
@@ -887,14 +932,18 @@ paths:
         name: authorization
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Authorization
-          type: string
       - in: header
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       responses:
         '200':
           content:
@@ -923,14 +972,18 @@ paths:
         name: authorization
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Authorization
-          type: string
       - in: header
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       requestBody:
         content:
           application/json:
@@ -972,14 +1025,18 @@ paths:
         name: authorization
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Authorization
-          type: string
       - in: header
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       requestBody:
         content:
           application/json:
@@ -1071,20 +1128,26 @@ paths:
         name: max_line_length
         required: false
         schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Max Line Length
-          type: integer
       - in: header
         name: authorization
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Authorization
-          type: string
       - in: header
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       responses:
         '200':
           content:
@@ -1151,14 +1214,18 @@ paths:
         name: authorization
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Authorization
-          type: string
       - in: header
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       responses:
         '200':
           content:
@@ -1197,8 +1264,10 @@ paths:
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       requestBody:
         content:
           application/json:
@@ -1241,14 +1310,18 @@ paths:
         name: authorization
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Authorization
-          type: string
       - in: header
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       responses:
         '200':
           content:
@@ -1277,14 +1350,18 @@ paths:
         name: authorization
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Authorization
-          type: string
       - in: header
         name: Share-Token
         required: false
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Share-Token
-          type: string
       responses:
         '200':
           content:
@@ -1414,6 +1491,7 @@ paths:
         schema:
           items:
             $ref: '#/components/schemas/TaskType'
+          title: Task Type
           type: array
       - in: header
         name: authorization
@@ -1426,7 +1504,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssignedTaskResponse'
+                anyOf:
+                - $ref: '#/components/schemas/AssignedTaskResponse'
+                - type: 'null'
+                title: Response Claim Unassigned Task Api V1 Tasks Claim Unassigned
+                  Task  Post
           description: Successful Response
         '422':
           content:

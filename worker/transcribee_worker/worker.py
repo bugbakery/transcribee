@@ -7,11 +7,12 @@ import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncGenerator, Optional, Tuple
+from uuid import UUID
 
 import automerge
 import ffmpeg
 import numpy.typing as npt
-from pydantic import parse_raw_as
+from pydantic import TypeAdapter
 from transcribee_proto.api import (
     AlignTask,
     AssignedTask,
@@ -129,7 +130,7 @@ class Worker:
             "tasks/claim_unassigned_task/", params={"task_type": self.task_types}
         )
 
-        return parse_raw_as(Optional[AssignedTask], req.text)  # type: ignore
+        return TypeAdapter(Optional[AssignedTask]).validate_json(req.text)  # type: ignore
 
     def _get_tmpfile(self, filename: str) -> Path:
         if self.tmpdir is None:
@@ -166,7 +167,7 @@ class Worker:
             raise ValueError(f"Document {document} has no audio attached.")
         return load_audio(document_audio)[0]
 
-    def keepalive(self, task_id: str, progress: Optional[float]):
+    def keepalive(self, task_id: UUID, progress: Optional[float]):
         body = {}
         if progress is not None:
             body["progress"] = progress
@@ -249,7 +250,7 @@ class Worker:
 
         async with self.api_client.document(task.document.id) as doc:
             # TODO(robin): #perf: avoid this copy
-            document = EditorDocument.parse_obj(automerge.dump(doc.doc))
+            document = EditorDocument.model_validate(automerge.dump(doc.doc))
 
             aligned_para_iter = aiter(
                 align(
@@ -320,7 +321,7 @@ class Worker:
             res = None
             try:
                 vtt = generate_web_vtt(
-                    EditorDocument.parse_obj(automerge.dump(doc.doc)),
+                    EditorDocument.model_validate(automerge.dump(doc.doc)),
                     params.include_speaker_names,
                     params.include_word_timing,
                     params.max_line_length,
@@ -360,7 +361,7 @@ class Worker:
             data=[("tags", tag) for tag in tags],
         )
 
-    def mark_completed(self, task_id: str, additional_data: Optional[dict] = None):
+    def mark_completed(self, task_id: UUID, additional_data: Optional[dict] = None):
         extra_data = {**self._result_data}
         if additional_data:
             extra_data.update(additional_data)
@@ -368,7 +369,7 @@ class Worker:
         logging.debug(f"Marking task as completed {task_id=} {body=}")
         self.api_client.post(f"tasks/{task_id}/mark_completed/", json=body)
 
-    def mark_failed(self, task_id: str, additional_data: Optional[dict] = None):
+    def mark_failed(self, task_id: UUID, additional_data: Optional[dict] = None):
         extra_data = {**self._result_data}
         if additional_data:
             extra_data.update(additional_data)
@@ -377,7 +378,11 @@ class Worker:
         self.api_client.post(f"tasks/{task_id}/mark_failed/", json=body)
 
     def _set_progress(
-        self, task_id: str, step: str, progress: Optional[float], extra_data: Any = None
+        self,
+        _task_id: UUID,
+        step: str,
+        progress: Optional[float],
+        extra_data: Any = None,
     ):
         self._result_data["progress"].append(
             {
@@ -391,7 +396,7 @@ class Worker:
 
     @asynccontextmanager
     async def keepalive_task(
-        self, task_id: str, seconds: float
+        self, task_id: UUID, seconds: float
     ) -> AsyncGenerator[None, None]:
         stop_event = asyncio.Event()
 

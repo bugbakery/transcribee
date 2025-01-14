@@ -8,6 +8,8 @@ if [ !  -z "${TRANSCRIBEE_DYLD_LIBRARY_PATH:-}" ]; then
     export DYLD_LIBRARY_PATH=$LD_LIBRARY_PATH:${DYLD_LIBRARY_PATH:-}
 fi
 
+export SQLALCHEMY_WARN_20=1
+export PYTHONWARNINGS=error::DeprecationWarning
 ./setup_backend.sh
 
 poe -C ../backend/ dev

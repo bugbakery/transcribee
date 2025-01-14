@@ -2,19 +2,20 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import frontmatter
-from pydantic import BaseModel, BaseSettings, parse_file_as, parse_obj_as
+from pydantic import BaseModel, TypeAdapter
+from pydantic_settings import BaseSettings
 
 pages = None
 
 
 class Settings(BaseSettings):
     storage_path: Path = Path("storage/")
-    secret_key = "insecure-secret-key"
-    worker_timeout = 60  # in seconds
-    media_signature_max_age = 3600  # in seconds
-    task_attempt_limit = 5
+    secret_key: str = "insecure-secret-key"
+    worker_timeout: int = 60  # in seconds
+    media_signature_max_age: int = 3600  # in seconds
+    task_attempt_limit: int = 5
 
-    media_url_base = "http://localhost:8000/"
+    media_url_base: str = "http://localhost:8000/"
     logged_out_redirect_url: None | str = None
 
     model_config_path: Path = Path(__file__).parent.resolve() / Path(
@@ -22,11 +23,11 @@ class Settings(BaseSettings):
     )
     pages_dir: Path = Path("data/pages/")
 
-    metrics_username = "transcribee"
-    metrics_password = "transcribee"
+    metrics_username: str = "transcribee"
+    metrics_password: str = "transcribee"
 
-    redis_host = "localhost"
-    redis_port = 6379
+    redis_host: str = "localhost"
+    redis_port: int = 6379
 
 
 class ModelConfig(BaseModel):
@@ -37,12 +38,12 @@ class ModelConfig(BaseModel):
 
 class PublicConfig(BaseModel):
     models: Dict[str, ModelConfig]
-    logged_out_redirect_url: str | None
+    logged_out_redirect_url: str | None = None
 
 
 class ShortPageConfig(BaseModel):
     name: str
-    footer_position: Optional[int]
+    footer_position: Optional[int] = None
 
 
 class PageConfig(ShortPageConfig):
@@ -50,7 +51,9 @@ class PageConfig(ShortPageConfig):
 
 
 def get_model_config():
-    return parse_file_as(Dict[str, ModelConfig], settings.model_config_path)
+    return TypeAdapter(Dict[str, ModelConfig]).validate_json(
+        Path(settings.model_config_path).read_text()
+    )
 
 
 def load_pages_from_disk() -> Dict[str, PageConfig]:
@@ -75,7 +78,7 @@ def get_page_config():
 
 
 def get_short_page_config() -> Dict[str, ShortPageConfig]:
-    return parse_obj_as(Dict[str, ShortPageConfig], get_page_config())
+    return TypeAdapter(Dict[str, ShortPageConfig]).validate_python(get_page_config())
 
 
 def get_public_config():

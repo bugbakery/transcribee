@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from typing import Any, Dict, List, Literal, Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -21,7 +22,7 @@ class DocumentMedia(BaseModel):
 
 
 class Document(BaseModel):
-    id: str
+    id: UUID
     name: str
     created_at: str
     changed_at: str
@@ -34,13 +35,13 @@ class DocumentWithAccessInfo(Document):
 
 
 class TaskBase(BaseModel):
-    id: str
+    id: UUID
     document: Document
     task_type: TaskType
 
 
 class SpeakerIdentificationTaskParameters(BaseModel):
-    number_of_speakers: int | None
+    number_of_speakers: int | None = None
 
 
 class SpeakerIdentificationTask(TaskBase):
@@ -62,7 +63,7 @@ class ExportTaskParameters(BaseModel):
     format: ExportFormat
     include_speaker_names: bool
     include_word_timing: bool
-    max_line_length: int | None
+    max_line_length: int | None = None
 
 
 class TranscribeTask(TaskBase):
@@ -95,4 +96,4 @@ class LoginResponse(BaseModel):
 
 
 class KeepaliveBody(BaseModel):
-    progress: Optional[float]
+    progress: Optional[float] = None

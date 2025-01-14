@@ -12,7 +12,7 @@ authors = [
 dependencies = [
     "spectralcluster~=0.2.21",
     "numpy~=1.23",
-    "pydantic[dotenv]~=1.10",
+    "pydantic~=2.2",
     "transformers~=4.26",
     "torchaudio~=2.0",
     "torch~=2.0",
@@ -25,6 +25,7 @@ dependencies = [
     "transcribee-proto",
     "PyICU~=2.11",
     "faster-whisper~=1.1",
+    "pydantic-settings>=2.7.1",
 ]
 
 requires-python = ">=3.11"

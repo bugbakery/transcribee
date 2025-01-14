@@ -2,12 +2,12 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    SAMPLE_RATE = 16_000  # samples per second
-    MODELS_DIR = Path(__file__).parent / ".data" / "models"
+    SAMPLE_RATE: int = 16_000  # samples per second
+    MODELS_DIR: Path = Path(__file__).parent / ".data" / "models"
 
     HUGGINGFACE_TOKEN: Optional[str] = None
 
@@ -42,8 +42,7 @@ class Settings(BaseSettings):
 
     COMPUTE_TYPE: str = "int8"
 
-    class Config(BaseSettings.Config):
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env")
 
     def setup_env_vars(self):
         os.environ["PYANNOTE_CACHE"] = str(self.MODELS_DIR)

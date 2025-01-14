@@ -6,7 +6,7 @@ from typing import List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from prometheus_client import Gauge
-from sqlmodel import Session, col, func
+from sqlmodel import Session, col, func, select
 from transcribee_proto.api import TaskType
 
 from transcribee_backend.config import settings
@@ -31,11 +31,11 @@ class TasksInState(Metric):
         )
 
     def refresh(self, session: Session):
-        result = (
-            session.query(Task.state, Task.task_type, func.count())
-            .group_by(Task.state, Task.task_type)
-            .all()
-        )
+        result = session.exec(
+            select(Task.state, Task.task_type, func.count()).group_by(
+                Task.state, Task.task_type
+            )
+        ).all()
         counts = {(x, y): 0 for x in TaskState for y in TaskType}
         for state, task_type, count in result:
             counts[(state, task_type)] = count
@@ -50,22 +50,18 @@ class Workers(Metric):
         self.collector = Gauge("transcribee_workers", "Workers", ["group"])
 
     def refresh(self, session: Session):
-        (result,) = (
-            session.query(func.count(Worker.id))
-            .where(col(Worker.deactivated_at).is_(None))
-            .one()
-        )
+        result = session.exec(
+            select(func.count(Worker.id)).where(col(Worker.deactivated_at).is_(None))
+        ).one()
         self.collector.labels(group="all").set(result)
 
         now = now_tz_aware()
         worker_timeout_ago = now - datetime.timedelta(seconds=settings.worker_timeout)
-        (result,) = (
-            session.query(func.count(Worker.id))
-            .where(
+        result = session.exec(
+            select(func.count(Worker.id)).where(
                 col(Worker.last_seen) >= worker_timeout_ago,
             )
-            .one()
-        )
+        ).one()
         self.collector.labels(group="alive").set(result)
 
 
@@ -74,7 +70,7 @@ class Users(Metric):
         self.collector = Gauge("transcribee_users", "Registered users")
 
     def refresh(self, session: Session):
-        (result,) = session.query(func.count(User.id)).one()
+        result = session.exec(select(func.count(User.id))).one()
         self.collector.set(result)
 
 
@@ -83,7 +79,7 @@ class Documents(Metric):
         self.collector = Gauge("transcribe_documents", "Documents")
 
     def refresh(self, session: Session):
-        (result,) = session.query(func.count(Document.id)).one()
+        result = session.exec(select(func.count(Document.id))).one()
         self.collector.set(result)
 
 
@@ -94,8 +90,8 @@ class Queue(Metric):
         )
 
     def refresh(self, session: Session):
-        result = (
-            session.query(
+        result = session.exec(
+            select(
                 Task.task_type,
                 func.coalesce(
                     func.sum(

@@ -1,8 +1,8 @@
-import datetime
 import uuid
 from typing import List, Optional
 
-from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
+from pydantic.types import AwareDatetime
+from sqlmodel import DateTime, Field, Relationship, SQLModel
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import DocumentMedia as ApiDocumentMedia
 
@@ -27,20 +27,16 @@ class Document(DocumentBase, table=True):
     )
     user_id: uuid.UUID = Field(foreign_key="user.id")
     user: "User" = Relationship()
-    created_at: datetime.datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
-    changed_at: datetime.datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
+    created_at: AwareDatetime = Field(sa_type=DateTime(timezone=True))
+    changed_at: AwareDatetime = Field(sa_type=DateTime(timezone=True))
     media_files: List["DocumentMediaFile"] = Relationship()
     updates: List["DocumentUpdate"] = Relationship(
-        sa_relationship_kwargs={"cascade": "all,delete"}
+        sa_relationship_kwargs={"cascade": "all"}
     )
     share_tokens: List["DocumentShareToken"] = Relationship(
-        sa_relationship_kwargs={"cascade": "all,delete"}
+        sa_relationship_kwargs={"cascade": "all"}
     )
-    tasks: List["Task"] = Relationship(sa_relationship_kwargs={"cascade": "all,delete"})
+    tasks: List["Task"] = Relationship(sa_relationship_kwargs={"cascade": "all"})
 
     def as_api_document(self) -> ApiDocumentWithTasks:
         tasks = [TaskResponse.from_orm(task) for task in self.tasks]
@@ -67,12 +63,8 @@ class DocumentMediaFile(DocumentMediaFileBase, table=True):
         index=True,
         nullable=False,
     )
-    created_at: datetime.datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
-    changed_at: datetime.datetime = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=False)
-    )
+    created_at: AwareDatetime = Field(sa_type=DateTime(timezone=True))
+    changed_at: AwareDatetime = Field(sa_type=DateTime(timezone=True))
 
     document: Document = Relationship(back_populates="media_files")
     document_id: uuid.UUID = Field(foreign_key="document.id")
@@ -80,7 +72,7 @@ class DocumentMediaFile(DocumentMediaFileBase, table=True):
     file: str
     content_type: str
     tags: List["DocumentMediaTag"] = Relationship(
-        sa_relationship_kwargs={"cascade": "all,delete"}
+        sa_relationship_kwargs={"cascade": "all"}
     )
 
     def as_api_media_file(self) -> ApiDocumentMedia:
@@ -121,9 +113,7 @@ class DocumentUpdate(DocumentUpdateBase, table=True):
 class DocumentShareTokenBase(SQLModel):
     id: uuid.UUID
     name: str
-    valid_until: Optional[datetime.datetime] = Field(
-        sa_column=Column(DateTime(timezone=True), nullable=True)
-    )
+    valid_until: Optional[AwareDatetime] = Field(sa_type=DateTime(timezone=True))
     document_id: uuid.UUID = Field(foreign_key="document.id")
     token: str
     can_write: bool
@@ -144,5 +134,5 @@ class DocumentShareToken(DocumentShareTokenBase, table=True):
 from .task import Task, TaskResponse  # noqa: E402
 from .user import User  # noqa: E402
 
-ApiDocumentWithTasks.update_forward_refs()
-Document.update_forward_refs()
+ApiDocumentWithTasks.model_rebuild()
+Document.model_rebuild()

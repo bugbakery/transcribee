@@ -22,7 +22,7 @@ def upgrade() -> None:
     op.create_table(
         "user",
         sa.Column("username", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
         sa.Column("password_hash", sa.LargeBinary(), nullable=False),
         sa.Column("password_salt", sa.LargeBinary(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
@@ -35,7 +35,7 @@ def upgrade() -> None:
         "worker",
         sa.Column("last_seen", sa.DateTime(timezone=True), nullable=True),
         sa.Column("name", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
         sa.Column("token", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -47,8 +47,8 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("changed_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("name", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("user_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
+        sa.Column("user_id", sa.Uuid, nullable=False),
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["user.id"],
@@ -61,8 +61,8 @@ def upgrade() -> None:
     op.create_table(
         "usertoken",
         sa.Column("valid_until", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("user_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
+        sa.Column("user_id", sa.Uuid, nullable=False),
         sa.Column("token_hash", sa.LargeBinary(), nullable=False),
         sa.Column("token_salt", sa.LargeBinary(), nullable=False),
         sa.ForeignKeyConstraint(
@@ -78,8 +78,8 @@ def upgrade() -> None:
         "documentmediafile",
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("changed_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("document_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
+        sa.Column("document_id", sa.Uuid, nullable=False),
         sa.Column("file", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("content_type", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.ForeignKeyConstraint(
@@ -96,8 +96,8 @@ def upgrade() -> None:
     op.create_table(
         "documentupdate",
         sa.Column("change_bytes", sa.LargeBinary(), nullable=False),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("document_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
+        sa.Column("document_id", sa.Uuid, nullable=False),
         sa.ForeignKeyConstraint(
             ["document_id"],
             ["document.id"],
@@ -111,10 +111,10 @@ def upgrade() -> None:
         "task",
         sa.Column("task_parameters", sa.JSON(), nullable=False),
         sa.Column("task_type", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("document_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("document_id", sa.Uuid, nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
         sa.Column("progress", sa.Float(), nullable=True),
-        sa.Column("assigned_worker_id", sqlmodel.sql.sqltypes.GUID(), nullable=True),
+        sa.Column("assigned_worker_id", sa.Uuid, nullable=True),
         sa.Column("assigned_at", sa.DateTime(), nullable=True),
         sa.Column("last_keepalive", sa.DateTime(), nullable=True),
         sa.Column("is_completed", sa.Boolean(), nullable=False),
@@ -134,9 +134,9 @@ def upgrade() -> None:
 
     op.create_table(
         "documentmediatag",
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
         sa.Column("tag", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("media_file_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("media_file_id", sa.Uuid, nullable=False),
         sa.ForeignKeyConstraint(
             ["media_file_id"],
             ["documentmediafile.id"],
@@ -150,9 +150,9 @@ def upgrade() -> None:
 
     op.create_table(
         "taskdependency",
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("dependent_task_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("dependant_on_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
+        sa.Column("id", sa.Uuid, nullable=False),
+        sa.Column("dependent_task_id", sa.Uuid, nullable=False),
+        sa.Column("dependant_on_id", sa.Uuid, nullable=False),
         sa.ForeignKeyConstraint(
             ["dependant_on_id"],
             ["task.id"],

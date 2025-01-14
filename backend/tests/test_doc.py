@@ -1,6 +1,8 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
+from sqlmodel import Session, col, func, select
 from transcribee_backend.auth import generate_share_token
 from transcribee_backend.config import settings
 from transcribee_backend.models import (
@@ -23,7 +25,7 @@ def document_id(memory_session: Session, logged_in_client: TestClient):
         data={"name": "test document", "model": "tiny", "language": "auto"},
     )
     assert req.status_code == 200
-    document_id = req.json()["id"]
+    document_id = uuid.UUID(req.json()["id"])
 
     memory_session.add(DocumentUpdate(document_id=document_id, change_bytes=b""))
     memory_session.commit()
@@ -50,7 +52,7 @@ def test_doc_delete(
     ]
     counts = {}
     for table in checked_tables:
-        counts[table] = memory_session.query(table).count()
+        counts[table] = memory_session.exec(select(func.count(col(table.id)))).one()
 
     files = set(str(x) for x in settings.storage_path.glob("*"))
 
@@ -60,14 +62,15 @@ def test_doc_delete(
         data={"name": "test document", "model": "tiny", "language": "auto"},
     )
     assert req.status_code == 200
-    document_id = req.json()["id"]
+    document_id = uuid.UUID(req.json()["id"])
 
     req = logged_in_client.get(f"/api/v1/documents/{document_id}/tasks/")
+    task_id = uuid.UUID(req.json()[0]["id"])
     assert req.status_code == 200
     assert len(req.json()) >= 1
 
     memory_session.add(DocumentUpdate(document_id=document_id, change_bytes=b""))
-    memory_session.add(TaskAttempt(task_id=req.json()[0]["id"], attempt_number=1))
+    memory_session.add(TaskAttempt(task_id=task_id, attempt_number=1))
     memory_session.add(
         generate_share_token(
             document_id=document_id, name="Test Token", valid_until=None, can_write=True
@@ -76,7 +79,9 @@ def test_doc_delete(
     memory_session.commit()
 
     for table in checked_tables:
-        assert counts[table] < memory_session.query(table).count()
+        assert (
+            counts[table] < memory_session.exec(select(func.count(col(table.id)))).one()
+        )
 
     assert files < set(str(x) for x in settings.storage_path.glob("*"))
 
@@ -87,7 +92,10 @@ def test_doc_delete(
     assert req.status_code == 200
 
     for table in checked_tables:
-        assert counts[table] == memory_session.query(table).count()
+        assert (
+            counts[table]
+            == memory_session.exec(select(func.count(col(table.id)))).one()
+        )
 
     assert files == set(str(x) for x in settings.storage_path.glob("*"))
 

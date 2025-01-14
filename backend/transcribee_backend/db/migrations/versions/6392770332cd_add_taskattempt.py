@@ -32,9 +32,9 @@ def upgrade_with_autocommit() -> None:
     TaskAttempt = op.create_table(
         "taskattempt",
         sa.Column("extra_data", sa.JSON(), nullable=True),
-        sa.Column("id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("task_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
-        sa.Column("assigned_worker_id", sqlmodel.sql.sqltypes.GUID(), nullable=True),
+        sa.Column("id", sa.Uuid, nullable=False),
+        sa.Column("task_id", sa.Uuid, nullable=False),
+        sa.Column("assigned_worker_id", sa.Uuid, nullable=True),
         sa.Column("attempt_number", sa.Integer(), nullable=False),
         sa.Column("started_at", sa.DateTime(), nullable=True),
         sa.Column("last_keepalive", sa.DateTime(), nullable=True),
@@ -51,9 +51,7 @@ def upgrade_with_autocommit() -> None:
         batch_op.create_index(batch_op.f("ix_taskattempt_id"), ["id"], unique=False)
 
     with op.batch_alter_table("task", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("current_attempt_id", sqlmodel.sql.sqltypes.GUID(), nullable=True)
-        )
+        batch_op.add_column(sa.Column("current_attempt_id", sa.Uuid, nullable=True))
         batch_op.add_column(
             sa.Column(
                 "attempt_counter", sa.Integer(), nullable=True, server_default="0"
@@ -90,20 +88,20 @@ def upgrade_with_autocommit() -> None:
 
     Task = sa.table(
         "task",
-        sa.column("id", sqlmodel.sql.sqltypes.GUID()),
+        sa.column("id", sa.Uuid),
         sa.column("assigned_at", sa.DateTime()),
         sa.column("last_keepalive", sa.DateTime()),
         sa.column("completed_at", sa.DateTime()),
         sa.column("is_completed", sa.Boolean()),
         sa.column("completion_data", sa.JSON()),
-        sa.column("assigned_worker_id", sqlmodel.sql.sqltypes.GUID()),
+        sa.column("assigned_worker_id", sa.Uuid),
         sa.column("state_changed_at", sa.DateTime()),
         sa.column(
             "state",
             sa.Enum("NEW", "ASSIGNED", "COMPLETED", "FAILED", name="taskstate"),
         ),
         sa.column("remaining_attempts", sa.Integer()),
-        sa.column("current_attempt_id", sqlmodel.sql.sqltypes.GUID()),
+        sa.column("current_attempt_id", sa.Uuid),
         sa.column("progress", sa.Float()),
         sa.column("attempt_counter", sa.Integer()),
     )
