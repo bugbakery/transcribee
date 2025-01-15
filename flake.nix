@@ -52,7 +52,7 @@
 
             versionInfo = {
               commitHash = if (self ? rev) then self.rev else self.dirtyRev;
-              commitDate = lib.readFile "${prev.runCommand "timestamp" { env.when = self.lastModified; } "echo -n `date -d @$when --iso-8601=s` > $out"}";
+              commitDate = self.lastModified;
             };
           };
         });
@@ -85,7 +85,7 @@
               inherit pkgs lib;
               versionInfo = {
                 commitHash = if (self ? rev) then self.rev else self.dirtyRev;
-                commitDate = lib.readFile "${pkgs.runCommand "timestamp" { env.when = self.lastModified; } "echo -n `date -d @$when --iso-8601=s` > $out"}";
+                commitDate = self.lastModified;
               };
             });
           };
