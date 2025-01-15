@@ -41,10 +41,10 @@ pkgs.buildNpmPackage (lib.fix (self: {
   };
 
   preBuild = let
-    versionExports = ([ ] ++ (lib.optional (versionInfo ? commitHash)
-      ''export COMMIT_HASH="${versionInfo.commitHash}"'')
-      ++ (lib.optional (versionInfo ? commitDate)
-        ''export COMMIT_DATE="${versionInfo.commitDate}"''));
+    versionExports = ([ ]
+      ++ (lib.optional (versionInfo ? commitHash) ''export COMMIT_HASH="${versionInfo.commitHash}"'')
+      ++ (lib.optional (versionInfo ? commitDate) ''export COMMIT_DATE="$(date -d @${builtins.toString versionInfo.commitDate} --iso-8601=s)"'')
+    );
   in ''
     ${lib.concatStringsSep "\n" versionExports}
   '';
