@@ -44,6 +44,9 @@ notebooks = [
     "seaborn~=0.12.2",
 ]
 
+[project.scripts]
+transcribee-migrate = "transcribee_backend.db.run_migrations:main"
+
 [tool.uv]
 override-dependencies = [
   "sqlalchemy==1.4.41"
@@ -67,7 +70,7 @@ test = "pytest tests/"
 pyright = "pyright transcribee_backend/"
 
 [tool.setuptools]
-packages = ["transcribee_backend"]
+packages = ["transcribee_backend", "transcribee_backend.db"]
 
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
