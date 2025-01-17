@@ -22,7 +22,7 @@ poe migrate
 To create a new admin user, you can now run:
 
 ```shell
-poe create_user --user admin --pass admin
+poe admin create_user --user admin --pass admin
 ```
 
 Now you can start the development server with

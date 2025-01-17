@@ -46,6 +46,7 @@ notebooks = [
 
 [project.scripts]
 transcribee-migrate = "transcribee_backend.db.run_migrations:main"
+transcribee-admin = "transcribee_backend.admin_cli:main"
 
 [tool.uv]
 override-dependencies = [
@@ -61,16 +62,13 @@ start = "uvicorn transcribee_backend.main:app --ws websockets"
 dev = "uvicorn transcribee_backend.main:app --reload --ws websockets"
 migrate = "alembic upgrade head"
 makemigrations = "alembic revision --autogenerate -m"
-create_user = "scripts/create_user.py"
-create_worker = "scripts/create_worker.py"
-create_api_token = "scripts/create_api_token.py"
-reset_task = "scripts/reset_task.py"
+admin = "transcribee-admin"
 generate_openapi = "python -m scripts.generate_openapi"
 test = "pytest tests/"
 pyright = "pyright transcribee_backend/"
 
-[tool.setuptools]
-packages = ["transcribee_backend", "transcribee_backend.db"]
+[tool.setuptools.packages.find]
+include = ["transcribee_backend*"]
 
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
