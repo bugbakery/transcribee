@@ -17,7 +17,9 @@ class Settings(BaseSettings):
     media_url_base = "http://localhost:8000/"
     logged_out_redirect_url: None | str = None
 
-    model_config_path: Path = Path("data/models.json")
+    model_config_path: Path = Path(__file__).parent.resolve() / Path(
+        "default_models.json"
+    )
     pages_dir: Path = Path("data/pages/")
 
     metrics_username = "transcribee"
