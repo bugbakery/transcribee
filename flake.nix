@@ -40,11 +40,15 @@
         let
           pkgs = prev;
           lib = pkgs.lib;
+          python = pkgs.python311;
         in
         {
+          transcribee-worker = import ./nix/pkgs/worker.nix {
+           inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems;
+          };
+
           transcribee-backend = import ./nix/pkgs/backend.nix {
-            inherit pkgs lib uv2nix pyproject-nix pyproject-build-systems;
-            python = prev.python311;
+            inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems;
           };
 
           transcribee-frontend = import ./nix/pkgs/frontend.nix {
