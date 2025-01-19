@@ -25,8 +25,7 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs =
-    {
+  outputs = {
       nixpkgs,
       uv2nix,
       pyproject-nix,
@@ -35,12 +34,17 @@
       self,
       ...
     }:
+    let
+      pythonPkgName = "python311";
+    in
     {
       overlays.default = (final: prev:
         let
-          pkgs = prev;
-          lib = pkgs.lib;
-          python = pkgs.python311;
+          pkgs = import nixpkgs {
+            system = final.system;
+          };
+          lib = nixpkgs.lib;
+          python = pkgs."${pythonPkgName}";
         in
         {
           transcribee-worker = import ./nix/pkgs/worker.nix {
@@ -70,9 +74,9 @@
         let
           pkgs = import nixpkgs {
             inherit system;
+            overlays = [ self.overlays.default ];
           };
-          lib = nixpkgs.lib;
-          python = pkgs.python311;
+          python = pkgs."${pythonPkgName}";
 
           ld_packages = [
             pkgs.file # provides libmagic
@@ -83,15 +87,9 @@
         in
         {
           packages = {
-            worker = (import ./nix/pkgs/worker.nix { inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems; });
-            backend = (import ./nix/pkgs/backend.nix { inherit pkgs lib python uv2nix pyproject-nix pyproject-build-systems; });
-            frontend = (import ./nix/pkgs/frontend.nix {
-              inherit pkgs lib;
-              versionInfo = {
-                commitHash = if (self ? rev) then self.rev else self.dirtyRev;
-                commitDate = self.lastModified;
-              };
-            });
+            backend = pkgs.transcribee-backend;
+            worker = pkgs.transcribee-worker;
+            frontend = pkgs.transcribee-frontend;
           };
 
           devShells.default = pkgs.mkShell {
