@@ -21,7 +21,7 @@ let
         pkgs.postgresql_14
       ];
 
-      buildInputs = (old.buildInputs or []) ++ [
+      buildInputs = (old.buildInputs or [ ]) ++ [
         pkgs.openssl
       ];
     });
@@ -45,4 +45,5 @@ let
         ]
       );
 
-in pythonSet.mkVirtualEnv "transcribee-backend-env" workspace.deps.default
+in
+pythonSet.mkVirtualEnv "transcribee-backend-env" workspace.deps.default
