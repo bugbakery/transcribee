@@ -36,7 +36,7 @@ let
     pyicu = prev.pyicu.overrideAttrs (old: {
       nativeBuildInputs = old.nativeBuildInputs ++ [
         pkgs.icu.dev
-        (final.resolveBuildSystem {})
+        (final.resolveBuildSystem { })
       ];
     });
   };
@@ -58,4 +58,5 @@ let
         ]
       );
 
-in pythonSet.mkVirtualEnv "transcribee-worker-env" workspace.deps.default
+in
+pythonSet.mkVirtualEnv "transcribee-worker-env" workspace.deps.default
