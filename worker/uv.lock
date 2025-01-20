@@ -36,7 +36,7 @@ wheels = [
 [[package]]
 name = "automerge"
 version = "0.1.1"
-source = { git = "https://github.com/transcribee/automerge-py.git?rev=057303bd087401f12b166e2adb7161f0fcb3a9dc#057303bd087401f12b166e2adb7161f0fcb3a9dc" }
+source = { git = "https://github.com/transcribee/automerge-py.git?rev=ca6d8d3#ca6d8d31880c1118e3f9fb40717854df325a5bbc" }
 
 [[package]]
 name = "av"
@@ -1200,7 +1200,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "automerge", git = "https://github.com/transcribee/automerge-py.git?rev=057303bd087401f12b166e2adb7161f0fcb3a9dc#057303bd087401f12b166e2adb7161f0fcb3a9dc" },
+    { name = "automerge", git = "https://github.com/transcribee/automerge-py.git?rev=ca6d8d3" },
     { name = "faster-whisper", specifier = "~=1.1" },
     { name = "ffmpeg-python", specifier = "~=0.2.0" },
     { name = "numpy", specifier = "~=1.23" },
