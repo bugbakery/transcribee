@@ -10,21 +10,21 @@ authors = [
 ]
 
 dependencies = [
-    "redis~=5.0.1",
+    "redis~=5.0",
     "fastapi~=0.115",
-    "uvicorn[standard]~=0.20.0",
-    "sqlmodel~=0.0.22",
-    "alembic~=1.11.1",
-    "python-multipart~=0.0.6",
-    "filetype~=1.2.0",
+    "uvicorn[standard]~=0.20",
+    "sqlmodel~=0.0",
+    "alembic~=1.0",
+    "python-multipart~=0.0",
+    "filetype~=1.2",
     "websockets~=10.4",
-    "python-magic~=0.4.27",
+    "python-magic~=0.4",
     "transcribee-proto",
-    "python-frontmatter~=1.0.0",
-    "psycopg2~=2.9.9",
-    "prometheus-fastapi-instrumentator~=6.1.0",
+    "python-frontmatter~=1.0",
+    "psycopg2~=2.9",
+    "prometheus-fastapi-instrumentator~=6.1",
     "pydantic~=2.2",
-    "pydantic-settings>=2.7.1",
+    "pydantic-settings>=2.7",
 ]
 requires-python = ">=3.11"
 readme = "./README.md"
@@ -33,17 +33,17 @@ license = { text = "AGPL-3.0" }
 [dependency-groups]
 dev = [
     "pyyaml~=6.0",
-    "pytest~=7.3.1",
-    "httpx~=0.24.0",
-    "pytest-alembic~=0.10.4",
-    "pyright~=1.1.314",
+    "pytest~=7.3",
+    "httpx~=0.24",
+    "pytest-alembic~=0.10",
+    "pyright~=1.1",
 ]
 notebooks = [
-    "jupyter~=1.0.0",
-    "pandas~=2.0.1",
-    "tabulate~=0.9.0",
-    "matplotlib~=3.7.1",
-    "seaborn~=0.12.2",
+    "jupyter~=1.0",
+    "pandas~=2.0",
+    "tabulate~=0.9",
+    "matplotlib~=3.7",
+    "seaborn~=0.12",
 ]
 
 [project.scripts]
