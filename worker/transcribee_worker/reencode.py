@@ -26,11 +26,12 @@ async def reencode(
             key, value = raw_line.decode().strip().split("=", maxsplit=1)
 
             if key == "out_time_ms":
-                out_time_ms = int(value)
-                out_time_s = out_time_ms / 1e6
-                progress_callback(
-                    progress=out_time_s / duration,
-                )
+                if value != "N/A":
+                    out_time_ms = int(value)
+                    out_time_s = out_time_ms / 1e6
+                    progress_callback(
+                        progress=out_time_s / duration,
+                    )
 
     def work(_):
         pipeline = ffmpeg.input(input_path)
