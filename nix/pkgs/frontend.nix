@@ -26,9 +26,12 @@ pkgs.buildNpmPackage (
         lib.attrsets.mapAttrs (
           name: pkgInfo:
           let
+            resolvedParts = lib.splitString "#" pkgInfo.resolved;
+            resolvedRepo = lib.head resolvedParts;
+            resolvedRev = lib.last resolvedParts;
             src = builtins.fetchGit {
-              url = "https" + lib.removePrefix "git+ssh" pkgInfo.resolved;
-              rev = lib.last (lib.splitString "#" pkgInfo.resolved);
+              url = "https" + lib.removePrefix "git+ssh" resolvedRepo;
+              rev = resolvedRev;
               allRefs = true;
             };
             pname = lib.removePrefix "node_modules/" name;

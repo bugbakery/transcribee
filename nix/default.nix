@@ -1,3 +1,0 @@
-{
-  imports = [ ./services/worker.nix ];
-}
