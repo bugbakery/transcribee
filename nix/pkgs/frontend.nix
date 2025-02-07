@@ -2,6 +2,7 @@
   pkgs,
   lib,
   versionInfo,
+  packageLockUtils ? import ../../nix/package-lock-utils.nix { inherit lib; },
   ...
 }:
 pkgs.buildNpmPackage (
@@ -16,24 +17,13 @@ pkgs.buildNpmPackage (
       npmRoot = self.src;
       packageSourceOverrides =
         let
-          gitDeps = (
-            lib.attrsets.filterAttrs (
-              name: pkgInfo:
-              (lib.hasPrefix "node_modules/" name) && (lib.hasPrefix "git" (pkgInfo.resolved or ""))
-            ) (lib.importJSON (self.src + "/package-lock.json")).packages
-          );
+          packageLock = lib.importJSON (self.src + "/package-lock.json");
+          gitDeps = lib.attrsets.filterAttrs packageLockUtils.isGitDependency packageLock.packages;
         in
         lib.attrsets.mapAttrs (
           name: pkgInfo:
           let
-            resolvedParts = lib.splitString "#" pkgInfo.resolved;
-            resolvedRepo = lib.head resolvedParts;
-            resolvedRev = lib.last resolvedParts;
-            src = builtins.fetchGit {
-              url = "https" + lib.removePrefix "git+ssh" resolvedRepo;
-              rev = resolvedRev;
-              allRefs = true;
-            };
+            src = packageLockUtils.fetchGitDependency pkgInfo;
             pname = lib.removePrefix "node_modules/" name;
             thePkg = pkgs.buildNpmPackage {
               inherit src pname;
