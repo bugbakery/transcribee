@@ -16,7 +16,7 @@ dependencies = [
     "transformers~=4.26",
     "torchaudio~=2.0",
     "torch~=2.0",
-    "automerge @ git+https://github.com/transcribee/automerge-py.git@ca6d8d3",
+    "automerge @ git+https://github.com/bugbakery/automerge-py.git@ca6d8d3",
     "websockets~=10.4",
     "scikit-learn~=1.2",
     "watchfiles~=0.19",
