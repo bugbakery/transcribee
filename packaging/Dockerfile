@@ -10,12 +10,18 @@ WORKDIR /app
 
 COPY . /app/
 
+ENV MEDIA_URL_BASE=http://localhost:5173/
+
 RUN nix --extra-experimental-features 'nix-command flakes' develop --command ./packaging/install_dependencies.sh
 
 EXPOSE 5173
 
-ENV MEDIA_URL_BASE=http://localhost:5173/
+ARG DATABASE_URL
+ENV TRANSCRIBEE_BACKEND_DATABASE_URL=$DATABASE_URL
 
-ENTRYPOINT [ "nix", "--extra-experimental-features", "'nix-command flakes'", "develop" ]
+RUN mkdir -p /app/backend/db
+RUN mkdir -p /app/backend/storage
 
-CMD [ "overmind start -f packaging/Procfile" ]
+ENTRYPOINT ["nix", "--extra-experimental-features", "nix-command flakes", "develop", "path:.", "--command" ]
+
+CMD ./packaging/install_dependencies.sh; overmind start -f packaging/Procfile -l backend,frontend,redis,worker

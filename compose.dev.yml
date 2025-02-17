@@ -1,0 +1,4 @@
+services:
+  transcribee:
+    volumes:
+      - ".:/app"

@@ -1,0 +1,22 @@
+services:
+  transcribee:
+    build:
+      dockerfile: packaging/Dockerfile
+      args:
+        DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
+    ports:
+      - "5173:5173"
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: transcribee
+      POSTGRES_USER: transcribee
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d transcribee -U transcribee"]
+      interval: 1s
+      timeout: 5s
+      retries: 10

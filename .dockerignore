@@ -7,3 +7,5 @@ frontend/node_modules/
 frontend/testData
 .git
 packaging/Dockerfile
+compose.yml
+compose.dev.yml

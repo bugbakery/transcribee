@@ -13,9 +13,9 @@ hand (but that might be more inconvenient).
 
 If you just want to try out `transcribee`, you need to go through the following steps:
 
-1. [Install `nix` on your system](https://nix.dev/tutorials/install-nix) & run `nix-shell shell.nix` to get
+1. [Install `nix` on your system](https://nix.dev/tutorials/install-nix) & run `nix develop` to get
    a shell with all dependencies of `transcribee` installed. Alternatively you can install the
-   dependencies listed in the [`shell.nix`](../shell.nix) file by hand
+   dependencies listed in [`flake.nix`](../flake.nix) and in the files under [`pkgs`](../pkgs) file by hand
    (but that might be more inconvenient).
 2. Run the dev script (this might take a long time as it downloads / compiles all the dependencies):
    execute `./packaging/dev.sh` in the root folder of the `transcribee` repo.
@@ -40,9 +40,8 @@ If you just want to try out `transcribee` and **not** install nix, you need to g
 the following steps:
 
 1. [Install `Docker` on your system](https://docs.docker.com/get-docker/).
-2. Build the docker container: `docker build -f packaging/Dockerfile -t transcribee:latest .`
-3. Run the docker container: `docker run -it -p 5173:5173 transcribee:latest`
-4. Profit! You can now point your browser to [http://localhost:5173/](http://localhost:5173/) and
+2. Run docker compose: `docker compose -f compose.yml up`
+3. Profit! You can now point your browser to [http://localhost:5173/](http://localhost:5173/) and
    interact with the running transcribee instance. An admin user with the username "test" and the
    password "test" is created for you.
 
@@ -52,7 +51,7 @@ the following steps:
 > do not need to restart the container:
 >
 > ```shell
-> docker run -it -p 5173:5173 --mount type=bind,source="$(pwd)",target=/app --entrypoint nix-shell transcribee:latest shell.nix --command /app/packaging/dev.sh
+> `docker compose -f compose.yml -f compose.dev.yml up`
 > ```
 
 ## Extended setup

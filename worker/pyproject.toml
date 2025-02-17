@@ -49,6 +49,12 @@ test = "pytest tests/"
 pyright = "pyright transcribee_worker/"
 
 [tool.uv]
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
 override-dependencies = [
   "soundfile==0.11.0"
 ]
