@@ -2,7 +2,7 @@
   description = "transcribee monorepo";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs";
 
     pyproject-nix = {
       url = "github:pyproject-nix/pyproject.nix";
