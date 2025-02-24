@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import { IconButton } from '../components/button';
 import { ImBackward2, ImPause2, ImPlay3 } from 'react-icons/im';
 import { useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react';
-import { useGetDocument } from '../api/document';
+import { ApiDocument, useGetDocument } from '../api/document';
 import { CssRule } from '../utils/cssdom';
 import { SEEK_TO_EVENT, SeekToEvent } from './types';
 import { useEvent } from '../utils/use_event';
@@ -16,12 +16,35 @@ import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { minutesInMs } from '../utils/duration_in_ms';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
+import { BiVideo, BiVideoOff } from 'react-icons/bi';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
 const SKIP_SHORTCUT_SEC = 3;
 
 let lastTabPressTs = 0;
+
+export function splitAndSortMediaFiles(mediaFiles: ApiDocument['media_files']) {
+  const videoFiles = mediaFiles.filter((media) => media.tags.includes('video'));
+  const audioFiles = mediaFiles.filter((media) => !media.tags.includes('video'));
+
+  const mapFile = (media: (typeof mediaFiles)[0]) => {
+    return {
+      src: media.url,
+      type: media.content_type,
+      tags: media.tags,
+    };
+  };
+
+  const mappedVideoFiles = videoFiles.map(mapFile);
+  const mappedAudioFiles = audioFiles.map(mapFile);
+
+  return {
+    videoSources: sortMediaFiles(mappedVideoFiles),
+    audioSources: sortMediaFiles(mappedAudioFiles),
+    hasVideo: videoFiles.length > 0,
+  };
+}
 
 export function PlayerBar({
   documentId,
@@ -40,40 +63,27 @@ export function PlayerBar({
     },
   );
 
+  const { videoSources, audioSources, hasVideo } = useMemo(
+    () => splitAndSortMediaFiles(data?.media_files || []),
+    [data?.media_files],
+  );
+
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
 
-  const { sources, hasVideo } = useMemo(() => {
-    // do not play the original file, it may be large
-    const relevantMediaFiles =
-      data?.media_files.filter((media) => !media.tags.includes('original')) || [];
-
-    const videoFiles = relevantMediaFiles.filter((media) => media.tags.includes('video'));
-    const audioFiles = relevantMediaFiles.filter((media) => !media.tags.includes('video'));
-
-    const mappedFiles = [...videoFiles, ...audioFiles].map((media) => {
-      return {
-        src: media.url,
-        type: media.content_type,
-      };
-    });
-
-    return {
-      sources: sortMediaFiles(mappedFiles),
-      hasVideo: videoFiles.length > 0,
-    };
-  }, [data?.media_files]);
+  const [_showVideo, setShowVideo] = useState(true);
+  const showVideo = _showVideo && hasVideo;
 
   const audio = useAudio({
     playbackRate,
-    sources,
-    videoPreview: hasVideo,
+    sources: showVideo ? videoSources : audioSources,
+    videoPreview: showVideo,
   });
 
   useEffect(() => {
     if (onShowVideo) {
-      onShowVideo(hasVideo);
+      onShowVideo(showVideo);
     }
-  }, [hasVideo]);
+  }, [showVideo]);
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
@@ -207,6 +217,13 @@ export function PlayerBar({
         </div>
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
+        {hasVideo && (
+          <IconButton
+            icon={showVideo ? BiVideoOff : BiVideo}
+            label={showVideo ? 'disable video preview' : 'enable video preview'}
+            onClick={() => setShowVideo(!showVideo)}
+          />
+        )}
       </div>
     </>
   );
