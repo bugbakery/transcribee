@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macOS-latest]
-        target: [backend, worker]
+        target: [backend, worker, frontend]
 
     runs-on: ${{ matrix.os }}
 
