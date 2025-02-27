@@ -51,7 +51,11 @@ class SyncedDocument:
                 for task in pending:
                     task.cancel()
                 return
-            else:
+            # only re add the recv task if the previous one finished without an exception
+            # If an exception occured it is likely the socket is down and this next recv
+            # task will only result in another exception resulting in a continuous loop of
+            # creating the task and it finishing with an exception to no useful end
+            elif all(task.exception() is None for task in done):
                 pending.add(asyncio.create_task(self.conn.recv()))
 
     def stop(self):
