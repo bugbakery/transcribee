@@ -22,7 +22,7 @@ export function generatePlaintext(
         paragraphText += `[${formattedTime(paragraph.children[0].start)}]\n`;
       }
       if (includeSpeakerNames && last_speaker !== paragraph.speaker) {
-        paragraphText += `${getSpeakerName(paragraph.speaker, doc.speaker_names)}:\n`;
+        paragraphText += `${getSpeakerName(paragraph.speaker, doc)}:\n`;
       }
 
       paragraphText += paragraph.children

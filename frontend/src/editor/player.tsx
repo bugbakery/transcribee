@@ -93,12 +93,12 @@ export function PlayerBar({
     const time = audio.playtime || 0;
     let startTimeOfElement = 0;
 
-    if (!editor.doc.children) return;
+    if (!editor.children) return;
 
     // we loop from the back to the front to get the first element that is no longer too far
     // (if no text is at the current time, we highlight the text before)
-    outer: for (let i = editor.doc.children.length - 1; i >= 0; i--) {
-      const paragraph = editor.doc.children[i];
+    outer: for (let i = editor.children.length - 1; i >= 0; i--) {
+      const paragraph = editor.children[i];
       if ('children' in paragraph) {
         for (let j = paragraph.children.length - 1; j >= 0; j--) {
           const word = paragraph.children[j];
@@ -382,7 +382,7 @@ function SeekBar({
                 key={i}
                 start={p.start}
                 end={p.end}
-                speakerName={getSpeakerName(p.speaker, editor.doc.speaker_names)}
+                speakerName={getSpeakerName(p.speaker, editor._doc.getMap("root"))}
                 color={p.speaker && speakerColors[p.speaker]}
                 duration={duration}
               />

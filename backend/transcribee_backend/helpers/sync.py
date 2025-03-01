@@ -1,6 +1,7 @@
 import asyncio
 from asyncio import Queue
-from typing import Callable
+from typing import Callable, Tuple
+import uuid
 
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlmodel import Session, select
@@ -45,14 +46,17 @@ class DocumentSyncConsumer:
         self._can_write = can_write
         self._subscribed = set()
         self._msg_queue = Queue()
+        self._id = uuid.uuid4()
 
     def subscribe(self, channel: str):
         self._subscribed.add(channel)
         sync_manager.subscribe(channel, self.handle_incoming_broadcast)
 
-    async def handle_incoming_broadcast(self, channel: str, message: bytes):
+    async def handle_incoming_broadcast(self, channel: str, message: Tuple[uuid.UUID, bytes]):
         if channel in self._subscribed:
-            await self._msg_queue.put(message)
+            id, msg = message
+            if (id != self._id):
+                await self._msg_queue.put(msg)
 
     async def listener(self):
         while True:
@@ -75,7 +79,10 @@ class DocumentSyncConsumer:
         # https://asgi.readthedocs.io/en/latest/specs/www.html#send-send-event
         message = [bytes([SyncMessageType.FULL_DOCUMENT])]
         for update in self._session.exec(statement):
-            message.append(update.change_bytes)
+            message.append(len(update.change_bytes).to_bytes(4) + update.change_bytes + bytes([SyncMessageType.CHANGE]))
+            # message.append(update.change_bytes)
+            print("hello", len(update.change_bytes))
+        message[-1] = message[-1][:-1]
         await self._ws.send_bytes(message)  # type: ignore
         # END
 
@@ -83,7 +90,7 @@ class DocumentSyncConsumer:
 
         while True:
             msg = await self._msg_queue.get()
-            await self._ws.send_bytes(bytes([SyncMessageType.CHANGE]) + msg)
+            await self._ws.send_bytes(bytes([SyncMessageType.CHANGE]) + len(msg).to_bytes(4) + msg)
 
     async def run(self):
         await self._ws.accept()
@@ -126,4 +133,4 @@ class DocumentSyncConsumer:
         self._session.add(self._doc)
 
         self._session.commit()
-        await sync_manager.broadcast(str(self._doc.id), message)
+        await sync_manager.broadcast(str(self._doc.id), (self._id, message))

@@ -2,11 +2,11 @@ import { BaseEditor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { HistoryEditor } from 'slate-history';
 import { Paragraph, Text, Document } from './types';
-import { AutomergeEditor } from 'slate-automerge-doc';
+import { LoroEditor } from './slate_loro';
 
 declare module 'slate' {
   interface CustomTypes {
-    Editor: BaseEditor & ReactEditor & HistoryEditor & AutomergeEditor<Document>;
+    Editor: BaseEditor & ReactEditor & LoroEditor<Document>;
     Element: Paragraph;
     Text: Text;
   }

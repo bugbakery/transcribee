@@ -26,6 +26,7 @@ dependencies = [
     "PyICU~=2.11",
     "pydantic-settings>=2.7",
     "decent-whisper @ git+https://github.com/bugbakery/decent-whisper.git@fc112a223c30049be1ff7eb87dc1ca38d540fabc",
+    "loro>=1.4.1",
 ]
 
 requires-python = ">=3.11"

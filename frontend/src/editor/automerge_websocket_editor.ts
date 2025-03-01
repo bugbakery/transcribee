@@ -1,14 +1,12 @@
 import { useLocation } from 'wouter';
 import { useEffect, useRef, useState } from 'react';
 import { Editor, createEditor } from 'slate';
-import { withHistory, HistoryEditor } from 'slate-history';
 import { withReact } from 'slate-react';
-import { withAutomergeDoc } from 'slate-automerge-doc';
-import { next as Automerge } from '@automerge/automerge';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { useDebugMode } from '../debugMode';
 import { Document, Paragraph } from './types';
-import { migrateDocument } from '../document';
+import { withLoroDoc } from './slate_loro';
+import { LoroDoc } from 'loro-crdt';
 
 enum MessageSyncType {
   Change = 1,
@@ -21,7 +19,6 @@ export function useAutomergeWebsocketEditor(
   { onInitialSyncComplete }: { onInitialSyncComplete: (editor?: Editor) => void },
 ): [Editor?, Paragraph[]?] {
   const debug = useDebugMode();
-  const sentChanges = useRef<Set<string>>(new Set());
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
     editor: Editor;
     initialValue: Paragraph[];
@@ -31,15 +28,8 @@ export function useAutomergeWebsocketEditor(
     editorRef.current = editorAndInitialValue?.editor;
   const wsRef = useRef<ReconnectingWebSocket | null>(null);
 
-  function sendDocChange(newDoc: Document) {
-    const lastChange = Automerge.getLastLocalChange(newDoc);
-    if (lastChange && wsRef.current) {
-      const decoded = Automerge.decodeChange(lastChange);
-      if (!sentChanges.current.has(decoded.hash)) {
-        wsRef.current.send(lastChange);
-        sentChanges.current.add(decoded.hash);
-      }
-    }
+  function sendDocChange(change: Uint8Array) {
+    wsRef.current?.send(change);
   }
 
   const [_, navigate] = useLocation();
@@ -49,60 +39,90 @@ export function useAutomergeWebsocketEditor(
 
     let bytesReceived = 0;
     console.time('initialSync');
-    let doc = Automerge.init();
 
-    const createNewEditor = (doc: Automerge.Doc<Document>) => {
+    const createNewEditor = (doc: LoroDoc) => {
       const baseEditor = createEditor();
       const editorWithReact = withReact(baseEditor);
-      const editor = withHistory(withAutomergeDoc(editorWithReact, Automerge.init()));
-      editor.addDocChangeListener(sendDocChange);
 
-      const migratedDoc = migrateDocument(doc as Automerge.Doc<Document>);
-      sendDocChange(migratedDoc);
-      editor.doc = migratedDoc;
+      doc.subscribeLocalUpdates(sendDocChange)
+      // editor.addDocChangeListener(sendDocChange);
+
+      const editor = withLoroDoc(editorWithReact, doc);
+      editor.doc = doc;
 
       onInitialSyncComplete(editor);
+
       setEditorAndInitialValue((oldValue) => {
-        oldValue?.editor.removeDocChangeListener(sendDocChange);
-        const initialValue =
-          migratedDoc.children !== undefined
-            ? JSON.parse(JSON.stringify(migratedDoc.children))
-            : [];
-        return { editor: editor, initialValue: initialValue };
+        // oldValue?.editor.removeDocChangeListener(sendDocChange);
+        // const initialValue =
+        //   doc.children !== undefined
+        //     ? JSON.parse(JSON.stringify(migratedDoc.children))
+        //     : [];
+        return { editor: editor, initialValue: editor.doc.toJSON().root.children };
       });
     };
 
     const onMessage = async (event: MessageEvent) => {
-      const msg_data = new Uint8Array(await event.data.arrayBuffer());
+      let msg_data = new Uint8Array(await event.data.arrayBuffer());
       bytesReceived += msg_data.length;
-      const msg_type = msg_data[0];
-      const msg = msg_data.slice(1);
-      if (msg_type === MessageSyncType.Change) {
-        if (
-          !editorRef.current ||
-          Automerge.decodeChange(msg).actor == Automerge.getActorId(editorRef.current.doc)
-        )
-          return;
+      const updates = [];
+      let idx = 0;
+      let backlogComplete = false;
+      let fullDoc = false;
+      console.log("message", msg_data)
+      while (idx < msg_data.length) {
+        const msg_type = msg_data[idx];
+        idx += 1;
+        if ((msg_type === MessageSyncType.Change) || (msg_type === MessageSyncType.FullDoc)) {
+          let msg_len = msg_data[idx + 0];
+          msg_len = (msg_len << 8) + msg_data[idx + 1];
+          msg_len = (msg_len << 8) + msg_data[idx + 2];
+          msg_len = (msg_len << 8) + msg_data[idx + 3];
 
-        console.time('automerge');
-        const [newDoc] = Automerge.applyChanges(editorRef.current.doc, [msg]);
-        console.timeEnd('automerge');
-        console.time('setDoc');
-        HistoryEditor.withoutSaving(editorRef.current, () => {
-          editorRef.current?.setDoc(newDoc);
-        });
-        console.timeEnd('setDoc');
-      } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
-        console.info('backlog complete');
+          // const msg_len = ((((msg_data[idx + 0] << 8 + msg_data[idx + 1]) << 8) + msg_data[idx + 2]) << 8) + msg_data[idx + 3];
+          console.log(msg_len, msg_data[idx + 0], msg_data[idx + 1], msg_data[idx + 2], msg_data[idx + 3])
+          idx += 4;
+          updates.push(msg_data.slice(idx, idx + msg_len))
+          idx += msg_len
+
+          // if (
+          //   !editorRef.current ||
+          //   Automerge.decodeChange(msg).actor == Automerge.getActorId(editorRef.current.doc)
+          // )
+          //   return;
+
+          // HistoryEditor.withoutSaving(editorRef.current, () => {
+          //   editorRef.current?.setDoc(newDoc);
+          // });
+
+        } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
+          backlogComplete = true;
+          console.info('backlog complete');
+          break;
+        } else if (msg_type === MessageSyncType.FullDoc) {
+          fullDoc = true;
+        }
+      }
+
+      // TODO(robin): HACK
+      if ((fullDoc || !editorRef.current) && updates.length > 0) {
+        const doc = new LoroDoc()
+        console.time('importBatch');
+        console.log(updates)
+        console.log(doc.importBatch(updates));
+        console.timeEnd('importBatch');
+
+        createNewEditor(doc);
+      } else {
+        if (updates.length > 0) {
+          console.time('importBatch');
+          editorRef.current?._doc.importBatch(updates);
+          console.timeEnd('importBatch');
+        }
+      }
+
+      if (backlogComplete) {
         onInitialSyncComplete(editorRef.current);
-      } else if (msg_type === MessageSyncType.FullDoc) {
-        console.info('Received new document');
-        console.time('automerge');
-        doc = Automerge.load(msg, { allowMissingChanges: true });
-        console.timeEnd('automerge');
-        createNewEditor(doc as Automerge.Doc<Document>);
-        console.info(`ws: ${(bytesReceived / 1e6).toFixed(2)} MB recieved so far`);
-        console.info('Loaded new document');
       }
     };
     ws.addEventListener('message', (msg) => {

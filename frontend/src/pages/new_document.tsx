@@ -11,7 +11,7 @@ import { FormControl, Input, Select, Slider } from '../components/form';
 import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppContainer } from '../components/app';
 import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
-import * as Automerge from '@automerge/automerge';
+// import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../utils/auth';
 import { HelpPopup } from '../components/popup';
 
