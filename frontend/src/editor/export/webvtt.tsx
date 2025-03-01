@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import * as Automerge from '@automerge/automerge';
+// import * as Automerge from '@automerge/automerge';
 
 import { Checkbox, FormControl, Input, Select } from '../../components/form';
 import { canGenerateVtt, generateWebVtt } from '../../utils/export/webvtt';
@@ -9,6 +9,7 @@ import { pushToPodlove, checkIsPodloveExportPossible } from '../../utils/export_
 import { ExportProps } from '.';
 import { PrimaryButton, SecondaryButton, IconButton } from '../../components/button';
 import { BsEye, BsEyeSlash } from 'react-icons/bs';
+import { documentToJSON } from '../../document';
 
 type ExportFormat = SubtitleFormat | 'podlove';
 
@@ -34,7 +35,7 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
   }, [podloveEpisodeId, podloveUser, podloveApplicationId, podloveApplicationId, podloveUrl]);
 
   const [format, setFormat] = useState('vtt' as ExportFormat);
-  const canExport = useMemo(() => canGenerateVtt(editor.doc.children), [editor.v]);
+  const canExport = useMemo(() => canGenerateVtt(editor.docProxy.children), [editor.v]);
 
   return (
     <form className="flex flex-col gap-4 pt-2">
@@ -173,7 +174,7 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
           onClick={(e) => {
             e.preventDefault();
             const vtt = generateWebVtt(
-              Automerge.toJS(editor.doc),
+              documentToJSON(editor.doc),
               includeSpeakerNames,
               includeWordTimings,
               maxLineLength,

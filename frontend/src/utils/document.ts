@@ -1,30 +1,30 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useSlateStatic } from 'slate-react';
 import { Editor } from 'slate';
-import { Document } from '../editor/types';
+import { EditorDocument, LoroDocument } from '../editor/types';
 
 export function getSpeakerName(
   speaker: string | null,
-  speaker_names: Record<string, string>,
+  doc: LoroDocument
 ): string {
+  const speaker_names = doc.get("speaker_names");
   if (!speaker) {
     return `Unknown Speaker`;
-  } else if (speaker in speaker_names) {
-    return speaker_names[speaker];
   } else {
-    return `Unnamed Speaker ${speaker}`;
+    const name = speaker_names.get(speaker)?.toString();
+    return name ?? `Unnamed Speaker ${speaker}`
   }
 }
 
 export function useDocumentSelector<T>(
-  selector: (doc: Document) => T,
+  selector: (doc: LoroDocument) => T,
   extra?: { eq?: (oldValue: T, newValue: T) => boolean; editor?: Editor },
 ) {
   const { editor, eq } = extra ?? {};
   const theEditor = editor ?? useSlateStatic();
-  const [value, setValue] = useState(() => selector(theEditor.doc));
+  const [value, setValue] = useState(() => selector(theEditor._doc.getMap("root")));
   const valueRef = useRef(value);
-  const theSelector = (doc: Document) => {
+  const theSelector = (doc: LoroDocument) => {
     const newValue = selector(doc);
     const update = eq !== undefined ? !eq(valueRef.current, newValue) : true;
     if (update) {
@@ -34,9 +34,10 @@ export function useDocumentSelector<T>(
   };
 
   useEffect(() => {
-    theSelector(theEditor.doc);
-    theEditor.addDocChangeListener(theSelector);
-    return () => theEditor.removeDocChangeListener(theSelector);
+    theSelector(theEditor._doc.getMap("root"));
+    const cb = (doc: EditorDocument) => theSelector(doc.getMap("root"));
+    theEditor.addDocChangeListener(cb);
+    return () => theEditor.removeDocChangeListener(cb);
   }, [theEditor, theSelector]);
 
   return value;
@@ -45,8 +46,8 @@ export function useDocumentSelector<T>(
 export function useSpeakerName(speakerID: string | null, editor?: Editor) {
   return useDocumentSelector(
     useCallback(
-      (doc: Document) => {
-        const name = getSpeakerName(speakerID, doc.speaker_names);
+      (doc: LoroDocument) => {
+        const name = getSpeakerName(speakerID, doc);
         return name;
       },
       [speakerID],
@@ -61,11 +62,11 @@ function compareJSON<T>(a: T, b: T) {
 
 export function useSpeakerNames(editor?: Editor): Record<string, string> {
   return useDocumentSelector(
-    useCallback((newDoc) => {
+    useCallback((doc) => {
       const spkNames: Record<string, string> = {};
-      for (const para of newDoc.children) {
+      for (const para of doc.get("children")) {
         if (para.speaker !== null && !(para.speaker in spkNames)) {
-          spkNames[para.speaker] = getSpeakerName(para.speaker, newDoc.speaker_names);
+          spkNames[para.speaker] = getSpeakerName(para.speaker, doc);
         }
       }
 
