@@ -1,4 +1,4 @@
-import { fetcher, makeSwrHook } from '../api';
+import { RequestDataType, fetcher, makeSwrHook } from '../api';
 
 export const listDocuments = fetcher.path('/api/v1/documents/').method('get').create();
 export const createDocument = fetcher
@@ -19,7 +19,7 @@ export const useListDocuments = makeSwrHook('listDocuments', listDocuments);
 export const useGetDocument = makeSwrHook('getDocument', getDocument);
 export const useGetDocumentTasks = makeSwrHook('getDocumentTasks', getDocumentTasks);
 
-export type ApiDocument = ReturnType<typeof useGetDocument>['data'];
+export type ApiDocument = RequestDataType<typeof useGetDocument>;
 
 export const deleteDocument = fetcher
   .path('/api/v1/documents/{document_id}/')
