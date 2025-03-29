@@ -134,7 +134,7 @@ export function NewDocumentPage() {
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
-        const modelRanking = ['tiny', 'base', 'small', 'medium', 'large-v3'];
+        const modelRanking = ['tiny', 'base', 'small', 'medium', 'large-v3', 'nyrahealth/faster_CrisperWhisper'];
         let model = modelRanking[data.quality - 1];
         if (`${model}.${data.language}` in models) {
           model = `${model}.${data.language}`;
@@ -347,7 +347,7 @@ export function NewDocumentPage() {
                     </p>
                   </HelpPopup>
                   <div className="relative mb-6">
-                    <Slider min={1} max={5} {...register('quality')} />
+                    <Slider min={1} max={6} {...register('quality')} />
                     <span
                       className={clsx(
                         'text-sm text-gray-500 dark:text-gray-400 absolute start-0 -bottom-6',
@@ -371,9 +371,13 @@ export function NewDocumentPage() {
                         will be very underwhelming.
                       </p>
                     </>
-                  ) : (
-                    <></>
-                  )}
+                  ) : (quality > 5 ? (
+                    <>
+                      <p className="py-2 text-green-700 dark:text-green-400">
+                      Crisp :)
+                      </p>
+                    </>
+                  ): (<></>))}
                 </FormControl>
 
                 <FormControl label="Language" error={errors.language?.message}>
