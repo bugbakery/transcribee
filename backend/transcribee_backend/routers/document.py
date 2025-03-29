@@ -534,7 +534,7 @@ def update_document(
     auth: AuthInfo = Depends(get_doc_full_auth),
     session: Session = Depends(get_session),
 ) -> ApiDocument:
-    update_dict = update.dict(exclude_unset=True)
+    update_dict = update.model_dump(exclude_unset=True)
     for key, value in update_dict.items():
         setattr(auth.document, key, value)
     session.add(auth.document)
