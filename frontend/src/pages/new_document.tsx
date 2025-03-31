@@ -12,7 +12,7 @@ import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppContainer } from '../components/app';
 import { useGetConfig } from '../api/config';
 import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
-import * as Automerge from '@automerge/automerge';
+// import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../utils/auth';
 import { RequestDataType } from '../api';
 import { HelpPopup } from '../components/popup';

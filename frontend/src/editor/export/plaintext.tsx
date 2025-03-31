@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import * as Automerge from '@automerge/automerge';
+// import * as Automerge from '@automerge/automerge';
 
 import { Checkbox } from '../../components/form';
 import { downloadTextAsFile } from '../../utils/download_text_as_file';
 import { ExportProps } from '.';
 import { PrimaryButton, SecondaryButton } from '../../components/button';
 import { generatePlaintext } from '../../utils/export/plaintext';
+import { documentToJSON } from '../../document';
 
 export function PlaintextExportBody({ onClose, outputNameBase, editor }: ExportProps) {
   const [includeSpeakerNames, setIncludeSpeakerNames] = useState(true);
@@ -32,7 +33,7 @@ export function PlaintextExportBody({ onClose, outputNameBase, editor }: ExportP
           onClick={async (e) => {
             e.preventDefault();
             const plaintext = generatePlaintext(
-              Automerge.toJS(editor.doc),
+              documentToJSON(editor.doc),
               includeSpeakerNames,
               includeTimestamps,
             );
