@@ -9,7 +9,7 @@ import numpy.typing as npt
 from transcribee_worker.config import settings
 
 
-def load_audio(path: str | os.PathLike[Any]) -> Tuple[npt.NDArray, int]:
+def load_audio(path: str | os.PathLike[Any]) -> npt.NDArray[np.float32]:
     sr = settings.SAMPLE_RATE
     command = [
         "ffmpeg",
@@ -25,7 +25,7 @@ def load_audio(path: str | os.PathLike[Any]) -> Tuple[npt.NDArray, int]:
     ]
     bytes = subprocess.check_output(command, stderr=sys.stderr)
     audio = np.frombuffer(bytes, dtype=np.dtype("float32"))
-    return audio, sr
+    return audio
 
 
 class WorkDoneToken:

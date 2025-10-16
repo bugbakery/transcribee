@@ -134,7 +134,7 @@ export function NewDocumentPage() {
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
-        const modelRanking = ['tiny', 'base', 'small', 'medium', 'large-v3'];
+        const modelRanking = ['tiny', 'base', 'small', 'medium', 'large'];
         let model = modelRanking[data.quality - 1];
         if (`${model}.${data.language}` in models) {
           model = `${model}.${data.language}`;

@@ -24,8 +24,8 @@ dependencies = [
     "ffmpeg-python~=0.2",
     "transcribee-proto",
     "PyICU~=2.11",
-    "faster-whisper~=1.1",
     "pydantic-settings>=2.7",
+    "decent-whisper @ git+https://github.com/bugbakery/decent-whisper.git@fc112a223c30049be1ff7eb87dc1ca38d540fabc",
 ]
 
 requires-python = ">=3.11"
