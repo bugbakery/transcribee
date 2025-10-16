@@ -24,7 +24,7 @@ async def main(args):
     media_file = z.read(media_file)
     with tempfile.NamedTemporaryFile() as tmpfile:
         tmpfile.write(media_file)
-        audio = load_audio(tmpfile.name)[0]
+        audio = load_audio(tmpfile.name)
 
     with automerge.transaction(automerge_doc, "dummy") as doc:
         embeddings = await identify_speakers(

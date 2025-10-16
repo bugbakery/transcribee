@@ -1,9 +1,8 @@
+import logging
 import re
-from typing import TYPE_CHECKING, Iterator, Optional
+from typing import TYPE_CHECKING, Iterator, List, Optional
 
-import faster_whisper
-import faster_whisper.transcribe
-from faster_whisper import WhisperModel
+import decent_whisper
 from numpy.typing import NDArray
 from transcribee_proto.document import Atom, Paragraph
 from transcribee_worker.config import settings
@@ -34,7 +33,7 @@ def move_space_to_prev_token(
 ) -> Iterator[Paragraph]:
     last_paragraph = next(iter)
     last_paragraph.children[0].text = last_paragraph.children[0].text.lstrip()
-    _para_move_space_to_prev_token(last_paragraph)
+    _ = _para_move_space_to_prev_token(last_paragraph)
 
     for paragraph in iter:
         para_starts_with_whitespace = paragraph.children[0].text[:1].isspace()
@@ -60,10 +59,10 @@ def _para_move_space_to_prev_token(paragraph: Paragraph):
 
 
 def whisper_segment_to_transcribee_segment(
-    iter: Iterator[faster_whisper.transcribe.Segment], lang: str, start_offset: float
+    iter: Iterator[List[decent_whisper.Word]], lang: str, start_offset: float
 ) -> Iterator[Paragraph]:
-    for seg in iter:
-        assert seg.words is not None
+    for words in iter:
+        assert words is not None
         yield Paragraph(
             children=[
                 Atom(
@@ -73,7 +72,7 @@ def whisper_segment_to_transcribee_segment(
                     conf=word.probability,
                     conf_ts=1,
                 )
-                for word in seg.words
+                for word in words
             ],
             lang=lang,
         )
@@ -174,17 +173,31 @@ def transcribe_clean(
         move_space_to_prev_token,
         strict_sentence_paragraphs,
     )
-    model = WhisperModel(
-        compute_type=settings.COMPUTE_TYPE,
-        cpu_threads=settings.CPU_THREADS,
-        model_size_or_path=model_name,
-        download_root=str((settings.MODELS_DIR / "faster_whisper").absolute()),
+
+    model = decent_whisper.model.choose_model(
+        decent_whisper.available_models(),
+        model_size=model_name,
+        language=lang_code,
+        use_single_language_models=True,
     )
-    seg_iter, info = model.transcribe(
-        audio=data, word_timestamps=True, language=lang_code
+
+    if model is None:
+        raise ValueError(
+            f"no suitable model found (size={model_name}, lang={lang_code})"
+        )
+
+    decent_whisper.settings.models_dir = settings.MODELS_DIR
+    if not decent_whisper.is_model_downloaded(model):
+        logging.info("Downloading model...")
+        decent_whisper.model.download_model(model)
+        logging.info("Model downloaded")
+
+    paragraphs, transcription_info = decent_whisper.transcribe(
+        data, model=model, language=lang_code
     )
+
     seg_iter = whisper_segment_to_transcribee_segment(
-        iter(seg_iter), lang=info.language, start_offset=start_offset
+        iter(paragraphs), lang=transcription_info.language, start_offset=start_offset
     )
     total_len = len(data) / sr
     for elem in chain:

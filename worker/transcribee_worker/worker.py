@@ -165,7 +165,7 @@ class Worker:
         document_audio = self.get_document_audio_path(document)
         if document_audio is None:
             raise ValueError(f"Document {document} has no audio attached.")
-        return load_audio(document_audio)[0]
+        return load_audio(document_audio)
 
     def keepalive(self, task_id: UUID, progress: Optional[float]):
         body = {}

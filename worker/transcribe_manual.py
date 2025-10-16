@@ -11,9 +11,10 @@ import pathlib
 from concurrent.futures import ThreadPoolExecutor
 
 from transcribee_proto.document import Document
+from transcribee_worker.config import settings
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.util import load_audio
-from transcribee_worker.whisper_transcribe import transcribe
+from transcribee_worker.whisper_transcribe import transcribe_clean_async
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,7 +26,7 @@ async def main():
     parser.add_argument("file", type=pathlib.Path, help="audio file")
     parser.add_argument("-l", "--lang", default="en", type=str, help="language")
     parser.add_argument(
-        "-m", "--model", default="tiny.en", type=str, help="whisper model"
+        "-m", "--model", default="tiny", type=str, help="whisper model"
     )
     args = parser.parse_args()
 
@@ -34,13 +35,22 @@ async def main():
     paragraphs = []
     with ThreadPoolExecutor() as executor:
         asyncio.get_running_loop().set_default_executor(executor)
-        async for paragraph in transcribe(audio, args.model, args.lang):
+        async for paragraph in transcribe_clean_async(
+            data=audio,
+            sr=settings.SAMPLE_RATE,
+            start_offset=0,
+            model_name=args.model,
+            lang_code=(
+                args.lang
+                if args.lang != "auto"
+                else None
+            ),
+            progress_callback=None,
+        ):
             paragraphs.append(paragraph)
 
-    document = Document(lang=args.lang, paragraphs=paragraphs)
-    aligned_document = align(document, audio)
-
-    print(aligned_document.json())
+    document = Document(children=paragraphs)
+    print(document.json())
 
 
 if __name__ == "__main__":

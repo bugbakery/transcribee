@@ -39,6 +39,24 @@ let
         (final.resolveBuildSystem { })
       ];
     });
+
+    "decent-whisper" = prev."decent-whisper".overrideAttrs (old: {
+      nativeBuildInputs = old.nativeBuildInputs ++ [
+        (final.resolveBuildSystem { })
+      ];
+    });
+
+    "mlx" = prev."mlx".overrideAttrs (old: {
+      nativeBuildInputs = old.nativeBuildInputs ++ [
+        (final.resolveBuildSystem { })
+      ];
+      preFixup = pkgs.lib.optionals (pkgs.stdenv.isDarwin) ''
+        install_name_tool -change \
+            @rpath/libmlx.dylib \
+            "${final."mlx-metal"}/${final.python.sitePackages}/mlx/lib/libmlx.dylib" \
+            "$out/${final.python.sitePackages}/mlx/core.cpython-311-darwin.so"
+      '';
+    });
   };
 
   pythonSet =
