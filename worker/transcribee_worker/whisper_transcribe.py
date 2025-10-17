@@ -63,6 +63,10 @@ def whisper_segment_to_transcribee_segment(
 ) -> Iterator[Paragraph]:
     for words in iter:
         assert words is not None
+
+        if len(words) == 0:
+            continue
+
         yield Paragraph(
             children=[
                 Atom(
