@@ -1,12 +1,19 @@
 import datetime
 from typing import Iterable, Optional
 
+from prometheus_client import Counter
 from sqlmodel import Session, col, select
 from transcribee_backend.config import settings
 from transcribee_backend.db import SessionContextManager
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models import UserToken
 from transcribee_backend.models.task import Task, TaskAttempt, TaskState
+
+task_attempts_counter = Counter(
+    "transcribee_task_attempts",
+    "Number of finished task attempts",
+    ["successful", "task_type", "is_retry", "is_final_attempt"],
+)
 
 
 def finish_current_attempt(
@@ -36,6 +43,13 @@ def finish_current_attempt(
         task.state = TaskState.FAILED
 
     task.state_changed_at = now
+
+    task_attempts_counter.labels(
+        successful=successful,
+        task_type=task.task_type.value,
+        is_retry=task.attempt_counter > 1,
+        is_final_attempt=task.remaining_attempts <= 0,
+    ).inc()
 
     session.add(task)
     session.commit()
