@@ -134,7 +134,8 @@ export function NewDocumentPage() {
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
-        const modelRanking = ['tiny', 'base', 'small', 'medium', 'large'];
+        // since large uses the faster turbo model, there is no reason to use the medium model
+        const modelRanking = ['tiny', 'base', 'small', 'large'];
         let model = modelRanking[data.quality - 1];
         if (`${model}.${data.language}` in models) {
           model = `${model}.${data.language}`;
@@ -347,7 +348,7 @@ export function NewDocumentPage() {
                     </p>
                   </HelpPopup>
                   <div className="relative mb-6">
-                    <Slider min={1} max={5} {...register('quality')} />
+                    <Slider min={1} max={4} {...register('quality')} />
                     <span
                       className={clsx(
                         'text-sm text-gray-500 dark:text-gray-400 absolute start-0 -bottom-6',
