@@ -170,7 +170,7 @@ def transcribe_clean(
     sr: int,
     start_offset: float,
     model_name: str,
-    progress_callback: ProgressCallbackType,
+    progress_callback: ProgressCallbackType | None,
     lang_code: Optional[str] = "en",
 ):
     chain = (
@@ -221,7 +221,7 @@ def transcribe_clean_async(
     sr: int,
     start_offset: float,
     model_name: str,
-    progress_callback: ProgressCallbackType,
+    progress_callback: ProgressCallbackType | None,
     lang_code: Optional[str] = "en",
 ):
     return aiter(

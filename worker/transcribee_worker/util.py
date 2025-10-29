@@ -2,7 +2,7 @@ import asyncio
 import os
 import subprocess
 import sys
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
