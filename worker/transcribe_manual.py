@@ -12,7 +12,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 from transcribee_proto.document import Document
 from transcribee_worker.config import settings
-from transcribee_worker.torchaudio_align import align
 from transcribee_worker.util import load_audio
 from transcribee_worker.whisper_transcribe import transcribe_clean_async
 
@@ -25,9 +24,7 @@ async def main():
     )
     parser.add_argument("file", type=pathlib.Path, help="audio file")
     parser.add_argument("-l", "--lang", default="en", type=str, help="language")
-    parser.add_argument(
-        "-m", "--model", default="tiny", type=str, help="whisper model"
-    )
+    parser.add_argument("-m", "--model", default="tiny", type=str, help="whisper model")
     args = parser.parse_args()
 
     audio = load_audio(args.file)
@@ -40,11 +37,7 @@ async def main():
             sr=settings.SAMPLE_RATE,
             start_offset=0,
             model_name=args.model,
-            lang_code=(
-                args.lang
-                if args.lang != "auto"
-                else None
-            ),
+            lang_code=(args.lang if args.lang != "auto" else None),
             progress_callback=None,
         ):
             paragraphs.append(paragraph)
