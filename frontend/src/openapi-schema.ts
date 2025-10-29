@@ -218,8 +218,7 @@ export interface components {
       file: string;
       /** Language */
       language: string;
-      /** Model */
-      model: string;
+      model: components["schemas"]["TranscriptionModel"];
       /** Name */
       name: string;
       /** Number Of Speakers */
@@ -397,15 +396,6 @@ export interface components {
       /** Token */
       token: string;
     };
-    /** ModelConfig */
-    ModelConfig: {
-      /** Id */
-      id: string;
-      /** Languages */
-      languages: string[];
-      /** Name */
-      name: string;
-    };
     /** PageConfig */
     PageConfig: {
       /** Footer Position */
@@ -419,10 +409,6 @@ export interface components {
     PublicConfig: {
       /** Logged Out Redirect Url */
       logged_out_redirect_url?: string | null;
-      /** Models */
-      models: {
-        [key: string]: components["schemas"]["ModelConfig"];
-      };
     };
     /** SetDurationRequest */
     SetDurationRequest: {
@@ -526,6 +512,11 @@ export interface components {
       /** Model */
       model: string;
     };
+    /**
+     * TranscriptionModel
+     * @enum {string}
+     */
+    TranscriptionModel: "tiny" | "base" | "small" | "large";
     /** UnknownTask */
     UnknownTask: {
       /**

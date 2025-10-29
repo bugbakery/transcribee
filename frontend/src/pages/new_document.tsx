@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
-import languageNames from './languageNames.json';
+import languages from './languages.json';
 
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { createDocument, importDocument } from '../api/document';
@@ -10,11 +10,9 @@ import { Dialog, DialogTitle } from '../components/dialog';
 import { FormControl, Input, Select, Slider } from '../components/form';
 import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppContainer } from '../components/app';
-import { useGetConfig } from '../api/config';
 import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
 import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../utils/auth';
-import { RequestDataType } from '../api';
 import { HelpPopup } from '../components/popup';
 
 type FieldValues = {
@@ -25,12 +23,6 @@ type FieldValues = {
   speakerDetection: 'off' | 'on' | 'advanced';
   numberOfSpeakers: number;
 };
-
-type ModelConfig = RequestDataType<typeof useGetConfig>['models'];
-
-export function getLanguages(models: ModelConfig): string[] {
-  return models['base']?.languages;
-}
 
 async function getEntry(
   reader: ZipReader<BlobReader>,
@@ -52,8 +44,6 @@ export function NewDocumentPage() {
   const [dropIndicator, setDropIndicator] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
-  const { data: config } = useGetConfig({});
-  const models = config !== undefined ? config.models : {};
   const {
     register,
     handleSubmit,
@@ -135,11 +125,8 @@ export function NewDocumentPage() {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
         // since large uses the faster turbo model, there is no reason to use the medium model
-        const modelRanking = ['tiny', 'base', 'small', 'large'];
-        let model = modelRanking[data.quality - 1];
-        if (`${model}.${data.language}` in models) {
-          model = `${model}.${data.language}`;
-        }
+        const modelRanking = ['tiny', 'base', 'small', 'large'] as const;
+        const model = modelRanking[data.quality - 1];
 
         const documentParameters: DocumentCreateParameters = {
           name: data.name,
@@ -390,9 +377,9 @@ export function NewDocumentPage() {
                   </HelpPopup>
                   <div>
                     <Select {...register('language')}>
-                      {getLanguages(models)?.map((lang) => (
+                      {Object.entries(languages).map(([lang, name]) => (
                         <option value={lang} key={lang}>
-                          {languageNames[lang as keyof typeof languageNames]}
+                          {name}
                         </option>
                       ))}
                     </Select>

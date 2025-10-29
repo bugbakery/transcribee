@@ -119,8 +119,7 @@ components:
           title: Language
           type: string
         model:
-          title: Model
-          type: string
+          $ref: '#/components/schemas/TranscriptionModel'
         name:
           title: Name
           type: string
@@ -432,25 +431,6 @@ components:
       - token
       title: LoginResponse
       type: object
-    ModelConfig:
-      properties:
-        id:
-          title: Id
-          type: string
-        languages:
-          items:
-            type: string
-          title: Languages
-          type: array
-        name:
-          title: Name
-          type: string
-      required:
-      - id
-      - name
-      - languages
-      title: ModelConfig
-      type: object
     PageConfig:
       properties:
         footer_position:
@@ -476,13 +456,6 @@ components:
           - type: string
           - type: 'null'
           title: Logged Out Redirect Url
-        models:
-          additionalProperties:
-            $ref: '#/components/schemas/ModelConfig'
-          title: Models
-          type: object
-      required:
-      - models
       title: PublicConfig
       type: object
     SetDurationRequest:
@@ -656,6 +629,14 @@ components:
       - model
       title: TranscribeTaskParameters
       type: object
+    TranscriptionModel:
+      enum:
+      - tiny
+      - base
+      - small
+      - large
+      title: TranscriptionModel
+      type: string
     UnknownTask:
       properties:
         document_id:
