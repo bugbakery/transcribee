@@ -37,7 +37,7 @@ from transcribee_backend.auth import (
     validate_user_authorization,
     validate_worker_authorization,
 )
-from transcribee_backend.config import get_model_config, settings
+from transcribee_backend.config import settings
 from transcribee_backend.db import (
     get_redis_task_channel,
     get_session,
@@ -295,27 +295,35 @@ def create_default_tasks_for_document(
         session.add(speaker_identification_task)
 
 
+class TranscriptionModel(str, enum.Enum):
+    tiny = "tiny"
+    base = "base"
+    small = "small"
+    large = "large"
+
+
+languages = "auto,en,zh,de,es,ru,ko,fr,ja,pt,tr,pl,ca,nl,ar,sv,it,id,hi,fi,vi,he,uk,el,ms,cs,\
+ro,da,hu,ta,no,th,ur,hr,bg,lt,la,mi,ml,cy,sk,te,fa,lv,bn,sr,az,sl,kn,et,mk,br,eu,is,hy,ne,mn,bs,\
+kk,sq,sw,gl,mr,pa,si,km,sn,yo,so,af,oc,ka,be,tg,sd,gu,am,yi,lo,uz,fo,ht,ps,tk,nn,mt,sa,lb,my,\
+bo,tl,mg,as,tt,haw,ln,ha,ba,jw,su,yue".split(
+    ","
+)
+
+
 @document_router.post("/")
 async def create_document(
     name: str = Form(),
-    model: str = Form(),
+    model: TranscriptionModel = Form(),
     language: str = Form(),
     number_of_speakers: Optional[Annotated[int, Path(ge=0)]] = Form(None),
     file: UploadFile = File(),
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
 ) -> ApiDocument:
-    model_configs = get_model_config()
-
-    if model not in model_configs:
-        raise RequestValidationError(
-            [ValueError(f"Unknown model '{model}'"), ("body", "model")]
-        )
-
-    if language not in model_configs[model].languages:
+    if language not in languages:
         raise RequestValidationError(
             [
-                ValueError(f"Model '{model}' does not support language '{language}'"),
+                ValueError(f"Unknown language: '{language}'"),
                 ("body", "language"),
             ]
         )

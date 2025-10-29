@@ -138,6 +138,7 @@
             pkgs.openssl
 
             pkgs.ffmpeg
+            pkgs.file
 
             # for automerge-py
             pkgs.libiconv

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import frontmatter
 from pydantic import BaseModel, TypeAdapter
@@ -18,9 +18,6 @@ class Settings(BaseSettings):
     media_url_base: str = "http://localhost:8000/"
     logged_out_redirect_url: None | str = None
 
-    model_config_path: Path = Path(__file__).parent.resolve() / Path(
-        "default_models.json"
-    )
     pages_dir: Path = Path("data/pages/")
 
     metrics_username: str = "transcribee"
@@ -30,14 +27,7 @@ class Settings(BaseSettings):
     redis_port: int = 6379
 
 
-class ModelConfig(BaseModel):
-    id: str
-    name: str
-    languages: List[str]
-
-
 class PublicConfig(BaseModel):
-    models: Dict[str, ModelConfig]
     logged_out_redirect_url: str | None = None
 
 
@@ -48,12 +38,6 @@ class ShortPageConfig(BaseModel):
 
 class PageConfig(ShortPageConfig):
     text: str
-
-
-def get_model_config():
-    return TypeAdapter(Dict[str, ModelConfig]).validate_json(
-        Path(settings.model_config_path).read_text()
-    )
 
 
 def load_pages_from_disk() -> Dict[str, PageConfig]:
@@ -83,7 +67,6 @@ def get_short_page_config() -> Dict[str, ShortPageConfig]:
 
 def get_public_config():
     return PublicConfig(
-        models=get_model_config(),
         logged_out_redirect_url=settings.logged_out_redirect_url,
     )
 
