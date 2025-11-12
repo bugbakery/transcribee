@@ -4,11 +4,12 @@
 
 # <div align="center">🎤 transcribee ✍️</div>
 
-> **<div align="center">[going to be] an open source audio- and videotranscription software</div>**
+> **<div align="center">an open source audio and video transcription software</div>**
 
 > **Note**:
 >
-> Currently, transcribee is heavily work-in-progress and not yet ready for production use. Please come back in a few weeks / months.
+> While transcribee is certainly not "finished" or bug-free, it should be good enough for everyday transcription tasks.
+> Please try it and [tell us how it goes](https://github.com/bugbakery/transcribee/issues/new)
 
 `transcribee 🐝` aims to make the workflow for media transcription easier, faster and more accessible.
 
@@ -23,10 +24,6 @@ To get started with developing or to try the current state of transcribee, follo
 in the [development setup document](doc/development_setup.md).
 
 ## How does it work?
-
-> **Note**:
->
-> We're heavily working on transcribee. Not all steps described here are already implemented.
 
 Creating a transcript with transcribee 🐝 is done with the following steps:
 
@@ -43,15 +40,12 @@ Creating a transcript with transcribee 🐝 is done with the following steps:
    Since transcribee 🐝 is a collaborative software, you can do this step (and all other manual steps) together with others.
    All changes are instantly synced with everyone working on the transcript.
 
-3. Automatic re-alignment
 
-   To make sure that the timestamps of your corrected text are still correct, transcribee 🐝 matches this text back up with the audio.
+   > **Note**:
+   >
+   > Concurrent editing of transcripts is currently resulting in some very bad performance problems. See [#380](https://github.com/bugbakery/transcribee/issues/380)
 
-4. Manual re-alignment
-
-   Now you can check the automatically generated timestamps and correct them.
-
-5. Export
+3. Export
 
    Once you are happy with the transcript, you can export it.
 
