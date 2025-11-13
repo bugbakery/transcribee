@@ -12,7 +12,7 @@ export type ExportProps = {
   outputNameBase: string;
   editor: Editor;
   onClose: () => void;
-  document: ApiDocument;
+  document?: ApiDocument;
 };
 
 export type ExportType = {
@@ -48,7 +48,7 @@ export function ExportModal({
 }: {
   onClose: () => void;
   editor: Editor;
-  document: ApiDocument;
+  document?: ApiDocument;
 } & Omit<ComponentProps<typeof Modal>, 'label'>) {
   const [exportType, setExportType] = useState(exportTypes[0]);
   const ExportBodyComponent = exportType.component;
