@@ -10,6 +10,8 @@ authors = [
 ]
 
 dependencies = [
+    "loro~=1.8.2",
+    "automerge @ git+https://github.com/bugbakery/automerge-py.git@ca6d8d3",
     "redis~=5.0",
     "fastapi~=0.115",
     "uvicorn[standard]~=0.20",

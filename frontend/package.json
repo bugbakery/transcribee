@@ -64,7 +64,7 @@
     "@zip.js/zip.js": "^2.7.31",
     "clsx": "^1.2.1",
     "fast-equals": "^5.2.2",
-    "loro-crdt": "^1.4.4",
+    "loro-crdt": "^1.9.0",
     "openapi-typescript-fetch": "github:bugbakery/openapi-typescript-fetch#4b5cc33983c5a658feedd628d417599db2bd672c",
     "react": "^18.2.0",
     "react-base16-styling": "^0.9.1",

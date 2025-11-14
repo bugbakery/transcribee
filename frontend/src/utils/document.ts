@@ -64,7 +64,7 @@ export function useSpeakerNames(editor?: Editor): Record<string, string> {
   return useDocumentSelector(
     useCallback((doc) => {
       const spkNames: Record<string, string> = {};
-      for (const para of doc.get("children")) {
+      for (const para of doc.get("children").toArray()) {
         if (para.speaker !== null && !(para.speaker in spkNames)) {
           spkNames[para.speaker] = getSpeakerName(para.speaker, doc);
         }

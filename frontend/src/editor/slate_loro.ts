@@ -11,6 +11,7 @@ export type LoroEditor<T> = BaseEditor & {
   isRemote: boolean;
   _doc: RootedLoroDoc<T>;
   docProxy: T;
+  onInitialSyncComplete: () => void;
   addDocChangeListener: (callback: onDocChangeCallback<RootedLoroDoc<T>>) => void;
   removeDocChangeListener: (callback: onDocChangeCallback<RootedLoroDoc<T>>) => void;
   // setDoc: (doc: Automerge.Doc<T>) => void;
@@ -18,7 +19,10 @@ export type LoroEditor<T> = BaseEditor & {
   v: number;
 };
 
-export function withLoroDoc<DT, T extends Editor>(editor: T, doc: RootedLoroDoc<DT>): T & LoroEditor<DT> {
+export function withLoroDoc<DT, T extends Editor>(
+  editor: T,
+  doc: RootedLoroDoc<DT>,
+): T & LoroEditor<DT> {
   const e = editor as T & LoroEditor<DT>;
   e.isRemote = false;
   e._doc = doc;
@@ -27,11 +31,15 @@ export function withLoroDoc<DT, T extends Editor>(editor: T, doc: RootedLoroDoc<
 
   const proxy = {
     get(target, property, receiver) {
-      if (typeof property == "symbol") {
+      if (typeof property == 'symbol') {
         return Reflect.get(target, property);
       } else {
-
-        const res = target.get(property);
+        let res = null;
+        if (Object.hasOwn(Object.getPrototypeOf(target), property)) {
+          res = Reflect.get(target, property);
+        } else {
+          res = target.get(property);
+        }
         if (res instanceof LoroText) {
           return res.toString();
         } else if (isContainer(res)) {
@@ -40,32 +48,34 @@ export function withLoroDoc<DT, T extends Editor>(editor: T, doc: RootedLoroDoc<
           return res;
         }
       }
-    }
+    },
   };
 
-  e.docProxy = new Proxy(doc.getMap("root"), proxy);
+  e.onInitialSyncComplete = () => {
+    e.docProxy = new Proxy(doc.getMap('root'), proxy);
+
+    e._doc
+      .getMap('root')
+      .get('children')
+      .subscribe((event) => {
+        e.isRemote = true;
+        Editor.withoutNormalizing(e, () => {
+          applyLoroEventBatch(e, event);
+        });
+        // TODO(robin): remove (just for debug)
+        /*
+        if (!deepEqual(e._doc.getMap('root').get('children').toJSON(), e.children)) {
+          throw Error('its fucked');
+        }
+        */
+        // e.isRemote = false;
+
+        Promise.resolve().then(() => (e.isRemote = false));
+      });
+  };
 
   e._callbacks = new Set();
   e.v = 0;
-
-  e._doc.getMap("root").get("children").subscribe((event) => {
-    e.isRemote = true;
-    Editor.withoutNormalizing(e, () => {
-      console.log(e.children)
-      console.log(e._doc.getMap("root").get("children").toJSON())
-      applyLoroEventBatch(e, event);
-    });
-    if (!deepEqual(e._doc.getMap("root").get("children").toJSON(), e.children)) {
-      console.log(e._doc.getMap("root").get("children").toJSON())
-      console.log(e.children)
-      throw Error("its fucked");
-    }
-    // e.isRemote = false;
-
-    Promise.resolve().then(() => (e.isRemote = false));
-  });
-
-  // TODO(robin): these are fully broken I think, replace by other shit
   function callOnDocChange(e: LoroEditor<DT>) {
     e._callbacks.forEach((cb) => cb(e._doc));
   }
@@ -78,21 +88,6 @@ export function withLoroDoc<DT, T extends Editor>(editor: T, doc: RootedLoroDoc<
     e._callbacks.delete(cb);
   };
 
-  // e.setDoc = (newDoc) => {
-  //   const oldDoc = e.doc;
-  //   e.doc = initialDoc;
-
-  //   e.isRemote = true;
-  //   Editor.withoutNormalizing(e, () => {
-  //     // updateNode(e, currentDocCopy, newDocView);
-  //     updateNode(e, oldDoc, newDoc);
-  //   });
-  //   Promise.resolve().then(() => (e.isRemote = false));
-  //   e.doc = newDoc;
-  //   e.v += 1;
-  //   callOnDocChange(e);
-  // };
-
   const oldOnChange = e.onChange;
 
   // use varargs to support future slate versions
@@ -104,11 +99,13 @@ export function withLoroDoc<DT, T extends Editor>(editor: T, doc: RootedLoroDoc<
         if (e.operations.some((op) => op.type != 'set_selection')) {
           applySlateOps(e._doc, e.operations);
           // TODO(robin): remove for debug
-          if (!deepEqual(e._doc.getMap("root").get("children").toJSON(), e.children)) {
-            console.log(e._doc.getMap("root").get("children").toJSON())
-            console.log(e.children)
-            throw Error("its fucked");
+          /*
+          if (!deepEqual(e._doc.getMap('root').get('children').toJSON(), e.children)) {
+            console.log(e._doc.getMap('root').get('children').toJSON());
+            console.log(e.children);
+            throw Error('its fucked');
           }
+          */
           e._doc.commit();
 
           // const newDoc = Automerge.change(e.doc, (draft) => {
@@ -133,7 +130,7 @@ export function withLoroDoc<DT, T extends Editor>(editor: T, doc: RootedLoroDoc<
 function applyLoroEventBatch<T extends LoroEditor>(e: T, event: LoroEventBatch) {
   // console.log("the diff", e._doc.diff(event.from, event.to))
   console.log(event);
-  if (event.by !== "local" || event.origin === "undo") {
+  if (event.by !== 'local' || event.origin === 'undo') {
     let i = 0;
     for (const ev of event.events) {
       // if (i === event.events.length - 2) {
@@ -142,7 +139,7 @@ function applyLoroEventBatch<T extends LoroEditor>(e: T, event: LoroEventBatch) 
       // i += 1;
       const diff = ev.diff;
       const path = ev.path.slice(2).filter((_, idx) => idx % 2 == 0);
-      console.log(JSON.stringify(path))
+      console.log(JSON.stringify(path));
       if (diff.type === 'list') {
         let listPos = 0;
         for (const entry of diff.diff) {
@@ -155,27 +152,27 @@ function applyLoroEventBatch<T extends LoroEditor>(e: T, event: LoroEventBatch) 
             // if (entry.delete > 1) {
             //   where = Editor.range(e, [...path, listPos], [...path, listPos + entry.delete]);
             // }
-            console.log("remove", where);
+            console.log('remove', where);
             // Range.foreach()
           } else if (entry.insert) {
             const convertedEntry = entry.insert.map((e) => {
               if (e instanceof LoroMap) {
-                if (e.get("children")) {
+                if (e.get('children')) {
                   return { children: [] };
-                } else if (e.get("text")) {
-                  return { text: "" };
+                } else if (e.get('text')) {
+                  return { text: '' };
                 } else {
                   return {};
                 }
               } else if (e instanceof LoroList) {
                 return [];
               } else if (e instanceof LoroText) {
-                return "";
+                return '';
               } else {
                 return e;
               }
             });
-            console.log("insert", convertedEntry, [...path, listPos]);
+            console.log('insert', convertedEntry, [...path, listPos]);
             Transforms.insertNodes(e, convertedEntry, { at: [...path, listPos] });
             listPos += entry.insert.length;
           } else if (entry.retain) {
@@ -186,22 +183,22 @@ function applyLoroEventBatch<T extends LoroEditor>(e: T, event: LoroEventBatch) 
         let converted = {};
         for (const [key, value] of Object.entries(diff.updated)) {
           if (value instanceof LoroMap) {
-            if (value.get("children")) {
+            if (value.get('children')) {
               converted[key] = { children: [] };
-            } else if (value.get("text")) {
-              converted[key] = { text: "" };
+            } else if (value.get('text')) {
+              converted[key] = { text: '' };
             } else {
               converted[key] = {};
             }
           } else if (value instanceof LoroList) {
             converted[key] = [];
           } else if (value instanceof LoroText) {
-            converted[key] = "";
+            converted[key] = '';
           } else {
             converted[key] = value;
           }
         }
-        console.log("setNodes", converted, path);
+        console.log('setNodes', converted, path);
         Transforms.setNodes(e, converted, { at: path });
       } else if (diff.type === 'text') {
         let textPos = 0;

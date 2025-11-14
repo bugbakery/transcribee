@@ -111,6 +111,9 @@ function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
 
 function addNewSpeaker(editor: Editor, speakerName: string): string {
   const speakerId = crypto.randomUUID();
+
+  editor._doc.get("speaker_names").set(speakerId, speakerName)
+  editor._doc.commit();
   // const newDoc = Automerge.change(editor.doc, (draft: Document) => {
   //   draft.speaker_names[speakerId] = speakerName;
   // });
@@ -119,6 +122,8 @@ function addNewSpeaker(editor: Editor, speakerName: string): string {
 }
 
 function changeSpeakerName(editor: Editor, speakerId: string, speakerName: string) {
+  editor._doc.getMap("root").get("speaker_names").set(speakerId, speakerName)
+  editor._doc.commit();
   // const newDoc = Automerge.change(editor.doc, (draft: Document) => {
   //   draft.speaker_names[speakerId] = speakerName;
   // });

@@ -67,10 +67,10 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
     initialInView: !loading,
   });
 
-  const speakerChanged = useSlateSelector((editor) => {
+  const speakerChanged = useSlateSelector(useCallback((editor) => {
     const idx = ReactEditor.findPath(editor, element)[0];
     return idx == 0 || editor.docProxy.children[idx - 1].speaker != element.speaker;
-  });
+  }, [element]));
 
   const speakerName = useSpeakerName(element.speaker);
 

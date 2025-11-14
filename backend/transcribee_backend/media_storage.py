@@ -91,7 +91,7 @@ def unsign(user_sig: str, max_age: int) -> str:
         raise ValueError()
     signature = b64_decode(signature.encode())
 
-    logging.warning(f"Verifying {value=} {signature=}")
+    logging.debug(f"Verifying {value=} {signature=}")
     raw_signature = salted_hmac(
         key_salt=MEDIA_SIGNATURE_TYPE, secret=settings.secret_key, value=value
     )

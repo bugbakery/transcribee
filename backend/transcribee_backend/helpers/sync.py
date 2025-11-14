@@ -77,20 +77,15 @@ class DocumentSyncConsumer:
         # websocket connection eventually. Since it is not touched on the way, we can pass a list of
         # bytes here instead of just bytes as would be allowed by the asgi spec:
         # https://asgi.readthedocs.io/en/latest/specs/www.html#send-send-event
-        message = [bytes([SyncMessageType.FULL_DOCUMENT])]
+        tag_change = bytes([SyncMessageType.CHANGE])
         for update in self._session.exec(statement):
-            message.append(len(update.change_bytes).to_bytes(4) + update.change_bytes + bytes([SyncMessageType.CHANGE]))
-            # message.append(update.change_bytes)
-            print("hello", len(update.change_bytes))
-        message[-1] = message[-1][:-1]
-        await self._ws.send_bytes(message)  # type: ignore
-        # END
+            await self._ws.send_bytes(tag_change + len(update.change_bytes).to_bytes(4) + update.change_bytes)
 
-        await self._ws.send_bytes(bytes([SyncMessageType.CHANGE_BACKLOG_COMPLETE]))
+        await self._ws.send_bytes(bytes([SyncMessageType.BACKLOG_COMPLETE]))
 
         while True:
-            msg = await self._msg_queue.get()
-            await self._ws.send_bytes(bytes([SyncMessageType.CHANGE]) + len(msg).to_bytes(4) + msg)
+            msg: bytes = await self._msg_queue.get()
+            await self._ws.send_bytes(tag_change + len(msg).to_bytes(4) + msg)
 
     async def run(self):
         await self._ws.accept()

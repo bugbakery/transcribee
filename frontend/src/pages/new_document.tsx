@@ -62,7 +62,7 @@ export function NewDocumentPage() {
     watch,
   } = useForm<FieldValues>({
     values: {
-      quality: 4,
+      quality: 5,
       language: 'auto',
       audioFile: undefined,
       name: '',
@@ -134,7 +134,7 @@ export function NewDocumentPage() {
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
-        const modelRanking = ['tiny', 'base', 'small', 'medium', 'large-v3'];
+        const modelRanking = ['tiny', 'base', 'small', 'medium', 'large-v3', 'nyrahealth/faster_CrisperWhisper'];
         let model = modelRanking[data.quality - 1];
         if (`${model}.${data.language}` in models) {
           model = `${model}.${data.language}`;

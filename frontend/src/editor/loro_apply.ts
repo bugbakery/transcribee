@@ -80,9 +80,10 @@ const applyOperation = (doc: LoroMap<SlateNode>, op: Operation): LoroMap<SlateNo
     getChildren(doc, op.path).insertContainer(idx, convertToLoro(op.node));
   } else if (op.type === 'set_node') {
     const entry = getNode(doc, op.path);
-    const { newProperties } = op;
-    for (const [key, value] of Object.entries(newProperties)) {
-      if (value !== undefined) {
+    const { newProperties, properties } = op;
+    for (const key of Object.keys(properties)) {
+      const value = newProperties[key];
+      if (value !== undefined && value !== null) {
         mapSet(entry, key, convertToLoro(value));
       } else {
         entry.delete(key);
