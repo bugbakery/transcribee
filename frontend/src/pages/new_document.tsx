@@ -124,7 +124,7 @@ export function NewDocumentPage() {
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
-        const modelRanking = ['tiny', 'base', 'small', 'large', 'crisper'] as const;
+        const modelRanking = ['tiny', 'base', 'small', 'large'] as const;
         const model = modelRanking[data.quality - 1];
 
         const documentParameters: DocumentCreateParameters = {
