@@ -93,12 +93,13 @@ export function PlayerBar({
     const time = audio.playtime || 0;
     let startTimeOfElement = 0;
 
-    if (!editor.children) return;
+    if (!editor.docProxy.children) return;
 
+console.log(editor._doc.toJSON())
     // we loop from the back to the front to get the first element that is no longer too far
     // (if no text is at the current time, we highlight the text before)
-    outer: for (let i = editor.children.length - 1; i >= 0; i--) {
-      const paragraph = editor.children[i];
+    outer: for (let i = editor.docProxy.children.length - 1; i >= 0; i--) {
+      const paragraph = editor.docProxy.children[i];
       if ('children' in paragraph) {
         for (let j = paragraph.children.length - 1; j >= 0; j--) {
           const word = paragraph.children[j];

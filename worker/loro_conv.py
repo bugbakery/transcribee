@@ -49,7 +49,8 @@ doc = automerge.load(Path(sys.argv[1]).read_bytes())
 for key, val in automerge.entries(doc):
     setMap(root, key, convert(val))
 
-sys.stdout.buffer.write(loroDoc.export(ExportMode.Snapshot()))
+# sys.stdout.buffer.write(loroDoc.export(ExportMode.StateOnly(None)))
+sys.stdout.buffer.write(loroDoc.export(ExportMode.ShallowSnapshot(loroDoc.oplog_frontiers)))
 # print(loroDoc.get_deep_value())
 
 # class Atom(BaseModel):

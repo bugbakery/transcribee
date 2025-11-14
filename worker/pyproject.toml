@@ -16,7 +16,7 @@ dependencies = [
     "transformers~=4.26",
     "torchaudio~=2.0",
     "torch~=2.0",
-    "automerge @ git+https://github.com/bugbakery/automerge-py.git@ca6d8d3",
+    "loro~=1.8",
     "websockets~=10.4",
     "scikit-learn~=1.2",
     "watchfiles~=0.19",
@@ -27,6 +27,7 @@ dependencies = [
     "pydantic-settings>=2.7",
     "decent-whisper @ git+https://github.com/bugbakery/decent-whisper.git@fc112a223c30049be1ff7eb87dc1ca38d540fabc",
     "loro>=1.4.1",
+    "automerge",
 ]
 
 requires-python = ">=3.11"
@@ -65,6 +66,7 @@ config-settings = { editable_mode = "compat" }
 torch = { index = "pytorch-cpu" }
 torchaudio = { index = "pytorch-cpu" }
 transcribee-proto = { path = "../proto", editable = true }
+automerge = { git = "https://github.com/bugbakery/automerge-py.git", rev = "ca6d8d3" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

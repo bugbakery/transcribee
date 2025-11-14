@@ -52,7 +52,7 @@ export function NewDocumentPage() {
     watch,
   } = useForm<FieldValues>({
     values: {
-      quality: 4,
+      quality: 5,
       language: 'auto',
       audioFile: undefined,
       name: '',
@@ -124,8 +124,7 @@ export function NewDocumentPage() {
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
-        // since large uses the faster turbo model, there is no reason to use the medium model
-        const modelRanking = ['tiny', 'base', 'small', 'large'] as const;
+        const modelRanking = ['tiny', 'base', 'small', 'large', 'crisper'] as const;
         const model = modelRanking[data.quality - 1];
 
         const documentParameters: DocumentCreateParameters = {

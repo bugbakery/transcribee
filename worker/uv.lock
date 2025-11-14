@@ -1905,6 +1905,7 @@ requires-dist = [
     { name = "automerge", git = "https://github.com/bugbakery/automerge-py.git?rev=ca6d8d3" },
     { name = "decent-whisper", git = "https://github.com/bugbakery/decent-whisper.git?rev=fc112a223c30049be1ff7eb87dc1ca38d540fabc" },
     { name = "ffmpeg-python", specifier = "~=0.2" },
+    { name = "loro", specifier = "~=1.8" },
     { name = "loro", specifier = ">=1.4.1" },
     { name = "numpy", specifier = "~=2.0" },
     { name = "pydantic", specifier = "~=2.2" },
