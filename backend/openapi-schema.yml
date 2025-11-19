@@ -1143,6 +1143,51 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Export
+  /api/v1/documents/{document_id}/media_files/:
+    get:
+      operationId: get_document_media_api_v1_documents__document_id__media_files__get
+      parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          format: uuid
+          title: Document Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: Share-Token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Share-Token
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/DocumentMedia'
+                title: Response Get Document Media Api V1 Documents  Document Id  Media
+                  Files  Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Document Media
   /api/v1/documents/{document_id}/set_duration/:
     post:
       operationId: set_duration_api_v1_documents__document_id__set_duration__post

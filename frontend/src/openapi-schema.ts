@@ -43,6 +43,10 @@ export interface paths {
     /** Export */
     get: operations["export_api_v1_documents__document_id__export__get"];
   };
+  "/api/v1/documents/{document_id}/media_files/": {
+    /** Get Document Media */
+    get: operations["get_document_media_api_v1_documents__document_id__media_files__get"];
+  };
   "/api/v1/documents/{document_id}/set_duration/": {
     /** Set Duration */
     post: operations["set_duration_api_v1_documents__document_id__set_duration__post"];
@@ -854,6 +858,32 @@ export interface operations {
       200: {
         content: {
           "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** Get Document Media */
+  get_document_media_api_v1_documents__document_id__media_files__get: {
+    parameters: {
+      header?: {
+        authorization?: string | null;
+        "Share-Token"?: string | null;
+      };
+      path: {
+        document_id: string;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DocumentMedia"][];
         };
       };
       /** @description Validation Error */
