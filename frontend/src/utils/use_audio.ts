@@ -14,14 +14,39 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
   const [playtimeState, setPlaytimeState] = useState(0);
   const lastPlaytimeRef = useRef<number>(0);
 
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [playerElement, setPlayerElement] = useState<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    const myAudioElement = videoPreview ? video([]) : audio([]);
-    setAudioElement(myAudioElement);
+    const newPlayerElement = video([]);
+    setPlayerElement(newPlayerElement);
 
+    const e = events(newPlayerElement);
+    e.onDurationChange(() => {
+      setDuration(props(newPlayerElement).duration);
+    });
+    e.onPlay(() => setPlayingState(true));
+    e.onPause(() => setPlayingState(false));
+    e.onBuffering(() => setBuffering(true));
+    e.onReady(() => setBuffering(false));
+    e.onPlaytimeUpdate((sec) => {
+      if (sec != undefined && sec != 0) {
+        setPlaytimeState(sec);
+      }
+    });
+
+    setDuration(props(newPlayerElement).duration);
+
+    return () => {
+      newPlayerElement.pause();
+      newPlayerElement.innerHTML = '';
+      newPlayerElement.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!playerElement) return;
     if (videoPreview) {
-      myAudioElement.style = `
+      playerElement.style = `
         position: fixed;
         bottom: 90px;
         right: 20px;
@@ -29,69 +54,45 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
         width: 300px;
       `;
     } else {
-      myAudioElement.style = `
+      playerElement.style = `
         display: none;
       `;
     }
-
-    const e = events(myAudioElement);
-    e.onDurationChange(() => {
-      setDuration(props(myAudioElement).duration);
-    });
-    e.onPlay(() => setPlayingState(true));
-    e.onPause(() => setPlayingState(false));
-    e.onBuffering(() => setBuffering(true));
-    e.onReady(() => setBuffering(false));
-    e.onPlaytimeUpdate((sec) => {
-      if (sec != undefined) {
-        setPlaytimeState(sec);
-      }
-    });
-
-    setDuration(props(myAudioElement).duration);
-
-    return () => {
-      myAudioElement.pause();
-      myAudioElement.innerHTML = '';
-      myAudioElement.remove();
-    };
   }, [videoPreview]);
 
   useEffect(() => {
-    if (!audioElement) return;
-
-    audioElement.innerHTML = '';
+    if (!playerElement) return;
+    playerElement.innerHTML = '';
 
     sources.forEach((source) => {
       const sourceElement = document.createElement('source');
       sourceElement.src = source.src;
       sourceElement.type = source.type;
-      audioElement.appendChild(sourceElement);
+      playerElement.appendChild(sourceElement);
     });
 
-    actions(audioElement).load();
-
-    events(audioElement).onLoaded(() => {
-      actions(audioElement).setPlaytime(lastPlaytimeRef.current);
+    actions(playerElement).load();
+    events(playerElement).onLoaded(() => {
+      actions(playerElement).setPlaytime(lastPlaytimeRef.current);
     });
 
     if (playing) {
-      actions(audioElement).play();
+      actions(playerElement).play();
     } else {
-      actions(audioElement).pause();
+      actions(playerElement).pause();
     }
 
     return () => {
-      lastPlaytimeRef.current = props(audioElement).playtime || 0;
+      lastPlaytimeRef.current = props(playerElement).playtime || 0;
     };
-  }, [audioElement, sources]);
+  }, [playerElement, sources]);
 
   // faster playtime updates
   useEffect(() => {
     if (playing) {
       const interpolateInterval = window.setInterval(() => {
-        if (!audioElement) return;
-        setPlaytimeState(audioElement.currentTime);
+        if (!playerElement || !playerElement.currentTime) return;
+        setPlaytimeState(playerElement.currentTime);
       }, 100);
 
       return () => {
@@ -101,44 +102,44 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
   }, [playing]);
 
   useEffect(() => {
-    if (!audioElement) return;
+    if (!playerElement) return;
 
     if (playbackRate != undefined) {
-      actions(audioElement).setRate(playbackRate);
+      actions(playerElement).setRate(playbackRate);
     }
-  }, [audioElement, sources, playbackRate]);
+  }, [playerElement, sources, playbackRate]);
 
   const setPlaytime = useCallback(
     (sec: number) => {
-      if (!audioElement) return;
-      actions(audioElement).setPlaytime(sec);
+      if (!playerElement) return;
+      actions(playerElement).setPlaytime(sec);
       setPlaytimeState(sec);
     },
-    [audioElement],
+    [playerElement],
   );
 
   const seekRelative = useCallback(
     (sec: number) => {
-      if (!audioElement) return;
-      const currentPlaytime = props(audioElement).playtime;
+      if (!playerElement) return;
+      const currentPlaytime = props(playerElement).playtime;
 
       if (currentPlaytime != undefined) {
-        actions(audioElement).setPlaytime(currentPlaytime + sec);
+        actions(playerElement).setPlaytime(currentPlaytime + sec);
         setPlaytimeState(currentPlaytime + sec);
       }
     },
-    [audioElement],
+    [playerElement],
   );
 
   const play = useCallback(() => {
-    if (!audioElement) return;
-    actions(audioElement).play();
-  }, [audioElement]);
+    if (!playerElement) return;
+    actions(playerElement).play();
+  }, [playerElement]);
 
   const pause = useCallback(() => {
-    if (!audioElement) return;
-    actions(audioElement).pause();
-  }, [audioElement]);
+    if (!playerElement) return;
+    actions(playerElement).pause();
+  }, [playerElement]);
 
   return {
     play,
