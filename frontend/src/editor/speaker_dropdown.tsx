@@ -132,6 +132,16 @@ export function SpeakerDropdown({
   const editor = useSlateStatic();
   const name = useSpeakerName(paragraph.speaker, editor);
 
+  // Extract speaker_name_options from URL params and append to speakerNames
+  // this is for example handy for the voc usecase where we know the speaker names
+  // from the talk details
+  const speakerNames = useSpeakerNames(editor);
+  const urlParams = new URLSearchParams(window.location.search);
+  const speakerNameOptions = urlParams.get('speaker_name_options');
+  const additionalSpeakers = (speakerNameOptions ? speakerNameOptions.split(',') : []).filter(
+    (name) => !Object.values(speakerNames).includes(name),
+  );
+
   const renameSpeaker = () => {
     const speaker = paragraph.speaker;
     if (speaker !== null) {
@@ -189,6 +199,19 @@ export function SpeakerDropdown({
         }}
         currentSpeaker={paragraph.speaker}
       >
+        {additionalSpeakers.map((speaker) => (
+          <DropdownItem
+            key={speaker}
+            onClick={() => {
+              const elementPath = ReactEditor.findPath(editor, paragraph);
+              const speakerId = addNewSpeaker(editor, speaker);
+              setSpeaker(editor, elementPath, speakerId);
+            }}
+          >
+            <div className="absolute top-1 w-2 h-[calc(100%-8px)] ml-1.5 rounded-xl" />
+            <div className="text-left ml-5 break-word">{speaker}</div>
+          </DropdownItem>
+        ))}
         <DropdownItem icon={IoIosAdd} onClick={addSpeaker}>
           New Speaker
         </DropdownItem>
