@@ -1,4 +1,4 @@
-import { actions, video, events, props, audio } from '@podlove/html5-audio-driver';
+import { actions, video, events, props } from '@podlove/html5-audio-driver';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type UseAudioOptions = {
@@ -15,7 +15,6 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
   const lastPlaytimeRef = useRef<number>(0);
 
   const [playerElement, setPlayerElement] = useState<HTMLVideoElement | null>(null);
-
   useEffect(() => {
     const newPlayerElement = video([]);
     setPlayerElement(newPlayerElement);
@@ -46,7 +45,7 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
   useEffect(() => {
     if (!playerElement) return;
     if (videoPreview) {
-      playerElement.style = `
+      playerElement.style.cssText = `
         position: fixed;
         bottom: 90px;
         right: 20px;
@@ -54,7 +53,7 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
         width: 300px;
       `;
     } else {
-      playerElement.style = `
+      playerElement.style.cssText = `
         display: none;
       `;
     }

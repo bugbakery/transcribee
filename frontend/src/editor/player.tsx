@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import { IconButton } from '../components/button';
 import { ImBackward2, ImPause2, ImPlay3 } from 'react-icons/im';
 import { useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react';
-import { ApiDocument, useGetDocument } from '../api/document';
+import { ApiDocument, useGetDocumentMediaFiles } from '../api/document';
 import { CssRule } from '../utils/cssdom';
 import { SEEK_TO_EVENT, SeekToEvent } from './types';
 import { useEvent } from '../utils/use_event';
@@ -55,7 +55,7 @@ export function PlayerBar({
   editor: Editor;
   onShowVideo?: (show: boolean) => void;
 }) {
-  const { data } = useGetDocument(
+  const { data } = useGetDocumentMediaFiles(
     { document_id: documentId },
     {
       revalidateOnFocus: false,
@@ -64,8 +64,8 @@ export function PlayerBar({
   );
 
   const { videoSources, audioSources, hasVideo } = useMemo(
-    () => splitAndSortMediaFiles(data?.media_files || []),
-    [data?.media_files],
+    () => splitAndSortMediaFiles(data || []),
+    [data],
   );
 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);

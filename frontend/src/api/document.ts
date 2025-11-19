@@ -14,10 +14,15 @@ export const getDocumentTasks = fetcher
   .path('/api/v1/documents/{document_id}/tasks/')
   .method('get')
   .create();
+export const getDocumentMediaFiles = fetcher
+  .path('/api/v1/documents/{document_id}/media_files/')
+  .method('get')
+  .create();
 
 export const useListDocuments = makeSwrHook('listDocuments', listDocuments);
 export const useGetDocument = makeSwrHook('getDocument', getDocument);
 export const useGetDocumentTasks = makeSwrHook('getDocumentTasks', getDocumentTasks);
+export const useGetDocumentMediaFiles = makeSwrHook('getDocumentMediaFiles', getDocumentMediaFiles);
 
 export type ApiDocument = RequestDataType<typeof useGetDocument>;
 
