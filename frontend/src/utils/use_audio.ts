@@ -1,13 +1,20 @@
 import { actions, video, events, props } from '@podlove/html5-audio-driver';
+import clsx from 'clsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type UseAudioOptions = {
   playbackRate?: number;
   sources: Array<{ src: string; type: string }>;
   videoPreview?: boolean;
+  videoHeight?: number;
 };
 
-export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOptions) {
+export function useAudio({
+  sources,
+  playbackRate,
+  videoPreview,
+  videoHeight = 170,
+}: UseAudioOptions) {
   const [playing, setPlayingState] = useState(false);
   const [duration, setDuration] = useState<number | undefined>();
   const [buffering, setBuffering] = useState(false);
@@ -45,19 +52,23 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
   useEffect(() => {
     if (!playerElement) return;
     if (videoPreview) {
-      playerElement.style.cssText = `
-        position: fixed;
-        bottom: 90px;
-        right: 20px;
-        height: 170px;
-        width: 300px;
-      `;
+      playerElement.className = clsx(
+        'fixed',
+        'right-6',
+        'bottom-24',
+        'bg-black',
+        'border-black dark:border-neutral-200',
+        'border-2',
+        'shadow-brutal',
+        'shadow-slate-400 dark:shadow-neutral-600',
+        'rounded-lg',
+      );
+
+      playerElement.style.height = videoHeight + 'px';
     } else {
-      playerElement.style.cssText = `
-        display: none;
-      `;
+      playerElement.className = 'hidden';
     }
-  }, [videoPreview]);
+  }, [playerElement, videoPreview, videoHeight]);
 
   useEffect(() => {
     if (!playerElement) return;
