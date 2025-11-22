@@ -16,7 +16,9 @@ import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { minutesInMs } from '../utils/duration_in_ms';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
-import { BiVideo, BiVideoOff } from 'react-icons/bi';
+import { BiCog, BiVideo, BiVideoOff } from 'react-icons/bi';
+import { Popup } from '../components/popup';
+import { FormControl, Select } from '../components/form';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -53,7 +55,7 @@ export function PlayerBar({
 }: {
   documentId: string;
   editor: Editor;
-  onShowVideo?: (show: boolean) => void;
+  onShowVideo?: (show: boolean, height: number) => void;
 }) {
   const { data } = useGetDocumentMediaFiles(
     { document_id: documentId },
@@ -70,20 +72,38 @@ export function PlayerBar({
 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
 
+  const [videoSize, setVideoSize] = useLocalStorage<'small' | 'medium' | 'large' | 'very-large'>(
+    'videoPreviewSize',
+    'small',
+  );
   const [showVideo, setShowVideo] = useState(true);
   const reallyShowVideo = showVideo && hasVideo;
+
+  let videoHeight = 170; // small
+  switch (videoSize) {
+    case 'medium':
+      videoHeight = 210;
+      break;
+    case 'large':
+      videoHeight = 270;
+      break;
+    case 'very-large':
+      videoHeight = 370;
+      break;
+  }
 
   const audio = useAudio({
     playbackRate,
     sources: reallyShowVideo ? videoSources : audioSources,
     videoPreview: reallyShowVideo,
+    videoHeight,
   });
 
   useEffect(() => {
     if (onShowVideo) {
-      onShowVideo(reallyShowVideo);
+      onShowVideo(reallyShowVideo, videoHeight);
     }
-  }, [reallyShowVideo]);
+  }, [reallyShowVideo, videoHeight]);
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
@@ -223,6 +243,23 @@ export function PlayerBar({
             label={reallyShowVideo ? 'disable video preview' : 'enable video preview'}
             onClick={() => setShowVideo(!reallyShowVideo)}
           />
+        )}
+        {hasVideo && (
+          <Popup button={<IconButton icon={BiCog} label="video preview options" />}>
+            <div className="w-48">
+              <FormControl label={'Video Preview Size'}>
+                <Select
+                  value={videoSize}
+                  onChange={(e) => setVideoSize(e.target.value as typeof videoSize)}
+                >
+                  <option value={'small'}>Small</option>
+                  <option value={'medium'}>Medium</option>
+                  <option value={'large'}>Large</option>
+                  <option value={'very-large'}>Very Large</option>
+                </Select>
+              </FormControl>
+            </div>
+          </Popup>
         )}
       </div>
     </>
