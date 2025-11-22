@@ -77,6 +77,7 @@ export function PlayerBar({
     playbackRate,
     sources: reallyShowVideo ? videoSources : audioSources,
     videoPreview: reallyShowVideo,
+    documentId,
   });
 
   useEffect(() => {

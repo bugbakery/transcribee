@@ -6,9 +6,10 @@ type UseAudioOptions = {
   playbackRate?: number;
   sources: Array<{ src: string; type: string }>;
   videoPreview?: boolean;
+  documentId: string;
 };
 
-export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOptions) {
+export function useAudio({ sources, playbackRate, videoPreview, documentId }: UseAudioOptions) {
   const [playing, setPlayingState] = useState(false);
   const [duration, setDuration] = useState<number | undefined>();
   const [buffering, setBuffering] = useState(false);
@@ -45,24 +46,104 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
 
   useEffect(() => {
     if (!playerElement) return;
-    if (videoPreview) {
-      playerElement.className = clsx(
-        'fixed',
-        'right-6',
-        'bottom-24',
-        'w-[300px]',
-        'h-[171px]',
-        'bg-black',
-        'border-black dark:border-neutral-200',
-        'border-2',
-        'shadow-brutal',
-        'shadow-slate-400 dark:shadow-neutral-600',
-        'rounded-lg',
-      );
-    } else {
+    if (!videoPreview) {
       playerElement.className = 'hidden';
+      return;
     }
-  }, [videoPreview]);
+
+    playerElement.className = clsx(
+      'fixed',
+      'right-6',
+      'bottom-24',
+      'bg-black',
+      'border-black dark:border-neutral-200',
+      'border-2',
+      'shadow-brutal',
+      'shadow-slate-400 dark:shadow-neutral-600',
+      'rounded-lg',
+      'max-h-[calc(100vh-10rem)]',
+      'max-w-[calc(100vw-3rem)]',
+      'h-[200px]',
+    );
+
+    const videoBottomSpacer = document.getElementById('video-bottom-spacer');
+    const localStorageHeight = window.localStorage.getItem(`video-size-${documentId}`);
+    if (localStorageHeight) {
+      playerElement.style.height = localStorageHeight;
+
+      if (videoBottomSpacer) videoBottomSpacer.style.height = localStorageHeight;
+    }
+
+    const getCursorType = (e: MouseEvent) => {
+      const videoRect = playerElement.getBoundingClientRect();
+      const leftEdge = Math.abs(e.clientX - videoRect.x) < 10;
+      const topEdge = Math.abs(e.clientY - videoRect.y) < 10;
+      if (leftEdge && topEdge) {
+        return 'nw-resize';
+      } else if (leftEdge) {
+        return 'w-resize';
+      } else if (topEdge) {
+        return 'n-resize';
+      } else {
+        return 'initial';
+      }
+    };
+
+    let draggingStart: null | {
+      x: number;
+      y: number;
+      initialWidth: number;
+      initialHeight: number;
+      cursorType: 'nw-resize' | 'w-resize' | 'n-resize' | 'initial';
+    } = null;
+    const onPointerDown = (e: MouseEvent) => {
+      const videoRect = playerElement.getBoundingClientRect();
+      const cursorType = getCursorType(e);
+      if (cursorType != 'initial') {
+        draggingStart = {
+          x: e.clientX,
+          y: e.clientY,
+          initialWidth: videoRect.width,
+          initialHeight: videoRect.height,
+          cursorType,
+        };
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+
+    const onPointerUp = () => {
+      draggingStart = null;
+    };
+    document.addEventListener('pointerup', onPointerUp);
+
+    const onPointerMove = (e: MouseEvent) => {
+      if (draggingStart) {
+        let isWidth = draggingStart.cursorType == 'w-resize';
+        const targetAspect = draggingStart.initialWidth / draggingStart.initialHeight;
+        const width = draggingStart.initialWidth + draggingStart.x - e.clientX;
+        const height = draggingStart.initialHeight + draggingStart.y - e.clientY;
+        if (draggingStart.cursorType === 'nw-resize') {
+          const newAspect = width / height;
+          isWidth = targetAspect > newAspect;
+        }
+        const setHeight = isWidth ? width / targetAspect : height;
+        const maxHeight = (window.innerWidth - 50) / targetAspect;
+        playerElement.style.height = `${Math.max(Math.min(setHeight, maxHeight), 50)}px`;
+        if (videoBottomSpacer) videoBottomSpacer.style.height = playerElement.style.height;
+        window.localStorage.setItem(`video-size-${documentId}`, playerElement.style.height);
+      }
+      document.documentElement.style.cursor = getCursorType(e);
+    };
+    document.addEventListener('pointermove', onPointerMove);
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointermove', onPointerMove);
+    };
+  }, [playerElement, videoPreview, documentId]);
 
   useEffect(() => {
     if (!playerElement) return;

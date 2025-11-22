@@ -109,7 +109,6 @@ export function DocumentPage({
   const [_location, navigate] = useLocation();
   const debugMode = useDebugMode();
   const { isLoggedIn } = useAuthData();
-  const [videoVisible, setVideoVisible] = useState(false);
 
   const url = getDocumentWsUrl(documentId);
 
@@ -190,7 +189,6 @@ export function DocumentPage({
       </TopBar>
 
       <TranscriptionEditor
-        onShowVideo={setVideoVisible}
         editor={editor}
         documentId={documentId}
         initialValue={initialValue}
@@ -199,7 +197,7 @@ export function DocumentPage({
       />
 
       {/* Spacer to prevent video preview from hiding text */}
-      {videoVisible && <div className="h-36"></div>}
+      <div id="video-bottom-spacer" />
 
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </AppContainer>
