@@ -1,4 +1,5 @@
 import { actions, video, events, props } from '@podlove/html5-audio-driver';
+import clsx from 'clsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type UseAudioOptions = {
@@ -45,19 +46,95 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
   useEffect(() => {
     if (!playerElement) return;
     if (videoPreview) {
-      playerElement.style.cssText = `
-        position: fixed;
-        bottom: 90px;
-        right: 20px;
-        height: 170px;
-        width: 300px;
-      `;
+      playerElement.className = clsx(
+        'fixed',
+        'right-6',
+        'bottom-24',
+        'box-content', // prevent border from messing with aspect ratio
+        'bg-black',
+        'border-black dark:border-neutral-200',
+        'border-2',
+        'shadow-brutal',
+        'shadow-slate-400 dark:shadow-neutral-600',
+        'rounded-lg',
+        'w-max-[90vw]',
+        'h-max-[90vh]',
+      );
+
+      const getCursorType = (e: MouseEvent) => {
+        const videoRect = playerElement.getBoundingClientRect();
+        const videoCorner = {
+          x: videoRect.x,
+          y: videoRect.y,
+        };
+        const leftEdge = Math.abs(e.clientX - videoCorner.x) < 10;
+        const topEdge = Math.abs(e.clientY - videoCorner.y) < 10;
+        if (leftEdge && topEdge) {
+          return 'nw-resize';
+        } else if (leftEdge) {
+          return 'w-resize';
+        } else if (topEdge) {
+          return 'n-resize';
+        } else {
+          return 'initial';
+        }
+      };
+
+      let draggingStart: null | {
+        x: number;
+        y: number;
+        initialWidth: number;
+        initialHeight: number;
+        cursorType: 'nw-resize' | 'w-resize' | 'n-resize' | 'initial';
+      } = null;
+      document.addEventListener('mousedown', (e) => {
+        const videoRect = playerElement.getBoundingClientRect();
+        const cursorType = getCursorType(e);
+        if (cursorType != 'initial') {
+          draggingStart = {
+            x: e.clientX,
+            y: e.clientY,
+            initialWidth: videoRect.width,
+            initialHeight: videoRect.height,
+            cursorType,
+          };
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      });
+      document.addEventListener('mouseup', () => {
+        draggingStart = null;
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (draggingStart) {
+          let cursorOp = draggingStart.cursorType;
+          if (draggingStart.cursorType === 'nw-resize') {
+            const width = draggingStart.initialWidth + draggingStart.x - e.clientX;
+            const height = draggingStart.initialHeight + draggingStart.y - e.clientY;
+            const targetAspect = draggingStart.initialWidth / draggingStart.initialHeight;
+            const newAspect = width / height;
+            cursorOp = targetAspect < newAspect ? 'w-resize' : 'n-resize';
+          }
+
+          if (cursorOp === 'w-resize') {
+            playerElement.style.width = `${
+              draggingStart.initialWidth + draggingStart.x - e.clientX
+            }px`;
+            playerElement.style.height = 'unset';
+          } else if (cursorOp === 'n-resize') {
+            playerElement.style.height = `${
+              draggingStart.initialHeight + draggingStart.y - e.clientY
+            }px`;
+            playerElement.style.width = 'unset';
+          }
+        }
+
+        document.documentElement.style.cursor = getCursorType(e);
+      });
     } else {
-      playerElement.style.cssText = `
-        display: none;
-      `;
+      playerElement.className = 'hidden';
     }
-  }, [videoPreview]);
+  }, [playerElement, videoPreview]);
 
   useEffect(() => {
     if (!playerElement) return;
