@@ -6,9 +6,15 @@ type UseAudioOptions = {
   playbackRate?: number;
   sources: Array<{ src: string; type: string }>;
   videoPreview?: boolean;
+  videoHeight?: number;
 };
 
-export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOptions) {
+export function useAudio({
+  sources,
+  playbackRate,
+  videoPreview,
+  videoHeight = 170,
+}: UseAudioOptions) {
   const [playing, setPlayingState] = useState(false);
   const [duration, setDuration] = useState<number | undefined>();
   const [buffering, setBuffering] = useState(false);
@@ -50,8 +56,6 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
         'fixed',
         'right-6',
         'bottom-24',
-        'w-[300px]',
-        'h-[171px]',
         'bg-black',
         'border-black dark:border-neutral-200',
         'border-2',
@@ -59,10 +63,12 @@ export function useAudio({ sources, playbackRate, videoPreview }: UseAudioOption
         'shadow-slate-400 dark:shadow-neutral-600',
         'rounded-lg',
       );
+
+      playerElement.style.height = videoHeight + 'px';
     } else {
       playerElement.className = 'hidden';
     }
-  }, [videoPreview]);
+  }, [playerElement, videoPreview, videoHeight]);
 
   useEffect(() => {
     if (!playerElement) return;
