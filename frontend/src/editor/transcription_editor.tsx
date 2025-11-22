@@ -231,7 +231,7 @@ export function TranscriptionEditor({
   documentId: string;
   readOnly: boolean;
   initialValue?: Paragraph[];
-  onShowVideo?: (show: boolean, height: number) => void;
+  onShowVideo?: (show: boolean) => void;
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   // prevent ctrl+s
