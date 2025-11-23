@@ -1,5 +1,6 @@
 import { Link } from 'wouter';
 import clsx from 'clsx';
+import TruncateMarkup from 'react-truncate-markup';
 
 import { deleteDocument, useListDocuments } from '../api/document';
 import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
@@ -107,7 +108,9 @@ function DocumentCard({ doc, mutate }: { doc: ApiDocument; mutate: () => void })
           }}
         />
       </div>
-      {doc.name}
+      <TruncateMarkup lines={4}>
+        <div title={doc.name}>{doc.name}</div>
+      </TruncateMarkup>
     </LinkCard>
   );
 }
