@@ -32,7 +32,10 @@ export function TopBar({ children, className }: { children: React.ReactNode; cla
     </div>
   );
 }
-export const TopBarTitle = primitiveWithClassname('h2', 'text-xl font-bold');
+export const TopBarTitle = primitiveWithClassname(
+  'h2',
+  'text-xl font-bold text-nowrap text-ellipsis overflow-hidden',
+);
 export const TopBarPart = primitiveWithClassname('div', 'gap-4 flex items-center');
 
 export function MeButton() {

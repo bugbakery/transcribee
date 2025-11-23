@@ -72,11 +72,12 @@ export function IconButton({
       className={clsx(
         !discreet && 'p-2 hover:bg-gray-200 dark:hover:bg-neutral-700',
         'rounded-full',
+        'flex items-center',
         props.className,
       )}
     >
       {iconAfter && props.children}
-      <Icon className={iconClassName} size={size || 20} />
+      <Icon className={clsx('shrink-0', iconClassName)} size={size || 20} />
       {!iconAfter && props.children}
     </button>
   );

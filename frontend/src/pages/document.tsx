@@ -68,7 +68,7 @@ function DocumentTitle({ name, onChange }: { name: string; onChange: (newTitle: 
             autoFocus
             defaultValue={name}
             className="py-0 px-4 text-xl font-bold min-w-0 !mt-0"
-            onKeyPress={cancelEdit}
+            onKeyDown={cancelEdit}
             {...register('title', {
               validate: {
                 notWhitespace: (v) => v.trim().length > 0,
@@ -89,18 +89,15 @@ function DocumentTitle({ name, onChange }: { name: string; onChange: (newTitle: 
     );
   } else {
     return (
-      <div>
-        <IconButton
-          icon={BiPencil}
-          label="edit document title"
-          onClick={startEdit}
-          iconAfter={true}
-          iconClassName="inline-block -mt-1"
-          className="rounded-xl px-4 py-1"
-        >
-          <TopBarTitle className="mr-3 inline-block">{name}</TopBarTitle>
-        </IconButton>
-      </div>
+      <IconButton
+        icon={BiPencil}
+        label="edit document title"
+        onClick={startEdit}
+        iconAfter={true}
+        className="rounded-xl px-4 py-1 flex min-w-0"
+      >
+        <TopBarTitle className="mr-3 inline-block">{name}</TopBarTitle>
+      </IconButton>
     );
   }
 }
@@ -137,7 +134,11 @@ export function DocumentPage({
         <title>{data?.name}</title>
       </Helmet>
       <TopBar className="!items-start z-40">
-        <TopBarPart className={isLoggedIn ? 'sticky left-4 -ml-12 !items-start' : ''}>
+        <TopBarPart
+          className={
+            isLoggedIn ? 'sticky left-4 -ml-12 mr-10 !items-start grow basis-0 min-w-0' : ''
+          }
+        >
           {isLoggedIn && (
             <IconButton
               icon={IoIosArrowBack}
