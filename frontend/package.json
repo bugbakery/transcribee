@@ -75,6 +75,7 @@
     "react-json-tree": "^0.18.0",
     "react-markdown": "^8.0.7",
     "react-popper": "^2.3.0",
+    "react-truncate-markup": "^5.1.2",
     "reconnecting-websocket": "^4.4.0",
     "slate": "^0.94.1",
     "slate-automerge-doc": "github:bugbakery/slate-automerge-doc#98d7a78f14cb4a16484847e0090f6b5439cc16b6",
