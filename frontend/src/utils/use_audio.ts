@@ -65,6 +65,7 @@ export function useAudio({ sources, playbackRate, videoPreview, documentId }: Us
       'max-h-[calc(100vh-10rem)]',
       'max-w-[calc(100vw-3rem)]',
       'h-[200px]',
+      'z-20',
     );
 
     const videoBottomSpacer = document.getElementById('video-bottom-spacer');
