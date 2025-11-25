@@ -98,7 +98,6 @@ export function Dropdown({
           'px-2 py-1',
           'relative',
           'hover:z-10',
-          show.prolonged && 'z-50',
           buttonClassName,
         )}
         aria-expanded={show.now}
