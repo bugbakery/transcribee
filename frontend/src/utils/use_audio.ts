@@ -1,6 +1,7 @@
 import { actions, video, events, props } from '@podlove/html5-audio-driver';
 import clsx from 'clsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { padRect, rectContains } from './rect_utils';
 
 type UseAudioOptions = {
   playbackRate?: number;
@@ -76,13 +77,18 @@ export function useAudio({ sources, playbackRate, videoPreview, documentId }: Us
 
     const getCursorType = (e: MouseEvent) => {
       const videoRect = playerElement.getBoundingClientRect();
-      const leftEdge = Math.abs(e.clientX - videoRect.x) < 10;
-      const topEdge = Math.abs(e.clientY - videoRect.y) < 10;
-      if (leftEdge && topEdge) {
+      const paddedRect = padRect(videoRect, 10);
+      if (!rectContains(paddedRect, { x: e.clientX, y: e.clientY })) {
+        return 'initial';
+      }
+
+      const isLeftEdge = Math.abs(e.clientX - videoRect.x) < 10;
+      const isTopEdge = Math.abs(e.clientY - videoRect.y) < 10;
+      if (isLeftEdge && isTopEdge) {
         return 'nw-resize';
-      } else if (leftEdge) {
+      } else if (isLeftEdge) {
         return 'w-resize';
-      } else if (topEdge) {
+      } else if (isTopEdge) {
         return 'n-resize';
       } else {
         return 'initial';
@@ -133,8 +139,11 @@ export function useAudio({ sources, playbackRate, videoPreview, documentId }: Us
         playerElement.style.height = `${Math.max(Math.min(setHeight, maxHeight), 50)}px`;
         if (videoBottomSpacer) videoBottomSpacer.style.height = playerElement.style.height;
         window.localStorage.setItem(`video-size-${documentId}`, playerElement.style.height);
+
+        document.documentElement.style.cursor = draggingStart.cursorType;
+      } else {
+        document.documentElement.style.cursor = getCursorType(e);
       }
-      document.documentElement.style.cursor = getCursorType(e);
     };
     document.addEventListener('pointermove', onPointerMove);
 
