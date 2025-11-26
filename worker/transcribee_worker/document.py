@@ -4,7 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-import automerge
+from loro import LoroDoc
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
 from websockets.client import WebSocketClientProtocol
@@ -15,7 +15,7 @@ class UnsupportedDocumentVersion(Exception):
 
 
 class SyncedDocument:
-    doc: automerge.Document
+    doc: LoroDoc
     conn: WebSocketClientProtocol
     _stop: asyncio.Event
     _discard_messages_task: asyncio.Task
@@ -76,13 +76,13 @@ class SyncedDocument:
         if self.doc.version > 2:  # type: ignore
             raise UnsupportedDocumentVersion()
 
-    async def _get_document_state(self) -> automerge.Document:
-        doc = automerge.init(EditorDocument)
+    async def _get_document_state(self) -> LoroDoc:
+        doc = LoroDoc()
         while True:
             msg = await self.conn.recv()
             if isinstance(msg, bytes):
                 if msg[0] == SyncMessageType.CHANGE:
-                    automerge.apply_changes(doc, [msg[1:]])
+                    doc.import_(msg[1:])
                 elif msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
                     break
                 elif msg[0] == SyncMessageType.FULL_DOCUMENT:

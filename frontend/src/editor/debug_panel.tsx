@@ -1,6 +1,6 @@
 import { Transforms, Element, Editor } from 'slate';
-import * as Automerge from '@automerge/automerge';
-import { JSONTree } from 'react-json-tree';
+// import * as Automerge from '@automerge/automerge';
+import { JSONTree } from 'react-json-tree'; //
 import { getBase16Theme } from 'react-base16-styling';
 import { SecondaryButton } from '../components/button';
 import { useMediaQuery } from '../utils/use_media_query';

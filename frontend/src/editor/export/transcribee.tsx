@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import * as Automerge from '@automerge/automerge';
+// import * as Automerge from '@automerge/automerge';
 
 import { Checkbox } from '../../components/form';
 import { downloadBinaryAsFile } from '../../utils/download_text_as_file';
@@ -55,7 +55,9 @@ export function TranscribeeExportBody({ onClose, outputNameBase, editor, documen
                 includeOriginalMediaFile && originalMediaUrl ? originalMediaUrl : bestMediaUrl;
               const zipFileWriter = new Uint8ArrayWriter();
               const zipWriter = new ZipWriter(zipFileWriter, { level: 0 });
+
               const doc = new Uint8ArrayReader(Automerge.save(editor.doc));
+
               await Promise.all([
                 zipWriter.add('document.automerge', doc),
                 zipWriter.add('media', new HttpReader(mediaUrl, { preventHeadRequest: true })),

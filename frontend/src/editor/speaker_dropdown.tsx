@@ -1,6 +1,6 @@
 import { ComponentProps, useContext, useCallback } from 'react';
 import { ReactEditor, useSlateStatic } from 'slate-react';
-import * as Automerge from '@automerge/automerge';
+// import * as Automerge from '@automerge/automerge';
 
 import { Document, Paragraph } from './types';
 import { PrimaryButton, SecondaryButton } from '../components/button';
@@ -14,13 +14,13 @@ import { Editor, Transforms } from 'slate';
 import clsx from 'clsx';
 
 export function calculateParagraphIdxOfSpeakerEnd(editor: Editor, idx: number): number {
-  const speaker = editor.doc.children[idx].speaker;
+  const speaker = editor.docProxy.children[idx].speaker;
 
   let speakerEndIdx;
   for (
     speakerEndIdx = idx;
-    speakerEndIdx < editor.doc.children.length &&
-    editor.doc.children[speakerEndIdx].speaker == speaker;
+    speakerEndIdx < editor.docProxy.children.length &&
+    editor.docProxy.children[speakerEndIdx].speaker == speaker;
     speakerEndIdx++
   );
 
@@ -111,18 +111,23 @@ function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
 
 function addNewSpeaker(editor: Editor, speakerName: string): string {
   const speakerId = crypto.randomUUID();
-  const newDoc = Automerge.change(editor.doc, (draft: Document) => {
-    draft.speaker_names[speakerId] = speakerName;
-  });
-  editor.setDoc(newDoc);
+
+  editor._doc.get("speaker_names").set(speakerId, speakerName)
+  editor._doc.commit();
+  // const newDoc = Automerge.change(editor.doc, (draft: Document) => {
+  //   draft.speaker_names[speakerId] = speakerName;
+  // });
+  // editor.setDoc(newDoc);
   return speakerId;
 }
 
 function changeSpeakerName(editor: Editor, speakerId: string, speakerName: string) {
-  const newDoc = Automerge.change(editor.doc, (draft: Document) => {
-    draft.speaker_names[speakerId] = speakerName;
-  });
-  editor.setDoc(newDoc);
+  editor._doc.getMap("root").get("speaker_names").set(speakerId, speakerName)
+  editor._doc.commit();
+  // const newDoc = Automerge.change(editor.doc, (draft: Document) => {
+  //   draft.speaker_names[speakerId] = speakerName;
+  // });
+  // editor.setDoc(newDoc);
 }
 
 export function SpeakerDropdown({
@@ -188,7 +193,7 @@ export function SpeakerDropdown({
   return (
     <Dropdown
       {...props}
-      label={getSpeakerName(paragraph.speaker, editor.doc.speaker_names)}
+      label={getSpeakerName(paragraph.speaker, editor._doc.getMap("root"))}
       dropdownClassName="min-w-[210px]"
     >
       <SpeakerNamesSection

@@ -1,5 +1,5 @@
 import { WebVtt, VttCue, escapeVttString, formattedTime } from '@audapolis/webvtt-writer';
-import { Document, Paragraph, Text } from '../../editor/types';
+import { Document, LoroDocument, Paragraph, Text } from '../../editor/types';
 import { getSpeakerName } from '../document';
 
 function atomToString(item: Text, includeWordTimings: boolean): string {
@@ -17,14 +17,14 @@ function createVttCue({
   cuePayload,
   includeSpeakerNames,
   paragraph,
-  speakerNames,
+  doc,
 }: {
   cueStart: number;
   cueEnd: number;
   cuePayload: string;
   paragraph: Paragraph;
   includeSpeakerNames: boolean;
-  speakerNames: Record<string, string>;
+  doc: LoroDocument;
 }) {
   if (cueStart >= cueEnd) {
     console.log(
@@ -38,7 +38,7 @@ function createVttCue({
     endTime: cueEnd,
     payload:
       (includeSpeakerNames && paragraph.speaker
-        ? `<v ${escapeVttString(getSpeakerName(paragraph.speaker, speakerNames))}>`
+        ? `<v ${escapeVttString(getSpeakerName(paragraph.speaker, doc))}>`
         : '') + cuePayload,
     payloadEscaped: true,
   });

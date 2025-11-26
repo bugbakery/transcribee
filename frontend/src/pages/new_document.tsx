@@ -11,7 +11,7 @@ import { FormControl, Input, Select, Slider } from '../components/form';
 import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
 import { AppContainer } from '../components/app';
 import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
-import * as Automerge from '@automerge/automerge';
+// import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../utils/auth';
 import { HelpPopup } from '../components/popup';
 
@@ -52,7 +52,7 @@ export function NewDocumentPage() {
     watch,
   } = useForm<FieldValues>({
     values: {
-      quality: 4,
+      quality: 5,
       language: 'auto',
       audioFile: undefined,
       name: '',
@@ -124,7 +124,6 @@ export function NewDocumentPage() {
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
-        // since large uses the faster turbo model, there is no reason to use the medium model
         const modelRanking = ['tiny', 'base', 'small', 'large'] as const;
         const model = modelRanking[data.quality - 1];
 

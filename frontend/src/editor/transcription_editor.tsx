@@ -67,10 +67,10 @@ function Paragraph({ element, children, attributes }: RenderElementProps): JSX.E
     initialInView: !loading,
   });
 
-  const speakerChanged = useSlateSelector((editor) => {
+  const speakerChanged = useSlateSelector(useCallback((editor) => {
     const idx = ReactEditor.findPath(editor, element)[0];
-    return idx == 0 || editor.doc.children[idx - 1].speaker != element.speaker;
-  });
+    return idx == 0 || editor.docProxy.children[idx - 1].speaker != element.speaker;
+  }, [element]));
 
   const speakerName = useSpeakerName(element.speaker);
 
@@ -296,6 +296,16 @@ export function TranscriptionEditor({
                   renderElement={Paragraph}
                   renderLeaf={renderLeaf}
                   readOnly={readOnly}
+                  onKeyDown={(e: React.KeyboardEvent) => {
+                    if (e.ctrlKey)
+                      if(e.key == "z") {
+                        editor._undoManager.undo();
+                      }
+                      if(e.key == "y")  {
+                        editor._undoManager.redo();
+                      }
+                    }
+                  }
                   onClick={(e: React.MouseEvent) => {
                     const { selection } = editor;
 
