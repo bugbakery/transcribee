@@ -178,8 +178,12 @@ def transcribe_clean(
         strict_sentence_paragraphs,
     )
 
+    # hardcode faster-whisper for now, because mlx whisper
+    # does not implement beam-search and QOR is very bad
+    backend = decent_whisper.get_backend("faster")
+
     model = decent_whisper.model.choose_model(
-        decent_whisper.available_models(),
+        backend.available_models(),
         model_size=model_name,
         language=lang_code,
         use_single_language_models=True,
@@ -196,7 +200,7 @@ def transcribe_clean(
         decent_whisper.model.download_model(model)
         logging.info("Model downloaded")
 
-    paragraphs, transcription_info = decent_whisper.transcribe(
+    paragraphs, transcription_info = backend.transcribe(
         data, model=model, language=lang_code
     )
 
