@@ -23,7 +23,7 @@ export function useAuthData(): {
   hasShareToken: boolean;
   username: string | null;
 } {
-  const { data, isLoading } = useGetMe({});
+  const { data, isLoading } = useGetMe({}, { revalidateOnFocus: false }); // QUICKFIX: should this be revalidated?
   const isLoggedIn = data?.username !== undefined;
   const hasShareToken = getShareToken() !== null;
 
