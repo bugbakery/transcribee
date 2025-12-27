@@ -1,13 +1,25 @@
-import logging
+import enum
+import sys
+from math import ceil
+from pathlib import Path
+from typing import Mapping
 
-from transcribee_proto.document import Atom, Document, Paragraph
+from pydantic import BaseModel
+from transcribee_proto.document import (
+    Atom,
+    Document,
+    Paragraph,
+)
+from transcribee_proto.document import (
+    Document as EditorDocument,
+)
 
-from .webvtt_writer import VttCue, WebVtt, escape_vtt_string, formatted_time
+from .webvtt_writer import VttCue, WebVtt, escape_vtt_string
 
 
 def get_speaker_name(
     speaker: str | None,
-    speaker_names: dict[str, str],
+    speaker_names: Mapping[str, str],
 ) -> str:
     if speaker is None:
         return "Unknown Speaker"
@@ -18,123 +30,237 @@ def get_speaker_name(
             return f"Unnamed Speaker {speaker}"
 
 
-def atom_to_string(item: Atom, include_word_timings: bool):
-    if include_word_timings and isinstance(item.start, float):
-        return (
-            f"<{formatted_time(item.start)}><c>{escape_vtt_string(str(item.text))}</c>"
+class VoicePlacement(str, enum.Enum):
+    NONE = "NONE"
+    ALL = "ALL"
+    ON_CHANGE = "ON_CHANGE"
+
+
+class VoiceFormat(str, enum.Enum):
+    TAG = "TAG"
+    FIRST = "FIRST"
+    FULL = "FULL"
+
+
+class VoiceOptions(BaseModel):
+    format: VoiceFormat
+    placement: VoicePlacement
+
+
+class ExportSettings(BaseModel):
+    voice: VoiceOptions
+    include_word_timings: bool
+
+    max_line_length: int
+    maximum_rows: int
+    min_line_length: int
+
+    pack_paragraphs: bool
+
+
+def format_speaker(name, format: VoiceFormat):
+    match format:
+        case VoiceFormat.TAG:
+            return f"<v {name}>"
+        case VoiceFormat.FIRST:
+            return name.split()[0] + ": "
+        case VoiceFormat.FULL:
+            return name + ": "
+
+
+# this splits a list of atoms into multiple parts
+# num_splits gives the number of splits of perform -> num_splits = 1 means one split
+# is performed and two parts are returned
+# this finds the way to split the list of atoms into parts that are as similar in length as possible
+# (without breaking up the atoms itself)
+def reflow_text(atoms, num_splits):
+    def atoms_text_length(atoms):
+        return len("".join(a.text for a in atoms))
+
+    atom_length = atoms_text_length(atoms)
+
+    target_length = int(ceil(atom_length / (num_splits + 1)))
+
+    def split(atoms, num_splits):
+        if num_splits == 0:
+            yield [atoms]
+            return
+
+        partial_split = []
+
+        for i, atom in enumerate(atoms):
+            old_split = partial_split.copy()
+
+            partial_split.append(atom)
+
+            if atoms_text_length(partial_split) >= target_length:
+                for sub_split in split(atoms[i:], num_splits - 1):
+                    yield [old_split] + sub_split
+
+                for sub_split in split(atoms[i + 1 :], num_splits - 1):
+                    yield [partial_split] + sub_split
+
+                break
+
+    splits = list(split(atoms, num_splits))
+    text_splits = []
+    for canidate in splits:
+        lines = []
+        for line in canidate:
+            lines.append("".join(a.text for a in line).strip())
+
+        text_splits.append(lines)
+
+    def score_canidate(canidate):
+        mean_length = sum(len(line) for line in canidate) / len(canidate)
+        error = 0
+        for line in canidate:
+            error += (len(line) - mean_length) ** 2
+
+        return error
+
+    scores = [score_canidate(c) for c in text_splits]
+
+    best = scores.index(min(scores))
+
+    return splits[best], text_splits[best]
+
+
+def emit_cue(speaker_prefix, pars, config):
+    atoms = sum((par.children for par in pars), start=[])
+    atoms = [
+        Atom(
+            text=speaker_prefix,
+            start=atoms[0].start,
+            end=atoms[0].end,
+            conf=1.0,
+            conf_ts=0.0,
         )
+    ] + atoms
+
+    payload_length = len("".join(a.text for a in atoms))
+    if payload_length < (config.max_line_length + config.min_line_length):
+        target_splits = 1
     else:
-        return escape_vtt_string(str(item.text))
+        target_splits = config.maximum_rows
+
+    _, lines = reflow_text(atoms, target_splits - 1)
+
+    payload = "\n".join(lines)
+    start = atoms[0].start
+    end = atoms[-1].end
+
+    return VttCue(
+        start_time=start,
+        end_time=end,
+        payload=payload,
+        payload_escaped=True,
+    )
 
 
-def can_generate_vtt(paras: list[Paragraph] | None):
-    if paras is None:
-        return (False, "No document content")
-
-    for para in paras:
-        for atom in para.children:
-            if not isinstance(atom.end, float) or not isinstance(atom.start, float):
-                return (False, "Missing timings for at least one atom")
-
-        return (True, "")
-
-
-def paragraph_to_cues(
-    paragraph: Paragraph,
-    include_word_timings: bool,
-    include_speaker_names: bool,
-    max_line_length: int | None,
-    speaker_names,
-):
-    cues = []
-    cue_payload = ""
-    cue_length = 0
-    cue_start = None
-    cue_end = None
-
-    def push_payload(payload):
-        nonlocal cue_start, cue_end
-        if include_speaker_names and paragraph.speaker:
-            payload = (
-                f"<v {escape_vtt_string(get_speaker_name(paragraph.speaker, speaker_names))}>"
-                + payload
-            )
-
-        assert cue_start is not None
-        assert cue_end is not None
-
-        if cue_start >= cue_end:
-            logging.debug(
-                f"found {cue_start=} that is not before {cue_end=}"
-                ", fixing the end to be behind cue_start"
-            )
-            cue_end = cue_start + 0.02
-
-        cues.append(
-            VttCue(
-                start_time=cue_start,
-                end_time=cue_end,
-                payload=payload,
-                payload_escaped=True,
-            )
-        )
-
-    for atom in paragraph.children:
-        atom_text = str(atom.text)
-        if (
-            max_line_length is not None
-            and cue_start is not None
-            and cue_end is not None
-            and cue_length + len(atom_text) > max_line_length
-        ):
-            push_payload(cue_payload)
-
-            cue_payload = ""
-            cue_length = 0
-            cue_start = None
-            cue_end = None
-
-        if atom.start and (cue_start is None or atom.start < cue_start):
-            cue_start = atom.start
-
-        if atom.end and (cue_end is None or atom.end > cue_end):
-            cue_end = atom.end
-
-        cue_payload += atom_to_string(atom, include_word_timings)
-        cue_length += len(atom_text)
-
-    if len(cue_payload) > 0:
-        if cue_start is None or cue_end is None:
-            raise ValueError(
-                "Paragraph contains no timings, cannot generate cue(s)."
-                " Make sure to only call this function if `canGenerateVtt` returns true",
-            )
-        push_payload(cue_payload)
-
-    return cues
-
-
+# TODO: connect export settings to API
 def generate_web_vtt(
     doc: Document,
     include_speaker_names: bool,
     include_word_timing: bool,
     max_line_length: int | None,
 ) -> WebVtt:
+    config = ExportSettings(
+        voice=VoiceOptions(
+            format=VoiceFormat.FIRST,
+            placement=VoicePlacement.ON_CHANGE,
+        ),
+        pack_paragraphs=True,
+        min_line_length=10,
+        max_line_length=42,
+        maximum_rows=2,
+        include_word_timings=False,
+    )
+
     vtt = WebVtt(
         "This file was generated using transcribee."
         " Find out more at https://github.com/bugbakery/transcribee"
     )
-    for par in doc.children:
+
+    assert doc.speaker_names is not None
+
+    speakers = [
+        format_speaker(
+            escape_vtt_string(get_speaker_name(p.speaker, doc.speaker_names)),
+            config.voice.format,
+        )
+        for p in doc.children
+    ]
+    speaker_changes = [True] + [a != b for a, b in zip(speakers[1:], speakers[:-1])]
+
+    character_limit_pack = config.maximum_rows * config.max_line_length
+    character_limit_single = character_limit_pack + config.min_line_length
+
+    last_speaker = None
+    pars = []
+
+    def par_len(pars):
+        return sum(len(p.text()) for p in pars)
+
+    for speaker, speaker_change, par in zip(speakers, speaker_changes, doc.children):
+        match config.voice.placement:
+            case VoicePlacement.NONE:
+                speaker = ""
+            case VoicePlacement.ON_CHANGE:
+                if not speaker_change:
+                    speaker = ""
+            case VoicePlacement.ALL:
+                pass
+
         if len(par.children) == 0:
             continue
 
-        for cue in paragraph_to_cues(
-            par,
-            include_word_timing,
-            include_speaker_names,
-            max_line_length,
-            doc.speaker_names,
-        ):
-            vtt.add(cue)
+        this_par_len = len(par.text())
+        can_pack = config.pack_paragraphs and not speaker_change
+
+        # can pack and previous wanted to pack with us
+        if can_pack and len(pars) != 0:
+            fits = par_len(pars) + this_par_len < character_limit_pack
+            if fits:
+                pars.append(par)
+                last_speaker = speaker
+                continue
+
+        # here we are done packing with the previous one, flush any remaining...
+        if len(pars) != 0:
+            vtt.add(emit_cue(last_speaker, pars, config))
+            pars = []
+
+        # investigate the current paragraph. try packing with the next if we are below the limit
+        if this_par_len < character_limit_pack:
+            pars.append(par)
+        # if we are only slightly above the cue limit, emit this as a single paragraph
+        elif this_par_len < character_limit_single:
+            vtt.add(emit_cue(speaker, [par], config))
+        else:
+            # we are so far over the limit that we need to split this into multiple paragraphs
+            # we do this by reflowing it into the appropriate amount of paragraphs
+            num_splits = int(ceil(len(par.text()) / character_limit_pack))
+            split_pars, _ = reflow_text(par.children, num_splits - 1)
+            for split_par in split_pars:
+                vtt.add(
+                    emit_cue(
+                        speaker, [Paragraph(children=split_par, lang=par.lang)], config
+                    )
+                )
+                speaker = ""
+
+        last_speaker = speaker
 
     return vtt
+
+
+if __name__ == "__main__":
+    import automerge
+
+    doc = automerge.load(Path(sys.argv[1]).read_bytes())
+
+    res = generate_web_vtt(
+        EditorDocument.model_validate(automerge.dump(doc)), True, False, 42
+    ).to_string()
+    print(res)
