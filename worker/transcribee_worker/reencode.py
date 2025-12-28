@@ -23,7 +23,7 @@ async def reencode(
 ):
     def read_progress(stdout: IO):
         for raw_line in stdout:
-            key, value = raw_line.decode().strip().split("=", maxsplit=1)
+            key, value = raw_line.decode(errors="ignore").strip().split("=", maxsplit=1)
 
             if key == "out_time_ms":
                 if value != "N/A":
@@ -54,7 +54,7 @@ async def reencode(
 
         stderr_data = []
         for raw_line in cmd.stderr:
-            line = raw_line.decode().rstrip()
+            line = raw_line.decode(errors="ignore").rstrip()
             logging.info(line)
             stderr_data.append(line)
 
