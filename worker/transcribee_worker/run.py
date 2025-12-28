@@ -11,6 +11,7 @@ from multiprocessing import Process
 from pathlib import Path
 
 import requests.exceptions
+from transcribee_proto.api import TaskType
 from transcribee_worker.config import settings
 from watchfiles import watch
 
@@ -39,6 +40,10 @@ def main():
     parser.add_argument("--token", help="Worker token", required=True)
     parser.add_argument("--run-once-and-dont-complete", action="store_true")
     parser.add_argument("--reload", action="store_true")
+    parser.add_argument(
+        "--task-types",
+        help="Task types to run [identify,align,transcribe,reencode,export]",
+    )
     args = parser.parse_args()
 
     if args.websocket_base_url is None:
@@ -131,10 +136,36 @@ async def run(args):
     # allow to cancel shutdown via SIGUSR1
     loop.add_signal_handler(signal.SIGUSR1, cancel_shutdown)
 
+    if args.task_types is None:
+        task_types = [
+            TaskType.IDENTIFY_SPEAKERS,
+            TaskType.ALIGN,
+            TaskType.TRANSCRIBE,
+            TaskType.REENCODE,
+            TaskType.EXPORT,
+        ]
+    else:
+        task_types = []
+        if "identify" in args.task_types:
+            task_types.append(TaskType.IDENTIFY_SPEAKERS)
+        if "align" in args.task_types:
+            task_types.append(TaskType.ALIGN)
+        if "transcribe" in args.task_types:
+            task_types.append(TaskType.TRANSCRIBE)
+        if "reencode" in args.task_types:
+            task_types.append(TaskType.REENCODE)
+        if "export" in args.task_types:
+            task_types.append(TaskType.EXPORT)
+
+    logging.info(
+        f"Running worker with task types: {', '.join([t.name for t in task_types])}"
+    )
+
     worker = Worker(
         base_url=f"{args.coordinator}/api/v1/tasks",
         websocket_base_url=args.websocket_base_url,
         token=args.token,
+        task_types=task_types,
     )
     while not finish_event.is_set():
         try:
