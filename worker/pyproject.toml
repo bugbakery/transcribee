@@ -25,7 +25,7 @@ dependencies = [
     "transcribee-proto",
     "PyICU~=2.11",
     "pydantic-settings>=2.7",
-    "decent-whisper @ git+https://github.com/bugbakery/decent-whisper.git@5cf4fe6",
+    "decent-whisper @ git+https://github.com/bugbakery/decent-whisper.git@b56e13f",
 ]
 
 requires-python = ">=3.11"

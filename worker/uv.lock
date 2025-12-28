@@ -259,7 +259,7 @@ wheels = [
 [[package]]
 name = "decent-whisper"
 version = "0.1.0"
-source = { git = "https://github.com/bugbakery/decent-whisper.git?rev=5cf4fe6#5cf4fe6e5b3f28eb5c7acdc521bf630b8d012b97" }
+source = { git = "https://github.com/bugbakery/decent-whisper.git?rev=b56e13f#b56e13f22fb08a3d8822f66c0497768e6a0aa765" }
 dependencies = [
     { name = "faster-whisper" },
     { name = "huggingface-hub" },
@@ -1506,7 +1506,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "automerge", git = "https://github.com/bugbakery/automerge-py.git?rev=ca6d8d3" },
-    { name = "decent-whisper", git = "https://github.com/bugbakery/decent-whisper.git?rev=5cf4fe6" },
+    { name = "decent-whisper", git = "https://github.com/bugbakery/decent-whisper.git?rev=b56e13f" },
     { name = "ffmpeg-python", specifier = "~=0.2" },
     { name = "numpy", specifier = "~=2.0" },
     { name = "pydantic", specifier = "~=2.2" },
