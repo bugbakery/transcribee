@@ -126,13 +126,41 @@ def reflow_text(atoms, num_splits):
     return splits[best], text_splits[best]
 
 
-def emit_cue(speaker_prefix, pars, config):
-    atoms = sum((par.children for par in pars), start=[])
+# splits multi word atoms into atoms of subwords
+# this does not try to do anything with the timestamps
+# so do not expect the split up atoms to have any useable timestamps
+def split_atoms(atoms):
+    result = []
+    for atom in atoms:
+        parts = atom.text.split(" ")
+        for part in parts:
+            result.append(
+                Atom(
+                    text=part + " ",
+                    start=atom.start,
+                    end=atom.end,
+                    conf=atom.conf,
+                    conf_ts=atom.conf_ts,
+                )
+            )
+
+    return result
+
+
+def emit_cue(vtt, speaker_prefix, pars, config):
+    atoms = sum((split_atoms(par.children) for par in pars), start=[])
+    if len(atoms) == 0:
+        return
+
+    start = min(atom.start for atom in atoms)
+    end = max(atom.end for atom in atoms)
+    if end <= start:
+        end = start + 0.02
     atoms = [
         Atom(
             text=speaker_prefix,
-            start=atoms[0].start,
-            end=atoms[0].end,
+            start=start,
+            end=start,
             conf=1.0,
             conf_ts=0.0,
         )
@@ -147,14 +175,14 @@ def emit_cue(speaker_prefix, pars, config):
     _, lines = reflow_text(atoms, target_splits - 1)
 
     payload = "\n".join(lines)
-    start = atoms[0].start
-    end = atoms[-1].end
 
-    return VttCue(
-        start_time=start,
-        end_time=end,
-        payload=payload,
-        payload_escaped=True,
+    vtt.add(
+        VttCue(
+            start_time=start,
+            end_time=end,
+            payload=payload,
+            payload_escaped=True,
+        )
     )
 
 
@@ -228,7 +256,7 @@ def generate_web_vtt(
 
         # here we are done packing with the previous one, flush any remaining...
         if len(pars) != 0:
-            vtt.add(emit_cue(last_speaker, pars, config))
+            emit_cue(vtt, last_speaker, pars, config)
             pars = []
 
         # investigate the current paragraph. try packing with the next if we are below the limit
@@ -236,17 +264,15 @@ def generate_web_vtt(
             pars.append(par)
         # if we are only slightly above the cue limit, emit this as a single paragraph
         elif this_par_len < character_limit_single:
-            vtt.add(emit_cue(speaker, [par], config))
+            emit_cue(vtt, speaker, [par], config)
         else:
             # we are so far over the limit that we need to split this into multiple paragraphs
             # we do this by reflowing it into the appropriate amount of paragraphs
             num_splits = int(ceil(len(par.text()) / character_limit_pack))
             split_pars, _ = reflow_text(par.children, num_splits - 1)
             for split_par in split_pars:
-                vtt.add(
-                    emit_cue(
-                        speaker, [Paragraph(children=split_par, lang=par.lang)], config
-                    )
+                emit_cue(
+                    vtt, speaker, [Paragraph(children=split_par, lang=par.lang)], config
                 )
                 speaker = ""
 
