@@ -118,6 +118,7 @@ async def identify_speakers(
                 label_map[label] = str(len(label_map) + 1)
 
         for para, label in zip(doc.children, labels):
-            para.speaker = automerge.Text(label_map[label])
+            if para.speaker is None:
+                para.speaker = automerge.Text(label_map[label])
 
     return await alist(aiter(async_task(work)))
