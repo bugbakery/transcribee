@@ -86,7 +86,9 @@ class SyncedDocument:
                 elif msg[0] == SyncMessageType.CHANGE_BACKLOG_COMPLETE:
                     break
                 elif msg[0] == SyncMessageType.FULL_DOCUMENT:
-                    doc = automerge.load(msg[1:])
+                    load_options = automerge.LoadOptions()
+                    load_options.on_partial_load = automerge.OnPartialLoad.Ignore
+                    doc = automerge.load_with_options(msg[1:], load_options)
 
         return doc
 

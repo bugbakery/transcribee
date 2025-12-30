@@ -54,8 +54,8 @@ wheels = [
 
 [[package]]
 name = "automerge"
-version = "0.1.1"
-source = { git = "https://github.com/bugbakery/automerge-py.git?rev=ca6d8d3#ca6d8d31880c1118e3f9fb40717854df325a5bbc" }
+version = "0.0.1"
+source = { git = "https://github.com/bugbakery/automerge-py.git?rev=a381bc8#a381bc8e43c4a2621d86d718e5ec6089dd3c0acc" }
 
 [[package]]
 name = "av"
@@ -1505,7 +1505,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "automerge", git = "https://github.com/bugbakery/automerge-py.git?rev=ca6d8d3" },
+    { name = "automerge", git = "https://github.com/bugbakery/automerge-py.git?rev=a381bc8" },
     { name = "decent-whisper", git = "https://github.com/bugbakery/decent-whisper.git?rev=b56e13f" },
     { name = "ffmpeg-python", specifier = "~=0.2" },
     { name = "numpy", specifier = "~=2.0" },
