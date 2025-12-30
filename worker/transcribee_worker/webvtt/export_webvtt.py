@@ -1,4 +1,5 @@
 import enum
+import re
 import sys
 from math import ceil
 from pathlib import Path
@@ -132,11 +133,11 @@ def reflow_text(atoms, num_splits):
 def split_atoms(atoms):
     result = []
     for atom in atoms:
-        parts = atom.text.split(" ")
+        parts = re.split("( )", atom.text)
         for part in parts:
             result.append(
                 Atom(
-                    text=part + " ",
+                    text=part,
                     start=atom.start,
                     end=atom.end,
                     conf=atom.conf,
