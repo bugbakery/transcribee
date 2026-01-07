@@ -18,6 +18,7 @@ import { Helmet } from 'react-helmet';
 import { ShareModal } from '../editor/share';
 import { getDocumentWsUrl, useAuthData } from '../utils/auth';
 import { ExportModal } from '../editor/export';
+import { TextTools } from '../editor/text_tools';
 
 const LazyDebugPanel = lazy(() =>
   import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
@@ -163,6 +164,7 @@ export function DocumentPage({
           )}
         </TopBarPart>
         <TopBarPart>
+          {editor && <TextTools editor={editor} />}
           {data?.has_full_access && (
             <IconButton
               icon={TbShare3}
