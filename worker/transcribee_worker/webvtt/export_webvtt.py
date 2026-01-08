@@ -252,7 +252,6 @@ def generate_web_vtt(
             fits = par_len(pars) + this_par_len < character_limit_pack
             if fits:
                 pars.append(par)
-                last_speaker = speaker
                 continue
 
         # here we are done packing with the previous one, flush any remaining...
