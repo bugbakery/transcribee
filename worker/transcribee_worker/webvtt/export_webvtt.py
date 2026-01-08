@@ -148,7 +148,19 @@ def split_atoms(atoms):
     return result
 
 
-def emit_cue(vtt, speaker_prefix, pars, config):
+def ensure_trailing_space(par: Paragraph):
+    if not par.children:
+        return
+
+    last_child = par.children[-1]
+    if not last_child.text.endswith(" "):
+        last_child.text += " "
+
+
+def emit_cue(vtt, speaker_prefix: str | None, pars: list[Paragraph], config):
+    for par in pars:
+        ensure_trailing_space(par)
+
     atoms = sum((split_atoms(par.children) for par in pars), start=[])
     if len(atoms) == 0:
         return
@@ -157,15 +169,17 @@ def emit_cue(vtt, speaker_prefix, pars, config):
     end = max(atom.end for atom in atoms)
     if end <= start:
         end = start + 0.02
-    atoms = [
-        Atom(
-            text=speaker_prefix,
-            start=start,
-            end=start,
-            conf=1.0,
-            conf_ts=0.0,
-        )
-    ] + atoms
+
+    if speaker_prefix is not None:
+        atoms = [
+            Atom(
+                text=speaker_prefix,
+                start=start,
+                end=start,
+                conf=1.0,
+                conf_ts=0.0,
+            )
+        ] + atoms
 
     payload_length = len("".join(a.text for a in atoms))
     if payload_length < (config.max_line_length + config.min_line_length):
@@ -226,7 +240,7 @@ def generate_web_vtt(
     character_limit_single = character_limit_pack + config.min_line_length
 
     last_speaker = None
-    pars = []
+    pars: list[Paragraph] = []
 
     def par_len(pars):
         return sum(len(p.text()) for p in pars)
