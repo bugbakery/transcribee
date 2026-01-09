@@ -16,14 +16,18 @@ enum MessageSyncType {
   FullDoc = 3,
 }
 
+export type EditorWithWebsocket = Editor & {
+  update: (changeFn: (doc: Document) => void) => void;
+};
+
 export function useAutomergeWebsocketEditor(
   url: string,
   { onInitialSyncComplete }: { onInitialSyncComplete: (editor?: Editor) => void },
-): [Editor?, Paragraph[]?] {
+): [EditorWithWebsocket?, Paragraph[]?] {
   const debug = useDebugMode();
   const sentChanges = useRef<Set<string>>(new Set());
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
-    editor: Editor;
+    editor: EditorWithWebsocket;
     initialValue: Paragraph[];
   }>(null);
   const editorRef = useRef<undefined | Editor>();
@@ -54,7 +58,9 @@ export function useAutomergeWebsocketEditor(
     const createNewEditor = (doc: Automerge.Doc<Document>) => {
       const baseEditor = createEditor();
       const editorWithReact = withReact(baseEditor);
-      const editor = withHistory(withAutomergeDoc(editorWithReact, Automerge.init()));
+      const editor = withHistory(
+        withAutomergeDoc(editorWithReact, Automerge.init()),
+      ) as EditorWithWebsocket;
       editor.addDocChangeListener(sendDocChange);
 
       const migratedDoc = migrateDocument(doc as Automerge.Doc<Document>);
@@ -68,6 +74,18 @@ export function useAutomergeWebsocketEditor(
           migratedDoc.children !== undefined
             ? JSON.parse(JSON.stringify(migratedDoc.children))
             : [];
+
+        editor.update = (changeFn: (doc: Document) => void) => {
+          console.time('changeFn');
+          const changed = Automerge.change(editor.doc, changeFn);
+          console.timeEnd('changeFn');
+          console.time('setDoc');
+          editor.setDoc(changed);
+          console.timeEnd('setDoc');
+          console.time('sendDocChange');
+          sendDocChange(changed);
+          console.timeEnd('sendDocChange');
+        };
         return { editor: editor, initialValue: initialValue };
       });
     };
