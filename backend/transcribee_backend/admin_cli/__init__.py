@@ -5,6 +5,7 @@ from .commands.create_api_token import CreateApiTokenCmd
 from .commands.create_user import CreateUserCmd
 from .commands.create_user_token import CreateUserTokenCmd
 from .commands.create_worker import CreateWorkerCmd
+from .commands.list_documents import ListDocumentsCmd
 from .commands.reset_task import ResetTaskCmd
 from .commands.set_document import SetDocumentCmd
 from .commands.set_password import SetPasswordCmd
@@ -27,6 +28,7 @@ add_command("create_worker", "Register a new worker", CreateWorkerCmd())
 add_command("reset_task", "Reset a task", ResetTaskCmd())
 add_command("set_password", "Set the password of a user", SetPasswordCmd())
 add_command("set_document", "Set the document contents of a document", SetDocumentCmd())
+add_command("list_documents", "List all documents", ListDocumentsCmd())
 
 
 def main():
