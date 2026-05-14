@@ -1,0 +1,18 @@
+{
+    "python": {
+        "linux-x86_64": "https://github.com/astral-sh/python-build-standalone/releases/download/20260510/cpython-3.12.13+20260510-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+        "linux-aarch64": "https://github.com/astral-sh/python-build-standalone/releases/download/20260510/cpython-3.12.13+20260510-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
+        "win-x86_64": "https://github.com/astral-sh/python-build-standalone/releases/download/20260510/cpython-3.12.13+20260510-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+        "win-aarch64": "https://github.com/astral-sh/python-build-standalone/releases/download/20260510/cpython-3.12.13+20260510-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
+        "darwin-x86_64": "https://github.com/astral-sh/python-build-standalone/releases/download/20260510/cpython-3.12.13+20260510-x86_64-apple-darwin-install_only_stripped.tar.gz",
+        "darwin-aarch64": "https://github.com/astral-sh/python-build-standalone/releases/download/20260510/cpython-3.12.13+20260510-aarch64-apple-darwin-install_only_stripped.tar.gz"
+    },
+    "ffmpeg": {
+      "linux-x86_64": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-05-04-17-29/ffmpeg-n8.1.1-linux64-gpl-shared-8.1.tar.xz",
+        "linux-aarch64": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-05-04-17-29/ffmpeg-n8.1.1-linuxarm64-gpl-shared-8.1.tar.xz",
+        "win-x86_64": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-05-04-17-29/ffmpeg-n8.1.1-win64-gpl-shared-8.1.zip",
+        "win-aarch64": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-05-04-17-29/ffmpeg-n8.1.1-winarm64-gpl-shared-8.1.zip",
+        "darwin-x86_64": ["https://ffmpeg.martin-riedl.de/download/macos/amd64/1778768838_8.1.1/ffmpeg.zip", "https://ffmpeg.martin-riedl.de/download/macos/amd64/1778768838_8.1.1/ffprobe.zip"],
+        "darwin-aarch64": ["https://ffmpeg.martin-riedl.de/download/macos/arm64/1778761665_8.1.1/ffmpeg.zip", "https://ffmpeg.martin-riedl.de/download/macos/arm64/1778761665_8.1.1/ffprobe.zip"]
+    }
+}
