@@ -23,12 +23,12 @@ dependencies = [
     "speechbrain~=0.5",
     "ffmpeg-python~=0.2",
     "transcribee-proto",
-    "PyICU~=2.11",
+    "pyicu-wheels~=2.15",
     "pydantic-settings>=2.7",
     "decent-whisper @ git+https://github.com/bugbakery/decent-whisper.git@b56e13f",
 ]
 
-requires-python = ">=3.11"
+requires-python = "~=3.12.0"
 readme = "README.md"
 license = { text = "AGPL-3.0" }
 
@@ -74,5 +74,5 @@ explicit = true
 packages = ["transcribee_worker"]
 
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"

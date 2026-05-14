@@ -2,7 +2,7 @@
 
 # Installs the dependencies of all transcribee components
 # This script should work on a fresh clone of transcribee but should be run in an environment like
-# the one described in the shell.nix file.
+# the one described in the ../flake.nix file.
 
 set -euxo pipefail
 
