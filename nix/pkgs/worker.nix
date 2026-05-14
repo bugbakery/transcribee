@@ -33,14 +33,13 @@ let
       '';
     });
 
-    pyicu = prev.pyicu.overrideAttrs (old: {
+    "decent-whisper" = prev."decent-whisper".overrideAttrs (old: {
       nativeBuildInputs = old.nativeBuildInputs ++ [
-        pkgs.icu.dev
         (final.resolveBuildSystem { })
       ];
     });
 
-    "decent-whisper" = prev."decent-whisper".overrideAttrs (old: {
+    websockets = prev.websockets.overrideAttrs (old: {
       nativeBuildInputs = old.nativeBuildInputs ++ [
         (final.resolveBuildSystem { })
       ];
@@ -54,7 +53,7 @@ let
         install_name_tool -change \
             @rpath/libmlx.dylib \
             "${final."mlx-metal"}/${final.python.sitePackages}/mlx/lib/libmlx.dylib" \
-            "$out/${final.python.sitePackages}/mlx/core.cpython-311-darwin.so"
+            "$out/${final.python.sitePackages}/mlx/core.cpython-312-darwin.so"
       '';
     });
   };
@@ -64,7 +63,7 @@ let
       inherit python;
       stdenv = pkgs.stdenv.override {
         targetPlatform = pkgs.stdenv.targetPlatform // {
-          darwinSdkVersion = "13.0";
+          darwinSdkVersion = "15.0";
         };
       };
     }).overrideScope

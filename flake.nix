@@ -36,7 +36,7 @@
       ...
     }:
     let
-      pythonPkgName = "python311";
+      pythonPkgName = "python312";
     in
     {
       overlays.default = (
@@ -145,10 +145,9 @@
             pkgs.rustc
             pkgs.cargo
 
-            pkgs.icu.dev
-
             # Our database
             pkgs.postgresql_14
+            pkgs.postgresql_14.pg_config
 
             # Our database2 ?
             pkgs.redis

@@ -19,10 +19,17 @@ let
       nativeBuildInputs = old.nativeBuildInputs ++ [
         final.setuptools
         pkgs.postgresql_14
+        pkgs.postgresql_14.pg_config
       ];
 
       buildInputs = (old.buildInputs or [ ]) ++ [
         pkgs.openssl
+      ];
+    });
+
+    websockets = prev.websockets.overrideAttrs (old: {
+      nativeBuildInputs = old.nativeBuildInputs ++ [
+        (final.resolveBuildSystem { })
       ];
     });
   };
