@@ -122,7 +122,7 @@
             pkgs.wait4x
             pkgs.pre-commit
 
-            pkgs.nodejs_20
+            pkgs.nodejs_24
 
             # nix tooling
             pkgs.nixpkgs-fmt
