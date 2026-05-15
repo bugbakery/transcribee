@@ -4,6 +4,7 @@ backend/storage
 backend/.venv
 worker/.venv
 frontend/node_modules/
+frontend/dist/
 frontend/testData
 .git
 packaging/Dockerfile
