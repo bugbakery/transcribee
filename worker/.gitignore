@@ -5,3 +5,8 @@ __pycache__/
 *.egg-info
 transcribee_worker/.data
 dist/
+build/
+.native-deps-dl/
+.native-deps-marker
+native-deps/
+.pytest_cache/
