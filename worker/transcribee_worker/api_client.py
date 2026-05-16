@@ -7,7 +7,7 @@ from uuid import UUID
 
 import requests
 from transcribee_worker.document import SyncedDocument
-from websockets.client import connect
+from websockets.legacy.client import connect
 
 
 class ApiClient:

@@ -7,7 +7,7 @@ from typing import AsyncGenerator
 import automerge
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_proto.sync import SyncMessageType
-from websockets.client import WebSocketClientProtocol
+from websockets.legacy.client import WebSocketClientProtocol
 
 
 class UnsupportedDocumentVersion(Exception):

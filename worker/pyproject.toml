@@ -16,8 +16,8 @@ dependencies = [
     "transformers~=4.26",
     "torchaudio~=2.0",
     "torch~=2.0",
-    "automerge @ git+https://github.com/bugbakery/automerge-py.git@a381bc8",
-    "websockets~=10.4",
+    "automerge~=0.0.1",
+    "websockets~=16.0",
     "scikit-learn~=1.2",
     "watchfiles~=0.19",
     "speechbrain~=0.5",
@@ -64,14 +64,24 @@ config-settings = { editable_mode = "compat" }
 torch = { index = "pytorch-cpu" }
 torchaudio = { index = "pytorch-cpu" }
 transcribee-proto = { path = "../proto", editable = true }
+automerge = { index = "automerge-py" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
+[[tool.uv.index]]
+name = "automerge-py"
+url = "https://github.com/bugbakery/automerge-py/releases/expanded_assets/v0.1"
+format = "flat"
+explicit = true
+
 [tool.setuptools]
 packages = ["transcribee_worker"]
+
+[tool.pyright]
+reportPrivateImportUsage = "none"
 
 [build-system]
 requires = ["setuptools"]
