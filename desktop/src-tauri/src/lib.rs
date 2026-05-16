@@ -3,7 +3,6 @@ use log::Level;
 use tauri_plugin_log::fern;
 use tauri_plugin_shell::ShellExt;
 
-mod backend;
 mod backend_plugin;
 mod worker_plugin;
 

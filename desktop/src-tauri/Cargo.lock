@@ -873,6 +873,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "desktop-backend"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "log",
+ "serde",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4467,6 +4478,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "colored",
+ "desktop-backend",
  "log",
  "serde",
  "serde_json",
