@@ -15,6 +15,7 @@ from transcribee_backend.routers.page import page_router
 from transcribee_backend.routers.task import task_router
 from transcribee_backend.routers.user import user_router
 from transcribee_backend.routers.worker import worker_router
+from transcribee_backend.static_files import StaticFilesWithIndexFallback
 
 from .media_storage import serve_media
 
@@ -61,10 +62,17 @@ app.include_router(config_router, prefix="/api/v1/config")
 app.include_router(page_router, prefix="/api/v1/page")
 app.include_router(worker_router, prefix="/api/v1/worker")
 
-
-@app.get("/")
-async def root():
-    return {"message": "🎤🐝: *taps mic* bzzp bzzp"}
-
-
 app.get("/media/{file}")(serve_media)
+
+
+app.mount(
+    "/",
+    StaticFilesWithIndexFallback(
+        directory="public",
+        html=True,
+        no_cache_paths=[".", "index.html"],
+        assets_prefix="assets/",
+        assets_cache_header="public, max-age=86400, immutable",  # aggressively cache for 1 day
+    ),
+    name="static-files",
+)
