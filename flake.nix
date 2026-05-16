@@ -147,8 +147,8 @@
             pkgs.cargo
 
             # Our database
-            pkgs.postgresql_14
-            pkgs.postgresql_14.pg_config
+            pkgs.postgresql_18
+            pkgs.postgresql_18.pg_config
 
             # Our database2 ?
             pkgs.redis
