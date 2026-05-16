@@ -1,20 +1,16 @@
-name: transcribee
+name: transcribee-dev
 
 services:
-  backend:
+  transcribee-dev:
     build:
-      dockerfile: ./packaging/docker/Dockerfile
+      dockerfile: ./packaging/docker/Dockerfile-dev
     environment:
       TRANSCRIBEE_BACKEND_DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
-      REDIS_HOST: valkey
-      TESTUSER_PASSWORD: test
     ports:
-      - "8000:8000"
+      - "5173:5173"
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - postgres-data:/var/lib/postgresql
   db:
     image: postgres:18
     restart: always
@@ -26,9 +22,8 @@ services:
       interval: 1s
       timeout: 5s
       retries: 10
-  valkey:
-    image: redis:8
-    restart: always
+    volumes:
+      - postgres-data:/var/lib/postgresql
 
 volumes:
   postgres-data:
