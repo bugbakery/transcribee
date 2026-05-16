@@ -1,12 +1,16 @@
 {
-    "python.autoComplete.extraPaths": [
-        "backend/.venv/lib/python3.11/site-packages",
-        "worker/.venv/lib/python3.11/site-packages"
-    ],
-    "python.analysis.extraPaths": [
-        "backend/.venv/lib/python3.11/site-packages",
-        "worker/.venv/lib/python3.11/site-packages"
-    ],
-    "python.analysis.typeCheckingMode": "basic",
-    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+  "python.autoComplete.extraPaths": [
+    "backend/.venv/lib/python3.11/site-packages",
+    "worker/.venv/lib/python3.11/site-packages"
+  ],
+  "python.analysis.extraPaths": [
+    "backend/.venv/lib/python3.11/site-packages",
+    "worker/.venv/lib/python3.11/site-packages"
+  ],
+  "python.analysis.typeCheckingMode": "basic",
+  "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+  "rust-analyzer.linkedProjects": [
+    "desktop/src-tauri/Cargo.toml",
+    "desktop/desktop-backend/Cargo.toml"
+  ]
 }
