@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "org.bugbakery.transcribee-desktop",
   "build": {
-    "beforeDevCommand": "uv run src-tauri/prepare_resources.py && npm run dev",
+    "beforeDevCommand": "python src-tauri/prepare_worker.py && npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "uv run src-tauri/prepare_resources.py && npm run build",
+    "beforeBuildCommand": "python src-tauri/prepare_worker.py && npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -31,6 +31,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["native-deps"]
+    "resources": ["worker"]
   }
 }
