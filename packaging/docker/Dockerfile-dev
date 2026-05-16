@@ -1,27 +1,22 @@
-FROM nixos/nix
+FROM ubuntu
 
-RUN nix-channel --update
+RUN apt-get update && apt-get install -y xz-utils curl systemd sudo git
+RUN echo "%ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-RUN mkdir -p /app
+USER ubuntu
+WORKDIR /home/ubuntu
 
-COPY flake.nix /app
+# install nix
+RUN curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install > install-nix.sh
+RUN sh install-nix.sh --no-daemon --yes
+RUN mkdir -p ~/.config/nix/
+RUN echo "experimental-features = nix-command flakes" > .config/nix/nix.conf
+ENV PATH=$PATH:/home/ubuntu/.nix-profile/bin
 
-WORKDIR /app
+WORKDIR /workspace
 
-COPY . /app/
+# prefill nix store
+COPY --chown=ubuntu flake.nix /workspace/flake.nix
+RUN nix develop
 
-ENV MEDIA_URL_BASE=http://localhost:5173/
-
-RUN nix --extra-experimental-features 'nix-command flakes' develop --command ./packaging/install_dependencies.sh
-
-EXPOSE 5173
-
-ARG DATABASE_URL
-ENV TRANSCRIBEE_BACKEND_DATABASE_URL=$DATABASE_URL
-
-RUN mkdir -p /app/backend/db
-RUN mkdir -p /app/backend/storage
-
-ENTRYPOINT ["nix", "--extra-experimental-features", "nix-command flakes", "develop", "path:.", "--command" ]
-
-CMD ./packaging/install_dependencies.sh; overmind start -f packaging/Procfile -l backend,frontend,redis,worker
+CMD ["nix", "develop"]
