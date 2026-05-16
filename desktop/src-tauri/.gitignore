@@ -6,6 +6,4 @@
 # will have schema files for capabilities auto-completion
 /gen/schemas
 
-# native dependencies
-.native-deps-dl
-native-deps
+worker/
