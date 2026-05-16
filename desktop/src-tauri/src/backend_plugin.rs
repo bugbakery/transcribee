@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use desktop_backend::Backend;
+use desktop_backend::BackendBuilder;
 
 use tauri::Manager;
 use tauri::{
@@ -17,7 +17,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("transcribee_backend")
         .setup(|app, _api| {
             let token = "SECRET_TOKEN".to_string(); // TODO: generate random token
-            let mut backend = Backend::new().with_token(token.clone());
+            let mut backend = BackendBuilder::new().with_token(token.clone());
             let local_addr = backend.bind().unwrap();
             log::info!("starting backend on http://{:?}", local_addr);
 
