@@ -7,10 +7,10 @@ use tauri::{
 };
 use tauri_plugin_shell::ShellExt;
 
+use crate::backend_plugin::BackendState;
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    // Make the plugin config optional
-    // by using `Builder::<R, Option<Config>>` instead
-    Builder::<R>::new("transcribee-worker")
+    Builder::new("transcribee-worker")
         .setup(|app, _| {
             let ext = if cfg!(target_family = "windows") {
                 "bat"
@@ -24,14 +24,16 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             println!("{:?}", resource_path);
 
             let app = app.clone();
+
             tauri::async_runtime::spawn(async move {
                 let shell = app.shell();
+                let backend_state = app.state::<BackendState>();
 
                 loop {
                     info!(target: "worker", "starting worker");
                     let (mut events, _) = shell
                         .command(resource_path.clone())
-                        .args(["--help"])
+                        .args(["--coordinator", &format!("http://{}:{}/", backend_state.local_addr.ip(), backend_state.local_addr.port()), "--token", &backend_state.token])
                         .spawn()
                         .unwrap();
 

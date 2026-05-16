@@ -9,9 +9,9 @@ use tauri::{
 };
 use tauri_plugin_log::log;
 
-struct BackendState {
-    local_addr: SocketAddr,
-    token: String,
+pub struct BackendState {
+    pub local_addr: SocketAddr,
+    pub token: String,
 }
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("transcribee_backend")

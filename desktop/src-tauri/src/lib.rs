@@ -54,8 +54,8 @@ pub fn run() {
         )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(worker_plugin::init())
         .plugin(backend_plugin::init())
+        .plugin(worker_plugin::init())
         .invoke_handler(tauri::generate_handler![ffmpeg_help])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
