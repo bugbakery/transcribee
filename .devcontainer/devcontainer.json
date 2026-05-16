@@ -3,28 +3,25 @@
 {
 	"name": "Nix",
 
-	"dockerComposeFile": "compose.yml",
-	"service": "dev",
+	"build": {
+    	"context": "..",
+		"dockerfile": "./Dockerfile"
+	},
+	"overrideCommand": true,
+	"mounts": ["source=transcribee-devcontainer-nix,target=/nix,type=volume"],
+	"remoteUser": "ubuntu",
+
+	"postCreateCommand": "nix develop -c true",
+
 	"workspaceFolder": "/workspace",
-
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	// "features": {},
-
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
-
-	"overrideCommand": false,
-	"userEnvProbe": "loginShell",
-	"updateRemoteUserUID": false,
+	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
 
 	"portsAttributes": {
 		"5173": {
-			"label": "Transcribee",
+			"label": "transcribee",
 			"onAutoForward": "notify"
 		}
 	},
-
-	"onCreateCommand": "nix-shell shell.nix --command ./packaging/install_dependencies.sh",
 
 	// Configure tool-specific properties.
 	"customizations": {
@@ -34,15 +31,4 @@
 			]
 		}
 	}
-
-	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
-
-	// This is purely informative: https://containers.dev/implementors/json_reference/#min-host-reqs
-	// "hostRequirements": {
-	// 	"cpus": 4,
-	// 	"memory": "8gb",
-	// 	"storage": "20gb",
-	// 	"gpu": true
-	// }
 }

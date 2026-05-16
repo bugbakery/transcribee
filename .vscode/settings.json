@@ -1,12 +1,14 @@
 {
     "python.autoComplete.extraPaths": [
-        "backend/.venv/lib/python3.11/site-packages",
-        "worker/.venv/lib/python3.11/site-packages"
+        "backend/.venv/lib/python3.12/site-packages",
+        "worker/.venv/lib/python3.12/site-packages"
     ],
     "python.analysis.extraPaths": [
-        "backend/.venv/lib/python3.11/site-packages",
-        "worker/.venv/lib/python3.11/site-packages"
+        "backend/.venv/lib/python3.12/site-packages",
+        "worker/.venv/lib/python3.12/site-packages"
     ],
     "python.analysis.typeCheckingMode": "basic",
-    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+    "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
+    "nixEnvSelector.useFlakes": true,
+    "nixEnvSelector.flakeShell": "default",
 }
