@@ -1,0 +1,39 @@
+name: Build Worker Packages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Wait for nix daemon to start
+        if: runner.os == 'macOS'
+        run: wait4path /nix/var/nix/profiles/per-user
+      - name: Initialize nix environment
+        run: nix develop .
+
+      - name: Build Worker Bundles
+        run: |
+          nix develop --command sh -c '
+            cd worker && \
+            ./build_worker_bundle.py all && \
+            echo "compressing bundles..." && \
+            for f in build/*.tar; do time xz $f; done
+          '
+
+      # we are doing the artifact in this slightly wiered way because we want
+      # the files to be individual artifacts and not be combined into one
+      - name: Setup gh actions artifact client
+        uses: lhotari/gh-actions-artifact-client@v2
+      - name: Upload artifacts
+        run: |
+          for file in worker/build/*.tar.xz; do
+            name=$(basename "$file")
+            echo "Uploading $name, file: $file"
+            cat "$file" | gh-actions-artifact-client.js upload "${name}"
+          done
