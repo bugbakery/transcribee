@@ -5,10 +5,6 @@
 
 
 export interface paths {
-  "/": {
-    /** Root */
-    get: operations["root__get"];
-  };
   "/api/v1/config/": {
     /** Get Config */
     get: operations["get_config_api_v1_config__get"];
@@ -591,17 +587,6 @@ export type external = Record<string, never>;
 
 export interface operations {
 
-  /** Root */
-  root__get: {
-    responses: {
-      /** @description Successful Response */
-      200: {
-        content: {
-          "application/json": unknown;
-        };
-      };
-    };
-  };
   /** Get Config */
   get_config_api_v1_config__get: {
     responses: {
