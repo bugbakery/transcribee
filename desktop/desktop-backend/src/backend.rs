@@ -61,6 +61,7 @@ impl BackendState {
 
 #[derive(Deserialize)]
 struct GetUnassingedTaskQuery {
+    #[serde(rename = "task_type")]
     task_types: Vec<TaskType>,
 }
 
