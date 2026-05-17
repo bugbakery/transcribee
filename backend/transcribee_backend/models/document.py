@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from pydantic.types import AwareDatetime
 from sqlmodel import DateTime, Field, Relationship, SQLModel
-from transcribee_proto.api import Document as ApiDocument
-from transcribee_proto.api import DocumentMedia as ApiDocumentMedia
+from transcribee_proto.api import RemoteDocument as ApiDocument
+from transcribee_proto.api import RemoteDocumentMedia as ApiDocumentMedia
 
 from transcribee_backend import media_storage
 from transcribee_backend.util.base_url import BaseUrl

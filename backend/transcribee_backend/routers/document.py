@@ -27,8 +27,8 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, col, select
 from transcribee_proto.api import Document as ApiDocument
-from transcribee_proto.api import DocumentMedia, ExportTaskParameters
 from transcribee_proto.api import DocumentWithAccessInfo as ApiDocumentWithAccessInfo
+from transcribee_proto.api import ExportTaskParameters, RemoteDocumentMedia
 
 from transcribee_backend.auth import (
     generate_share_token,
@@ -442,7 +442,7 @@ def get_document(
 def get_document_media(
     auth: AuthInfo = Depends(get_doc_min_readonly_auth),
     baseUrl: BaseUrl = Depends(get_base_url),
-) -> List[DocumentMedia]:
+) -> List[RemoteDocumentMedia]:
     return auth.document.as_api_document(baseUrl=baseUrl).media_files
 
 
