@@ -10,7 +10,6 @@ from typing import Any, AsyncGenerator, Optional, Tuple
 from uuid import UUID
 
 import automerge
-import ffmpeg
 import numpy.typing as npt
 from pydantic import TypeAdapter
 from transcribee_proto.api import (
@@ -28,10 +27,15 @@ from transcribee_proto.document import Document as EditorDocument
 from transcribee_worker.api_client import ApiClient
 from transcribee_worker.config import settings
 from transcribee_worker.identify_speakers import identify_speakers
-from transcribee_worker.reencode import get_duration, reencode
+from transcribee_worker.reencode import (
+    get_duration,
+    get_video_stream,
+    load_audio,
+    reencode,
+)
 from transcribee_worker.torchaudio_align import align
 from transcribee_worker.types import ProgressCallbackType
-from transcribee_worker.util import aenumerate, load_audio
+from transcribee_worker.util import aenumerate, alist, async_task
 from transcribee_worker.webvtt.export_webvtt import generate_web_vtt
 from transcribee_worker.webvtt.webvtt_writer import SubtitleFormat
 from transcribee_worker.whisper_transcribe import (
@@ -78,23 +82,6 @@ def get_last_atom_end(doc: EditorDocument):
                 return atom.end
 
     return 0
-
-
-def media_has_video(path: Path):
-    streams = ffmpeg.probe(path)["streams"]
-    for stream in streams:
-        if stream["codec_type"] == "video":
-            if stream["disposition"]["attached_pic"] != 0:
-                # ignore album covers
-                continue
-
-            return True
-
-    return False
-
-
-def is_video_profile(profile_name: str):
-    return profile_name.startswith("video:")
 
 
 class Worker:
@@ -280,34 +267,34 @@ class Worker:
         duration = get_duration(document_audio)
         self.set_duration(task, duration)
 
-        has_video = media_has_video(document_audio)
+        has_video = get_video_stream(document_audio) is not None
         applicable_profiles = {
             profile_name: parameters
             for profile_name, parameters in settings.REENCODE_PROFILES.items()
-            if has_video or not is_video_profile(profile_name)
+            if has_video or parameters.video is None
         }
         n_profiles = len(applicable_profiles)
 
         for i, (profile, parameters) in enumerate(applicable_profiles.items()):
             output_path = self._get_tmpfile(f"reencode_{profile.replace(':', '_')}")
-            video_profile = is_video_profile(profile)
 
-            await reencode(
-                document_audio,
-                output_path,
-                parameters,
-                lambda progress, **kwargs: progress_callback(
-                    progress=(i + progress) / n_profiles,
-                    step=f"reencode_{profile}",
-                    **kwargs,
-                ),
-                duration,
-                include_video=video_profile,
-            )
+            def work(_):
+                return reencode(
+                    document_audio,
+                    output_path,
+                    parameters,
+                    lambda progress, **kwargs: progress_callback(
+                        progress=(i + progress) / n_profiles,
+                        step=f"reencode_{profile}",
+                        **kwargs,
+                    ),
+                )
 
-            tags = [f"profile:{profile}"] + [f"{k}:{v}" for k, v in parameters.items()]
+            await alist(aiter(async_task(work)))
 
-            if video_profile:
+            tags = [f"profile:{profile}"]
+
+            if parameters.video is not None:
                 tags.append("video")
 
             loop = asyncio.get_running_loop()
