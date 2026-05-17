@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
 from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel, Uuid
-from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import ExportTaskParameters, TaskType
+from transcribee_proto.api import RemoteDocument as ApiDocument
 from typing_extensions import Self
 
 from transcribee_backend.config import settings

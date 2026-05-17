@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Literal, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     CPU_THREADS: int = 4
 
     COMPUTE_TYPE: str = "int8"
+
+    WORKER_TYPE: Literal["web", "desktop"] = "web"
 
     model_config = SettingsConfigDict(env_file=".env")
 
