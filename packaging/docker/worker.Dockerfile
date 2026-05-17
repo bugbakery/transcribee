@@ -16,7 +16,6 @@ COPY .python-version /app/.python-version
 RUN uv sync --frozen --no-install-project
 
 COPY worker ./
-RUN uv sync --locked
 
 ARG TARGETARCH
 RUN <<EOF
