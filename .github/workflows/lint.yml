@@ -8,26 +8,19 @@ on:
 
 jobs:
   pre-commit:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macOS-latest]
-
-    runs-on: ${{ matrix.os }}
-
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: astral-sh/setup-uv@v8.1.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: install pre-commit
+        run: pip install pre-commit ruff poethepoet
 
-      - name: Wait for nix daemon to start
-        if: runner.os == 'macOS'
-        run: wait4path /nix/var/nix/profiles/per-user
-
-      - name: Initialize nix environment
-        run: nix develop .
-
-      - name: install dependencies
-        run: nix develop --command ./packaging/install_dependencies.sh
+      - name: install our dependencies
+        run: ./packaging/install_dependencies.sh
 
       - name: run pre-commit
-        run: nix develop --command pre-commit run --show-diff-on-failure --color=always --all-files
+        run: pre-commit run --show-diff-on-failure --color=always --all-files
