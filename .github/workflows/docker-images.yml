@@ -1,0 +1,28 @@
+name: Docker images
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  backend:
+    uses: ./.github/workflows/.build-push-docker-image.yml
+    with:
+      image_name: ${{ github.repository }}
+      dockerfile: ./packaging/docker/Dockerfile
+      push: ${{ github.ref_name == 'main' }}
+      cache_mode: max
+
+  worker:
+    uses: ./.github/workflows/.build-push-docker-image.yml
+    with:
+      image_name: ${{ github.repository }}-worker
+      dockerfile: ./packaging/docker/worker.Dockerfile
+      push: ${{ github.ref_name == 'main' }}
+      cache_mode: off # cache is really slow for this file
