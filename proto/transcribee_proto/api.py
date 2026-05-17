@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -15,10 +15,20 @@ class TaskType(str, enum.Enum):
     EXPORT = "EXPORT"
 
 
-class DocumentMedia(BaseModel):
+class BaseDocumentMedia(BaseModel):
+    tags: list[str]
+
+
+class RemoteDocumentMedia(BaseDocumentMedia):
     url: str
     content_type: str
-    tags: List[str]
+
+
+class LocalDocumentMedia(BaseDocumentMedia):
+    path: str
+
+
+DocumentMedia = LocalDocumentMedia | RemoteDocumentMedia
 
 
 class Document(BaseModel):
@@ -26,10 +36,18 @@ class Document(BaseModel):
     name: str
     created_at: str
     changed_at: str
-    media_files: List[DocumentMedia]
+    media_files: list[DocumentMedia]
 
 
-class DocumentWithAccessInfo(Document):
+class RemoteDocument(BaseModel):
+    id: UUID
+    name: str
+    created_at: str
+    changed_at: str
+    media_files: list[RemoteDocumentMedia]
+
+
+class DocumentWithAccessInfo(RemoteDocument):
     can_write: bool
     has_full_access: bool
 

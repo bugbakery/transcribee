@@ -6,7 +6,7 @@ import time
 import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncGenerator, Optional, Tuple
+from typing import Any, AsyncGenerator, Optional
 from uuid import UUID
 
 import automerge
@@ -15,9 +15,12 @@ from pydantic import TypeAdapter
 from transcribee_proto.api import (
     AlignTask,
     AssignedTask,
+    BaseDocumentMedia,
     ExportFormat,
     ExportTask,
+    LocalDocumentMedia,
     ReencodeTask,
+    RemoteDocumentMedia,
     SpeakerIdentificationTask,
     TaskType,
     TranscribeTask,
@@ -124,29 +127,36 @@ class Worker:
             raise ValueError("`tmpdir` must be set")
         return self.tmpdir / filename
 
-    def get_document_audio_bytes(
+    def download_media(self, media_file: RemoteDocumentMedia) -> Path:
+        logging.debug(f"loading audio. {media_file=}")
+        response = self.api_client.get(media_file.url)
+        extension = mimetypes.guess_extension(media_file.content_type)
+        path = self._get_tmpfile(f"doc_audio{extension}")
+        with open(path, "wb") as f:
+            f.write(response.content)
+        return path
+
+    def find_document_audio_media_file(
         self, document: ApiDocument
-    ) -> Optional[Tuple[bytes, str]]:
+    ) -> BaseDocumentMedia | None:
         logging.debug(f"Getting audio. {document=}")
         if not document.media_files:
             return
-        media_file = document.media_files[0]
+        media_file: BaseDocumentMedia = document.media_files[0]
         for mf in document.media_files:
             if "profile:mp3" in mf.tags:
                 media_file = mf
                 break
-        response = self.api_client.get(media_file.url)
-        return response.content, media_file.content_type
+        return media_file
 
     def get_document_audio_path(self, document: ApiDocument) -> Optional[Path]:
-        b = self.get_document_audio_bytes(document=document)
-        if b is not None:
-            b, ct = b
-            extension = mimetypes.guess_extension(ct)
-            path = self._get_tmpfile(f"doc_audio{extension}")
-            with open(path, "wb") as f:
-                f.write(b)
-            return path
+        mf = self.find_document_audio_media_file(document)
+        if not mf:
+            return
+        if settings.WORKER_TYPE == "web" and isinstance(mf, RemoteDocumentMedia):
+            return self.download_media(mf)
+        elif settings.WORKER_TYPE == "desktop" and isinstance(mf, LocalDocumentMedia):
+            return Path(mf.path) if mf.path else None
 
     def load_document_audio(self, document: ApiDocument) -> npt.NDArray:
         document_audio = self.get_document_audio_path(document)
