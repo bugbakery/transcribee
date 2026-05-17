@@ -122,7 +122,8 @@
             pkgs.wait4x
             pkgs.pre-commit
 
-            pkgs.nodejs_20
+            # keep in sync with gh actions workflows
+            pkgs.nodejs_24
 
             # nix tooling
             pkgs.nixpkgs-fmt

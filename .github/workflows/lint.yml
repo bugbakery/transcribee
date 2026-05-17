@@ -15,7 +15,8 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          # keep in sync with flake.nix
+          node-version: 24
       - name: install pre-commit
         run: pip install pre-commit ruff poethepoet
 
