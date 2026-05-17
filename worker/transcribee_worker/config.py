@@ -1,8 +1,32 @@
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+@dataclass
+class AudioOptions:
+    codec: str
+    channels: str
+    bitrate: str
+
+
+@dataclass
+class VideoOptions:
+    codec: str
+    crf: int
+    preset: str
+    width: int
+    height: int
+
+
+@dataclass
+class OutputProfile:
+    container: str
+    audio: AudioOptions
+    video: VideoOptions | None
 
 
 class Settings(BaseSettings):
@@ -11,29 +35,24 @@ class Settings(BaseSettings):
 
     HUGGINGFACE_TOKEN: Optional[str] = None
 
-    REENCODE_PROFILES: Dict[str, Dict[str, str]] = {
-        "mp3": {
-            "format": "mp3",
-            "audio_bitrate": "128k",
-            "ac": "1",
-        },
-        "m4a": {
-            "format": "mp4",
-            "audio_bitrate": "128k",
-            "ac": "1",
-        },
-        "video:mp4": {
-            "format": "mp4",
-            "audio_bitrate": "128k",
-            "ac": "1",
-            "c:v": "libx264",
-            "crf": "26",
-            "preset": "faster",
-            # downscale to 480p and pad to multiple of 2 (needed for libx264)
-            "vf": "scale='min(854,iw)':'min(480,ih)'"
-            ":force_original_aspect_ratio=decrease,"
-            "pad='iw+mod(iw\\,2)':'ih+mod(ih\\,2)",
-        },
+    REENCODE_PROFILES: Dict[str, OutputProfile] = {
+        "mp3": OutputProfile(
+            container="mp3",
+            audio=AudioOptions(codec="mp3", channels="mono", bitrate="128k"),
+            video=None,
+        ),
+        "m4a": OutputProfile(
+            container="mp4",
+            audio=AudioOptions(codec="aac", channels="mono", bitrate="128k"),
+            video=None,
+        ),
+        "video:mp4": OutputProfile(
+            container="mp4",
+            audio=AudioOptions(codec="aac", channels="mono", bitrate="128k"),
+            video=VideoOptions(
+                codec="libx264", crf=26, preset="faster", width=854, height=480
+            ),
+        ),
     }
 
     KEEPALIVE_INTERVAL: float = 0.5
