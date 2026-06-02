@@ -16,11 +16,14 @@ import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { minutesInMs } from '../utils/duration_in_ms';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
-import { BiVideo, BiVideoOff } from 'react-icons/bi';
+import { BiVideo, BiVideoOff, BiVolumeFull, BiVolumeLow, BiVolumeMute } from 'react-icons/bi';
+import { MdReplay } from 'react-icons/md';
+import { Slider } from '../components/form';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
 const SKIP_SHORTCUT_SEC = 3;
+const SLOW_REPLAY_RATE = 0.7;
 
 let lastTabPressTs = 0;
 
@@ -69,12 +72,14 @@ export function PlayerBar({
   );
 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);
+  const [volume, setVolume] = useLocalStorage('playbackVolume', 1);
 
   const [showVideo, setShowVideo] = useState(true);
   const reallyShowVideo = showVideo && hasVideo;
 
   const audio = useAudio({
     playbackRate,
+    volume,
     sources: reallyShowVideo ? videoSources : audioSources,
     videoPreview: reallyShowVideo,
     documentId,
@@ -131,6 +136,14 @@ export function PlayerBar({
     }
   };
 
+  const replaySlow = useCallback(() => {
+    audio.seekRelative(-SKIP_SHORTCUT_SEC);
+    setPlaybackRate((currentRate) => Math.min(currentRate, SLOW_REPLAY_RATE));
+    if (!audio.playing) {
+      audio.play();
+    }
+  }, [audio, setPlaybackRate]);
+
   useEvent<KeyboardEvent>('keydown', (e) => {
     if (e.key == 'Tab') {
       // double tap to skip
@@ -145,6 +158,13 @@ export function PlayerBar({
       lastTabPressTs = e.timeStamp;
 
       togglePlaying();
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+
+    if (e.altKey && e.key.toLowerCase() == 'r') {
+      replaySlow();
       e.stopPropagation();
       e.preventDefault();
     }
@@ -218,6 +238,18 @@ export function PlayerBar({
         </div>
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
+        <IconButton
+          icon={MdReplay}
+          label="replay slow (Alt+R)"
+          onClick={replaySlow}
+          className="ml-1 gap-1 px-2.5 rounded-full"
+          size={18}
+        >
+          <span className="hidden text-xs font-semibold sm:inline">
+            {SLOW_REPLAY_RATE.toFixed(1)}x
+          </span>
+        </IconButton>
+        <VolumeControl value={volume} onChange={setVolume} />
         {hasVideo && (
           <IconButton
             icon={reallyShowVideo ? BiVideoOff : BiVideo}
@@ -227,6 +259,44 @@ export function PlayerBar({
         )}
       </div>
     </>
+  );
+}
+
+function VolumeControl({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (nextValue: number) => void;
+}) {
+  const previousVolumeRef = useRef(value || 1);
+
+  useEffect(() => {
+    if (value > 0) {
+      previousVolumeRef.current = value;
+    }
+  }, [value]);
+
+  const VolumeIcon = value === 0 ? BiVolumeMute : value < 0.5 ? BiVolumeLow : BiVolumeFull;
+
+  return (
+    <div className="ml-2 flex w-20 items-center gap-1 sm:w-28 sm:gap-2">
+      <IconButton
+        icon={VolumeIcon}
+        label={value === 0 ? 'unmute' : 'mute'}
+        discreet
+        onClick={() => onChange(value === 0 ? previousVolumeRef.current : 0)}
+        className="p-1"
+      />
+      <Slider
+        min={0}
+        max={1}
+        step={0.05}
+        value={value}
+        aria-label="volume"
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+      />
+    </div>
   );
 }
 

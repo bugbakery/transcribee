@@ -5,12 +5,19 @@ import { padRect, rectContains } from './rect_utils';
 
 type UseAudioOptions = {
   playbackRate?: number;
+  volume?: number;
   sources: Array<{ src: string; type: string }>;
   videoPreview?: boolean;
   documentId: string;
 };
 
-export function useAudio({ sources, playbackRate, videoPreview, documentId }: UseAudioOptions) {
+export function useAudio({
+  sources,
+  playbackRate,
+  volume,
+  videoPreview,
+  documentId,
+}: UseAudioOptions) {
   const [playing, setPlayingState] = useState(false);
   const [duration, setDuration] = useState<number | undefined>();
   const [buffering, setBuffering] = useState(false);
@@ -203,6 +210,12 @@ export function useAudio({ sources, playbackRate, videoPreview, documentId }: Us
       actions(playerElement).setRate(playbackRate);
     }
   }, [playerElement, sources, playbackRate]);
+
+  useEffect(() => {
+    if (!playerElement || volume == undefined) return;
+
+    playerElement.volume = Math.max(0, Math.min(volume, 1));
+  }, [playerElement, sources, volume]);
 
   const setPlaytime = useCallback(
     (sec: number) => {

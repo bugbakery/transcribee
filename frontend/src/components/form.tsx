@@ -106,8 +106,8 @@ export const Select = primitiveWithClassname('select', [
   'dark:focus:ring-blue-400 dark:focus:border-blue-400',
 ]);
 
-export const Slider = forwardRef<HTMLInputElement>(
-  ({ ...props }: Omit<ComponentProps<'input'>, 'type'>, ref) => {
+export const Slider = forwardRef<HTMLInputElement, Omit<ComponentProps<'input'>, 'type'>>(
+  ({ ...props }, ref) => {
     const innerRef = useRef<HTMLInputElement>(null as unknown as HTMLInputElement);
     useImperativeHandle(ref, () => innerRef.current);
 

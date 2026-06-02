@@ -94,6 +94,18 @@ function SpeakerNameModal({
 }
 
 function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
+  if (speaker === null) {
+    const newDoc = Automerge.change(editor.doc, (draft: Document) => {
+      const endIdx = calculateParagraphIdxOfSpeakerEnd(editor, path[0]);
+
+      for (let i = path[0]; i <= endIdx; i++) {
+        draft.children[i].speaker = null;
+      }
+    });
+    editor.setDoc(newDoc);
+    return;
+  }
+
   const endPath = calculateParagraphIdxOfSpeakerEnd(editor, path[0]);
 
   Transforms.setNodes(

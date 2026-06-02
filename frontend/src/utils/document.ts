@@ -75,10 +75,22 @@ export function useSpeakerNames(editor?: Editor): Record<string, string> {
   );
 }
 
+export function getSpeakerIDs(doc: Document) {
+  const speakerIDs = Object.keys(doc.speaker_names);
+
+  for (const paragraph of doc.children || []) {
+    if (paragraph.speaker !== null && !speakerIDs.includes(paragraph.speaker)) {
+      speakerIDs.push(paragraph.speaker);
+    }
+  }
+
+  return speakerIDs;
+}
+
 export function useSpeakerIDs(editor?: Editor) {
   return useDocumentSelector(
     useCallback((newDoc) => {
-      return [...new Set((newDoc.children || []).map((child) => child.speaker))].sort();
+      return getSpeakerIDs(newDoc);
     }, []),
     { eq: compareJSON, editor: editor },
   );
