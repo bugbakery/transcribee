@@ -1,2 +1,3 @@
 .direnv
 .DS_Store
+.ruff_cache
