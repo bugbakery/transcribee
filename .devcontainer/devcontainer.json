@@ -11,7 +11,7 @@
 	"mounts": ["source=transcribee-devcontainer-nix,target=/nix,type=volume"],
 	"remoteUser": "ubuntu",
 
-	"postCreateCommand": "nix develop -c true",
+	"postCreateCommand": "nix develop -c pre-commit install",
 
 	"workspaceFolder": "/workspace",
 	"workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
