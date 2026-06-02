@@ -28,8 +28,7 @@ RUN apt-get update && apt-get install -y libpq5 && rm -rf /var/lib/apt/lists/*
 COPY backend/uv.lock backend/pyproject.toml backend/.python-version ./
 COPY proto /app/proto
 COPY .python-version /app/.python-version
-
-RUN uv sync --frozen --no-install-workspace
+RUN uv sync --frozen --no-install-project
 
 COPY backend ./
 RUN uv sync --locked
