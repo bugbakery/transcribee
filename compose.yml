@@ -6,7 +6,7 @@ services:
       dockerfile: ./packaging/docker/Dockerfile
     environment:
       TRANSCRIBEE_BACKEND_DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
-      REDIS_HOST: valkey
+      REDIS_HOST: redis
       TESTUSER_PASSWORD: test
     ports:
       - "8000:8000"
@@ -26,7 +26,7 @@ services:
       interval: 1s
       timeout: 5s
       retries: 10
-  valkey:
+  redis:
     image: redis:8
     restart: always
 
