@@ -8,6 +8,7 @@ services:
       TRANSCRIBEE_BACKEND_DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
       REDIS_HOST: redis
       TESTUSER_PASSWORD: test
+      DEFAULT_WORKER_TOKEN: dev_worker
     ports:
       - "8000:8000"
     depends_on:
@@ -15,6 +16,10 @@ services:
         condition: service_healthy
     volumes:
       - postgres-data:/var/lib/postgresql
+  worker:
+    build:
+      dockerfile: ./packaging/docker/worker.Dockerfile
+    command: ["--coordinator", "http://backend:8000", "--token", "dev_worker" ]
   db:
     image: postgres:18
     restart: always
