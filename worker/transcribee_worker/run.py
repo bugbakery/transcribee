@@ -37,7 +37,9 @@ def main():
         ),
         default=None,
     )
-    parser.add_argument("--token", help="Worker token", required=True)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--token", help="Worker token")
+    group.add_argument("--token-file", help="Worker token file")
     parser.add_argument("--run-once-and-dont-complete", action="store_true")
     parser.add_argument("--reload", action="store_true")
     parser.add_argument(
@@ -161,10 +163,15 @@ async def run(args):
         f"Running worker with task types: {', '.join([t.name for t in task_types])}"
     )
 
+    if args.token_file:
+        token = Path(args.token_file).read_text()
+    else:
+        token = args.token
+
     worker = Worker(
         base_url=f"{args.coordinator}/api/v1/tasks",
         websocket_base_url=args.websocket_base_url,
-        token=args.token,
+        token=token,
         task_types=task_types,
     )
     while not finish_event.is_set():
