@@ -1,0 +1,41 @@
+FROM astral/uv:trixie AS builder
+
+ENV UV_NO_DEV=1
+ENV UV_NO_EDITABLE=1
+ENV UV_LINK_MODE=copy
+ENV UV_MANAGED_PYTHON=1
+ENV UV_VENV_RELOCATABLE=1
+ENV UV_PYTHON_INSTALL_DIR=/opt
+
+WORKDIR /app/worker
+
+# enable caching dependencies in separate layer
+COPY worker/uv.lock worker/pyproject.toml worker/.python-version ./
+COPY proto /app/proto
+COPY .python-version /app/.python-version
+RUN uv sync --frozen --no-install-project
+
+COPY worker ./
+
+ARG TARGETARCH
+RUN <<EOF
+  WORKER_ARCH="$TARGETARCH"
+  if [ "$WORKER_ARCH" = "arm64" ]; then
+    WORKER_ARCH=aarch64
+  elif [ "$WORKER_ARCH" = "amd64" ]; then
+    WORKER_ARCH=x86_64
+  fi
+
+  ./packaging/build_worker_bundle.py --force linux-$WORKER_ARCH
+EOF
+RUN cd packaging/build && mkdir worker && tar xf worker-linux-*.tar --directory worker
+
+# ===== runtime =====
+FROM debian:trixie-slim
+
+WORKDIR /app
+
+COPY --from=builder /app/worker/packaging/build/worker ./
+RUN chmod +x run_worker.sh
+
+ENTRYPOINT [ "./run_worker.sh" ]
