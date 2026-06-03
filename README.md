@@ -54,5 +54,5 @@ Creating a transcript with transcribee 🐝 is done with the following steps:
 
 ## Acknowledgements
 
-- Funded from March 2023 until September 2023 by
+- Funded from March until September 2023 and from June until November 2026 by
   ![logos of the "Bundesministerium für Bildung und Forschung", Prototype Fund and Open Knowledge Foundation Deutschland](doc/pf_funding_logos.svg)
