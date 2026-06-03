@@ -18,6 +18,15 @@
 - It's **collaborative** &ndash; split the work with your friends or colleagues
 - It's **open-source**
 
+## Try it Out!
+
+Transcribee can be currently tried out in different ways:
+1. You can [sign up for the beta instance of transcribee that is hosted by us](https://about.transcribee.net/signup).
+   This is the easiest way if you don't want to fiddle with the underlaying technology.
+2. You can [self host transcribee on your computer or a server](doc/self_hosting.md).
+   If you do this, your data will not be shared with any third parties (us) but requires some
+   technical knowledge to set up.
+
 ## Develop!
 
 To get started with developing or to try the current state of transcribee, follow the instructions

@@ -1,0 +1,53 @@
+name: transcribee
+
+services:
+  backend:
+    image: "ghcr.io/bugbakery/transcribee:latest"
+    environment:
+      TRANSCRIBEE_BACKEND_DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
+      REDIS_HOST: redis
+    ports:
+      # configure your reverse-proxy so that the outside world can reach port 8000 of
+      # this container via https.
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - worker_token:/var/transcribee/worker_token
+    healthcheck:
+      test: ["CMD-SHELL", "curl http://localhost:8000"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    image: "ghcr.io/bugbakery/transcribee-worker:latest"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - worker_token:/var/transcribee/worker_token
+    command: --coordinator http://backend:8000 --token-file /var/transcribee/worker_token/token.txt
+
+  db:
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: transcribee
+      POSTGRES_USER: transcribee
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d transcribee -U transcribee"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  redis:
+    image: redis:8
+    restart: always
+
+volumes:
+  postgres_data:
+  worker_token:
