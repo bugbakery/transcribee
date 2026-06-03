@@ -40,7 +40,7 @@ RUN groupadd -r transcribee && useradd -r -u 1001 -g transcribee transcribee
 
 WORKDIR /app/backend
 
-RUN apt-get update && apt-get install -y libpq5 file && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libpq5 file curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-builder /opt /opt
 COPY --from=backend-builder /app/backend ./
