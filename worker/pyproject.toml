@@ -77,8 +77,8 @@ url = "https://github.com/bugbakery/automerge-py/releases/expanded_assets/v0.1"
 format = "flat"
 explicit = true
 
-[tool.setuptools]
-packages = ["transcribee_worker"]
+[tool.setuptools.packages.find]
+include = ["transcribee_worker*"]
 
 [tool.pyright]
 reportPrivateImportUsage = "none"
