@@ -4,6 +4,7 @@ services:
   backend:
     build:
       dockerfile: ./packaging/docker/Dockerfile
+      context: ..
     environment:
       TRANSCRIBEE_BACKEND_DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
       REDIS_HOST: redis
@@ -19,6 +20,7 @@ services:
   worker:
     build:
       dockerfile: ./packaging/docker/worker.Dockerfile
+      context: ..
     command: ["--coordinator", "http://backend:8000", "--token", "dev_worker" ]
   db:
     image: postgres:18
