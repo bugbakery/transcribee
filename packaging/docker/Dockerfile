@@ -36,6 +36,8 @@ RUN uv sync --locked
 # ===== runtime =====
 FROM debian:trixie-slim
 
+RUN groupadd -r transcribee && useradd -r -u 1001 -g transcribee transcribee
+
 WORKDIR /app/backend
 
 RUN apt-get update && apt-get install -y libpq5 file && rm -rf /var/lib/apt/lists/*
@@ -46,6 +48,10 @@ COPY --from=frontend-builder /app/frontend/dist ./public
 
 COPY packaging/docker/run.sh /run.sh
 
+ENV STORAGE_PATH=/var/transcribee/storage
+RUN mkdir -p "$STORAGE_PATH" && chown transcribee:transcribee "$STORAGE_PATH"
+
 ENV PATH="/app/backend/.venv/bin:$PATH"
 
+USER transcribee
 CMD [ "/run.sh" ]

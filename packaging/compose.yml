@@ -10,13 +10,14 @@ services:
       REDIS_HOST: redis
       TESTUSER_PASSWORD: test
       DEFAULT_WORKER_TOKEN: dev_worker
+      MEDIA_URL_BASE: http://backend:8000/
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - postgres-data:/var/lib/postgresql
+      - transcribee-storage:/var/transcribee/storage
   worker:
     build:
       dockerfile: ./packaging/docker/worker.Dockerfile
@@ -33,9 +34,12 @@ services:
       interval: 1s
       timeout: 5s
       retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql
   redis:
     image: redis:8
     restart: always
 
 volumes:
   postgres-data:
+  transcribee-storage:
