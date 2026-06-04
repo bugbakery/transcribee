@@ -33,9 +33,15 @@ RUN cd packaging/build && mkdir worker && tar xf worker-linux-*.tar --directory 
 # ===== runtime =====
 FROM debian:trixie-slim
 
+RUN groupadd -r transcribee && useradd -r -u 1001 -g transcribee transcribee
+
 WORKDIR /app
 
 COPY --from=builder /app/worker/packaging/build/worker ./
 RUN chmod +x run_worker.sh
 
+ENV MODELS_DIR=/var/transcribee/models
+RUN mkdir -p "$MODELS_DIR" && chown transcribee:transcribee "$MODELS_DIR"
+
+USER transcribee
 ENTRYPOINT [ "./run_worker.sh" ]
