@@ -10,7 +10,7 @@ services:
       TESTUSER_PASSWORD: test
       DEFAULT_WORKER_TOKEN: dev_worker
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
