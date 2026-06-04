@@ -10,7 +10,6 @@ services:
       REDIS_HOST: redis
       TESTUSER_PASSWORD: test
       DEFAULT_WORKER_TOKEN: dev_worker
-      MEDIA_URL_BASE: http://backend:8000/
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
