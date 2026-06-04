@@ -13,6 +13,7 @@ from transcribee_backend.config import settings
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.document import Document
 from transcribee_backend.models.worker import Worker
+from transcribee_backend.util.base_url import BaseUrl
 
 
 class TaskState(enum.Enum):
@@ -216,11 +217,11 @@ class AssignedTaskResponse(TaskResponse):
     document: ApiDocument
 
     @classmethod
-    def from_orm(cls, task: Task) -> Self:
+    def from_orm(cls, task: Task, baseUrl: BaseUrl) -> Self:
         return super().from_orm(
             task,
             update={
-                "document": task.document.as_api_document(),
+                "document": task.document.as_api_document(baseUrl=baseUrl),
             },
         )
 

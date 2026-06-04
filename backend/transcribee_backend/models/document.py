@@ -7,6 +7,7 @@ from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import DocumentMedia as ApiDocumentMedia
 
 from transcribee_backend import media_storage
+from transcribee_backend.util.base_url import BaseUrl
 
 
 class DocumentBase(SQLModel):
@@ -38,7 +39,7 @@ class Document(DocumentBase, table=True):
     )
     tasks: List["Task"] = Relationship(sa_relationship_kwargs={"cascade": "all"})
 
-    def as_api_document(self) -> ApiDocumentWithTasks:
+    def as_api_document(self, baseUrl: BaseUrl) -> ApiDocumentWithTasks:
         tasks = [TaskResponse.from_orm(task) for task in self.tasks]
         return ApiDocumentWithTasks(
             id=str(self.id),
@@ -46,7 +47,8 @@ class Document(DocumentBase, table=True):
             created_at=self.created_at.isoformat(),
             changed_at=self.created_at.isoformat(),
             media_files=[
-                media_file.as_api_media_file() for media_file in self.media_files
+                media_file.as_api_media_file(baseUrl=baseUrl)
+                for media_file in self.media_files
             ],
             tasks=tasks,
         )
@@ -75,9 +77,9 @@ class DocumentMediaFile(DocumentMediaFileBase, table=True):
         sa_relationship_kwargs={"cascade": "all"}
     )
 
-    def as_api_media_file(self) -> ApiDocumentMedia:
+    def as_api_media_file(self, baseUrl: BaseUrl) -> ApiDocumentMedia:
         return ApiDocumentMedia(
-            url=media_storage.get_media_url(self.file),
+            url=media_storage.get_media_url(self.file, baseUrl),
             tags=[tag.tag for tag in self.tags],
             content_type=self.content_type,
         )

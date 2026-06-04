@@ -17,6 +17,8 @@ from fastapi import HTTPException, Query
 from fastapi.params import Header
 from fastapi.responses import FileResponse, Response
 
+from transcribee_backend.util.base_url import BaseUrl
+
 from .config import settings
 
 SIGNATURE_PARAMETER = "X-Transcribee-Signature"
@@ -64,7 +66,7 @@ def salted_hmac(
     return hmac.new(key, msg=force_bytes(value), digestmod=hasher).digest()
 
 
-def get_media_url(file: str) -> str:
+def get_media_url(file: str, baseUrl: BaseUrl) -> str:
     msg = {"file": file, "timestamp": int(time.time())}
     data = json.dumps(msg).encode()
     raw_signature = salted_hmac(
@@ -74,7 +76,7 @@ def get_media_url(file: str) -> str:
     text_data = b64_encode(data).decode()
     signature = f"{text_data}:{text_signature}"
     return "{}media/{}?{}".format(
-        settings.media_url_base, file, parse.urlencode({SIGNATURE_PARAMETER: signature})
+        baseUrl, file, parse.urlencode({SIGNATURE_PARAMETER: signature})
     )
 
 

@@ -50,6 +50,7 @@ from transcribee_backend.models.document import (
     DocumentShareTokenBase,
 )
 from transcribee_backend.models.task import TaskAttempt, TaskResponse
+from transcribee_backend.util.base_url import BaseUrl, get_base_url
 from transcribee_backend.util.redis_task_channel import RedisTaskChannel
 
 from .. import media_storage
@@ -319,6 +320,7 @@ async def create_document(
     file: UploadFile = File(),
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> ApiDocument:
     if language not in languages:
         raise RequestValidationError(
@@ -358,7 +360,7 @@ async def create_document(
     )
 
     session.commit()
-    return document.as_api_document()
+    return document.as_api_document(baseUrl=baseUrl)
 
 
 @document_router.post("/import/")
@@ -367,6 +369,7 @@ def import_document(
     token: UserToken = Depends(get_user_token),
     session: Session = Depends(get_session),
     name: str = Form(),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> ApiDocument:
     document = Document(
         name=name,
@@ -401,13 +404,14 @@ def import_document(
     session.add(reencode_task)
 
     session.commit()
-    return document.as_api_document()
+    return document.as_api_document(baseUrl=baseUrl)
 
 
 @document_router.get("/")
 def list_documents(
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> List[ApiDocumentWithTasks]:
     statement = (
         select(Document)
@@ -419,15 +423,16 @@ def list_documents(
         )
     )
     results = session.exec(statement)
-    return [doc.as_api_document() for doc in results]
+    return [doc.as_api_document(baseUrl=baseUrl) for doc in results]
 
 
 @document_router.get("/{document_id}/")
 def get_document(
     auth: AuthInfo = Depends(get_doc_min_readonly_auth),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> ApiDocumentWithAccessInfo:
     return ApiDocumentWithAccessInfo(
-        **dict(auth.document.as_api_document()),
+        **dict(auth.document.as_api_document(baseUrl=baseUrl)),
         can_write=auth.auth_level >= AuthLevel.READ_WRITE,
         has_full_access=auth.auth_level >= AuthLevel.FULL,
     )
@@ -436,8 +441,9 @@ def get_document(
 @document_router.get("/{document_id}/media_files/")
 def get_document_media(
     auth: AuthInfo = Depends(get_doc_min_readonly_auth),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> List[DocumentMedia]:
-    return auth.document.as_api_document().media_files
+    return auth.document.as_api_document(baseUrl=baseUrl).media_files
 
 
 @document_router.delete("/{document_id}/")
@@ -499,6 +505,7 @@ def add_media_file(
     tags: list[str] = Form(),
     file: UploadFile = File(),
     session: Session = Depends(get_session),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> ApiDocument:
     stored_file = media_storage.store_file(file.file)
     file.file.seek(0)
@@ -518,7 +525,7 @@ def add_media_file(
         session.add(tag)
 
     session.commit()
-    return media_file.document.as_api_document()
+    return media_file.document.as_api_document(baseUrl=baseUrl)
 
 
 class SetDurationRequest(BaseModel):
@@ -530,13 +537,14 @@ def set_duration(
     body: SetDurationRequest,
     task: Task = Depends(get_task_worker_reencode_auth),
     session: Session = Depends(get_session),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> ApiDocument:
     doc = task.document
     doc.duration = body.duration
     session.add(doc)
     session.commit()
 
-    return doc.as_api_document()
+    return doc.as_api_document(baseUrl=baseUrl)
 
 
 class DocumentUpdateRequest(BaseModel):
@@ -548,6 +556,7 @@ def update_document(
     update: DocumentUpdateRequest,
     auth: AuthInfo = Depends(get_doc_full_auth),
     session: Session = Depends(get_session),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> ApiDocument:
     update_dict = update.model_dump(exclude_unset=True)
     for key, value in update_dict.items():
@@ -555,7 +564,7 @@ def update_document(
     session.add(auth.document)
     session.commit()
 
-    return auth.document.as_api_document()
+    return auth.document.as_api_document(baseUrl=baseUrl)
 
 
 class CreateShareToken(BaseModel):

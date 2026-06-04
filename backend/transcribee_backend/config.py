@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     media_signature_max_age: int = 3600  # in seconds
     task_attempt_limit: int = 5
 
-    media_url_base: str = "http://localhost:8000/"
     logged_out_redirect_url: None | str = None
 
     pages_dir: Path = Path("data/pages/")

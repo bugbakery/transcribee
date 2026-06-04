@@ -18,6 +18,7 @@ from transcribee_backend.helpers.tasks import finish_current_attempt
 from transcribee_backend.helpers.time import now_tz_aware
 from transcribee_backend.models.api import ApiToken
 from transcribee_backend.models.task import TaskQueueInfoResponse, TaskState
+from transcribee_backend.util.base_url import BaseUrl, get_base_url
 
 from ..models import (
     AssignedTaskResponse,
@@ -81,6 +82,7 @@ def claim_unassigned_task(
     authorized_worker: Worker = Depends(get_authorized_worker),
     task_type: List[TaskType] = Query(),
     now: datetime.datetime = Depends(now_tz_aware),
+    baseUrl: BaseUrl = Depends(get_base_url),
 ) -> Optional[AssignedTaskResponse]:
     task = get_ready_task(session, task_type)
     if task is None:
@@ -101,7 +103,7 @@ def claim_unassigned_task(
     task.state_changed_at = now
     session.add(task)
     session.commit()
-    return AssignedTaskResponse.from_orm(task)
+    return AssignedTaskResponse.from_orm(task, baseUrl=baseUrl)
 
 
 @task_router.get("/queue_info/")
