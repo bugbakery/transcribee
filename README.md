@@ -18,7 +18,7 @@
 - It's **collaborative** &ndash; split the work with your friends or colleagues
 - It's **open-source**
 
-## Try it Out!
+## Try it Out!
 
 Transcribee can be currently tried out in different ways:
 1. You can [sign up for the beta instance of transcribee that is hosted by us](https://about.transcribee.net/signup).
