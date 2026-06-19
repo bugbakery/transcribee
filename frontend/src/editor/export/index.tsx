@@ -7,6 +7,7 @@ import { WebVttExportBody } from './webvtt';
 import { TranscribeeExportBody } from './transcribee';
 import { ApiDocument } from '../../api/document';
 import { PlaintextExportBody } from './plaintext';
+import { TypstExportBody } from './typst';
 
 export type ExportProps = {
   outputNameBase: string;
@@ -33,6 +34,10 @@ const exportTypes: ExportType[] = [
   {
     name: 'Plaintext',
     component: PlaintextExportBody,
+  },
+  {
+    name: 'Typst',
+    component: TypstExportBody,
   },
   {
     name: 'Transcribee Archive',
