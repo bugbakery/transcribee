@@ -27,6 +27,13 @@ Transcribee can be currently tried out in different ways:
    If you do this, your data will not be shared with any third parties (us) but requires some
    technical knowledge to set up.
 
+## Contributing
+
+If you want to contribute, please first read our
+
+* [Code Of Conduct](https://github.com/bugbakery/bugbakery/blob/main/CODE_OF_CONDUCT.md) and
+* [Contributing Guidelines](https://github.com/bugbakery/bugbakery/blob/main/CONTRIBUTING.md)
+
 ## Develop!
 
 To get started with developing or to try the current state of transcribee, follow the instructions
