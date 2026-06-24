@@ -49,7 +49,9 @@ COPY --from=frontend-builder /app/frontend/dist ./public
 COPY packaging/docker/run.sh /run.sh
 
 ENV STORAGE_PATH=/var/transcribee/storage
+ENV TOKEN_PATH=/var/transcribee/worker_token
 RUN mkdir -p "$STORAGE_PATH" && chown transcribee:transcribee "$STORAGE_PATH"
+RUN mkdir -p "$TOKEN_PATH" && chown transcribee:transcribee "$TOKEN_PATH"
 
 ENV PATH="/app/backend/.venv/bin:$PATH"
 
