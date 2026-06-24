@@ -172,7 +172,7 @@ export interface components {
        */
       id: string;
       /** Media Files */
-      media_files: components["schemas"]["DocumentMedia"][];
+      media_files: components["schemas"]["RemoteDocumentMedia"][];
       /** Name */
       name: string;
       /** Tasks */
@@ -183,7 +183,7 @@ export interface components {
       current_attempt: components["schemas"]["TaskAttemptResponse"] | null;
       /** Dependencies */
       dependencies: string[];
-      document: components["schemas"]["Document"];
+      document: components["schemas"]["RemoteDocument"];
       /**
        * Document Id
        * Format: uuid
@@ -282,18 +282,9 @@ export interface components {
        */
       id: string;
       /** Media Files */
-      media_files: components["schemas"]["DocumentMedia"][];
+      media_files: (components["schemas"]["LocalDocumentMedia"] | components["schemas"]["RemoteDocumentMedia"])[];
       /** Name */
       name: string;
-    };
-    /** DocumentMedia */
-    DocumentMedia: {
-      /** Content Type */
-      content_type: string;
-      /** Tags */
-      tags: string[];
-      /** Url */
-      url: string;
     };
     /** DocumentShareTokenBase */
     DocumentShareTokenBase: {
@@ -337,7 +328,7 @@ export interface components {
        */
       id: string;
       /** Media Files */
-      media_files: components["schemas"]["DocumentMedia"][];
+      media_files: components["schemas"]["RemoteDocumentMedia"][];
       /** Name */
       name: string;
     };
@@ -391,6 +382,13 @@ export interface components {
       /** Progress */
       progress?: number | null;
     };
+    /** LocalDocumentMedia */
+    LocalDocumentMedia: {
+      /** Path */
+      path: string;
+      /** Tags */
+      tags: string[];
+    };
     /** LoginResponse */
     LoginResponse: {
       /** Token */
@@ -409,6 +407,31 @@ export interface components {
     PublicConfig: {
       /** Logged Out Redirect Url */
       logged_out_redirect_url?: string | null;
+    };
+    /** RemoteDocument */
+    RemoteDocument: {
+      /** Changed At */
+      changed_at: string;
+      /** Created At */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Media Files */
+      media_files: components["schemas"]["RemoteDocumentMedia"][];
+      /** Name */
+      name: string;
+    };
+    /** RemoteDocumentMedia */
+    RemoteDocumentMedia: {
+      /** Content Type */
+      content_type: string;
+      /** Tags */
+      tags: string[];
+      /** Url */
+      url: string;
     };
     /** SetDurationRequest */
     SetDurationRequest: {
@@ -868,7 +891,7 @@ export interface operations {
       /** @description Successful Response */
       200: {
         content: {
-          "application/json": components["schemas"]["DocumentMedia"][];
+          "application/json": components["schemas"]["RemoteDocumentMedia"][];
         };
       };
       /** @description Validation Error */

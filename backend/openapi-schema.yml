@@ -33,7 +33,7 @@ components:
           type: string
         media_files:
           items:
-            $ref: '#/components/schemas/DocumentMedia'
+            $ref: '#/components/schemas/RemoteDocumentMedia'
           title: Media Files
           type: array
         name:
@@ -66,7 +66,7 @@ components:
           title: Dependencies
           type: array
         document:
-          $ref: '#/components/schemas/Document'
+          $ref: '#/components/schemas/RemoteDocument'
         document_id:
           format: uuid
           title: Document Id
@@ -229,7 +229,9 @@ components:
           type: string
         media_files:
           items:
-            $ref: '#/components/schemas/DocumentMedia'
+            anyOf:
+            - $ref: '#/components/schemas/LocalDocumentMedia'
+            - $ref: '#/components/schemas/RemoteDocumentMedia'
           title: Media Files
           type: array
         name:
@@ -242,25 +244,6 @@ components:
       - changed_at
       - media_files
       title: Document
-      type: object
-    DocumentMedia:
-      properties:
-        content_type:
-          title: Content Type
-          type: string
-        tags:
-          items:
-            type: string
-          title: Tags
-          type: array
-        url:
-          title: Url
-          type: string
-      required:
-      - url
-      - content_type
-      - tags
-      title: DocumentMedia
       type: object
     DocumentShareTokenBase:
       properties:
@@ -325,7 +308,7 @@ components:
           type: string
         media_files:
           items:
-            $ref: '#/components/schemas/DocumentMedia'
+            $ref: '#/components/schemas/RemoteDocumentMedia'
           title: Media Files
           type: array
         name:
@@ -422,6 +405,21 @@ components:
           title: Progress
       title: KeepaliveBody
       type: object
+    LocalDocumentMedia:
+      properties:
+        path:
+          title: Path
+          type: string
+        tags:
+          items:
+            type: string
+          title: Tags
+          type: array
+      required:
+      - tags
+      - path
+      title: LocalDocumentMedia
+      type: object
     LoginResponse:
       properties:
         token:
@@ -457,6 +455,53 @@ components:
           - type: 'null'
           title: Logged Out Redirect Url
       title: PublicConfig
+      type: object
+    RemoteDocument:
+      properties:
+        changed_at:
+          title: Changed At
+          type: string
+        created_at:
+          title: Created At
+          type: string
+        id:
+          format: uuid
+          title: Id
+          type: string
+        media_files:
+          items:
+            $ref: '#/components/schemas/RemoteDocumentMedia'
+          title: Media Files
+          type: array
+        name:
+          title: Name
+          type: string
+      required:
+      - id
+      - name
+      - created_at
+      - changed_at
+      - media_files
+      title: RemoteDocument
+      type: object
+    RemoteDocumentMedia:
+      properties:
+        content_type:
+          title: Content Type
+          type: string
+        tags:
+          items:
+            type: string
+          title: Tags
+          type: array
+        url:
+          title: Url
+          type: string
+      required:
+      - tags
+      - url
+      - content_type
+      title: RemoteDocumentMedia
       type: object
     SetDurationRequest:
       properties:
@@ -1166,7 +1211,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/DocumentMedia'
+                  $ref: '#/components/schemas/RemoteDocumentMedia'
                 title: Response Get Document Media Api V1 Documents  Document Id  Media
                   Files  Get
                 type: array
