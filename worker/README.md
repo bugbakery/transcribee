@@ -26,3 +26,27 @@ The most important settings are explained here:
 The worker needs multiple models, which will automatically be downloaded if they to not exist yet.
 They will by default be stored in `./.data/models`.
 You can change this directory by setting `MODELS_DIR`
+
+### Transcription backends
+
+By default transcription runs locally with whisper (`TRANSCRIPTION_BACKEND=whisper`).
+
+As an opt-in alternative you can delegate transcription to the
+[TwelveLabs](https://twelvelabs.io) Pegasus video-understanding model. This runs
+server-side and requires no local model download. To enable it:
+
+```shell
+uv sync --extra pegasus            # installs the twelvelabs SDK
+export TRANSCRIPTION_BACKEND=pegasus
+export TWELVELABS_API_KEY=<your-key>   # free tier at https://twelvelabs.io
+```
+
+Relevant settings (see `config.py`):
+
+- `TRANSCRIPTION_BACKEND` &ndash; `whisper` (default) or `pegasus`
+- `TWELVELABS_API_KEY` &ndash; required when using the `pegasus` backend
+- `PEGASUS_MODEL` &ndash; Pegasus model name (default `pegasus1.2`)
+- `PEGASUS_INDEX_NAME` &ndash; TwelveLabs index used for indexing media (created on first use)
+
+Pegasus is a video model, so audio-only media is automatically wrapped in a
+minimal black video track (via `ffmpeg`) before indexing.

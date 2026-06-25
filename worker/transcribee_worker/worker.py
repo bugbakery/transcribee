@@ -24,9 +24,11 @@ from transcribee_proto.api import (
 )
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.document import Document as EditorDocument
+
 from transcribee_worker.api_client import ApiClient
 from transcribee_worker.config import settings
 from transcribee_worker.identify_speakers import identify_speakers
+from transcribee_worker.pegasus_transcribe import transcribe_pegasus_async
 from transcribee_worker.reencode import (
     get_duration,
     get_video_stream,
@@ -187,7 +189,9 @@ class Worker:
     async def transcribe(
         self, task: TranscribeTask, progress_callback: ProgressCallbackType
     ):
-        audio = self.load_document_audio(task.document)
+        lang_code = (
+            task.task_parameters.lang if task.task_parameters.lang != "auto" else None
+        )
 
         async with self.api_client.document(task.document.id) as doc:
             async with doc.transaction("Reset Document") as d:
@@ -196,20 +200,29 @@ class Worker:
 
                 start_offset = get_last_atom_end(d)
 
-            audio = audio[int(start_offset * settings.SAMPLE_RATE) :]
+            if settings.TRANSCRIPTION_BACKEND == "pegasus":
+                media_path = self.get_document_audio_path(task.document)
+                if media_path is None:
+                    raise ValueError(f"Document {task.document} has no media attached.")
+                paragraph_iter = transcribe_pegasus_async(
+                    media_path=media_path,
+                    start_offset=start_offset,
+                    lang_code=lang_code,
+                    progress_callback=progress_callback,
+                )
+            else:
+                audio = self.load_document_audio(task.document)
+                audio = audio[int(start_offset * settings.SAMPLE_RATE) :]
+                paragraph_iter = transcribe_clean_async(
+                    data=audio,
+                    sr=settings.SAMPLE_RATE,
+                    start_offset=start_offset,
+                    model_name=task.task_parameters.model,
+                    lang_code=lang_code,
+                    progress_callback=progress_callback,
+                )
 
-            async for paragraph in transcribe_clean_async(
-                data=audio,
-                sr=settings.SAMPLE_RATE,
-                start_offset=start_offset,
-                model_name=task.task_parameters.model,
-                lang_code=(
-                    task.task_parameters.lang
-                    if task.task_parameters.lang != "auto"
-                    else None
-                ),
-                progress_callback=progress_callback,
-            ):
+            async for paragraph in paragraph_iter:
                 async with doc.transaction("Automatic Transcription") as d:
                     p = paragraph.dict()
                     normalize_for_automerge(p)

@@ -32,6 +32,13 @@ requires-python = "~=3.12.0"
 readme = "README.md"
 license = { text = "AGPL-3.0" }
 
+[project.optional-dependencies]
+# Optional TwelveLabs Pegasus transcription backend
+# (TRANSCRIPTION_BACKEND=pegasus). Not needed for the default whisper backend.
+pegasus = [
+    "twelvelabs>=1.2.8",
+]
+
 [dependency-groups]
 dev = [
   "black~=23.1",

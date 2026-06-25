@@ -35,6 +35,15 @@ class Settings(BaseSettings):
 
     HUGGINGFACE_TOKEN: Optional[str] = None
 
+    # Transcription backend selection. "whisper" (default) runs the local
+    # whisper.cpp model; "pegasus" delegates transcription to the TwelveLabs
+    # Pegasus video-understanding model (requires TWELVELABS_API_KEY).
+    TRANSCRIPTION_BACKEND: str = "whisper"
+    TWELVELABS_API_KEY: Optional[str] = None
+    PEGASUS_MODEL: str = "pegasus1.2"
+    PEGASUS_INDEX_NAME: str = "transcribee"
+    PEGASUS_MAX_TOKENS: int = 2048
+
     REENCODE_PROFILES: Dict[str, OutputProfile] = {
         "mp3": OutputProfile(
             container="mp3",
