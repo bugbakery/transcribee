@@ -26,7 +26,7 @@ engine = create_engine(
     pool_size=32,
     max_overflow=1024,  # we keep open a database connection for every worker
 )
-redis = Redis(host=settings.redis_host, port=settings.redis_port)
+redis = Redis.from_url(settings.redis_url)
 redis_task_channel = RedisTaskChannel(redis)
 
 query_histogram = Histogram(
