@@ -53,5 +53,7 @@ RUN mkdir -p "$STORAGE_PATH" && chown transcribee:transcribee "$STORAGE_PATH"
 
 ENV PATH="/app/backend/.venv/bin:$PATH"
 
+EXPOSE 8000
+
 USER transcribee
 CMD [ "/run.sh" ]
