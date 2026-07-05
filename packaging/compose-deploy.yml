@@ -5,7 +5,7 @@ services:
     image: "ghcr.io/bugbakery/transcribee:latest"
     environment:
       TRANSCRIBEE_BACKEND_DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
-      REDIS_HOST: redis
+      REDIS_URL: redis://redis
     ports:
       # configure your reverse-proxy so that the outside world can reach port 8000 of
       # this container via https.
