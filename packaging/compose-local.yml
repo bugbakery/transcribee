@@ -7,7 +7,7 @@ services:
       context: ..
     environment:
       TRANSCRIBEE_BACKEND_DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
-      REDIS_HOST: redis
+      REDIS_URL: redis://redis
       TESTUSER_PASSWORD: test
       WORKER_TOKEN_PATH: /var/transcribee/worker_token/token.txt
     ports:
