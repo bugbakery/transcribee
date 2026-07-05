@@ -22,8 +22,7 @@ class Settings(BaseSettings):
     metrics_username: str = "transcribee"
     metrics_password: str = "transcribee"
 
-    redis_host: str = "localhost"
-    redis_port: int = 6379
+    redis_url: str = "redis://localhost:6379/0"
 
 
 class PublicConfig(BaseModel):
