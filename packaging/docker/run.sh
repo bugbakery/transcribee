@@ -14,6 +14,10 @@ if  [ ! -z "$WORKER_TOKEN_PATH" ] && [ ! -f "$WORKER_TOKEN_PATH" ]; then
   echo -n $WORKER_TOKEN > "$WORKER_TOKEN_PATH"
 fi
 
+if  [ ! -z "$SECRET_KEY_FILE" ]; then
+  export SECRET_KEY="$(cat "$SECRET_KEY_FILE")"
+fi
+
 uvicorn transcribee_backend.main:app \
   --host "0.0.0.0" \
   --ws websockets \
