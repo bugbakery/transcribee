@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euxo pipefail
+set -exo pipefail
 
 echo -e "\033[1m# setting up backend:\033[0m\n"
 if [[ -z "$TRANSCRIBEE_BACKEND_DATABASE_URL" ]]; then
