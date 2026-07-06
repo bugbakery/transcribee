@@ -108,8 +108,11 @@ def reencode(
     ) and output_params.video is not None:
         video_stream.thread_count = 0  # automatic number of threads
         video_stream.thread_type = ThreadType.AUTO
+        sar = 1.0
+        if video_stream.sample_aspect_ratio is not None:
+            sar = float(video_stream.sample_aspect_ratio)
         new_w, new_h = calculate_new_dimensions(
-            (video_stream.width, video_stream.height),
+            (video_stream.width, video_stream.height / sar),
             (output_params.video.width, output_params.video.height),
         )
         video_output_stream = output_container.add_stream(
