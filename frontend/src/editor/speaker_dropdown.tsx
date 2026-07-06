@@ -104,7 +104,7 @@ function setSpeaker(editor: Editor, path: number[], speaker: string | null) {
         anchor: { path, offset: 0 },
         focus: { path: [endPath], offset: 0 },
       },
-      match: (n) => 'speaker' in n, // we only match paragraph nodes
+      match: (n) => 'type' in n && n.type == 'paragraph', // we only match paragraph nodes
     },
   );
 }
