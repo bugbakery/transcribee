@@ -31,7 +31,10 @@ DONT_COMBINE_RES = [
 def move_space_to_prev_token(
     iter: Iterator[Paragraph],
 ) -> Iterator[Paragraph]:
-    last_paragraph = next(iter)
+    try:
+        last_paragraph = next(iter)
+    except StopIteration:
+        return
     last_paragraph.children[0].text = last_paragraph.children[0].text.lstrip()
     _ = _para_move_space_to_prev_token(last_paragraph)
 
@@ -210,7 +213,9 @@ def transcribe_clean(
     total_len = len(data) / sr
     for elem in chain:
         seg_iter = elem(seg_iter)
+    is_empty = True
     for v in seg_iter:
+        is_empty = False
         queue.submit(v)
         if progress_callback is not None and v.children:
             progress = (v.children[-1].end - start_offset) / total_len
@@ -218,6 +223,12 @@ def transcribe_clean(
                 progress=progress,
                 step="transcribe",
             )
+    if is_empty:
+        v = Paragraph(
+            children=[Atom(text="", start=0, end=0, conf=0, conf_ts=1)],
+            lang=transcription_info.language,
+        )
+        queue.submit(v)
 
 
 def transcribe_clean_async(
