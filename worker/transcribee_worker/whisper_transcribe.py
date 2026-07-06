@@ -90,29 +90,18 @@ def strict_sentence_paragraphs(
 ) -> Iterator[Paragraph]:
     acc_paragraph = None
     acc_used_paras = []
-    combination_active = True
     for paragraph in iter:
-        if not combination_active:
-            yield paragraph
-            continue
-        elif acc_paragraph is None:
+        if acc_paragraph is not None and len(acc_paragraph.children) > 161:
+            # it seems like whisper is on some path that does not involve sentence breaks
+            # as a workaround we just emit the raw whisper bars
+            yield from acc_used_paras
+            acc_paragraph = None
+
+        if acc_paragraph is None:
             acc_paragraph = Paragraph(
                 lang=paragraph.lang, speaker=paragraph.speaker, children=[]
             )
             acc_used_paras = []
-        elif (
-            (start := acc_paragraph.start()) is not None
-            and (end := paragraph.end()) is not None
-            and end - start > 30
-        ):
-            # It seems like whisper doesn't produce sentence breaks. Ignore the
-            # current `acc_paragraph` and yield the original paras instead,
-            # disable this step until the end of the document
-            combination_active = False
-            for para in acc_used_paras:
-                yield para
-            yield paragraph
-            continue
         elif (
             acc_paragraph.lang != paragraph.lang
             or acc_paragraph.speaker != paragraph.speaker
@@ -163,7 +152,7 @@ def strict_sentence_paragraphs(
                 children=paragraph.children[acc_yield_offset:],
             )
         )
-    if acc_paragraph is not None and acc_paragraph.children and combination_active:
+    if acc_paragraph is not None and acc_paragraph.children:
         yield acc_paragraph
 
 

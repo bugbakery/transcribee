@@ -4,7 +4,7 @@ from typing import List
 
 import pytest
 from pydantic import BaseModel
-from transcribee_proto.document import Paragraph
+from transcribee_proto.document import Atom, Paragraph
 from transcribee_worker.whisper_transcribe import (
     move_space_to_prev_token,
     strict_sentence_paragraphs,
@@ -41,6 +41,28 @@ def test_strict_sentence_paragraphs(data_file):
     output = list(doc_chain_func_to_list(strict_sentence_paragraphs)(test_data.input))
     assert [x.text() for x in output] == [x.text() for x in test_data.expected]
     assert output == test_data.expected
+
+
+def test_strict_sentence_paragraphs_dont_combine_overly_long_paras():
+    test_data = [
+        Paragraph(
+            lang="en",
+            children=[
+                Atom(text=f"{word} ", start=0, end=0, conf=1, conf_ts=0)
+                for word in f"this is long sentence {i} without a sentence ending".split()
+            ],
+        )
+        for i in range(19)
+    ]
+
+    output = list(doc_chain_func_to_list(strict_sentence_paragraphs)(test_data))
+
+    for para in output:
+        for atom in para.children:
+            print(atom.text, end="")
+        print()
+
+    assert output == test_data
 
 
 @pytest.mark.parametrize(
