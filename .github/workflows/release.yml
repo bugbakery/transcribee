@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-worker-bundles:
+    strategy:
+      matrix:
+        target: [darwin-aarch64, darwin-x86_64, linux-aarch64, linux-x86_64, win-x86_64]
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Build Worker Bundle
+        run: ./worker/packaging/build_worker_bundle.py ${{matrix.target}}
+
+      - name: Compress Worker Bundle
+        run: xz worker/packaging/build/worker-${{matrix.target}}.tar
+      - uses: actions/upload-artifact@v7
+        with:
+          path: worker/packaging/build/worker-${{matrix.target}}.tar.xz
+          archive: false
+
+  push-docker-backend:
+    uses: ./.github/workflows/.build-push-docker-image.yml
+    with:
+      image_name: ${{ github.repository }}
+      raw_tag: dev+${{ github.sha }}
+      latest_tag: true # we only have dev releases at the moment
+      dockerfile: ./packaging/docker/Dockerfile
+      push: true
+      cache_mode: max
+
+  push-docker-worker:
+    uses: ./.github/workflows/.build-push-docker-image.yml
+    with:
+      image_name: ${{ github.repository }}-worker
+      raw_tag: dev+${{ github.sha }}
+      latest_tag: true  # we only have dev releases at the moment
+      dockerfile: ./packaging/docker/worker.Dockerfile
+      push: true
+      cache_mode: off # cache is really slow for this file
+
+  upload-release:
+    needs:
+      - build-worker-bundles
+      - push-docker-backend
+      - push-docker-worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          skip-decompress: true
+          merge-multiple: true
+
+      - name: Create manifest.json
+        run: |
+          set -euo pipefail
+          manifest="{}"
+          for f in worker*.tar.xz; do
+            sum=$(sha256sum "$f" | awk '{print $1}')
+            manifest=$(echo "$manifest" | jq ".files.[\"$f\"].sha256 = \"$sum\"")
+          done
+          echo "$manifest" > manifest.json
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: dev+${{ github.sha }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          files: |
+            worker-*.tar.xz
+            manifest.json
