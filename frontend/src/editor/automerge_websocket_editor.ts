@@ -9,6 +9,7 @@ import ReconnectingWebSocket from 'reconnecting-websocket';
 import { useDebugMode } from '../debugMode';
 import { Document, Paragraph } from './types';
 import { migrateDocument } from '../document';
+import { TextInsertFragmentOptions } from 'slate/dist/interfaces/transforms/text';
 
 enum MessageSyncType {
   Change = 1,
@@ -52,9 +53,22 @@ export function useAutomergeWebsocketEditor(
     let doc = Automerge.init();
 
     const createNewEditor = (doc: Automerge.Doc<Document>) => {
-      const baseEditor = createEditor();
-      const editorWithReact = withReact(baseEditor);
-      const editor = withHistory(withAutomergeDoc(editorWithReact, Automerge.init()));
+      const editor = withReact(withHistory(withAutomergeDoc(createEditor(), Automerge.init())));
+      const { insertFragment } = editor;
+      editor.insertFragment = (fragment, options?: TextInsertFragmentOptions | undefined) => {
+      const removeProp = (obj: any, toRemove: string[]) => {
+        for (const prop in obj) {
+          if (toRemove.includes(prop)) {
+            delete obj[prop]
+          } else if (typeof obj[prop] === 'object') {
+            removeProp(obj[prop], toRemove)
+          }
+        }
+        return obj
+      }
+      const cleanedFragment = removeProp(fragment, ["start", "end", "conf", "conf_ts"])
+      insertFragment(cleanedFragment, options)
+    }
       editor.addDocChangeListener(sendDocChange);
 
       const migratedDoc = migrateDocument(doc as Automerge.Doc<Document>);
