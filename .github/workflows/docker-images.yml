@@ -2,8 +2,6 @@ name: Docker images
 
 on:
   pull_request:
-  push:
-    branches: [main]
   merge_group:
 
 permissions:
@@ -16,7 +14,6 @@ jobs:
     with:
       image_name: ${{ github.repository }}
       dockerfile: ./packaging/docker/Dockerfile
-      push: ${{ github.ref_name == 'main' }}
       cache_mode: max
 
   worker:
@@ -24,5 +21,4 @@ jobs:
     with:
       image_name: ${{ github.repository }}-worker
       dockerfile: ./packaging/docker/worker.Dockerfile
-      push: ${{ github.ref_name == 'main' }}
       cache_mode: off # cache is really slow for this file
