@@ -126,14 +126,14 @@ def prepare_venv(folder: Path, platform: str, target: Path):
         "UV_PROJECT_ENVIRONMENT": str(target),
         "VIRTUAL_ENV": str(target),
     }
-    plotform_map = {
+    platform_map = {
         "darwin-aarch64": "aarch64-apple-darwin",
         "darwin-x86_64": "x86_64-apple-darwin",
         "linux-aarch64": "aarch64-unknown-linux-gnu",
         "linux-x86_64": "x86_64-manylinux_2_28",
         "win-x86_64": "x86_64-pc-windows-msvc",
     }
-    cmd = ["uv", "sync", "--quiet", "--python-platform", plotform_map[platform]]
+    cmd = ["uv", "sync", "--quiet", "--python-platform", platform_map[platform]]
     print("-> running", " ".join(cmd))
     check_call(cmd, cwd=folder, env=env)
     return target
