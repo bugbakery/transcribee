@@ -4,7 +4,7 @@ import { Editor, createEditor } from 'slate';
 import { withHistory, HistoryEditor } from 'slate-history';
 import { withReact } from 'slate-react';
 import { withAutomergeDoc } from 'slate-automerge-doc';
-import { next as Automerge } from '@automerge/automerge';
+import { next as Automerge, Change } from '@automerge/automerge';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { useDebugMode } from '../debugMode';
 import { Document, Paragraph } from './types';
@@ -75,32 +75,46 @@ export function useAutomergeWebsocketEditor(
     const onMessage = async (event: MessageEvent) => {
       const msg_data = new Uint8Array(await event.data.arrayBuffer());
       bytesReceived += msg_data.length;
+
+      const applyAutomergeChangesToSlate = (changes: Change[]) => {
+        if (!editorRef.current) {
+          return;
+        }
+        const [newDoc] = Automerge.applyChanges(editorRef.current.doc, changes);
+        console.time('setDoc');
+        HistoryEditor.withoutSaving(editorRef.current, () => {
+          editorRef.current?.setDoc(newDoc);
+        });
+        console.timeEnd('setDoc');
+      };
+
       const msg_type = msg_data[0];
       const msg = msg_data.slice(1);
       if (msg_type === MessageSyncType.Change) {
         if (
           !editorRef.current ||
           Automerge.decodeChange(msg).actor == Automerge.getActorId(editorRef.current.doc)
-        )
+        ) {
           return;
-
-        console.time('automerge');
-        const [newDoc] = Automerge.applyChanges(editorRef.current.doc, [msg]);
-        console.timeEnd('automerge');
-        console.time('setDoc');
-        HistoryEditor.withoutSaving(editorRef.current, () => {
-          editorRef.current?.setDoc(newDoc);
-        });
-        console.timeEnd('setDoc');
+        } else {
+          applyAutomergeChangesToSlate([msg]);
+        }
       } else if (msg_type === MessageSyncType.ChangeBacklogComplete) {
         console.info('backlog complete');
         onInitialSyncComplete(editorRef.current);
       } else if (msg_type === MessageSyncType.FullDoc) {
         console.info('Received new document');
-        console.time('automerge');
-        doc = Automerge.load(msg, { allowMissingChanges: true });
-        console.timeEnd('automerge');
-        createNewEditor(doc as Automerge.Doc<Document>);
+        console.time('automerge load full doc');
+        const newDoc = Automerge.load(msg, { allowMissingChanges: true });
+        console.timeEnd('automerge load full doc');
+        if (!editorRef.current) {
+          doc = newDoc;
+          createNewEditor(doc as Automerge.Doc<Document>);
+        } else {
+          console.time('transferring automerge changes from one to the other doc');
+          const changes = Automerge.getChangesSince(newDoc, Automerge.getHeads(doc));
+          applyAutomergeChangesToSlate(changes);
+        }
         console.info(`ws: ${(bytesReceived / 1e6).toFixed(2)} MB recieved so far`);
         console.info('Loaded new document');
       }
