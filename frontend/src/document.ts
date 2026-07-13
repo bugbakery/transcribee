@@ -4,15 +4,15 @@ import * as AutomergeStable from '@automerge/automerge';
 
 function convertString(s: string): string {
   // previously we added some fields as automerge immutable strings. Since version 3.0 the automerge
-  // js api treats js strings as collaborative text. Reading, calling .toString() on a member and
-  // writing it back converts it to a collaborative text.
+  // js api treats js strings as collaborative text. Reading a immutable string, calling .toString()
+  // on it and writing it back converts it to a collaborative text.
   return s.toString();
 }
 
 function ensureFloatChild<T>(obj: T, member: keyof T) {
   // this is only working in the specific context of obj being an automerge document.
-  // because the automerge js api gives every number as a number. Reading and writing it back
-  // causes the number to become a float.
+  // because the automerge js api returns every scalar number (int, units or float) as a js number.
+  // Reading and writing it back causes the number to become a float.
   const v = obj[member];
   obj[member] = v;
 }
