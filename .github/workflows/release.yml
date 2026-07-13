@@ -5,6 +5,19 @@ on:
     branches: [main]
 
 jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        run: |
+          version=dev-$(date +"%Y%m%d%H%M%S")
+          echo "Version: $version"
+
+          echo "release_type=$release_type" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build-worker-bundles:
     strategy:
       matrix:
@@ -26,20 +39,22 @@ jobs:
           archive: false
 
   push-docker-backend:
+    needs: metadata
     uses: ./.github/workflows/.build-push-docker-image.yml
     with:
       image_name: ${{ github.repository }}
-      raw_tag: dev+${{ github.sha }}
+      raw_tag: ${{ needs.metadata.outputs.version }}
       latest_tag: true # we only have dev releases at the moment
       dockerfile: ./packaging/docker/Dockerfile
       push: true
       cache_mode: max
 
   push-docker-worker:
+    needs: metadata
     uses: ./.github/workflows/.build-push-docker-image.yml
     with:
       image_name: ${{ github.repository }}-worker
-      raw_tag: dev+${{ github.sha }}
+      raw_tag: ${{ needs.metadata.outputs.version }}
       latest_tag: true  # we only have dev releases at the moment
       dockerfile: ./packaging/docker/worker.Dockerfile
       push: true
@@ -47,10 +62,15 @@ jobs:
 
   upload-release:
     needs:
+      - metadata
       - build-worker-bundles
       - push-docker-backend
       - push-docker-worker
     runs-on: ubuntu-latest
+    env:
+      FILES_TO_UPLOAD: |
+        worker-*.tar.xz
+        manifest.json
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -65,13 +85,31 @@ jobs:
             sum=$(sha256sum "$f" | awk '{print $1}')
             manifest=$(echo "$manifest" | jq ".files.[\"$f\"].sha256 = \"$sum\"")
           done
+          manifest=$(echo "$manifest" | jq ".[\"docker-tag\"] = \"${{ needs.metadata.outputs.version }}\"")
           echo "$manifest" > manifest.json
 
-      - uses: softprops/action-gh-release@v3
+      - name: Create github release
+        uses: softprops/action-gh-release@v3
+        if: false # we only have dev releases for now
         with:
-          tag_name: dev+${{ github.sha }}
+          tag_name: ${{ needs.metadata.outputs.version }}
           target_commitish: ${{ github.sha }}
           prerelease: true
-          files: |
-            worker-*.tar.xz
-            manifest.json
+          files: ${{ vars.FILES_TO_UPLOAD }}
+
+      - name: Upload to file server
+        env:
+          FILESERVER_USER: ${{ secrets.FILESERVER_USER }}
+          FILESERVER_PASSWORD: ${{ secrets.FILESERVER_PASSWORD }}
+          FILESERVER_HOST: ${{ vars.FILESERVER_HOST }}
+        run: |
+          basic_auth="$FILESERVER_USER:$FILESERVER_PASSWORD"
+          webdav_target="https://$FILESERVER_HOST/releases/${{ needs.metadata.outputs.version }}"
+
+          echo "Creating folder..."
+          curl --user "$basic_auth" -X MKCOL "$webdav_target"
+
+          for f in $(eval echo $(echo "$FILES_TO_UPLOAD" | tr '\n' ' ')); do
+            echo "Uploading $f..."
+            curl --user "$basic_auth" -T "$f" "$webdav_target/"
+          done
