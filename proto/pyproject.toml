@@ -19,6 +19,9 @@ license = {text = "AGPL-3.0"}
 [tool.setuptools]
 packages = ["transcribee_proto"]
 
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { file = "**/*.py" }] # add python files to cache key, otherwise uv will cache too agressively
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
