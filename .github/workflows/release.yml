@@ -1,18 +1,43 @@
 name: Release
 
 on:
+  workflow_dispatch: # manually trigger dev release for custom branch
   push:
-    branches: [main]
+    branches:
+      # dev releases
+      - main
+      - release/*
+    tags:
+      - v*.*.*-* # pre releases (e.g. v1.0.0-beta.123)
+      - v*.*.* # prod releases
 
 jobs:
   metadata:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      version: ${{ steps.meta.outputs.version }}
+      release_type: ${{ steps.meta.outputs.release_type }}
     steps:
-      - id: version
+      - id: meta
         run: |
-          version=dev-$(date +"%Y%m%d%H%M%S")
+          if [[ "$GITHUB_REF" == refs/tags/v*.*.*-* ]]; then
+            release_type=pre
+            version=${GITHUB_REF_NAME#"v"}
+          elif [[ "$GITHUB_REF" == refs/tags/v*.*.* ]]; then
+            release_type=prod
+            version=${GITHUB_REF_NAME#"v"}
+          elif [[ "$GITHUB_REF" == refs/heads/* ]]; then
+            release_type=dev
+            version=dev-$GITHUB_REF_NAME-$(date +"%Y%m%d%H%M%S")
+          else
+            echo "Workflow running on invalid ref: $GITHUB_REF"
+            exit 1
+          fi
+
+          # ensure compatibility with docker tag
+          version=$(echo -n "$version" | tr -c '[:alnum:].' '-')
+
+          echo "Release type: $release_type"
           echo "Version: $version"
 
           echo "release_type=$release_type" >> "$GITHUB_OUTPUT"
@@ -43,8 +68,8 @@ jobs:
     uses: ./.github/workflows/.build-push-docker-image.yml
     with:
       image_name: ${{ github.repository }}
-      raw_tag: ${{ needs.metadata.outputs.version }}
-      latest_tag: true # we only have dev releases at the moment
+      version_tag: ${{ needs.metadata.outputs.release_type != 'dev' && needs.metadata.outputs.version }}
+      raw_tag: ${{ needs.metadata.outputs.release_type == 'dev' && needs.metadata.outputs.version }}
       dockerfile: ./packaging/docker/Dockerfile
       push: true
       cache_mode: max
@@ -54,8 +79,8 @@ jobs:
     uses: ./.github/workflows/.build-push-docker-image.yml
     with:
       image_name: ${{ github.repository }}-worker
-      raw_tag: ${{ needs.metadata.outputs.version }}
-      latest_tag: true  # we only have dev releases at the moment
+      version_tag: ${{ needs.metadata.outputs.release_type != 'dev' && needs.metadata.outputs.version }}
+      raw_tag: ${{ needs.metadata.outputs.release_type == 'dev' && needs.metadata.outputs.version }}
       dockerfile: ./packaging/docker/worker.Dockerfile
       push: true
       cache_mode: off # cache is really slow for this file
@@ -88,23 +113,15 @@ jobs:
           manifest=$(echo "$manifest" | jq ".[\"docker-tag\"] = \"${{ needs.metadata.outputs.version }}\"")
           echo "$manifest" > manifest.json
 
-      - name: Create github release
-        uses: softprops/action-gh-release@v3
-        if: false # we only have dev releases for now
-        with:
-          tag_name: ${{ needs.metadata.outputs.version }}
-          target_commitish: ${{ github.sha }}
-          prerelease: true
-          files: ${{ vars.FILES_TO_UPLOAD }}
-
       - name: Upload to file server
+        if: ${{ needs.metadata.outputs.release_type == 'dev' }}
         env:
           FILESERVER_USER: ${{ secrets.FILESERVER_USER }}
           FILESERVER_PASSWORD: ${{ secrets.FILESERVER_PASSWORD }}
           FILESERVER_HOST: ${{ vars.FILESERVER_HOST }}
         run: |
           basic_auth="$FILESERVER_USER:$FILESERVER_PASSWORD"
-          webdav_target="https://$FILESERVER_HOST/releases/${{ needs.metadata.outputs.version }}"
+          webdav_target="https://$FILESERVER_HOST/dev-releases/${{ needs.metadata.outputs.version }}"
 
           echo "Creating folder..."
           curl --user "$basic_auth" -X MKCOL "$webdav_target"
@@ -113,3 +130,10 @@ jobs:
             echo "Uploading $f..."
             curl --user "$basic_auth" -T "$f" "$webdav_target/"
           done
+
+      - name: Create github release
+        uses: softprops/action-gh-release@v3
+        if: ${{ needs.metadata.outputs.release_type != 'dev' }}
+        with:
+          prerelease: ${{ needs.metadata.outputs.release_type != 'prod' }}
+          files: ${{ vars.FILES_TO_UPLOAD }}

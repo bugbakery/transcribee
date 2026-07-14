@@ -18,13 +18,10 @@ on:
       cache_mode:
         type: string
         default: min
-      raw_tag:
-        type: string
       version_tag:
         type: string
-      latest_tag:
-        type: boolean
-        default: false
+      raw_tag:
+        type: string
 
 jobs:
   build-and-push-image:
@@ -51,9 +48,9 @@ jobs:
         with:
           images: ${{ inputs.registry }}/${{ inputs.image_name }}
           tags: |
-            type=semver,pattern={{version}},enable=${{ inputs.version_tag != '' }},value=${{ inputs.version_tag }}
+            type=semver,pattern={{version}},value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
             type=raw,value=${{ inputs.raw_tag }}
-            type=raw,value=latest,enable=${{ inputs.latest_tag }}
 
       - name: "Build${{ inputs.push && ' and push' || ''  }}"
         uses: docker/build-push-action@v7
