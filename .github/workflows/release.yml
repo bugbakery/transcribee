@@ -139,3 +139,5 @@ jobs:
         with:
           prerelease: ${{ needs.metadata.outputs.release_type != 'prod' }}
           files: ${{ vars.FILES_TO_UPLOAD }}
+          draft: true
+          generate_release_notes: true
