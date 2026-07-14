@@ -111,6 +111,8 @@ jobs:
             manifest=$(echo "$manifest" | jq ".files.[\"$f\"].sha256 = \"$sum\"")
           done
           manifest=$(echo "$manifest" | jq ".[\"docker-tag\"] = \"${{ needs.metadata.outputs.version }}\"")
+          manifest=$(echo "$manifest" | jq ".git.commit = \"${{ github.sha }}\"")
+          manifest=$(echo "$manifest" | jq ".git.ref = \"${{ github.ref_name }}\"")
           echo "$manifest" > manifest.json
 
       - name: Upload to file server
