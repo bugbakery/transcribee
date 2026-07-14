@@ -1,4 +1,5 @@
 use log::{error, info, log, Level};
+use std::time::Duration;
 use tauri::Manager;
 use tauri::{
     path::BaseDirectory,
@@ -6,6 +7,7 @@ use tauri::{
     Runtime,
 };
 use tauri_plugin_shell::ShellExt;
+use tokio::time::sleep;
 
 use crate::backend_plugin::BackendState;
 
@@ -81,6 +83,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
                             output_buffer(buf, level, false);
                         }
                     }
+
+                    sleep(Duration::from_secs(5)).await;
                 }
             });
             Ok(())
