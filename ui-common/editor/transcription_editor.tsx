@@ -11,7 +11,7 @@ import {
 import { SpeakerDropdown } from './speaker_dropdown';
 import { useEvent } from '../utils/use_event';
 import { SeekToEvent, Paragraph } from './types';
-import { PlayerBar, startTimeToClassName } from './player';
+import { startTimeToClassName } from './player';
 import clsx from 'clsx';
 import React, { ComponentProps, useContext, useCallback, memo, useState } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
@@ -221,17 +221,14 @@ Leaf.displayName = 'Leaf';
 
 export function TranscriptionEditor({
   editor,
-  documentId,
   readOnly,
   initialValue,
-  onShowVideo,
+  children,
   ...props
 }: {
   editor?: Editor;
-  documentId: string;
   readOnly: boolean;
   initialValue?: Paragraph[];
-  onShowVideo?: (show: boolean) => void;
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
   // prevent ctrl+s
@@ -314,9 +311,7 @@ export function TranscriptionEditor({
                   className={clsx('2xl:-ml-20')}
                 />
               </ErrorBoundary>
-              {!loadingState[0] && (
-                <PlayerBar documentId={documentId} editor={editor} onShowVideo={onShowVideo} />
-              )}
+              {children}
             </LoadingContext.Provider>
           </SpeakerColorsProvider>
         </Slate>

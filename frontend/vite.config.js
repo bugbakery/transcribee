@@ -7,6 +7,7 @@ import fs from 'fs';
 import * as mime from 'mime-types';
 
 import pkg from './package.json';
+import ui_common_pkg from '../ui-common/package.json'
 
 function gitVersionPlugin() {
   const virtualModuleId = 'virtual:git-version';
@@ -113,6 +114,16 @@ export default defineConfig({
     faviconPlugin('./assets/logo.svg'),
   ],
 
+  resolve: {
+    dedupe: Object.keys(ui_common_pkg.peerDependencies)
+  },
+
+  esbuild: {
+    jsxFactory: '_jsx',
+    jsxFragment: '_jsxFragment',
+    jsxInject: `import { createElement as _jsx, Fragment as _jsxFragment } from 'react'`,
+  },
+
   // This is only necessary if you are using `SharedWorker` or `WebWorker`, as
   // documented in https://vitejs.dev/guide/features.html#import-with-constructors
   worker: {
@@ -125,6 +136,6 @@ export default defineConfig({
     // versions of the JS wrapper. This causes problems because the JS
     // wrapper has a module level variable to track JS side heap
     // allocations, initializing this twice causes horrible breakage
-    exclude: ['@automerge/automerge-wasm'],
+    exclude: ['@automerge/automerge-wasm', 'transcribee-ui-common'],
   },
 });

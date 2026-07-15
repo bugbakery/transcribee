@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Footer } from '../common/footer';
+import { Footer } from './footer';
 
 export function AppContainer({
   children,

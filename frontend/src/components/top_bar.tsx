@@ -1,15 +1,18 @@
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
-
 import { storeAuthToken } from '../api';
 import { logout } from '../api/user';
-import { primitiveWithClassname } from '../styled';
+import { primitiveWithClassname } from 'transcribee-ui-common/utils/styled';
 import { BiUser } from 'react-icons/bi';
-import { IconButton, PrimaryButton, SecondaryButton } from '../components/button';
-import { Popup } from '../components/popup';
-import { showModal } from '../components/modal';
-import { ChangePasswordModal } from '../components/change_password';
-import { useAuthData } from '../utils/auth';
+import {
+  IconButton,
+  PrimaryButton,
+  SecondaryButton,
+} from 'transcribee-ui-common/components/button';
+import { Popup } from 'transcribee-ui-common/components/popup';
+import { showModal } from 'transcribee-ui-common/components/modal';
+import { ChangePasswordModal } from './change_password';
+import { useAuthData } from '../api/auth';
 
 const TopBarBg = primitiveWithClassname(
   'div',
@@ -67,7 +70,7 @@ export function MeMenu() {
           onClick={async () => {
             try {
               await logout({});
-            } catch (e) {
+            } catch (_e) {
               /* empty */
             }
             storeAuthToken(undefined);

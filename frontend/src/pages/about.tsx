@@ -1,7 +1,7 @@
-import { AppCenter } from '../components/app';
-import { LongVersion } from '../common/footer';
+import { AppCenter } from '../components/app_container';
+import { LongVersion } from '../components/footer';
 import pf_funding_svg from '../../assets/pf_funding_logos.svg';
-import { trimTrailingSlash } from '../utils/trim_trailing_slash';
+import { trimTrailingSlash } from 'transcribee-ui-common/utils/trim_trailing_slash';
 
 export function AboutPage() {
   const routerBase = trimTrailingSlash(import.meta.env.BASE_URL);

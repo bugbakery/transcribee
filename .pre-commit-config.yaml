@@ -25,85 +25,123 @@ repos:
         entry: ruff check --config .ruff.toml --force-exclude --fix
         language: system
         "types_or": [python, pyi]
+
+  # backend
   - repo: local
     hooks:
       - id: backend-pyright
-        name: Run typechecker for backend
+        name: "backend: pyright"
         entry: poe -C worker/ pyright
         language: system
         files: backend/.*
         pass_filenames: false
   - repo: local
     hooks:
-      - id: worker-pyright
-        name: Run typechecker for worker
-        entry: poe -C worker/ pyright
-        language: system
-        files: worker/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: backend-openapi
-        name: update openapi-schema of the backend
-        entry: poe -C backend/ generate_openapi --file openapi-schema.yml
-        language: system
-        files: backend/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: backend-tests
-        name: run backend tests
+      - id: backend-test
+        name: "bockend: test"
         entry: poe -C backend/ test
         language: system
         files: backend/.*
         pass_filenames: false
   - repo: local
     hooks:
-      - id: backend-tests
-        name: run worker tests
+      - id: backend-openapi
+        name: "backend: openapi-schema"
+        entry: poe -C backend/ generate_openapi --file openapi-schema.yml
+        language: system
+        files: backend/.*
+        pass_filenames: false
+
+  # worker
+  - repo: local
+    hooks:
+      - id: worker-pyright
+        name: "worker: pyright"
+        entry: poe -C worker/ pyright
+        language: system
+        files: worker/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: worker-tests
+        name: "worker: tests"
         entry: poe -C worker/ test
         language: system
         files: worker/.*
         pass_filenames: false
 
   # frontend checks
-  - repo: local
-    hooks:
-      - id: eslint
-        name: eslint
-        entry: npm --prefix frontend/ run check:eslint
-        language: system
-        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
-        pass_filenames: false
   - repo: local # openapi-schema typescript from the openapi-schema of the backend
     hooks:
-      - id: openapi-typescript
-        name: openapi-typescript
+      - id: frontend-openapi-typescript
+        name: "frontend: openapi-typescript"
         entry: npm --prefix frontend/ run generate-openapi
         language: system
         files: backend/openapi-schema.yml
         pass_filenames: false
   - repo: local
     hooks:
-      - id: tsc
-        name: tsc
+      - id: frontend-eslint
+        name: "frontend: eslint"
+        entry: npm --prefix frontend/ run check:eslint
+        language: system
+        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: frontend-tsc
+        name: "frontend: tsc"
         entry: npm --prefix frontend/ run check:tsc
         language: system
         files: frontend/.*
         pass_filenames: false
   - repo: local
     hooks:
-      - id: format
-        name: format
+      - id: frontend-format
+        name: "frontend: format"
         entry: npm --prefix frontend/ run format
         language: system
         files: frontend/.*
         pass_filenames: false
   - repo: local
     hooks:
-      - id: npm_test
-        name: npm test
+      - id: frontend-test
+        name: "frontend: test"
         entry: npm --prefix frontend/ run test
         language: system
         files: frontend/.*
+        pass_filenames: false
+
+# ui-common
+  - repo: local
+    hooks:
+      - id: ui-common-eslint
+        name: "ui-common: eslint"
+        entry: npm --prefix ui-common/ run check:eslint
+        language: system
+        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: ui-common-tsc
+        name: "ui-common: tsc"
+        entry: npm --prefix ui-common/ run check:tsc
+        language: system
+        files: ui-common/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: ui-common-format
+        name: "ui-common: format"
+        entry: npm --prefix ui-common/ run format
+        language: system
+        files: ui-common/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: ui-common-test
+        name: "ui-common: test"
+        entry: npm --prefix ui-common/ run test
+        language: system
+        files: ui-common/.*
         pass_filenames: false

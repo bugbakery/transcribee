@@ -1,5 +1,5 @@
 import { RouteComponentProps } from 'wouter';
-import { AppCenter } from '../components/app';
+import { AppCenter } from '../components/app_container';
 import ReactMarkdown from 'react-markdown';
 import { getPage, useGetPage } from '../api/pages';
 import { PageNotFoundPage } from './page_not_found';

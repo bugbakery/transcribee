@@ -3,17 +3,16 @@ import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
 import languages from './languages.json';
-
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { createDocument, importDocument } from '../api/document';
-import { Dialog, DialogTitle } from '../components/dialog';
-import { FormControl, Input, Select, Slider } from '../components/form';
-import { LoadingSpinnerButton, SecondaryButton } from '../components/button';
-import { AppContainer } from '../components/app';
+import { Dialog, DialogTitle } from 'transcribee-ui-common/components/dialog';
+import { FormControl, Input, Select, Slider } from 'transcribee-ui-common/components/form';
+import { LoadingSpinnerButton, SecondaryButton } from 'transcribee-ui-common/components/button';
+import { AppContainer } from '../components/app_container';
 import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
 import * as Automerge from '@automerge/automerge';
-import { getDocumentWsUrl } from '../utils/auth';
-import { HelpPopup } from '../components/popup';
+import { getDocumentWsUrl } from '../api/auth';
+import { HelpPopup } from 'transcribee-ui-common/components/popup';
 
 type FieldValues = {
   name: string;
@@ -32,7 +31,7 @@ async function getEntry(
   for (const entry of entries) {
     if (entry.filename == name) {
       const writer = new BlobWriter();
-      const data = entry.getData ? await entry.getData(writer) : null;
+      const data = entry.directory == false ? await entry.getData(writer) : null;
       return data;
     }
   }

@@ -1,4 +1,4 @@
-import { primitiveWithClassname } from '../styled';
+import { primitiveWithClassname } from '../utils/styled';
 
 export const Dialog = primitiveWithClassname('div', [
   'p-6',

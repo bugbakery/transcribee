@@ -1,14 +1,13 @@
 import { Link } from 'wouter';
 import clsx from 'clsx';
 import TruncateMarkup from 'react-truncate-markup';
-
 import { deleteDocument, useListDocuments } from '../api/document';
-import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
-import { AppContainer } from '../components/app';
+import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../components/top_bar';
+import { AppContainer } from '../components/app_container';
 import { AiOutlinePlus } from 'react-icons/ai';
 import { IoMdTrash } from 'react-icons/io';
-import { IconButton } from '../components/button';
-import { WorkerStatusWithData } from '../editor/worker_status';
+import { IconButton } from 'transcribee-ui-common/components/button';
+import { WorkerStatusWithData } from '../components/worker_status';
 import { ComponentProps, useEffect, useState } from 'react';
 import { RequestDataType } from '../api';
 

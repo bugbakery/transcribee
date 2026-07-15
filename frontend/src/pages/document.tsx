@@ -1,26 +1,35 @@
 import { RouteComponentProps, useLocation } from 'wouter';
 import { IoIosArrowBack } from 'react-icons/io';
-import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../common/top_bar';
-import { AppContainer } from '../components/app';
-import { IconButton, PrimaryButton, SecondaryButton } from '../components/button';
-import { TranscriptionEditor } from '../editor/transcription_editor';
-import { WorkerStatus } from '../editor/worker_status';
-import { updateDocument, useGetDocument } from '../api/document';
+import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../components/top_bar';
+import { AppContainer } from '../components/app_container';
+import {
+  IconButton,
+  PrimaryButton,
+  SecondaryButton,
+} from 'transcribee-ui-common/components/button';
+import { TranscriptionEditor } from 'transcribee-ui-common/editor/transcription_editor';
+import { WorkerStatus } from '../components/worker_status';
+import { updateDocument, useGetDocument, useGetDocumentMediaFiles } from '../api/document';
 import { TbFileExport, TbShare3 } from 'react-icons/tb';
 import { Suspense, lazy, useState, useCallback } from 'react';
-import { useDebugMode } from '../debugMode';
-import { useAutomergeWebsocketEditor } from '../editor/automerge_websocket_editor';
-import { showModal } from '../components/modal';
-import { Input } from '../components/form';
+import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
+import { useAutomergeWebsocketEditor } from '../components/automerge_websocket_editor';
+import { showModal } from 'transcribee-ui-common/components/modal';
+import { Input } from 'transcribee-ui-common/components/form';
 import { BiPencil } from 'react-icons/bi';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { Helmet } from 'react-helmet';
-import { ShareModal } from '../editor/share';
-import { getDocumentWsUrl, useAuthData } from '../utils/auth';
-import { ExportModal } from '../editor/export';
+import { ShareModal } from '../components/share';
+import { getDocumentWsUrl, useAuthData } from '../api/auth';
+import { ExportModal } from 'transcribee-ui-common/editor/export/index';
+import { PlayerBar } from 'transcribee-ui-common/editor/player';
+import { minutesInMs } from 'transcribee-ui-common/utils/duration_in_ms';
+import { Editor } from 'slate';
 
 const LazyDebugPanel = lazy(() =>
-  import('../editor/debug_panel').then((module) => ({ default: module.DebugPanel })),
+  import('transcribee-ui-common/editor/debug_panel').then((module) => ({
+    default: module.DebugPanel,
+  })),
 );
 
 type DocumentTitleInputs = {
@@ -190,11 +199,12 @@ export function DocumentPage({
 
       <TranscriptionEditor
         editor={editor}
-        documentId={documentId}
         initialValue={initialValue}
         className={'grow flex flex-col'}
         readOnly={!data || !data.can_write}
-      />
+      >
+        <PlayerBarAutoMediaFiles documentId={documentId} editor={editor} />
+      </TranscriptionEditor>
 
       {/* Spacer to prevent video preview from hiding text */}
       <div id="video-bottom-spacer" />
@@ -202,4 +212,33 @@ export function DocumentPage({
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </AppContainer>
   );
+}
+
+function PlayerBarAutoMediaFiles({
+  documentId,
+  editor,
+  onShowVideo,
+}: {
+  documentId: string;
+  editor?: Editor;
+  onShowVideo?: (show: boolean) => void;
+}) {
+  const { data: mediaFiles } = useGetDocumentMediaFiles(
+    { document_id: documentId },
+    {
+      revalidateOnFocus: false,
+      refreshInterval: minutesInMs(50), // media token expires after 1 hour
+    },
+  );
+
+  if (editor && mediaFiles) {
+    return (
+      <PlayerBar
+        documentId={documentId}
+        editor={editor}
+        mediaFiles={mediaFiles}
+        onShowVideo={onShowVideo}
+      />
+    );
+  }
 }
