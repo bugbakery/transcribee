@@ -1,13 +1,12 @@
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { useLocation } from 'wouter';
 import { useState } from 'react';
-
 import { storeAuthToken } from '../api';
 import { login, useGetMe } from '../api/user';
-import { Dialog, DialogTitle } from '../components/dialog';
-import { FormControl, Input } from '../components/form';
-import { PrimaryButton } from '../components/button';
-import { AppCenter } from '../components/app';
+import { Dialog, DialogTitle } from 'transcribee-ui-common/components/dialog';
+import { FormControl, Input } from 'transcribee-ui-common/components/form';
+import { PrimaryButton } from 'transcribee-ui-common/components/button';
+import { AppCenter } from '../components/app_container';
 
 type FieldValues = {
   username: string;

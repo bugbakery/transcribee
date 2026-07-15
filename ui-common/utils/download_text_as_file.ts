@@ -10,7 +10,11 @@ function downloadURL(data: string, fileName: string) {
   a.remove();
 }
 
-export function downloadBinaryAsFile(fileName: string, mimeType: string, data: Uint8Array) {
+export function downloadBinaryAsFile(
+  fileName: string,
+  mimeType: string,
+  data: Uint8Array<ArrayBuffer>,
+) {
   const blob = new Blob([data], {
     type: mimeType,
   });

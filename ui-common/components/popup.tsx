@@ -57,7 +57,9 @@ export function Popup({
       {cloneElement(button, {
         onClick: () => {
           setShow(!show.now);
-          update && update();
+          if (update) {
+            update();
+          }
         },
       })}
 

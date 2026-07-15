@@ -6,9 +6,9 @@ import { withReact } from 'slate-react';
 import { withAutomergeDoc } from 'slate-automerge-doc';
 import { next as Automerge, Change } from '@automerge/automerge';
 import ReconnectingWebSocket from 'reconnecting-websocket';
-import { useDebugMode } from '../debugMode';
-import { Document, Paragraph } from './types';
-import { migrateDocument } from '../document';
+import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
+import { Document, Paragraph } from 'transcribee-ui-common/editor/types';
+import { migrateDocument } from 'transcribee-ui-common/editor/migrate_document';
 
 enum MessageSyncType {
   Change = 1,
@@ -48,7 +48,6 @@ export function useAutomergeWebsocketEditor(
     const ws = new ReconnectingWebSocket(url, [], { debug });
 
     let bytesReceived = 0;
-    console.time('initialSync');
     let doc = Automerge.init();
 
     const createNewEditor = (doc: Automerge.Doc<Document>) => {

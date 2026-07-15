@@ -1,5 +1,5 @@
 import { getAuthToken, getShareToken } from '../api';
-import { useGetMe } from '../api/user';
+import { useGetMe } from './user';
 
 export function getDocumentWsUrl(documentId: string) {
   const url = new URL(`/api/v1/documents/sync/${documentId}/`, window.location.href);

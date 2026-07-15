@@ -1,6 +1,6 @@
 import { expect, test } from '@jest/globals';
-import { migrateDocument } from './document';
-import { Document } from './editor/types';
+import { migrateDocument } from './migrate_document';
+import { Document } from './types';
 import { next as Automerge } from '@automerge/automerge';
 import * as fs from 'fs';
 

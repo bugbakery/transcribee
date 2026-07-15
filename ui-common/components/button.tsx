@@ -1,4 +1,4 @@
-import { primitiveWithClassname } from '../styled';
+import { primitiveWithClassname } from '../utils/styled';
 import { IconType } from 'react-icons';
 import clsx from 'clsx';
 import { LoadingSpinner } from './loading_spinner/loading_spinner';

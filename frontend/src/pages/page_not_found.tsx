@@ -1,6 +1,6 @@
 import { useLocation } from 'wouter';
-import { AppCenter } from '../components/app';
-import { PrimaryButton } from '../components/button';
+import { AppCenter } from '../components/app_container';
+import { PrimaryButton } from 'transcribee-ui-common/components/button';
 
 export function PageNotFoundPage() {
   const [_, navigate] = useLocation();

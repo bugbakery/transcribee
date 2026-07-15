@@ -1,4 +1,4 @@
-import { Document } from './editor/types';
+import { Document } from './types';
 import { next as Automerge } from '@automerge/automerge';
 import * as AutomergeStable from '@automerge/automerge';
 

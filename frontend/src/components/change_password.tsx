@@ -1,7 +1,7 @@
 import { ComponentProps, useState } from 'react';
-import { PrimaryButton } from './button';
-import { FormControl, Input } from './form';
-import { Modal } from './modal';
+import { PrimaryButton } from 'transcribee-ui-common/components/button';
+import { FormControl, Input } from 'transcribee-ui-common/components/form';
+import { Modal } from 'transcribee-ui-common/components/modal';
 import { useForm, FieldValues, SubmitHandler } from 'react-hook-form';
 import { changePassword } from '../api/user';
 

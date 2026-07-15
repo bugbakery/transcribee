@@ -5,8 +5,8 @@ import { FormControl, Input, Select } from '../../components/form';
 import { Modal } from '../../components/modal';
 import { WebVttExportBody } from './webvtt';
 import { TranscribeeExportBody } from './transcribee';
-import { ApiDocument } from '../../api/document';
 import { PlaintextExportBody } from './plaintext';
+import { ApiDocument } from '../api_document';
 
 export type ExportProps = {
   outputNameBase: string;

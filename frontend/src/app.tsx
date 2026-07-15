@@ -1,15 +1,14 @@
 import { DefaultParams, Route, RouteProps, Router, Switch, useLocation } from 'wouter';
-
-import { trimTrailingSlash } from './utils/trim_trailing_slash';
+import { trimTrailingSlash } from 'transcribee-ui-common/utils/trim_trailing_slash';
 import { LoginPage } from './pages/login';
 import { UserHomePage } from './pages/user_home';
 import { NewDocumentPage } from './pages/new_document';
 import { DocumentPage } from './pages/document';
 import { PageNotFoundPage } from './pages/page_not_found';
-import { ModalHolder } from './components/modal';
+import { ModalHolder } from 'transcribee-ui-common/components/modal';
 import { Helmet } from 'react-helmet';
-import { registerCopyHandler } from './utils/copy_text';
-import { useAuthData } from './utils/auth';
+import { registerCopyHandler } from 'transcribee-ui-common/utils/copy_text';
+import { useAuthData } from './api/auth';
 import { PagePage } from './pages/page';
 import { AboutPage } from './pages/about';
 import { useGetConfig } from './api/config';

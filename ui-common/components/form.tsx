@@ -7,7 +7,7 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react';
-import { primitiveWithClassname } from '../styled';
+import { primitiveWithClassname } from '../utils/styled';
 import clsx from 'clsx';
 
 export type FormControlProps = {

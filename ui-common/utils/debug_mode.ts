@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useEvent } from './utils/use_event';
+import { useEvent } from './use_event';
 
 declare global {
   interface Window {

@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import { IconButton } from '../components/button';
 import { ImBackward2, ImPause2, ImPlay3 } from 'react-icons/im';
 import { useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react';
-import { ApiDocument, useGetDocumentMediaFiles } from '../api/document';
+import { MediaFile } from './api_document';
 import { CssRule } from '../utils/cssdom';
 import { SEEK_TO_EVENT, SeekToEvent } from './types';
 import { useEvent } from '../utils/use_event';
@@ -13,7 +13,6 @@ import { SpeakerColorsContext } from './speaker_colors';
 import { LoadingSpinner } from '../components/loading_spinner/loading_spinner';
 import { getSpeakerName, useDocumentSelector } from '../utils/document';
 import { sortMediaFiles, useAudio } from '../utils/use_audio';
-import { minutesInMs } from '../utils/duration_in_ms';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
 import { BiVideo, BiVideoOff } from 'react-icons/bi';
@@ -24,7 +23,7 @@ const SKIP_SHORTCUT_SEC = 3;
 
 let lastTabPressTs = 0;
 
-export function splitAndSortMediaFiles(mediaFiles: ApiDocument['media_files']) {
+export function splitAndSortMediaFiles(mediaFiles: MediaFile[]) {
   const videoFiles = mediaFiles.filter((media) => media.tags.includes('video'));
   const audioFiles = mediaFiles.filter((media) => !media.tags.includes('video'));
 
@@ -50,22 +49,16 @@ export function PlayerBar({
   documentId,
   editor,
   onShowVideo,
+  mediaFiles,
 }: {
   documentId: string;
   editor: Editor;
   onShowVideo?: (show: boolean) => void;
+  mediaFiles: MediaFile[];
 }) {
-  const { data } = useGetDocumentMediaFiles(
-    { document_id: documentId },
-    {
-      revalidateOnFocus: false,
-      refreshInterval: minutesInMs(50), // media token expires after 1 hour
-    },
-  );
-
   const { videoSources, audioSources, hasVideo } = useMemo(
-    () => splitAndSortMediaFiles(data || []),
-    [data],
+    () => splitAndSortMediaFiles(mediaFiles),
+    [mediaFiles],
   );
 
   const [playbackRate, setPlaybackRate] = useLocalStorage('playbackRate', 1);

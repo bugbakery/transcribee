@@ -13,6 +13,6 @@
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true
   },
-  "include": ["src"],
+  "include": ["components", "editor", "types", "utils"],
   "exclude": ["node_modules"]
 }

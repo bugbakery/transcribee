@@ -66,7 +66,7 @@ export function TranscribeeExportBody({ onClose, outputNameBase, editor, documen
               downloadBinaryAsFile(
                 `${outputNameBase}.transcribee`,
                 `application/octet-stream`,
-                zipFileBlob,
+                zipFileBlob as Uint8Array<ArrayBuffer>,
               );
 
               onClose();
