@@ -18,6 +18,10 @@ on:
       cache_mode:
         type: string
         default: min
+      version_tag:
+        type: string
+      raw_tag:
+        type: string
 
 jobs:
   build-and-push-image:
@@ -44,12 +48,9 @@ jobs:
         with:
           images: ${{ inputs.registry }}/${{ inputs.image_name }}
           tags: |
-            type=schedule
-            type=ref,event=branch
-            type=ref,event=tag
-            type=ref,event=pr
-            # set latest tag for main branch
-            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+            type=semver,pattern={{version}},value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version_tag }},enable=${{ inputs.version_tag != '' }}
+            type=raw,value=${{ inputs.raw_tag }}
 
       - name: "Build${{ inputs.push && ' and push' || ''  }}"
         uses: docker/build-push-action@v7

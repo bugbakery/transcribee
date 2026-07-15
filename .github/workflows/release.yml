@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  workflow_dispatch: # manually trigger dev release for custom branch
+  push:
+    branches:
+      # dev releases
+      - main
+      - release/*
+    tags:
+      - v*.*.*-* # pre releases (e.g. v1.0.0-beta.123)
+      - v*.*.* # prod releases
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      release_type: ${{ steps.meta.outputs.release_type }}
+    steps:
+      - id: meta
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v*.*.*-* ]]; then
+            release_type=pre
+            version=${GITHUB_REF_NAME#"v"}
+          elif [[ "$GITHUB_REF" == refs/tags/v*.*.* ]]; then
+            release_type=prod
+            version=${GITHUB_REF_NAME#"v"}
+          elif [[ "$GITHUB_REF" == refs/heads/* ]]; then
+            release_type=dev
+            version=dev-$GITHUB_REF_NAME-$(date +"%Y%m%d%H%M%S")
+          else
+            echo "Workflow running on invalid ref: $GITHUB_REF"
+            exit 1
+          fi
+
+          # ensure compatibility with docker tag
+          version=$(echo -n "$version" | tr -c '[:alnum:].' '-')
+
+          echo "Release type: $release_type"
+          echo "Version: $version"
+
+          echo "release_type=$release_type" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build-worker-bundles:
+    strategy:
+      matrix:
+        target: [darwin-aarch64, darwin-x86_64, linux-aarch64, linux-x86_64, win-x86_64]
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Build Worker Bundle
+        run: ./worker/packaging/build_worker_bundle.py ${{matrix.target}}
+
+      - name: Compress Worker Bundle
+        run: xz worker/packaging/build/worker-${{matrix.target}}.tar
+      - uses: actions/upload-artifact@v7
+        with:
+          path: worker/packaging/build/worker-${{matrix.target}}.tar.xz
+          archive: false
+
+  push-docker-backend:
+    needs: metadata
+    uses: ./.github/workflows/.build-push-docker-image.yml
+    with:
+      image_name: ${{ github.repository }}
+      version_tag: ${{ needs.metadata.outputs.release_type != 'dev' && needs.metadata.outputs.version }}
+      raw_tag: ${{ needs.metadata.outputs.release_type == 'dev' && needs.metadata.outputs.version }}
+      dockerfile: ./packaging/docker/Dockerfile
+      push: true
+      cache_mode: max
+
+  push-docker-worker:
+    needs: metadata
+    uses: ./.github/workflows/.build-push-docker-image.yml
+    with:
+      image_name: ${{ github.repository }}-worker
+      version_tag: ${{ needs.metadata.outputs.release_type != 'dev' && needs.metadata.outputs.version }}
+      raw_tag: ${{ needs.metadata.outputs.release_type == 'dev' && needs.metadata.outputs.version }}
+      dockerfile: ./packaging/docker/worker.Dockerfile
+      push: true
+      cache_mode: off # cache is really slow for this file
+
+  upload-release:
+    needs:
+      - metadata
+      - build-worker-bundles
+      - push-docker-backend
+      - push-docker-worker
+    runs-on: ubuntu-latest
+    env:
+      FILES_TO_UPLOAD: |
+        worker-*.tar.xz
+        manifest.json
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          skip-decompress: true
+          merge-multiple: true
+
+      - name: Create manifest.json
+        run: |
+          set -euo pipefail
+          manifest="{}"
+          for f in worker*.tar.xz; do
+            sum=$(sha256sum "$f" | awk '{print $1}')
+            manifest=$(echo "$manifest" | jq ".files.[\"$f\"].sha256 = \"$sum\"")
+          done
+          manifest=$(echo "$manifest" | jq ".[\"docker-tag\"] = \"${{ needs.metadata.outputs.version }}\"")
+          manifest=$(echo "$manifest" | jq ".git.commit = \"${{ github.sha }}\"")
+          manifest=$(echo "$manifest" | jq ".git.ref = \"${{ github.ref_name }}\"")
+          echo "$manifest" > manifest.json
+
+      - name: Upload to file server
+        if: ${{ needs.metadata.outputs.release_type == 'dev' }}
+        env:
+          FILESERVER_USER: ${{ secrets.FILESERVER_USER }}
+          FILESERVER_PASSWORD: ${{ secrets.FILESERVER_PASSWORD }}
+          FILESERVER_HOST: ${{ vars.FILESERVER_HOST }}
+        run: |
+          basic_auth="$FILESERVER_USER:$FILESERVER_PASSWORD"
+          webdav_target="https://$FILESERVER_HOST/dev-releases/${{ needs.metadata.outputs.version }}"
+
+          echo "Creating folder..."
+          curl --user "$basic_auth" -X MKCOL "$webdav_target"
+
+          for f in $(eval echo $(echo "$FILES_TO_UPLOAD" | tr '\n' ' ')); do
+            echo "Uploading $f..."
+            curl --user "$basic_auth" -T "$f" "$webdav_target/"
+          done
+
+      - name: Create github release
+        uses: softprops/action-gh-release@v3
+        if: ${{ needs.metadata.outputs.release_type != 'dev' }}
+        with:
+          prerelease: ${{ needs.metadata.outputs.release_type != 'prod' }}
+          files: ${{ vars.FILES_TO_UPLOAD }}
+          draft: true
+          generate_release_notes: true
