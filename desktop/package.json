@@ -2,7 +2,6 @@
   "name": "transcribee-desktop",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -14,8 +13,14 @@
     "@tauri-apps/plugin-log": "^2.8.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-shell": "^2.3.5",
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "transcribee-ui-common": "file:../ui-common",
+    "wouter": "^3.10.0",
+    "autoprefixer": "^10.4.16",
+    "tailwindcss": "^3.3.5"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
@@ -23,6 +28,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "postcss": "^8.4.31"
   }
 }
