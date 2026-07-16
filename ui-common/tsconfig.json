@@ -11,7 +11,8 @@
     "jsxImportSource": "react",
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["node"]
   },
   "include": ["components", "editor", "types", "utils"],
   "exclude": ["node_modules"]

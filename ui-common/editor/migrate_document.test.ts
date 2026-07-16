@@ -1,4 +1,4 @@
-import { expect, test } from '@jest/globals';
+import { expect, test } from 'vitest';
 import { migrateDocument } from './migrate_document';
 import { Document } from './types';
 import { next as Automerge } from '@automerge/automerge';

@@ -86,7 +86,7 @@ export function ShareTokenTableRow({
           onClick={async () => {
             try {
               await deleteShareToken({ document_id: documentId, token_id: token.id });
-            } catch (e) {
+            } catch (_e) {
               /* empty */
             }
             mutateShareTokens();
@@ -179,7 +179,7 @@ export function ShareModal({
                 });
                 setNewToken(data.token);
                 mutateShareTokens();
-              } catch (e) {
+              } catch (_e) {
                 /* empty */
               }
               setLoading(false);
