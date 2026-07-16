@@ -7,6 +7,11 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
+RUN mkdir ../ui-common/
+COPY ui-common/package.json ui-common/package-lock.json ../ui-common/
+RUN npm --prefix ../ui-common/ ci
+
+COPY ui-common ../ui-common
 COPY frontend ./
 RUN npm run build
 
