@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import { favicons } from 'favicons';
-import topLevelAwait from 'vite-plugin-top-level-await';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import * as mime from 'mime-types';
@@ -108,7 +107,6 @@ export default defineConfig({
     },
   },
   plugins: [
-    topLevelAwait(),
     wasm(),
     gitVersionPlugin(),
     faviconPlugin('./assets/logo.svg'),
@@ -131,7 +129,7 @@ export default defineConfig({
   // documented in https://vitejs.dev/guide/features.html#import-with-constructors
   worker: {
     format: 'es',
-    plugins: [topLevelAwait(), wasm()],
+    plugins: [wasm()],
   },
 
   optimizeDeps: {
