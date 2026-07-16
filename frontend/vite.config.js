@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
+import react from '@vitejs/plugin-react';
 import { favicons } from 'favicons';
 import { execSync } from 'child_process';
 import fs from 'fs';
@@ -110,19 +111,13 @@ export default defineConfig({
     wasm(),
     gitVersionPlugin(),
     faviconPlugin('./assets/logo.svg'),
+    react(),
   ],
 
   // ui-common brings its own node_modules that also contains its peerDependencies
   // this is needed for not duplicating them (and e.g. breaking react)
   resolve: {
     dedupe: Object.keys(ui_common_pkg.peerDependencies)
-  },
-
-  // this is needed for the auto import of react to work properly in the ui-common code
-  esbuild: {
-    jsxFactory: '_jsx',
-    jsxFragment: '_jsxFragment',
-    jsxInject: `import { createElement as _jsx, Fragment as _jsxFragment } from 'react'`,
   },
 
   // This is only necessary if you are using `SharedWorker` or `WebWorker`, as
