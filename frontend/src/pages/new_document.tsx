@@ -109,7 +109,7 @@ export function NewDocumentPage() {
           throw 'Not a valid transcribee archive. Missing media';
         }
         const doc = Automerge.load(new Uint8Array(await automergeFile.arrayBuffer()));
-        const changes = Automerge.getChanges(Automerge.init(), doc).map((x) => new Blob([x]));
+        const changes = Automerge.getChanges(Automerge.init(), doc);
         const documentParameters: DocumentImportParameters = {
           name: data.name,
           media_file: mediaFile,

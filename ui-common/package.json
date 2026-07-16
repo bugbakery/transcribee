@@ -21,7 +21,7 @@
     "check:tsc": "tsc --noEmit --incremental",
     "check:eslint": "eslint --max-warnings 0 --ext .ts,.tsx .",
     "check:format": "prettier --check 'src/**/*.(ts|tsx)'",
-    "test": "jest"
+    "test": "vitest"
   },
   "dependencies": {
     "@audapolis/webvtt-writer": "^1.0.6",
@@ -46,7 +46,7 @@
     "wouter": "^2.12.1"
   },
   "devDependencies": {
-    "@jest/globals": "^30.4.1",
+    "@types/node": "^26.1.1",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
@@ -55,13 +55,9 @@
     "eslint-config-prettier": "^8.10.0",
     "eslint-plugin-import": "^2.29.0",
     "eslint-plugin-react": "^7.33.2",
-    "jest": "^30.4.2",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.8.8",
-    "ts-jest": "^29.4.11",
-    "typescript": "^5.2.2"
-  },
-  "jest": {
-    "preset": "ts-jest"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }
