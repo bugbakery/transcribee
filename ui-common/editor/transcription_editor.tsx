@@ -49,7 +49,7 @@ export const LoadingContext = React.createContext<[boolean, (next: boolean) => v
   },
 ]);
 
-function Paragraph({ element, children, attributes }: RenderElementProps): JSX.Element {
+function ParagraphElement({ element, children, attributes }: RenderElementProps): JSX.Element {
   const readOnly = useReadOnly();
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
@@ -290,7 +290,7 @@ export function TranscriptionEditor({
             <LoadingContext.Provider value={loadingState}>
               <ErrorBoundary editor={editor}>
                 <Editable
-                  renderElement={Paragraph}
+                  renderElement={ParagraphElement}
                   renderLeaf={renderLeaf}
                   readOnly={readOnly}
                   onClick={(e: React.MouseEvent) => {
