@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
@@ -12,11 +12,12 @@ import { AppContainer } from '../components/app_container';
 import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../api/auth';
 import { HelpPopup } from 'transcribee-ui-common/components/popup';
+import { DropFilePicker } from 'transcribee-ui-common/components/drop_file_picker';
 import { loadTranscribeeArchive } from '../components/transcribee_archive_reader';
 
 type FieldValues = {
   name: string;
-  audioFile: FileList | undefined;
+  audioFile: File | null;
   quality: number;
   language: string;
   speakerDetection: 'off' | 'on' | 'advanced';
@@ -25,8 +26,6 @@ type FieldValues = {
 
 export function NewDocumentPage() {
   const [_, navigate] = useLocation();
-  const [dropIndicator, setDropIndicator] = useState(false);
-  const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(false);
   const {
     register,
@@ -38,7 +37,7 @@ export function NewDocumentPage() {
     values: {
       quality: 4,
       language: 'auto',
-      audioFile: undefined,
+      audioFile: null,
       name: '',
       speakerDetection: 'on',
       numberOfSpeakers: 2,
@@ -47,7 +46,7 @@ export function NewDocumentPage() {
 
   const [errorMessage, setErrorMessage] = useState('');
 
-  const { ref: audioFileRegisterRef, ...audioFileRegister } = register('audioFile', {
+  register('audioFile', {
     required: true,
   });
 
@@ -57,8 +56,8 @@ export function NewDocumentPage() {
   const name = watch('name');
 
   useEffect(() => {
-    if (audioFile?.[0] && !name) {
-      const fileName = audioFile?.[0].name;
+    if (audioFile && !name) {
+      const fileName = audioFile.name;
       const parts = fileName.split('.');
       const niceFileName = parts.slice(0, -1).join(' ').replaceAll('_', ' ').replaceAll('-', ' ');
       setValue('name', niceFileName);
@@ -66,7 +65,7 @@ export function NewDocumentPage() {
   }, [audioFile]);
 
   // Switch to import mode if a .transcribee file is selected
-  const isImport = useMemo(() => audioFile?.[0]?.name.endsWith('.transcribee'), [audioFile]);
+  const isImport = useMemo(() => audioFile?.name.endsWith('.transcribee'), [audioFile]);
 
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
     if (!data.audioFile) {
@@ -78,7 +77,7 @@ export function NewDocumentPage() {
       setLoading(true);
       let response;
       if (isImport) {
-        const bytes = await audioFile![0].bytes();
+        const bytes = await audioFile!.bytes();
         const [automergeFile, mediaFile] = await loadTranscribeeArchive(bytes);
         if (!automergeFile) {
           setErrorMessage('Not a valid transcribee archive. Missing document.automerge');
@@ -111,7 +110,7 @@ export function NewDocumentPage() {
 
         const documentParameters: DocumentCreateParameters = {
           name: data.name,
-          file: data.audioFile[0],
+          file: data.audioFile,
           model,
           language: data.language,
         };
@@ -150,145 +149,17 @@ export function NewDocumentPage() {
             </FormControl>
 
             <div>
-              <div
-                className={clsx(
-                  'border-2',
-                  'border-b-0',
-                  'border-black dark:border-neutral-200',
-                  'rounded-t',
-                  'h-28',
-                  'flex',
-                  'justify-center',
-                  'relative',
-                )}
-                onDragEnter={() => setDropIndicator(true)}
-                onDragExit={() => setDropIndicator(false)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDropIndicator(false);
-
-                  const fileType = e.dataTransfer.files[0].type;
-                  const fileName = e.dataTransfer.files[0].name;
-
-                  if (
-                    !fileType.startsWith('audio/') &&
-                    !fileType.startsWith('video/') &&
-                    !fileName.endsWith('.transcribee')
-                  ) {
-                    return;
-                  }
-
-                  setValue('audioFile', e.dataTransfer.files, {
+              <DropFilePicker
+                accept="audio/*,video/*,.transcribee"
+                value={audioFile}
+                onFileChange={(file) => {
+                  setValue('audioFile', file, {
                     shouldTouch: true,
                     shouldDirty: true,
                   });
-
-                  if (audioFileRef.current) {
-                    // also set files via ref since react-hook-form's setValue does not set the value properly
-                    audioFileRef.current.files = e.dataTransfer.files;
-                  }
                 }}
-              >
-                <div
-                  className={clsx(
-                    'absolute',
-                    'top-2 text-center',
-                    'bottom-1',
-                    'right-1',
-                    'left-1',
-                    'border-2',
-                    'rounded',
-                    'border-black dark:border-neutral-200',
-                    'border-dashed',
-                    'flex',
-                    'items-center',
-                    'justify-center',
-                    dropIndicator || 'hidden',
-                  )}
-                >
-                  <div className="text-center">
-                    <p className="font-medium">Drop audio or transcribee file…</p>
-                  </div>
-                </div>
-                <div
-                  className={clsx(
-                    'text-center max-w-full flex flex-col h-full justify-center',
-                    dropIndicator && 'hidden',
-                  )}
-                >
-                  {audioFile?.[0] && (
-                    <>
-                      <p className="mx-4 mt-4 text-sm text-neutral-400 font-medium">
-                        Selected file
-                      </p>
-                      <div className="mx-4 flex-grow flex items-center mb-2">
-                        <p className="max-w-full break-words">{audioFile?.[0].name}</p>
-                      </div>
-                    </>
-                  )}
-                  {!audioFile?.[0] && (
-                    <>
-                      <p className="font-medium">Drag audio or transcribee file here</p>
-                      <p className="relative">
-                        or{' '}
-                        <input
-                          {...audioFileRegister}
-                          ref={(ref) => {
-                            audioFileRegisterRef(ref);
-                            audioFileRef.current = ref;
-                          }}
-                          type="file"
-                          className="opacity-0 absolute peer w-full"
-                          accept="audio/*,video/*,.transcribee"
-                        />
-                        <span
-                          className={clsx(
-                            'relative',
-                            'underline',
-                            'pointer-events-none',
-                            'peer-hover:opacity-60',
-                            'peer-focus-visible:outline',
-                            'peer-focus-visible:outline-3',
-                            'peer-focus-visible:outline-blue-600',
-                          )}
-                        >
-                          choose file
-                        </span>
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div
-                className={clsx(
-                  'bg-black dark:bg-neutral-200',
-                  'text-white dark:text-black',
-                  'text-sm',
-                  'text-center',
-                  'p-2',
-                  'whitespace-nowrap',
-                  'overflow-hidden',
-                  'text-ellipsis',
-                  'rounded-b',
-                )}
-              >
-                {(audioFile?.[0] && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('audioFile', undefined);
-                      if (audioFileRef.current) {
-                        audioFileRef.current.value = '';
-                      }
-                    }}
-                    className="underline hover:opacity-60"
-                  >
-                    Remove selection
-                  </button>
-                )) ||
-                  'No file selected.'}
-              </div>
+                placeholder="Drag audio or transcribee file here"
+              />
               {errors.audioFile && <p className="text-red-600 text-sm mt-0.5">File is required.</p>}
             </div>
             {isImport ? (
