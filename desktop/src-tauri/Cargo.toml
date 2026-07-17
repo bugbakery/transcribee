@@ -22,9 +22,11 @@ axum = { version = "0.8.9", features = ["http1", "ws", "tokio"] }
 colored = "3.1.1"
 desktop-backend = { path = "../desktop-backend/" }
 log = "0.4.29"
+rawzip = "0.5.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"

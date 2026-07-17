@@ -14,21 +14,32 @@
     "check:format": "prettier --check 'src/**/*.(ts|tsx)'"
   },
   "dependencies": {
+    "@automerge/automerge": "~3.3.1",
+    "@automerge/automerge-wasm": "^0.17.0",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-log": "^2.8.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "autoprefixer": "^10.4.16",
+    "clsx": "^1.2.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "slate": "^0.94.1",
+    "slate-automerge-doc": "github:bugbakery/slate-automerge-doc#23c4ca47cb8cc58fa12a63a39294d3e891cda6f1",
+    "slate-history": "^0.93.0",
+    "slate-react": "^0.94.2",
     "tailwindcss": "^3.3.5",
     "transcribee-ui-common": "file:../ui-common",
+    "wavesurfer-react": "^2.2.3",
+    "wavesurfer.js": "^6.6.4",
     "wouter": "^3.10.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
@@ -42,6 +53,7 @@
     "postcss": "^8.4.31",
     "prettier": "^3.9.5",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vite-plugin-wasm": "^3.6.0"
   }
 }
