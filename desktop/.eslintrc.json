@@ -19,8 +19,7 @@
     "@typescript-eslint/no-unused-vars": [
       1,
       { "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_", "argsIgnorePattern": "^_" }
-    ],
-    "import/no-default-export": 1
+    ]
   },
   "settings": {
     "react": {

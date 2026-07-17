@@ -6,29 +6,42 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "format": "prettier -w 'src/**/*.(ts|tsx)'",
+    "check": "npm-run-all --continue-on-error check:*",
+    "check:tsc": "tsc --noEmit --incremental",
+    "check:eslint": "eslint --max-warnings 0 --ext .ts,.tsx .",
+    "check:format": "prettier --check 'src/**/*.(ts|tsx)'"
   },
   "dependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-log": "^2.8.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-shell": "^2.3.5",
-    "@tailwindcss/forms": "^0.5.7",
-    "@tailwindcss/typography": "^0.5.10",
+    "autoprefixer": "^10.4.16",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "tailwindcss": "^3.3.5",
     "transcribee-ui-common": "file:../ui-common",
-    "wouter": "^3.10.0",
-    "autoprefixer": "^10.4.16",
-    "tailwindcss": "^3.3.5"
+    "wouter": "^3.10.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
     "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^8.53.0",
+    "eslint-config-prettier": "^8.10.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-react": "^7.33.2",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.4.31",
+    "prettier": "^3.9.5",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4",
-    "postcss": "^8.4.31"
+    "vite": "^7.0.4"
   }
 }

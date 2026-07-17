@@ -145,3 +145,29 @@ repos:
         language: system
         files: ui-common/.*
         pass_filenames: false
+
+# desktop
+  - repo: local
+    hooks:
+      - id: desktop-eslint
+        name: "desktop: eslint"
+        entry: npm --prefix desktop/ run check:eslint
+        language: system
+        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: desktop-tsc
+        name: "desktop: tsc"
+        entry: npm --prefix desktop/ run check:tsc
+        language: system
+        files: desktop/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: desktop-format
+        name: "desktop: format"
+        entry: npm --prefix desktop/ run format
+        language: system
+        files: desktop/.*
+        pass_filenames: false

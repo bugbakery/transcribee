@@ -20,8 +20,11 @@ jobs:
       - name: install pre-commit
         run: pip install pre-commit ruff poethepoet
 
-      - name: install our dependencies
+      - name: install web dependencies
         run: ./packaging/install_dependencies.sh
+
+      - name: install desktop dependencies
+        run: npm --prefix desktop/ ci
 
       - name: run pre-commit
         run: pre-commit run --show-diff-on-failure --color=always --all-files
