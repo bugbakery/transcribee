@@ -1,35 +1,30 @@
-use anyhow::{anyhow, ensure, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE};
 use http::response::Builder as ResponseBuilder;
 use http::StatusCode;
 use http_range::HttpRange;
-use rawzip::{ZipArchive, RECOMMENDED_BUFFER_SIZE};
 use std::fs::File;
 use std::io::SeekFrom::Start;
 use std::io::{Read, Seek, Write};
 use tauri::{command, ipc::Response};
 
-fn get_file_range(file: File, path: &str) -> Result<(File, (u64, u64))> {
-    let mut buf = vec![0u8; RECOMMENDED_BUFFER_SIZE];
-    let zip =
-        ZipArchive::from_file(file, &mut buf).with_context(|| "could not open file as zip")?;
+use crate::tar::TarHeader;
 
-    let mut data_range = None;
-    let mut entries = zip.entries(&mut buf);
-    while let Some(entry) = entries.next_entry()? {
-        if entry.file_path().as_bytes() == path.as_bytes() {
-            ensure!(
-                entry.compression_method() == rawzip::CompressionMethod::STORE,
-                "only uncompressed zip files are supported"
-            );
-            let local_entry = zip.get_entry(entry.wayfinder())?;
-            data_range = Some(local_entry.compressed_data_range());
-            break;
+fn get_file_range(file: &mut File, path: &str) -> Result<(u64, u64)> {
+    let file_len = file.metadata().unwrap().len();
+    let mut offset = 0;
+    while offset + 512 <= file_len {
+        file.seek(Start(offset))?;
+        let mut buf = vec![0u8; 512];
+        file.read_exact(&mut buf)?;
+        let header = TarHeader::from_bytes(&buf)?;
+        offset += 512;
+        if header.path == path {
+            return Ok((offset, offset + header.size));
         }
+        offset = (offset + header.size).div_ceil(512) * 512;
     }
-    let range = data_range.ok_or_else(|| anyhow!("file {} not found in zip", path.to_string()))?;
-    let file: File = zip.into_inner().into_inner();
-    Ok((file, range))
+    bail!("could not file a file with path '{path}' in tar")
 }
 
 #[command]
@@ -40,9 +35,9 @@ pub async fn read_automerge(path: String) -> std::result::Result<Response, Strin
         .map(tauri::ipc::Response::new)
 }
 
-async fn read_automerge_internal(path: String) -> Result<Response> {
-    let file = File::open(&path).with_context(|| format!("could not open file '{}'", &path))?;
-    let (mut file, data_range) = get_file_range(file, "document.automerge")?;
+async fn read_automerge_internal(path: String) -> Result<Vec<u8>> {
+    let mut file = File::open(&path).with_context(|| format!("could not open file '{}'", &path))?;
+    let data_range = get_file_range(&mut file, "document.automerge")?;
     file.seek(Start(data_range.0))?;
     let mut buf = vec![0u8; (data_range.1 - data_range.0) as usize];
     file.read_exact(&mut buf)?;
@@ -61,9 +56,9 @@ pub fn get_file_from_archive_as_response(
     let (archive_path, filename) = path
         .rsplit_once("/")
         .ok_or(anyhow!("invalid path (needs to contain at least one /)"))?;
-    let file = File::open(archive_path)
+    let mut file = File::open(archive_path)
         .with_context(|| format!("could not open archive file '{}'", &path))?;
-    let (mut file, data_range) = get_file_range(file, filename)?;
+    let data_range = get_file_range(&mut file, filename)?;
     let len = data_range.1 - data_range.0;
 
     let mime_guess_bytes = 24;
@@ -204,12 +199,12 @@ pub mod test {
 
     #[test]
     fn test_get_file_range() {
-        let file = File::open("../test-data/sample.transcribee").unwrap();
-        let (file, data_range) = get_file_range(file, "document.automerge").unwrap();
-        assert_eq!(data_range, (93, 2063));
+        let mut file = File::open("../test-data/sample.transcribee").unwrap();
+        let data_range = get_file_range(&mut file, "document.automerge").unwrap();
+        assert_eq!(data_range, (198144, 200117));
 
-        let (mut file, data_range) = get_file_range(file, "media").unwrap();
-        assert_eq!(data_range, (2155, 199093));
+        let data_range = get_file_range(&mut file, "media").unwrap();
+        assert_eq!(data_range, (512, 197450));
 
         file.seek(Start(data_range.0)).unwrap();
         let mut buf = vec![0u8; (data_range.1 - data_range.0) as usize];

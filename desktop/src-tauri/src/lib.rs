@@ -1,6 +1,10 @@
 use colored::Color;
 use file_handling::read_automerge;
-use http::{StatusCode, header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE}, response::Builder as ResponseBuilder};
+use http::{
+    header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
+    response::Builder as ResponseBuilder,
+    StatusCode,
+};
 use log::Level;
 use tauri_plugin_log::fern;
 
@@ -8,6 +12,7 @@ use crate::file_handling::get_archive_response;
 
 mod backend_plugin;
 mod file_handling;
+mod tar;
 mod worker_plugin;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
