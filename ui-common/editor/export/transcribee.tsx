@@ -4,9 +4,9 @@ import * as Automerge from '@automerge/automerge';
 import { Checkbox } from '../../components/form';
 import { downloadBinaryAsFile } from '../../utils/download_text_as_file';
 import { ExportProps } from '.';
-import { HttpReader, Uint8ArrayReader, ZipWriter, Uint8ArrayWriter } from '@zip.js/zip.js';
 import { LoadingSpinnerButton, SecondaryButton } from '../../components/button';
 import { splitAndSortMediaFiles } from '../player';
+import { concatArrays, formatTarHeader } from '../../utils/tar';
 
 export function TranscribeeExportBody({ onClose, outputNameBase, editor, document }: ExportProps) {
   const [loading, setLoading] = useState(false);
@@ -53,20 +53,20 @@ export function TranscribeeExportBody({ onClose, outputNameBase, editor, documen
             try {
               const mediaUrl =
                 includeOriginalMediaFile && originalMediaUrl ? originalMediaUrl : bestMediaUrl;
-              const zipFileWriter = new Uint8ArrayWriter();
-              const zipWriter = new ZipWriter(zipFileWriter, { level: 0 });
-              const doc = new Uint8ArrayReader(Automerge.save(editor.doc));
-              await Promise.all([
-                zipWriter.add('document.automerge', doc),
-                zipWriter.add('media', new HttpReader(mediaUrl, { preventHeadRequest: true })),
-              ]);
+              const media = await fetch(mediaUrl).then((x) => x.bytes());
+              const doc = Automerge.save(editor.doc);
 
-              await zipWriter.close();
-              const zipFileBlob = await zipFileWriter.getData();
+              const tarFile = concatArrays(
+                formatTarHeader({ path: 'media', size: media.length }),
+                media,
+                formatTarHeader({ path: 'document.automerge', size: doc.length }),
+                doc,
+              );
+
               downloadBinaryAsFile(
                 `${outputNameBase}.transcribee`,
                 `application/octet-stream`,
-                zipFileBlob as Uint8Array<ArrayBuffer>,
+                tarFile as Uint8Array<ArrayBuffer>,
               );
 
               onClose();
