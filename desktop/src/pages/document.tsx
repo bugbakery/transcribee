@@ -7,8 +7,9 @@ import { withAutomergeDoc } from 'slate-automerge-doc';
 import { next as Automerge } from '@automerge/automerge';
 import { Document, Paragraph } from 'transcribee-ui-common/editor/types';
 import { migrateDocument } from 'transcribee-ui-common/editor/migrate_document';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { TranscriptionEditor } from 'transcribee-ui-common/editor/transcription_editor';
+import { PlayerBar } from 'transcribee-ui-common/editor/player';
 
 export function useAutomergeLocalFileEditor(documentPath: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
@@ -65,6 +66,7 @@ export function DocumentPage({
   params: { '*': documentPath },
 }: RouteComponentProps<{ '*': string }>) {
   const [editor, initialValue] = useAutomergeLocalFileEditor(documentPath);
+  const file_url = convertFileSrc(`${documentPath}/media`, 'archive');
 
   return (
     <div className="max-w-screen-xl p-6 mx-auto flex flex-col border-box">
@@ -74,7 +76,21 @@ export function DocumentPage({
         initialValue={initialValue}
         className={'grow flex flex-col'}
         readOnly={false}
-      ></TranscriptionEditor>
+      >
+        {editor && (
+          <PlayerBar
+            documentId={documentPath}
+            editor={editor}
+            mediaFiles={[
+              {
+                content_type: 'audio/mpeg', // TODO: handle this properly once we have the media handling in place
+                tags: [],
+                url: file_url,
+              },
+            ]}
+          />
+        )}
+      </TranscriptionEditor>
     </div>
   );
 }
