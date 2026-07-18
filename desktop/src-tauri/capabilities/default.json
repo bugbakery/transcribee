@@ -7,8 +7,9 @@
   ],
   "permissions": [
     "core:default",
+    "dialog:default",
+    "log:default",
     "opener:default",
-    "shell:default",
-    "log:default"
+    "shell:default"
   ]
 }

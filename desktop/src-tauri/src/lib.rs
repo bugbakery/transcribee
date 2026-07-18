@@ -1,7 +1,10 @@
 use colored::Color;
 use file_handling::read_automerge;
+use http::{StatusCode, header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE}, response::Builder as ResponseBuilder};
 use log::Level;
 use tauri_plugin_log::fern;
+
+use crate::file_handling::get_archive_response;
 
 mod backend_plugin;
 mod file_handling;
@@ -37,6 +40,19 @@ pub fn run() {
         .plugin(backend_plugin::init())
         .plugin(worker_plugin::init())
         .invoke_handler(tauri::generate_handler![read_automerge])
+        .register_asynchronous_uri_scheme_protocol("archive", move |_ctx, request, responder| {
+            match get_archive_response(request) {
+                Ok(http_response) => responder.respond(http_response),
+                Err(e) => responder.respond(
+                    ResponseBuilder::new()
+                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .header(CONTENT_TYPE, "text/plain")
+                        .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                        .body(dbg!(e.to_string()).as_bytes().to_vec())
+                        .unwrap(),
+                ),
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
