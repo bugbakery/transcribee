@@ -38,60 +38,11 @@
     let
       pythonPkgName = "python312";
     in
-    {
-      overlays.default = (
-        final: prev:
-        let
-          pkgs = import nixpkgs {
-            system = final.system;
-          };
-          lib = nixpkgs.lib;
-          python = pkgs."${pythonPkgName}";
-        in
-        {
-          transcribee-worker = import ./nix/pkgs/worker.nix {
-            inherit
-              pkgs
-              lib
-              python
-              uv2nix
-              pyproject-nix
-              pyproject-build-systems
-              ;
-          };
-
-          transcribee-backend = import ./nix/pkgs/backend.nix {
-            inherit
-              pkgs
-              lib
-              python
-              uv2nix
-              pyproject-nix
-              pyproject-build-systems
-              ;
-          };
-
-          transcribee-frontend = import ./nix/pkgs/frontend.nix {
-            inherit pkgs lib;
-
-            versionInfo = {
-              commitHash = if (self ? rev) then self.rev else self.dirtyRev;
-              commitDate = self.lastModified;
-            };
-          };
-        }
-      );
-
-      nixosModules.default = {
-        nixpkgs.overlays = [ self.overlays.default ];
-      };
-    }
-    // (flake-utils.lib.eachDefaultSystem (
+    (flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ self.overlays.default ];
         };
         python = pkgs."${pythonPkgName}";
 
@@ -103,12 +54,6 @@
         ];
       in
       {
-        packages = {
-          backend = pkgs.transcribee-backend;
-          worker = pkgs.transcribee-worker;
-          frontend = pkgs.transcribee-frontend;
-        };
-
         formatter = pkgs.nixfmt-rfc-style;
 
         devShells.default = pkgs.mkShell {
