@@ -1,5 +1,5 @@
 import { RouteComponentProps } from 'wouter';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Editor, createEditor } from 'slate';
 import { withHistory } from 'slate-history';
 import { withReact } from 'slate-react';
@@ -10,6 +10,7 @@ import { migrateDocument } from 'transcribee-ui-common/editor/migrate_document';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { TranscriptionEditor } from 'transcribee-ui-common/editor/transcription_editor';
 import { PlayerBar } from 'transcribee-ui-common/editor/player';
+import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
 
 export function useAutomergeLocalFileEditor(documentPath: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
@@ -20,8 +21,21 @@ export function useAutomergeLocalFileEditor(documentPath: string): [Editor?, Par
   if (editorRef.current !== editorAndInitialValue?.editor)
     editorRef.current = editorAndInitialValue?.editor;
 
-  function sendDocChange(_newDoc: Document) {
-    console.log('todo: handle change');
+  const sentChanges = useRef<Set<string>>(new Set());
+  async function sendDocChange(newDoc: Document) {
+    const lastChange = Automerge.getLastLocalChange(newDoc);
+    if (lastChange) {
+      const decoded = Automerge.decodeChange(lastChange);
+      if (!sentChanges.current.has(decoded.hash)) {
+        console.log(lastChange);
+        await invoke('append_automerge_change', lastChange, {
+          headers: {
+            path: documentPath,
+          },
+        });
+        sentChanges.current.add(decoded.hash);
+      }
+    }
   }
 
   useEffect(() => {
@@ -62,9 +76,16 @@ export function useAutomergeLocalFileEditor(documentPath: string): [Editor?, Par
   return [editorAndInitialValue?.editor, editorAndInitialValue?.initialValue];
 }
 
+const LazyDebugPanel = lazy(() =>
+  import('transcribee-ui-common/editor/debug_panel').then((module) => ({
+    default: module.DebugPanel,
+  })),
+);
+
 export function DocumentPage({
   params: { '*': documentPath },
 }: RouteComponentProps<{ '*': string }>) {
+  const debugMode = useDebugMode();
   const [editor, initialValue] = useAutomergeLocalFileEditor(documentPath);
   const file_url = convertFileSrc(`${documentPath}/media`, 'archive');
 
@@ -91,6 +112,11 @@ export function DocumentPage({
           />
         )}
       </TranscriptionEditor>
+
+      {/* Spacer to prevent video preview from hiding text */}
+      <div id="video-bottom-spacer" />
+
+      {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </div>
   );
 }
