@@ -8,7 +8,7 @@ use http::{
 use log::Level;
 use tauri_plugin_log::fern;
 
-use crate::file_handling::get_archive_response;
+use crate::file_handling::{append_automerge_change, get_file_from_archive_as_response};
 
 mod backend_plugin;
 mod file_handling;
@@ -44,9 +44,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(backend_plugin::init())
         .plugin(worker_plugin::init())
-        .invoke_handler(tauri::generate_handler![read_automerge])
+        .invoke_handler(tauri::generate_handler![
+            read_automerge,
+            append_automerge_change
+        ])
         .register_asynchronous_uri_scheme_protocol("archive", move |_ctx, request, responder| {
-            match get_archive_response(request) {
+            match get_file_from_archive_as_response(request) {
                 Ok(http_response) => responder.respond(http_response),
                 Err(e) => responder.respond(
                     ResponseBuilder::new()

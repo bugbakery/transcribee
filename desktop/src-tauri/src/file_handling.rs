@@ -3,30 +3,13 @@ use http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_LENGTH, CONTENT_RANGE, C
 use http::response::Builder as ResponseBuilder;
 use http::StatusCode;
 use http_range::HttpRange;
+use log::{info, warn};
 use std::fs::File;
 use std::io::SeekFrom::Start;
 use std::io::{Read, Seek, Write};
 use tauri::{command, ipc::Response};
 
-use crate::tar::TarHeader;
-
-fn get_file_range(file: &mut File, path: &str) -> Result<(u64, u64)> {
-    let file_len = file.metadata().unwrap().len();
-    let mut offset = 0;
-    while offset + 512 <= file_len {
-        file.seek(Start(offset))?;
-        let mut buf = vec![0u8; 512];
-        file.read_exact(&mut buf)?;
-        let header = TarHeader::from_bytes(&buf)?;
-        offset += 512;
-        if header.path == path {
-            return Ok((offset, offset + header.size));
-        }
-        offset = (offset + header.size).div_ceil(512) * 512;
-    }
-    bail!("could not file a file with path '{path}' in tar")
-}
-
+use crate::tar::{get_byte_range_of_file_in_tar, TarHeader, TAR_BLOCK_SIZE};
 #[command]
 pub async fn read_automerge(path: String) -> std::result::Result<Response, String> {
     read_automerge_internal(path)
@@ -37,11 +20,62 @@ pub async fn read_automerge(path: String) -> std::result::Result<Response, Strin
 
 async fn read_automerge_internal(path: String) -> Result<Vec<u8>> {
     let mut file = File::open(&path).with_context(|| format!("could not open file '{}'", &path))?;
-    let data_range = get_file_range(&mut file, "document.automerge")?;
-    file.seek(Start(data_range.0))?;
-    let mut buf = vec![0u8; (data_range.1 - data_range.0) as usize];
+    let data_range = get_byte_range_of_file_in_tar(&mut file, "document.automerge")?;
+    file.seek(Start(data_range.start))?;
+    let mut buf = vec![0u8; (data_range.end - data_range.start) as usize];
     file.read_exact(&mut buf)?;
     Ok(buf)
+}
+
+#[command]
+pub async fn append_automerge_change(
+    request: tauri::ipc::Request<'_>,
+) -> std::result::Result<(), String> {
+    let tauri::ipc::InvokeBody::Raw(change) = request.body() else {
+        return Err("request body to append_automerge_change must be raw".to_string());
+    };
+    let Some(path) = request.headers().get("path") else {
+        return Err("missing path for append_automerge_change".to_string());
+    };
+
+    append_automerge_change_internal(path.to_str().unwrap(), change)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+async fn append_automerge_change_internal(path: &str, change: &[u8]) -> Result<()> {
+    info!("got change with len={}", change.len());
+    let mut file = File::options()
+        .read(true)
+        .write(true)
+        .open(path)
+        .with_context(|| format!("could not open file '{}'", path))?;
+    let file_len = file.metadata()?.len();
+    let data_range = get_byte_range_of_file_in_tar(&mut file, "document.automerge")?;
+    if data_range.end != file_len {
+        // this is only a warning because if transcribee crashes between writing the file and updating the tar header
+        // (see below), we can get a tar file where document.automerge is not right at the end
+        warn!(
+            "document.automerge is not at the end of the archive. (document.automerge end: {}; file length: {})",
+            data_range.end, file_len
+        );
+    }
+    // first, append the data to the end of the document. This does not yet
+    // change the data that transcribee woulde see when opening the file next time
+    file.seek(Start(data_range.end))?;
+    file.write_all(change)?;
+
+    // patch the tar header for document.automerge. This is kinda the commit step
+    file.seek(Start(data_range.start - TAR_BLOCK_SIZE))?;
+    file.write_all(
+        &TarHeader {
+            path: "document.automerge".to_string(),
+            size: data_range.end + change.len() as u64 - data_range.start,
+        }
+        .as_bytes()?,
+    )?;
+
+    return Ok(());
 }
 
 // this is stolen and adapted from
@@ -58,12 +92,12 @@ pub fn get_file_from_archive_as_response(
         .ok_or(anyhow!("invalid path (needs to contain at least one /)"))?;
     let mut file = File::open(archive_path)
         .with_context(|| format!("could not open archive file '{}'", &path))?;
-    let data_range = get_file_range(&mut file, filename)?;
-    let len = data_range.1 - data_range.0;
+    let data_range = get_byte_range_of_file_in_tar(&mut file, filename)?;
+    let len = data_range.end - data_range.start;
 
     let mime_guess_bytes = 24;
     let mut buf = vec![0u8; mime_guess_bytes];
-    file.seek(Start(data_range.0))?;
+    file.seek(Start(data_range.start))?;
     file.read_exact(&mut buf)?;
     let mime = infer::get(&buf)
         .map(|x| x.mime_type())
@@ -112,7 +146,7 @@ pub fn get_file_from_archive_as_response(
 
             let bytes_to_read = end + 1 - start;
             let mut buf = vec![0u8; bytes_to_read as usize];
-            file.seek(Start(data_range.0 + start))?;
+            file.seek(Start(data_range.start + start))?;
             file.read_exact(&mut buf)?;
 
             resp = resp.header(CONTENT_RANGE, format!("bytes {start}-{end}/{len}"));
@@ -162,7 +196,7 @@ pub fn get_file_from_archive_as_response(
 
                 let bytes_to_read = end + 1 - start;
                 let mut local_buf = vec![0u8; bytes_to_read as usize];
-                file.seek(Start(data_range.0 + start))?;
+                file.seek(Start(data_range.start + start))?;
                 file.read_exact(&mut local_buf)?;
                 buf.extend_from_slice(&local_buf);
             }
@@ -174,7 +208,7 @@ pub fn get_file_from_archive_as_response(
     } else {
         resp = resp.header(CONTENT_LENGTH, len);
         let mut buf = vec![0u8; len as usize];
-        file.seek(Start(data_range.0))?;
+        file.seek(Start(data_range.start))?;
         file.read_exact(&mut buf)?;
         resp.body(buf)
     };
@@ -196,20 +230,7 @@ fn random_boundary() -> String {
 #[cfg(test)]
 pub mod test {
     use super::*;
-
-    #[test]
-    fn test_get_file_range() {
-        let mut file = File::open("../test-data/sample.transcribee").unwrap();
-        let data_range = get_file_range(&mut file, "document.automerge").unwrap();
-        assert_eq!(data_range, (198144, 200117));
-
-        let data_range = get_file_range(&mut file, "media").unwrap();
-        assert_eq!(data_range, (512, 197450));
-
-        file.seek(Start(data_range.0)).unwrap();
-        let mut buf = vec![0u8; (data_range.1 - data_range.0) as usize];
-        file.read_exact(&mut buf).unwrap();
-    }
+    use http::{header::RANGE, Request};
 
     #[test]
     fn test_get_archive_response_whole() {

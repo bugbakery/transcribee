@@ -1,6 +1,12 @@
-use std::string::FromUtf8Error;
+use anyhow::{bail, ensure, Context, Result};
+use std::{
+    fs::File,
+    io::{Read, Seek, SeekFrom::Start},
+    ops::Range,
+    string::FromUtf8Error,
+};
 
-use anyhow::{ensure, Context};
+pub const TAR_BLOCK_SIZE: u64 = 512;
 
 #[derive(Debug, PartialEq)]
 pub struct TarHeader {
@@ -37,13 +43,14 @@ impl TarHeader {
     }
 
     pub fn as_bytes(&self) -> anyhow::Result<Vec<u8>> {
-        let mut buffer = vec![0u8; 512];
+        let mut buffer = vec![0u8; TAR_BLOCK_SIZE as usize];
+
+        // offsets are from https://en.wikipedia.org/w/index.php?title=Tar_(computing)&oldid=1363986389
 
         // path
         Self::encode_string(&mut buffer, 0, 100, &self.path)
             .with_context(|| "while encoding path of tar entry")?;
         // mode
-        Self::encode_octal_number(&mut buffer, 100, 8, 0)?;
         Self::encode_octal_number(&mut buffer, 100, 8, 0)?;
         // owner
         Self::encode_octal_number(&mut buffer, 108, 8, 0)?;
@@ -54,7 +61,7 @@ impl TarHeader {
             .with_context(|| "while encoding file_size of tar entry")?;
         // mtime
         Self::encode_octal_number(&mut buffer, 136, 12, 0)?;
-        // checksum
+        // checksum (will be patched later; see below)
         Self::encode_string(&mut buffer, 148, 8, "        ")?;
         // link indicator
         Self::encode_string(&mut buffer, 156, 1, "0")?;
@@ -105,6 +112,23 @@ impl TarHeader {
     }
 }
 
+pub fn get_byte_range_of_file_in_tar(tar_file: &mut File, path_in_tar: &str) -> Result<Range<u64>> {
+    let file_len = tar_file.metadata().unwrap().len();
+    let mut offset = 0;
+    while offset + TAR_BLOCK_SIZE <= file_len {
+        tar_file.seek(Start(offset))?;
+        let mut buf = vec![0u8; TAR_BLOCK_SIZE as usize];
+        tar_file.read_exact(&mut buf)?;
+        let header = TarHeader::from_bytes(&buf)?;
+        offset += TAR_BLOCK_SIZE;
+        if header.path == path_in_tar {
+            return Ok(offset..offset + header.size);
+        }
+        offset = (offset + header.size).div_ceil(TAR_BLOCK_SIZE) * TAR_BLOCK_SIZE;
+    }
+    bail!("could not find a file with path '{path_in_tar}' in tar")
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -116,8 +140,22 @@ mod test {
             size: 42,
         };
         let encoded = initial.as_bytes().unwrap();
-        assert_eq!(encoded.len(), 512);
+        assert_eq!(encoded.len(), TAR_BLOCK_SIZE as usize);
         let decoded = TarHeader::from_bytes(&encoded).unwrap();
         assert_eq!(initial, decoded);
+    }
+
+    #[test]
+    fn test_get_byte_range_of_file_in_tar() {
+        let mut file = File::open("../test-data/sample.transcribee").unwrap();
+        let data_range = get_byte_range_of_file_in_tar(&mut file, "document.automerge").unwrap();
+        assert_eq!(data_range, 198144..200117);
+
+        let data_range = get_byte_range_of_file_in_tar(&mut file, "media").unwrap();
+        assert_eq!(data_range, 512..197450);
+
+        file.seek(Start(data_range.start)).unwrap();
+        let mut buf = vec![0u8; (data_range.end - data_range.start) as usize];
+        file.read_exact(&mut buf).unwrap();
     }
 }
