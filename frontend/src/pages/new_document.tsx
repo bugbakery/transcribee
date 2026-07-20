@@ -9,11 +9,10 @@ import { Dialog, DialogTitle } from 'transcribee-ui-common/components/dialog';
 import { FormControl, Input, Select, Slider } from 'transcribee-ui-common/components/form';
 import { LoadingSpinnerButton, SecondaryButton } from 'transcribee-ui-common/components/button';
 import { AppContainer } from '../components/app_container';
-import { BlobReader, BlobWriter, ZipReader, Entry } from '@zip.js/zip.js';
 import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../api/auth';
 import { HelpPopup } from 'transcribee-ui-common/components/popup';
-import { parseTarHeader, roundToNextBlock } from 'transcribee-ui-common/utils/tar';
+import { loadTranscribeeArchive } from '../components/transcribee_archive_reader';
 
 type FieldValues = {
   name: string;
@@ -23,21 +22,6 @@ type FieldValues = {
   speakerDetection: 'off' | 'on' | 'advanced';
   numberOfSpeakers: number;
 };
-
-async function getEntry(
-  reader: ZipReader<BlobReader>,
-  entries: Entry[],
-  name: string,
-): Promise<Blob | null> {
-  for (const entry of entries) {
-    if (entry.filename == name) {
-      const writer = new BlobWriter();
-      const data = entry.directory == false ? await entry.getData(writer) : null;
-      return data;
-    }
-  }
-  return null;
-}
 
 export function NewDocumentPage() {
   const [_, navigate] = useLocation();
@@ -95,31 +79,7 @@ export function NewDocumentPage() {
       let response;
       if (isImport) {
         const bytes = await audioFile![0].bytes();
-
-        let automergeFile, mediaFile;
-        if (new TextDecoder().decode(bytes.subarray(257, 257 + 5)) == 'ustar') {
-          // we are dealing with the new tar based transcribee archive format
-          let offset = 0;
-          while (offset + 512 < bytes.length) {
-            const header = parseTarHeader(bytes.subarray(offset, offset + 512));
-            offset += 512;
-            if (header.path == 'media') {
-              mediaFile = new Blob([bytes.subarray(offset, offset + header.size)]);
-            } else if (header.path == 'document.automerge') {
-              automergeFile = new Blob([bytes.subarray(offset, offset + header.size)]);
-            }
-            offset = roundToNextBlock(offset + header.size);
-          }
-        } else {
-          // we are dealing with the old zip based transcribee archive format
-          const zipReader = new ZipReader(new BlobReader(data.audioFile[0]));
-          const entries = await zipReader.getEntries();
-          [automergeFile, mediaFile] = await Promise.all([
-            getEntry(zipReader, entries, 'document.automerge'),
-            getEntry(zipReader, entries, 'media'),
-          ]);
-        }
-
+        const [automergeFile, mediaFile] = await loadTranscribeeArchive(bytes);
         if (!automergeFile) {
           setErrorMessage('Not a valid transcribee archive. Missing document.automerge');
           throw 'Not a valid transcribee archive. Missing document.automerge';
