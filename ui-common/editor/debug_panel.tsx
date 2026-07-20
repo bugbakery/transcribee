@@ -4,15 +4,28 @@ import { JSONTree } from 'react-json-tree';
 import { getBase16Theme } from 'react-base16-styling';
 import { SecondaryButton } from '../components/button';
 import { useMediaQuery } from '../utils/use_media_query';
+import { useEffect, useState } from 'react';
+import { Document } from './types';
 
 export function DebugPanel({ editor }: { editor: Editor }) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+  const [doc, setDoc] = useState({});
+  useEffect(() => {
+    const changeListener = (document: Document) => {
+      setDoc(document);
+    };
+    editor.addDocChangeListener(changeListener);
+    changeListener(editor.doc);
+    return () => {
+      editor.removeDocChangeListener(changeListener);
+    };
+  }, [editor]);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 h-96 p-8">
       <div className="w-full h-full p-4 text-sm bg-white dark:bg-black border-black dark:border-neutral-200 border-2 shadow-brutal rounded-lg overflow-auto">
         <JSONTree
-          data={editor.doc}
+          data={doc}
           theme={getBase16Theme(systemPrefersDark ? 'bright' : 'bright:inverted')}
         />
       </div>
