@@ -37,3 +37,5 @@ tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"
 tokio = "1.52.3"
 tokio-tungstenite = "0.29.0"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+uuid = "1.24.0"

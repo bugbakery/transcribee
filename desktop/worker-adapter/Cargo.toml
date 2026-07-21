@@ -4,19 +4,22 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-axum = "0.8.9"
+axum = { version = "0.8.9", features = ["macros", "ws"] }
 axum-extra = { version = "0.12.6", features = ["query"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 clap = { version = "4.6.1", optional = true, features = ["cargo", "derive"] }
 env_logger = { version = "0.11.10", optional = true }
+futures-util = "0.3.33"
 log = "0.4.29"
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 tokio = { version = "1.52.3", features = ["rt-multi-thread"] }
+tower-http = { version = "0.7.0", features = ["trace"] }
+tracing = "0.1.44"
 uuid = { version = "1.23.1", features = ["serde", "v4"] }
 
 [features]
 standalone = ["dep:env_logger", "dep:clap"]
 
 [[bin]]
-name = "standalone-backend"
+name = "standalone"
 required-features = ["standalone"]

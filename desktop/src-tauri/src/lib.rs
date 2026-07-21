@@ -6,14 +6,31 @@ use http::{
     StatusCode,
 };
 use log::Level;
+use tauri::{Manager, State};
 use tauri_plugin_log::fern;
+use worker_adapter::{state::TranscribeTaskParameters, WorkerAdapter};
 
 use crate::file_handling::{append_automerge_change, get_file_from_archive_as_response};
 
-mod backend_plugin;
 mod file_handling;
 mod tar;
 mod worker_plugin;
+
+#[tauri::command]
+async fn transcribe_file(
+    worker_adapter: State<'_, WorkerAdapter>,
+    file_path: String,
+) -> Result<String, String> {
+    worker_adapter.start_transcription(
+        file_path,
+        TranscribeTaskParameters {
+            lang: "auto".to_string(),
+            model: "tiny".to_string(),
+        },
+    ).await;
+
+    Ok("".to_string())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -42,11 +59,11 @@ pub fn run() {
         )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(backend_plugin::init())
         .plugin(worker_plugin::init())
         .invoke_handler(tauri::generate_handler![
             read_automerge,
-            append_automerge_change
+            append_automerge_change,
+            transcribe_file,
         ])
         .register_asynchronous_uri_scheme_protocol("archive", move |_ctx, request, responder| {
             match get_file_from_archive_as_response(request) {
@@ -60,6 +77,15 @@ pub fn run() {
                         .unwrap(),
                 ),
             }
+        })
+        .setup(|app| {
+            let worker_adapter = app.state::<WorkerAdapter>();
+            tokio::runtime::Handle::current().block_on(worker_adapter.add_change_listener(
+                |doc, change| {
+                    println!("Change for {:?}: {:?}", doc, change);
+                },
+            ));
+            Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
