@@ -1,14 +1,8 @@
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use uuid::Uuid;
-
-pub static BACKEND_STATE: LazyLock<Mutex<BackendState>> = LazyLock::new(|| {
-    Mutex::new(BackendState {
-        documents: HashMap::new(),
-        tasks: HashMap::new(),
-    })
-});
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -69,22 +63,19 @@ impl Document {
     }
 }
 
-fn get_document<S>(doc_uuid: &Uuid, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    return BACKEND_STATE
-        .lock()
-        .unwrap()
-        .documents
-        .get(doc_uuid)
-        .serialize(serializer);
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct TranscribeTaskParameters {
+    pub lang: String,
+    pub model: String,
 }
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TaskParameters {
     NoParameters(HashMap<(), ()>),
+    Transcribe(TranscribeTaskParameters),
 }
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Task {
     pub id: Uuid,
@@ -92,23 +83,70 @@ pub struct Task {
     pub state: TaskState,
     pub dependencies: Vec<Uuid>,
     pub current_attempt: Option<TaskAttempt>,
-    #[serde(serialize_with = "get_document")]
-    pub document: Uuid,
+    pub document: Document,
     pub task_parameters: TaskParameters,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct BackendState {
-    documents: HashMap<Uuid, Document>,
+pub type ChangeListener = Arc<Mutex<dyn FnMut(Uuid, &[u8]) + Send + Sync>>;
+
+#[derive(Default, Clone)]
+pub struct ListenersContainer {
+    pub document_listeners: Vec<ChangeListener>,
+}
+
+impl ListenersContainer {
+    pub fn add_document_listener(
+        &mut self,
+        listener: impl FnMut(Uuid, &[u8]) + Send + Sync + 'static,
+    ) -> ChangeListener {
+        let listener = Arc::new(Mutex::new(listener));
+        self.document_listeners.push(listener.clone());
+        listener
+    }
+
+    pub fn remove_document_listener(&mut self, listener: ChangeListener) {
+        self.document_listeners
+            .retain(|l| !Arc::ptr_eq(l, &listener));
+    }
+
+    pub async fn notify_document_listeners(
+        &mut self,
+        document_id: Uuid,
+        change: &[u8],
+    ) {
+        for listener in &self.document_listeners {
+            let mut listener = listener.lock().await;
+            listener(document_id, &change);
+        }
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct TasksContainer {
     tasks: HashMap<Uuid, Task>,
 }
 
-impl BackendState {
+impl TasksContainer {
     pub fn add_task(&mut self, task: Task) {
         self.tasks.insert(task.id, task);
     }
-    pub fn add_document(&mut self, document: Document) {
-        self.documents.insert(document.id, document);
+
+    pub fn complete_task(&mut self, id: Uuid) {
+        self.tasks.entry(id).and_modify(|t| {
+            t.state = TaskState::Completed;
+        });
+    }
+
+    pub fn fail_task(&mut self, id: Uuid) {
+        self.tasks.entry(id).and_modify(|t| {
+            t.state = TaskState::Failed;
+        });
+    }
+
+    pub fn update_task_attempt(&mut self, task_id: Uuid, attempt: TaskAttempt) {
+        self.tasks.entry(task_id).and_modify(|t| {
+            t.current_attempt = Some(attempt);
+        });
     }
 
     fn get_ready_task<'a>(&'a mut self, task_types: &[TaskType]) -> Option<&'a mut Task> {
