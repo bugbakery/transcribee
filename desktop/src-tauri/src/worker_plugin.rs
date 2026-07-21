@@ -1,4 +1,5 @@
 use log::{error, info, log, Level};
+use rand::{distr::Alphanumeric, RngExt};
 use std::{net::SocketAddr, time::Duration};
 use tauri::{
     path::BaseDirectory,
@@ -103,10 +104,15 @@ fn setup_worker<R: Runtime>(
     Ok(())
 }
 
+fn random_token() -> String {
+    let mut rng = rand::rng();
+    (0..32).map(|_| rng.sample(Alphanumeric) as char).collect()
+}
+
 fn setup_worker_adapter<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<(SocketAddr, String), Box<dyn std::error::Error>> {
-    let token: String = "SECRET_TOKEN".to_string(); // TODO: generate random token
+    let token: String = random_token();
 
     let adapter = WorkerAdapter::new(token.clone());
     app.manage(adapter.clone());
