@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use desktop_backend::BackendBuilder;
+use worker_adapter::BackendBuilder;
 
 use tauri::Manager;
 use tauri::{

@@ -21,7 +21,7 @@ tauri-build = { version = "2", features = [] }
 anyhow = "1.0.103"
 axum = { version = "0.8.9", features = ["http1", "ws", "tokio"] }
 colored = "3.1.1"
-desktop-backend = { path = "../desktop-backend/" }
+worker-adapter = { path = "../worker-adapter/" }
 getrandom = "0.4.3"
 http = "1.4.2"
 http-range = "0.1.5"

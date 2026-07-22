@@ -817,19 +817,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "desktop-backend"
-version = "0.1.0"
-dependencies = [
- "axum",
- "axum-extra",
- "chrono",
- "log",
- "serde",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4339,7 +4326,6 @@ dependencies = [
  "anyhow",
  "axum",
  "colored",
- "desktop-backend",
  "getrandom 0.4.3",
  "http",
  "http-range",
@@ -4356,6 +4342,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tokio",
  "tokio-tungstenite",
+ "worker-adapter",
 ]
 
 [[package]]
@@ -5231,6 +5218,19 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+
+[[package]]
+name = "worker-adapter"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-extra",
+ "chrono",
+ "log",
+ "serde",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "writeable"
