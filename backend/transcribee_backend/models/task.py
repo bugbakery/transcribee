@@ -82,8 +82,6 @@ class Task(TaskBase, table=True):
             return 0.05 + (media_duration / 60) / 50
         elif self.task_type == TaskType.TRANSCRIBE:
             return 1 + (media_duration / 60)
-        elif self.task_type == TaskType.ALIGN:
-            return 1 + (media_duration / 60)
         elif self.task_type == TaskType.IDENTIFY_SPEAKERS:
             return 0.1 + (media_duration / 60) / 10
 
@@ -285,11 +283,6 @@ class TranscribeTask(TaskBase):
     task_parameters: TranscribeTaskParameters
 
 
-class AlignTask(TaskBase):
-    task_type: Literal[TaskType.ALIGN] = TaskType.ALIGN
-    task_parameters: Dict[str, Any]
-
-
 class ExportTask(TaskBase):
     task_type: Literal[TaskType.EXPORT] = TaskType.EXPORT
     task_parameters: ExportTaskParameters
@@ -300,6 +293,4 @@ class UnknownTask(TaskBase):
     task_parameters: Dict[str, Any]
 
 
-CreateTask = (
-    SpeakerIdentificationTask | TranscribeTask | AlignTask | ExportTask | UnknownTask
-)
+CreateTask = SpeakerIdentificationTask | TranscribeTask | ExportTask | UnknownTask

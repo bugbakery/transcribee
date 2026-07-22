@@ -13,7 +13,6 @@ import automerge
 import numpy.typing as npt
 from pydantic import TypeAdapter
 from transcribee_proto.api import (
-    AlignTask,
     AssignedTask,
     BaseDocumentMedia,
     ExportFormat,
@@ -36,9 +35,8 @@ from transcribee_worker.reencode import (
     load_audio,
     reencode,
 )
-from transcribee_worker.torchaudio_align import align
 from transcribee_worker.types import ProgressCallbackType
-from transcribee_worker.util import aenumerate, alist, async_task
+from transcribee_worker.util import alist, async_task
 from transcribee_worker.webvtt.export_webvtt import generate_web_vtt
 from transcribee_worker.webvtt.webvtt_writer import SubtitleFormat
 from transcribee_worker.whisper_transcribe import (
@@ -108,7 +106,6 @@ class Worker:
         else:
             self.task_types = [
                 TaskType.IDENTIFY_SPEAKERS,
-                TaskType.ALIGN,
                 TaskType.TRANSCRIBE,
                 TaskType.REENCODE,
                 TaskType.EXPORT,
@@ -183,8 +180,6 @@ class Worker:
             await self.identify_speakers(task, progress_callback)
         elif task.task_type == TaskType.TRANSCRIBE:
             await self.transcribe(task, progress_callback)
-        elif task.task_type == TaskType.ALIGN:
-            await self.align(task, progress_callback)
         elif task.task_type == TaskType.REENCODE:
             await self.reencode(task, progress_callback)
         elif task.task_type == TaskType.EXPORT:
@@ -241,29 +236,6 @@ class Worker:
                 await identify_speakers(
                     task.task_parameters.number_of_speakers, audio, d, progress_callback
                 )
-
-    async def align(self, task: AlignTask, progress_callback: ProgressCallbackType):
-        audio = self.load_document_audio(task.document)
-
-        async with self.api_client.document(task.document.id) as doc:
-            # TODO(robin): #perf: avoid this copy
-            document = EditorDocument.model_validate(automerge.dump(doc.doc))
-
-            aligned_para_iter = aiter(
-                align(
-                    document,
-                    audio,
-                    progress_callback,
-                    # TODO(robin): this seems like a weird place to hardcode this parameter
-                    extend_duration=0.5,
-                )
-            )
-            async for i, al_para in aenumerate(aligned_para_iter):
-                async with doc.transaction("Alignment") as d:
-                    d_para = d.children[i]
-                    for d_atom, al_atom in zip(d_para.children, al_para.children):
-                        d_atom.start = al_atom.start
-                        d_atom.end = al_atom.end
 
     async def reencode(
         self, task: ReencodeTask, progress_callback: ProgressCallbackType

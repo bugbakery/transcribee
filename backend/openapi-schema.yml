@@ -1,24 +1,5 @@
 components:
   schemas:
-    AlignTask:
-      properties:
-        document_id:
-          format: uuid
-          title: Document Id
-          type: string
-        task_parameters:
-          title: Task Parameters
-          type: object
-        task_type:
-          const: ALIGN
-          default: ALIGN
-          title: Task Type
-          type: string
-      required:
-      - task_parameters
-      - document_id
-      title: AlignTask
-      type: object
     ApiDocumentWithTasks:
       properties:
         changed_at:
@@ -638,7 +619,6 @@ components:
       enum:
       - IDENTIFY_SPEAKERS
       - TRANSCRIBE
-      - ALIGN
       - REENCODE
       - EXPORT
       title: TaskType
@@ -1523,7 +1503,6 @@ paths:
               anyOf:
               - $ref: '#/components/schemas/SpeakerIdentificationTask'
               - $ref: '#/components/schemas/TranscribeTask'
-              - $ref: '#/components/schemas/AlignTask'
               - $ref: '#/components/schemas/ExportTask'
               - $ref: '#/components/schemas/UnknownTask'
               title: Task

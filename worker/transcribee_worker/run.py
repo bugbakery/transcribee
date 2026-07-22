@@ -44,7 +44,7 @@ def main():
     parser.add_argument("--reload", action="store_true")
     parser.add_argument(
         "--task-types",
-        help="Task types to run [identify,align,transcribe,reencode,export]",
+        help="Task types to run [identify,transcribe,reencode,export]",
     )
     args = parser.parse_args()
 
@@ -141,7 +141,6 @@ async def run(args):
     if args.task_types is None:
         task_types = [
             TaskType.IDENTIFY_SPEAKERS,
-            TaskType.ALIGN,
             TaskType.TRANSCRIBE,
             TaskType.REENCODE,
             TaskType.EXPORT,
@@ -150,8 +149,6 @@ async def run(args):
         task_types = []
         if "identify" in args.task_types:
             task_types.append(TaskType.IDENTIFY_SPEAKERS)
-        if "align" in args.task_types:
-            task_types.append(TaskType.ALIGN)
         if "transcribe" in args.task_types:
             task_types.append(TaskType.TRANSCRIBE)
         if "reencode" in args.task_types:
