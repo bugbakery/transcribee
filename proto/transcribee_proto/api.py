@@ -10,7 +10,6 @@ from pydantic import BaseModel
 class TaskType(str, enum.Enum):
     IDENTIFY_SPEAKERS = "IDENTIFY_SPEAKERS"
     TRANSCRIBE = "TRANSCRIBE"
-    ALIGN = "ALIGN"
     REENCODE = "REENCODE"
     EXPORT = "EXPORT"
 
@@ -89,11 +88,6 @@ class TranscribeTask(TaskBase):
     task_parameters: TranscribeTaskParameters
 
 
-class AlignTask(TaskBase):
-    task_type: Literal[TaskType.ALIGN] = TaskType.ALIGN
-    task_parameters: Dict[str, Any]
-
-
 class ReencodeTask(TaskBase):
     task_type: Literal[TaskType.REENCODE] = TaskType.REENCODE
     task_parameters: Dict[str, Any]
@@ -104,9 +98,7 @@ class ExportTask(TaskBase):
     task_parameters: ExportTaskParameters
 
 
-AssignedTask = (
-    SpeakerIdentificationTask | TranscribeTask | AlignTask | ReencodeTask | ExportTask
-)
+AssignedTask = SpeakerIdentificationTask | TranscribeTask | ReencodeTask | ExportTask
 
 
 class LoginResponse(BaseModel):

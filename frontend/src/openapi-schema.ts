@@ -144,22 +144,6 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
-    /** AlignTask */
-    AlignTask: {
-      /**
-       * Document Id
-       * Format: uuid
-       */
-      document_id: string;
-      /** Task Parameters */
-      task_parameters: Record<string, never>;
-      /**
-       * Task Type
-       * @default ALIGN
-       * @constant
-       */
-      task_type?: "ALIGN";
-    };
     /** ApiDocumentWithTasks */
     ApiDocumentWithTasks: {
       /** Changed At */
@@ -512,7 +496,7 @@ export interface components {
      * TaskType
      * @enum {string}
      */
-    TaskType: "IDENTIFY_SPEAKERS" | "TRANSCRIBE" | "ALIGN" | "REENCODE" | "EXPORT";
+    TaskType: "IDENTIFY_SPEAKERS" | "TRANSCRIBE" | "REENCODE" | "EXPORT";
     /** TranscribeTask */
     TranscribeTask: {
       /**
@@ -1112,7 +1096,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["SpeakerIdentificationTask"] | components["schemas"]["TranscribeTask"] | components["schemas"]["AlignTask"] | components["schemas"]["ExportTask"] | components["schemas"]["UnknownTask"];
+        "application/json": components["schemas"]["SpeakerIdentificationTask"] | components["schemas"]["TranscribeTask"] | components["schemas"]["ExportTask"] | components["schemas"]["UnknownTask"];
       };
     };
     responses: {
