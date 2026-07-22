@@ -171,3 +171,35 @@ repos:
         language: system
         files: desktop/.*
         pass_filenames: false
+  - repo: local
+    hooks:
+      - id: desktop-cargo-fmt
+        name: "desktop: cargo fmt"
+        entry: sh -c 'cd desktop/src-tauri/ && cargo fmt'
+        language: system
+        files: desktop/src-tauri/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: desktop-cargo-clippy
+        name: "desktop: cargo clippy"
+        entry: sh -c 'cd desktop/src-tauri/ && mkdir -p worker/ && cargo clippy --all-features --fix --allow-staged -- -D warnings'
+        language: system
+        files: desktop/src-tauri/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: desktop-worker-adapter-cargo-fmt
+        name: "desktop/worker-adapter: cargo fmt"
+        entry: sh -c 'cd desktop/src-tauri/ && cargo fmt'
+        language: system
+        files: desktop/worker-adapter/.*
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: desktop-worker-adapter-cargo-clippy
+        name: "desktop/worker-adapter: cargo clippy"
+        entry: sh -c 'cd desktop/worker-adapter/ && cargo clippy --all-features --fix --allow-staged -- -D warnings'
+        language: system
+        files: desktop/src-tauri/.*
+        pass_filenames: false
