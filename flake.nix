@@ -90,6 +90,7 @@
             pkgs.libiconv
             pkgs.rustc
             pkgs.cargo
+            pkgs.clippy
 
             # Our database
             pkgs.postgresql_18
