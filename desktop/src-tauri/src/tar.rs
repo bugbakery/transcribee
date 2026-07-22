@@ -104,7 +104,7 @@ impl TarHeader {
         );
         let path = Self::read_zero_delimited_string(&bytes[0..100])?;
         let size = u64::from_str_radix(
-            &Self::read_zero_delimited_string(&bytes[124..124 + 12])?.trim_end_matches(" "),
+            Self::read_zero_delimited_string(&bytes[124..124 + 12])?.trim_end_matches(" "),
             8,
         )?;
 

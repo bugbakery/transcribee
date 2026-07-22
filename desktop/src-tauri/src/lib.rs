@@ -21,13 +21,15 @@ async fn transcribe_file(
     worker_adapter: State<'_, WorkerAdapter>,
     file_path: String,
 ) -> Result<String, String> {
-    worker_adapter.start_transcription(
-        file_path,
-        TranscribeTaskParameters {
-            lang: "auto".to_string(),
-            model: "tiny".to_string(),
-        },
-    ).await;
+    worker_adapter
+        .start_transcription(
+            file_path,
+            TranscribeTaskParameters {
+                lang: "auto".to_string(),
+                model: "tiny".to_string(),
+            },
+        )
+        .await;
 
     Ok("".to_string())
 }

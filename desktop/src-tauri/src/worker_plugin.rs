@@ -50,13 +50,13 @@ fn setup_worker<R: Runtime>(
             let mut stdout = Vec::new();
 
             fn output_buffer(buf: &mut Vec<u8>, level: Level, always_output: bool) {
-                while let Some(pos) = buf.iter().position(|b| *b == '\n' as u8) {
+                while let Some(pos) = buf.iter().position(|b| *b == b'\n') {
                     let line = String::from_utf8_lossy(&buf[..pos]);
                     log!(target: "worker", level, "{}", line);
                     buf.drain(..pos + 1);
                 }
                 if always_output {
-                    let line = String::from_utf8_lossy(&buf);
+                    let line = String::from_utf8_lossy(buf);
                     if !line.is_empty() {
                         log!(target: "worker", level, "{}", line);
                     }

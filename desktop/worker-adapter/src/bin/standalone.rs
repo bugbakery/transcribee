@@ -27,10 +27,13 @@ async fn main() -> std::io::Result<()> {
     let listener = WorkerAdapter::bind(args.port).unwrap();
     log::info!("starting backend on http://{:?}", listener.local_addr()?);
 
-    adapter.start_transcription(args.media_file, TranscribeTaskParameters {
-        lang: "auto".to_string(),
-        model: "tiny".to_string(),
-    });
+    tokio::runtime::Handle::current().block_on(adapter.start_transcription(
+        args.media_file,
+        TranscribeTaskParameters {
+            lang: "auto".to_string(),
+            model: "tiny".to_string(),
+        },
+    ));
 
     adapter.serve(listener).await
 }
