@@ -1,5 +1,5 @@
 [package]
-name = "desktop-backend"
+name = "worker-adapter"
 version = "0.1.0"
 edition = "2024"
 

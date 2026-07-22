@@ -13,6 +13,6 @@
     "nixEnvSelector.flakeShell": "default",
     "rust-analyzer.linkedProjects": [
         "desktop/src-tauri/Cargo.toml",
-        "desktop/desktop-backend/Cargo.toml"
+        "desktop/worker-adapter/Cargo.toml"
     ]
 }

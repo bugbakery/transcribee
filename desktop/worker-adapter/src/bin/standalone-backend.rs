@@ -4,14 +4,14 @@ use clap::Parser;
 use clap::arg;
 use clap::command;
 use clap::value_parser;
-use desktop_backend::BackendBuilder;
-use desktop_backend::state::BACKEND_STATE;
-use desktop_backend::state::Document;
-use desktop_backend::state::MediaFile;
-use desktop_backend::state::Task;
-use desktop_backend::state::TaskParameters;
-use desktop_backend::state::TaskState;
-use desktop_backend::state::TaskType;
+use worker_adapter::BackendBuilder;
+use worker_adapter::state::BACKEND_STATE;
+use worker_adapter::state::Document;
+use worker_adapter::state::MediaFile;
+use worker_adapter::state::Task;
+use worker_adapter::state::TaskParameters;
+use worker_adapter::state::TaskState;
+use worker_adapter::state::TaskType;
 use uuid::Uuid;
 
 #[derive(Parser, Debug)]
