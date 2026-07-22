@@ -109,14 +109,10 @@ impl ListenersContainer {
             .retain(|l| !Arc::ptr_eq(l, &listener));
     }
 
-    pub async fn notify_document_listeners(
-        &mut self,
-        document_id: Uuid,
-        change: &[u8],
-    ) {
+    pub async fn notify_document_listeners(&mut self, document_id: Uuid, change: &[u8]) {
         for listener in &self.document_listeners {
             let mut listener = listener.lock().await;
-            listener(document_id, &change);
+            listener(document_id, change);
         }
     }
 }
@@ -174,10 +170,10 @@ impl TasksContainer {
     }
     pub fn claim_unassigned_task(&mut self, task_types: &[TaskType]) -> Option<Task> {
         if let Some(task) = self.get_ready_task(task_types) {
-            (*task).current_attempt = Some(TaskAttempt { progress: None });
-            (*task).state = TaskState::Assigned;
+            task.current_attempt = Some(TaskAttempt { progress: None });
+            task.state = TaskState::Assigned;
             return Some(task.clone());
         }
-        return None;
+        None
     }
 }

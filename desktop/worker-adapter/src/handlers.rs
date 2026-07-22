@@ -1,9 +1,8 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use crate::WorkerAdapter;
-use crate::sync_message::SyncMessage;
 use crate::state::{Task, TaskAttempt, TaskType};
+use crate::sync_message::SyncMessage;
 use axum::extract::ws::Message;
 use axum::extract::{Path, State};
 use axum::{
@@ -13,9 +12,8 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::Query;
-use futures_util::{sink::SinkExt, stream::StreamExt};
+use futures_util::stream::StreamExt;
 use serde::Deserialize;
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -29,7 +27,7 @@ pub async fn claim_unassigned_task(
     Query(query): Query<GetUnassingedTaskQuery>,
 ) -> Json<Option<Task>> {
     let mut tasks = app_state.tasks.lock().await;
-    return Json(tasks.claim_unassigned_task(&query.task_types));
+    Json(tasks.claim_unassigned_task(&query.task_types))
 }
 
 pub async fn mark_completed(
@@ -38,13 +36,16 @@ pub async fn mark_completed(
 ) -> Json<()> {
     let mut tasks = app_state.tasks.lock().await;
     tasks.complete_task(task_id);
-    return Json(());
+    Json(())
 }
 
-pub async fn mark_failed(State(app_state): State<WorkerAdapter>, Path(task_id): Path<Uuid>) -> Json<()> {
+pub async fn mark_failed(
+    State(app_state): State<WorkerAdapter>,
+    Path(task_id): Path<Uuid>,
+) -> Json<()> {
     let mut tasks = app_state.tasks.lock().await;
     tasks.fail_task(task_id);
-    return Json(());
+    Json(())
 }
 
 pub async fn keepalive(
@@ -54,7 +55,7 @@ pub async fn keepalive(
 ) -> Json<()> {
     let mut tasks = app_state.tasks.lock().await;
     tasks.update_task_attempt(task_id, payload);
-    return Json(());
+    Json(())
 }
 
 pub async fn noop(body: Bytes) -> Json<()> {
@@ -86,9 +87,7 @@ async fn handle_document_sync_socket(
             match msg {
                 Message::Binary(change) => {
                     let mut state = app_state.listeners.lock().await;
-                    state
-                        .notify_document_listeners(document_id, &change)
-                        .await;
+                    state.notify_document_listeners(document_id, &change).await;
                 }
                 Message::Close(close_frame_opt) => {
                     log::debug!("ws: client {who} closed connection {:?}", close_frame_opt);

@@ -19,7 +19,7 @@ pub async fn read_automerge(path: String) -> std::result::Result<Response, Strin
 }
 
 async fn read_automerge_internal(path: String) -> Result<Vec<u8>> {
-    let mut file = File::open(&path).with_context(|| format!("could not open file '{}'", &path))?;
+    let mut file = File::open(&path).with_context(|| format!("could not open file '{}'", path))?;
     let data_range = get_byte_range_of_file_in_tar(&mut file, "document.automerge")?;
     file.seek(Start(data_range.start))?;
     let mut buf = vec![0u8; (data_range.end - data_range.start) as usize];
@@ -75,7 +75,7 @@ async fn append_automerge_change_internal(path: &str, change: &[u8]) -> Result<(
         .as_bytes()?,
     )?;
 
-    return Ok(());
+    Ok(())
 }
 
 // this is stolen and adapted from
@@ -83,7 +83,7 @@ async fn append_automerge_change_internal(path: &str, change: &[u8]) -> Result<(
 pub fn get_file_from_archive_as_response(
     request: http::Request<Vec<u8>>,
 ) -> Result<http::Response<Vec<u8>>> {
-    let path = percent_encoding::percent_decode(&request.uri().path().as_bytes())
+    let path = percent_encoding::percent_decode(request.uri().path().as_bytes())
         .decode_utf8_lossy()
         .to_string();
 
@@ -91,7 +91,7 @@ pub fn get_file_from_archive_as_response(
         .rsplit_once("/")
         .ok_or(anyhow!("invalid path (needs to contain at least one /)"))?;
     let mut file = File::open(archive_path)
-        .with_context(|| format!("could not open archive file '{}'", &path))?;
+        .with_context(|| format!("could not open archive file '{}'", path))?;
     let data_range = get_byte_range_of_file_in_tar(&mut file, filename)?;
     let len = data_range.end - data_range.start;
 

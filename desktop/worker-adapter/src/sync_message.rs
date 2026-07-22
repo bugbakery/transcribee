@@ -18,11 +18,11 @@ impl<'a> SyncMessage<'a> {
     }
 }
 
-impl<'a> Into<Message> for SyncMessage<'a> {
-    fn into(self) -> Message {
-        let mut msg = vec![self.header()];
+impl<'a> From<SyncMessage<'a>> for Message {
+    fn from(val: SyncMessage<'a>) -> Self {
+        let mut msg = vec![val.header()];
 
-        match self {
+        match val {
             SyncMessage::Change(change) => msg.extend_from_slice(change),
             SyncMessage::ChangeBacklogComplete => (),
             SyncMessage::FullDocument(changes) => {

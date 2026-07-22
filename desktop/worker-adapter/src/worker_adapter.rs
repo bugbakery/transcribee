@@ -146,12 +146,9 @@ impl WorkerAdapter {
 
         let ws_router = Router::<WorkerAdapter>::new()
             .route("/api/v1/documents/sync/{document_id}/", any(document_sync))
-            .route_layer(middleware::from_fn_with_state(
-                self.clone(),
-                worker_ws_auth,
-            ));
+            .route_layer(middleware::from_fn_with_state(self.clone(), worker_ws_auth));
 
-        let app = Router::<WorkerAdapter>::new()
+        Router::<WorkerAdapter>::new()
             .merge(http_router)
             .merge(ws_router)
             .layer(
@@ -161,8 +158,6 @@ impl WorkerAdapter {
                         .include_headers(true),
                 ),
             )
-            .with_state(self.clone());
-
-        return app;
+            .with_state(self.clone())
     }
 }
