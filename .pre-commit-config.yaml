@@ -38,7 +38,7 @@ repos:
   - repo: local
     hooks:
       - id: backend-test
-        name: "bockend: test"
+        name: "backend: test"
         entry: poe -C backend/ test
         language: system
         files: backend/.*
