@@ -45,10 +45,11 @@ def load_pages_from_disk() -> Dict[str, PageConfig]:
         if settings.pages_dir.exists():
             for file in settings.pages_dir.glob("*.md"):
                 page_id = file.stem
-                page = frontmatter.load(file)
+                page = frontmatter.load(str(file))
+                metadata: dict = page.metadata
                 pages[page_id] = PageConfig(
-                    name=page.metadata.get("name", file.stem),
-                    footer_position=page.metadata.get("footer_position"),
+                    name=metadata.get("name", file.stem),
+                    footer_position=metadata.get("footer_position"),
                     text=page.content,
                 )
 
