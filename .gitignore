@@ -2,3 +2,6 @@
 .DS_Store
 .ruff_cache
 target
+
+# these are not uv.lock files but rather temporary files uv fails to clean up
+uv-*.lock
