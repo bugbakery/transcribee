@@ -9,6 +9,9 @@ on:
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
     steps:
       - uses: actions/checkout@v6
 
@@ -22,6 +25,9 @@ jobs:
 
       - name: install ubuntu dependencies
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: run pre-commit
         run: pre-commit run --show-diff-on-failure --color=always --all-files
