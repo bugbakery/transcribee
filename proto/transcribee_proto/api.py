@@ -62,7 +62,9 @@ class SpeakerIdentificationTaskParameters(BaseModel):
 
 
 class SpeakerIdentificationTask(TaskBase):
-    task_type: Literal[TaskType.IDENTIFY_SPEAKERS] = TaskType.IDENTIFY_SPEAKERS
+    task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
+        TaskType.IDENTIFY_SPEAKERS
+    ] = TaskType.IDENTIFY_SPEAKERS
     task_parameters: SpeakerIdentificationTaskParameters
 
 
@@ -84,17 +86,23 @@ class ExportTaskParameters(BaseModel):
 
 
 class TranscribeTask(TaskBase):
-    task_type: Literal[TaskType.TRANSCRIBE] = TaskType.TRANSCRIBE
+    task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
+        TaskType.TRANSCRIBE
+    ] = TaskType.TRANSCRIBE
     task_parameters: TranscribeTaskParameters
 
 
 class ReencodeTask(TaskBase):
-    task_type: Literal[TaskType.REENCODE] = TaskType.REENCODE
+    task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
+        TaskType.REENCODE
+    ] = TaskType.REENCODE
     task_parameters: Dict[str, Any]
 
 
 class ExportTask(TaskBase):
-    task_type: Literal[TaskType.EXPORT] = TaskType.EXPORT
+    task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
+        TaskType.EXPORT
+    ] = TaskType.EXPORT
     task_parameters: ExportTaskParameters
 
 
