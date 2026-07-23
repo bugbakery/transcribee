@@ -55,7 +55,7 @@ def get_ready_task(session: Session, task_type: List[TaskType]) -> Optional[Task
         select(TaskDependency)
         .join(
             taskalias,
-            taskalias.id == TaskDependency.dependant_on_id,
+            col(taskalias.id) == TaskDependency.dependant_on_id,
         )
         .where(
             taskalias.state != TaskState.COMPLETED,
@@ -67,7 +67,7 @@ def get_ready_task(session: Session, task_type: List[TaskType]) -> Optional[Task
         select(Task)
         .where(
             col(Task.task_type).in_(task_type),
-            is_(Task.current_attempt_id, None),
+            is_(col(Task.current_attempt_id), None),
             ~(col(Task.state).in_([TaskState.COMPLETED, TaskState.FAILED])),
             ~blocking_tasks_exist,
         )
@@ -116,7 +116,7 @@ def queue_info(
         select(TaskDependency)
         .join(
             taskalias,
-            taskalias.id == TaskDependency.dependant_on_id,
+            col(taskalias.id) == TaskDependency.dependant_on_id,
         )
         .where(
             taskalias.state != TaskState.COMPLETED,
@@ -134,7 +134,7 @@ def queue_info(
     )
 
     tasks = session.exec(statement).all()
-    return TaskQueueInfoResponse.from_orm(open_tasks=tasks)
+    return TaskQueueInfoResponse.from_orm(open_tasks=list(tasks))
 
 
 @task_router.post("/{task_id}/keepalive/")

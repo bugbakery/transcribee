@@ -11,9 +11,9 @@ authors = [
 
 dependencies = [
     "redis~=5.0",
-    "fastapi~=0.115",
+    "fastapi~=0.136.3",
     "uvicorn[standard]~=0.20",
-    "sqlmodel~=0.0",
+    "sqlmodel~=0.0.39",
     "alembic~=1.0",
     "python-multipart~=0.0",
     "filetype~=1.2",
@@ -23,7 +23,7 @@ dependencies = [
     "python-frontmatter~=1.0",
     "psycopg2~=2.9",
     "prometheus-fastapi-instrumentator~=6.1",
-    "pydantic~=2.2",
+    "pydantic~=2.13.4",
     "pydantic-settings>=2.7",
     "poethepoet>=0.46.0",
 ]

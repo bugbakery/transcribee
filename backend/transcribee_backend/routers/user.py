@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, delete
+from sqlmodel import Session, col, delete
 from transcribee_proto.api import LoginResponse
 
 from transcribee_backend.auth import (
@@ -84,6 +84,6 @@ def change_password(
         username=authorized_user.username,
         new_password=body.new_password,
     )
-    session.exec(delete(UserToken).where(UserToken.user_id == authorized_user.id))
+    session.exec(delete(UserToken).where(col(UserToken.user_id) == authorized_user.id))
     session.commit()
     return UserBase(username=user.username)

@@ -2,14 +2,18 @@ import uuid
 from typing import Optional
 
 from pydantic.types import AwareDatetime
-from sqlmodel import DateTime, Field, SQLModel
+from sqlmodel import Column, DateTime, Field, SQLModel
 
 
 class WorkerBase(SQLModel):
     name: str
 
-    last_seen: Optional[AwareDatetime] = Field(sa_type=DateTime(timezone=True))
-    deactivated_at: Optional[AwareDatetime] = Field(sa_type=DateTime(timezone=True))
+    last_seen: Optional[AwareDatetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    deactivated_at: Optional[AwareDatetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
 
 class WorkerWithId(WorkerBase):

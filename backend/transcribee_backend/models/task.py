@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Optional
 
+from sqlalchemy.orm import Mapped
 from sqlmodel import JSON, Column, Field, ForeignKey, Relationship, SQLModel, Uuid
 from transcribee_proto.api import ExportTaskParameters, TaskType
 from transcribee_proto.api import RemoteDocument as ApiDocument
@@ -28,7 +29,7 @@ class TaskState(enum.Enum):
 
 class TaskBase(SQLModel):
     task_type: TaskType
-    task_parameters: dict
+    task_parameters: Dict[str, Any]
     document_id: uuid.UUID
 
 
@@ -58,7 +59,7 @@ class Task(TaskBase, table=True):
     document_id: uuid.UUID = Field(
         foreign_key="document.id", ondelete="CASCADE", unique=False
     )
-    document: Document = Relationship(back_populates="tasks")
+    document: Mapped[Document] = Relationship(back_populates="tasks")
 
     task_parameters: dict = Field(sa_column=Column(JSON(), nullable=False))
 
@@ -100,7 +101,7 @@ class Task(TaskBase, table=True):
         ),
         default=None,
     )
-    current_attempt: Optional["TaskAttempt"] = Relationship(
+    current_attempt: Mapped[Optional["TaskAttempt"]] = Relationship(
         sa_relationship_kwargs={
             "primaryjoin": "Task.current_attempt_id == TaskAttempt.id",
             "post_update": True,
@@ -118,13 +119,13 @@ class Task(TaskBase, table=True):
             "secondaryjoin": "Task.id==TaskDependency.dependant_on_id",
         },
     )
-    dependency_links: List[TaskDependency] = Relationship(
+    dependency_links: Mapped[List[TaskDependency]] = Relationship(
         sa_relationship_kwargs={
             "primaryjoin": "Task.id==TaskDependency.dependent_task_id",
             "viewonly": True,
         },
     )
-    dependants: List["Task"] = Relationship(
+    dependants: Mapped[List["Task"]] = Relationship(
         back_populates="dependencies",
         link_model=TaskDependency,
         sa_relationship_kwargs={
@@ -180,12 +181,12 @@ class TaskResponse(TaskBase):
     current_attempt: Optional[TaskAttemptResponse]
 
     @classmethod
-    def from_orm(cls, task: Task, update={}) -> Self:
+    def from_orm(cls, obj: Task, update=None) -> Self:
         # The following code is equivalent to this:
         #     return super().from_orm(
-        #         task,
+        #         obj,
         #         update={
-        #             "dependencies": [x.dependant_on_id for x in task.dependency_links],
+        #             "dependencies": [x.dependant_on_id for x in obj.dependency_links],
         #             **update,
         #         },
         #     )
@@ -196,18 +197,18 @@ class TaskResponse(TaskBase):
         # Even with a small number of document this cuts the loading time of
         # the `/api/v1/documents/` endpoint roughly in half on my test machine
         return cls(
-            id=task.id,
-            state=task.state,
-            dependencies=[x.dependant_on_id for x in task.dependency_links],
+            id=obj.id,
+            state=obj.state,
+            dependencies=[x.dependant_on_id for x in obj.dependency_links],
             current_attempt=(
-                TaskAttemptResponse.model_validate(task.current_attempt)
-                if task.current_attempt is not None
+                TaskAttemptResponse.model_validate(obj.current_attempt)
+                if obj.current_attempt is not None
                 else None
             ),
-            document_id=task.document_id,
-            task_type=task.task_type,
-            task_parameters=task.task_parameters,
-            **update,
+            document_id=obj.document_id,
+            task_type=obj.task_type,
+            task_parameters=obj.task_parameters,
+            **(update if update is not None else {}),
         )
 
 
@@ -215,11 +216,13 @@ class AssignedTaskResponse(TaskResponse):
     document: ApiDocument
 
     @classmethod
-    def from_orm(cls, task: Task, baseUrl: BaseUrl) -> Self:
+    def from_orm(  # pyright: ignore reportIncompatibleVariableOverride
+        cls, obj: Task, baseUrl: BaseUrl
+    ) -> Self:
         return super().from_orm(
-            task,
+            obj,
             update={
-                "document": task.document.as_api_document(baseUrl=baseUrl),
+                "document": obj.document.as_api_document(baseUrl=baseUrl),
             },
         )
 
@@ -269,7 +272,9 @@ class TaskQueueInfoResponse:
 
 # TODO: Better typing, combine with types from proto
 class SpeakerIdentificationTask(TaskBase):
-    task_type: Literal[TaskType.IDENTIFY_SPEAKERS] = TaskType.IDENTIFY_SPEAKERS
+    task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
+        TaskType.IDENTIFY_SPEAKERS
+    ] = TaskType.IDENTIFY_SPEAKERS
     task_parameters: Dict[str, Any]
 
 
@@ -279,17 +284,21 @@ class TranscribeTaskParameters(SQLModel):
 
 
 class TranscribeTask(TaskBase):
-    task_type: Literal[TaskType.TRANSCRIBE] = TaskType.TRANSCRIBE
-    task_parameters: TranscribeTaskParameters
+    task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
+        TaskType.TRANSCRIBE
+    ] = TaskType.TRANSCRIBE
+    task_parameters: TranscribeTaskParameters  # pyright: ignore reportIncompatibleVariableOverride
 
 
 class ExportTask(TaskBase):
-    task_type: Literal[TaskType.EXPORT] = TaskType.EXPORT
-    task_parameters: ExportTaskParameters
+    task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
+        TaskType.EXPORT
+    ] = TaskType.EXPORT
+    task_parameters: ExportTaskParameters  # pyright: ignore reportIncompatibleVariableOverride
 
 
 class UnknownTask(TaskBase):
-    task_type: str
+    task_type: str  # pyright: ignore reportIncompatibleVariableOverride
     task_parameters: Dict[str, Any]
 
 
