@@ -26,23 +26,18 @@ repos:
         language: system
         "types_or": [python, pyi]
 
-  # backend
+  # package manager managed projects
   - repo: local
     hooks:
-      - id: backend-pyright
-        name: "backend: pyright"
-        entry: poe -C backend/ pyright
+      - id: projects
+        name: "projects"
+        entry: packaging/pre-commit-projects.py
         language: system
-        files: backend/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: backend-test
-        name: "backend: test"
-        entry: poe -C backend/ test
-        language: system
-        files: backend/.*
-        pass_filenames: false
+        files: .*
+        pass_filenames: true
+        require_serial: true
+
+  # openapi
   - repo: local
     hooks:
       - id: backend-openapi
@@ -51,26 +46,6 @@ repos:
         language: system
         files: backend/.*
         pass_filenames: false
-
-  # worker
-  - repo: local
-    hooks:
-      - id: worker-pyright
-        name: "worker: pyright"
-        entry: poe -C worker/ pyright
-        language: system
-        files: worker/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: worker-tests
-        name: "worker: tests"
-        entry: poe -C worker/ test
-        language: system
-        files: worker/.*
-        pass_filenames: false
-
-  # frontend checks
   - repo: local # openapi-schema typescript from the openapi-schema of the backend
     hooks:
       - id: frontend-openapi-typescript
@@ -78,128 +53,4 @@ repos:
         entry: npm --prefix frontend/ run generate-openapi
         language: system
         files: backend/openapi-schema.yml
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: frontend-eslint
-        name: "frontend: eslint"
-        entry: npm --prefix frontend/ run check:eslint
-        language: system
-        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: frontend-tsc
-        name: "frontend: tsc"
-        entry: npm --prefix frontend/ run check:tsc
-        language: system
-        files: frontend/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: frontend-format
-        name: "frontend: format"
-        entry: npm --prefix frontend/ run format
-        language: system
-        files: frontend/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: frontend-test
-        name: "frontend: test"
-        entry: npm --prefix frontend/ run test
-        language: system
-        files: frontend/.*
-        pass_filenames: false
-
-# ui-common
-  - repo: local
-    hooks:
-      - id: ui-common-eslint
-        name: "ui-common: eslint"
-        entry: npm --prefix ui-common/ run check:eslint
-        language: system
-        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: ui-common-tsc
-        name: "ui-common: tsc"
-        entry: npm --prefix ui-common/ run check:tsc
-        language: system
-        files: ui-common/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: ui-common-format
-        name: "ui-common: format"
-        entry: npm --prefix ui-common/ run format
-        language: system
-        files: ui-common/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: ui-common-test
-        name: "ui-common: test"
-        entry: npm --prefix ui-common/ run test
-        language: system
-        files: ui-common/.*
-        pass_filenames: false
-
-# desktop
-  - repo: local
-    hooks:
-      - id: desktop-eslint
-        name: "desktop: eslint"
-        entry: npm --prefix desktop/ run check:eslint
-        language: system
-        files: \.[jt]sx?$ # *.js, *.jsx, *.ts and *.tsx
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: desktop-tsc
-        name: "desktop: tsc"
-        entry: npm --prefix desktop/ run check:tsc
-        language: system
-        files: desktop/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: desktop-format
-        name: "desktop: format"
-        entry: npm --prefix desktop/ run format
-        language: system
-        files: desktop/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: desktop-cargo-fmt
-        name: "desktop: cargo fmt"
-        entry: sh -c 'cd desktop/src-tauri/ && cargo fmt'
-        language: system
-        files: desktop/src-tauri/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: desktop-cargo-clippy
-        name: "desktop: cargo clippy"
-        entry: sh -c 'cd desktop/src-tauri/ && mkdir -p worker/ && cargo clippy --all-features --fix --allow-staged -- -D warnings'
-        language: system
-        files: desktop/src-tauri/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: desktop-worker-adapter-cargo-fmt
-        name: "desktop/worker-adapter: cargo fmt"
-        entry: sh -c 'cd desktop/src-tauri/ && cargo fmt'
-        language: system
-        files: desktop/worker-adapter/.*
-        pass_filenames: false
-  - repo: local
-    hooks:
-      - id: desktop-worker-adapter-cargo-clippy
-        name: "desktop/worker-adapter: cargo clippy"
-        entry: sh -c 'cd desktop/worker-adapter/ && cargo clippy --all-features --fix --allow-staged -- -D warnings'
-        language: system
-        files: desktop/src-tauri/.*
         pass_filenames: false
