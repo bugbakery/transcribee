@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "org.bugbakery.transcribee-desktop",
   "build": {
-    "beforeDevCommand": "python src-tauri/prepare_worker.py && npm run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "python src-tauri/prepare_worker.py && npm run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
