@@ -20,7 +20,7 @@
     "check": "npm-run-all --continue-on-error check:*",
     "check:tsc": "tsc --noEmit --incremental",
     "check:eslint": "eslint --max-warnings 0 --ext .ts,.tsx .",
-    "check:format": "prettier --check 'src/**/*.(ts|tsx)'",
+    "check:format": "prettier --check '**/*.(ts|tsx)'",
     "test": "vitest"
   },
   "dependencies": {
