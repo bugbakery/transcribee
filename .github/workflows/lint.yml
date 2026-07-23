@@ -20,6 +20,9 @@ jobs:
       - name: install pre-commit
         run: pip install pre-commit ruff poethepoet
 
+      - name: install ubuntu dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
       - name: install web dependencies
         run: ./packaging/install_dependencies.sh
 
