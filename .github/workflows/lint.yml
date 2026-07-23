@@ -23,11 +23,5 @@ jobs:
       - name: install ubuntu dependencies
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
 
-      - name: install web dependencies
-        run: ./packaging/install_dependencies.sh
-
-      - name: install desktop dependencies
-        run: npm --prefix desktop/ ci
-
       - name: run pre-commit
         run: pre-commit run --show-diff-on-failure --color=always --all-files
