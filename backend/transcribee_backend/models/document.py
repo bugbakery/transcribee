@@ -2,7 +2,8 @@ import uuid
 from typing import List, Optional
 
 from pydantic.types import AwareDatetime
-from sqlmodel import DateTime, Field, Relationship, SQLModel
+from sqlalchemy.orm import Mapped
+from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 from transcribee_proto.api import RemoteDocument as ApiDocument
 from transcribee_proto.api import RemoteDocumentMedia as ApiDocumentMedia
 
@@ -27,22 +28,28 @@ class Document(DocumentBase, table=True):
         nullable=False,
     )
     user_id: uuid.UUID = Field(foreign_key="user.id")
-    user: "User" = Relationship()
-    created_at: AwareDatetime = Field(sa_type=DateTime(timezone=True))
-    changed_at: AwareDatetime = Field(sa_type=DateTime(timezone=True))
-    media_files: List["DocumentMediaFile"] = Relationship()
+    user: Mapped["User"] = Relationship()
+    created_at: AwareDatetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    changed_at: AwareDatetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    media_files: Mapped[List["DocumentMediaFile"]] = Relationship()
     updates: List["DocumentUpdate"] = Relationship(
         sa_relationship_kwargs={"cascade": "all"}
     )
     share_tokens: List["DocumentShareToken"] = Relationship(
         sa_relationship_kwargs={"cascade": "all"}
     )
-    tasks: List["Task"] = Relationship(sa_relationship_kwargs={"cascade": "all"})
+    tasks: Mapped[List["Task"]] = Relationship(
+        sa_relationship_kwargs={"cascade": "all"}
+    )
 
     def as_api_document(self, baseUrl: BaseUrl) -> ApiDocumentWithTasks:
         tasks = [TaskResponse.from_orm(task) for task in self.tasks]
         return ApiDocumentWithTasks(
-            id=str(self.id),
+            id=self.id,
             name=self.name,
             created_at=self.created_at.isoformat(),
             changed_at=self.created_at.isoformat(),
@@ -65,15 +72,19 @@ class DocumentMediaFile(DocumentMediaFileBase, table=True):
         index=True,
         nullable=False,
     )
-    created_at: AwareDatetime = Field(sa_type=DateTime(timezone=True))
-    changed_at: AwareDatetime = Field(sa_type=DateTime(timezone=True))
+    created_at: AwareDatetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    changed_at: AwareDatetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
 
     document: Document = Relationship(back_populates="media_files")
     document_id: uuid.UUID = Field(foreign_key="document.id")
 
     file: str
     content_type: str
-    tags: List["DocumentMediaTag"] = Relationship(
+    tags: Mapped[List["DocumentMediaTag"]] = Relationship(
         sa_relationship_kwargs={"cascade": "all"}
     )
 
@@ -115,7 +126,9 @@ class DocumentUpdate(DocumentUpdateBase, table=True):
 class DocumentShareTokenBase(SQLModel):
     id: uuid.UUID
     name: str
-    valid_until: Optional[AwareDatetime] = Field(sa_type=DateTime(timezone=True))
+    valid_until: Optional[AwareDatetime] = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     document_id: uuid.UUID = Field(foreign_key="document.id")
     token: str
     can_write: bool

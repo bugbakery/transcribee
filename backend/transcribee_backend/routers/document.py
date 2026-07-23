@@ -26,7 +26,6 @@ from pydantic import BaseModel, TypeAdapter
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.expression import desc
 from sqlmodel import Session, col, select
-from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.api import DocumentWithAccessInfo as ApiDocumentWithAccessInfo
 from transcribee_proto.api import ExportTaskParameters, RemoteDocumentMedia
 
@@ -103,7 +102,7 @@ def get_worker_auth_info(
         return
 
     statement = select(Task).where(
-        col(Task.current_attempt).has(TaskAttempt.assigned_worker_id == worker.id),
+        col(Task.current_attempt).has(col(TaskAttempt.assigned_worker_id) == worker.id),
         Task.document_id == doc.id,
     )
     if session.exec(statement.limit(1)).one_or_none() is not None:
@@ -321,7 +320,7 @@ async def create_document(
     session: Session = Depends(get_session),
     token: UserToken = Depends(get_user_token),
     baseUrl: BaseUrl = Depends(get_base_url),
-) -> ApiDocument:
+) -> ApiDocumentWithTasks:
     if language not in languages:
         raise RequestValidationError(
             [
@@ -370,7 +369,7 @@ def import_document(
     session: Session = Depends(get_session),
     name: str = Form(),
     baseUrl: BaseUrl = Depends(get_base_url),
-) -> ApiDocument:
+) -> ApiDocumentWithTasks:
     document = Document(
         name=name,
         user_id=token.user_id,
@@ -416,7 +415,7 @@ def list_documents(
     statement = (
         select(Document)
         .where(Document.user == token.user)
-        .order_by(desc(Document.changed_at), Document.id)
+        .order_by(desc(col(Document.changed_at)), col(Document.id))
         .options(
             selectinload(Document.tasks).selectinload(Task.dependency_links),
             selectinload(Document.media_files).selectinload(DocumentMediaFile.tags),
@@ -506,7 +505,7 @@ def add_media_file(
     file: UploadFile = File(),
     session: Session = Depends(get_session),
     baseUrl: BaseUrl = Depends(get_base_url),
-) -> ApiDocument:
+) -> ApiDocumentWithTasks:
     stored_file = media_storage.store_file(file.file)
     file.file.seek(0)
 
@@ -538,7 +537,7 @@ def set_duration(
     task: Task = Depends(get_task_worker_reencode_auth),
     session: Session = Depends(get_session),
     baseUrl: BaseUrl = Depends(get_base_url),
-) -> ApiDocument:
+) -> ApiDocumentWithTasks:
     doc = task.document
     doc.duration = body.duration
     session.add(doc)
@@ -557,7 +556,7 @@ def update_document(
     auth: AuthInfo = Depends(get_doc_full_auth),
     session: Session = Depends(get_session),
     baseUrl: BaseUrl = Depends(get_base_url),
-) -> ApiDocument:
+) -> ApiDocumentWithTasks:
     update_dict = update.model_dump(exclude_unset=True)
     for key, value in update_dict.items():
         setattr(auth.document, key, value)
@@ -600,7 +599,7 @@ def list_share_tokens(
     statement = (
         select(DocumentShareToken)
         .where(DocumentShareToken.document_id == auth.document.id)
-        .order_by(desc(DocumentShareToken.valid_until), DocumentShareToken.id)
+        .order_by(desc(col(DocumentShareToken.valid_until)), col(DocumentShareToken.id))
     )
     results = session.exec(statement)
     return list(results)

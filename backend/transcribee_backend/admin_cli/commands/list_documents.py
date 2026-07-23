@@ -1,5 +1,5 @@
 from sqlalchemy.sql.expression import desc
-from sqlmodel import select
+from sqlmodel import col, select
 from transcribee_backend.admin_cli.command import Command
 from transcribee_backend.db import SessionContextManager
 from transcribee_backend.models.document import Document
@@ -16,10 +16,12 @@ class ListDocumentsCmd(Command):
                 select(
                     Document.created_at, Document.duration, Document.name, User.username
                 )
-                .order_by(desc(Document.changed_at), Document.id)
+                .order_by(desc(col(Document.changed_at)), col(Document.id))
                 .join(Document.user)
             )
             result = session.exec(statement)
             format = "{} {:10.2f} {: >20} {}"
             for created, dur, name, username in result:
+                if dur is None:
+                    dur = -42.0
                 print(format.format(created, float(dur), username, name))

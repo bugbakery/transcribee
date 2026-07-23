@@ -32,8 +32,8 @@ class TasksInState(Metric):
 
     def refresh(self, session: Session):
         result = session.exec(
-            select(Task.state, Task.task_type, func.count()).group_by(
-                Task.state, Task.task_type
+            select(col(Task.state), col(Task.task_type), func.count()).group_by(
+                col(Task.state), col(Task.task_type)
             )
         ).all()
         counts = {(x, y): 0 for x in TaskState for y in TaskType}
@@ -51,14 +51,16 @@ class Workers(Metric):
 
     def refresh(self, session: Session):
         result = session.exec(
-            select(func.count(Worker.id)).where(col(Worker.deactivated_at).is_(None))
+            select(func.count(col(Worker.id))).where(
+                col(Worker.deactivated_at).is_(None)
+            )
         ).one()
         self.collector.labels(group="all").set(result)
 
         now = now_tz_aware()
         worker_timeout_ago = now - datetime.timedelta(seconds=settings.worker_timeout)
         result = session.exec(
-            select(func.count(Worker.id)).where(
+            select(func.count(col(Worker.id))).where(
                 col(Worker.last_seen) >= worker_timeout_ago,
             )
         ).one()
@@ -70,7 +72,7 @@ class Users(Metric):
         self.collector = Gauge("transcribee_users", "Registered users")
 
     def refresh(self, session: Session):
-        result = session.exec(select(func.count(User.id))).one()
+        result = session.exec(select(func.count(col(User.id)))).one()
         self.collector.set(result)
 
 
@@ -79,7 +81,7 @@ class Documents(Metric):
         self.collector = Gauge("transcribe_documents", "Documents")
 
     def refresh(self, session: Session):
-        result = session.exec(select(func.count(Document.id))).one()
+        result = session.exec(select(func.count(col(Document.id)))).one()
         self.collector.set(result)
 
 
@@ -92,7 +94,7 @@ class Queue(Metric):
     def refresh(self, session: Session):
         result = session.exec(
             select(
-                Task.task_type,
+                col(Task.task_type),
                 func.coalesce(
                     func.sum(
                         Document.duration * (1 - func.coalesce(TaskAttempt.progress, 0))
@@ -100,8 +102,12 @@ class Queue(Metric):
                     0,
                 ),
             )
-            .join(Task, Task.document_id == Document.id)
-            .join(TaskAttempt, Task.current_attempt_id == TaskAttempt.id, isouter=True)
+            .join(Task, col(Task.document_id) == Document.id)
+            .join(
+                TaskAttempt,
+                col(Task.current_attempt_id) == TaskAttempt.id,
+                isouter=True,
+            )
             .group_by(Task.task_type)
             .where(col(Task.state).in_(["NEW", "ASSIGNED"]))
         ).all()

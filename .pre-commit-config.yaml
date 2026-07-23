@@ -31,7 +31,7 @@ repos:
     hooks:
       - id: backend-pyright
         name: "backend: pyright"
-        entry: poe -C worker/ pyright
+        entry: poe -C backend/ pyright
         language: system
         files: backend/.*
         pass_filenames: false

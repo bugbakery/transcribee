@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, StringConstraints
 from pydantic.types import AwareDatetime
-from sqlmodel import DateTime, Field, Relationship, SQLModel
+from sqlmodel import Column, DateTime, Field, Relationship, SQLModel
 
 
 class UserBase(SQLModel):
@@ -40,7 +40,9 @@ class UserToken(UserTokenBase, table=True):
     user: User = Relationship()
     token_hash: bytes
     token_salt: bytes
-    valid_until: AwareDatetime = Field(sa_type=DateTime(timezone=True))
+    valid_until: AwareDatetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
 
 
 class ChangePasswordRequest(BaseModel):
