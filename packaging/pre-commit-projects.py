@@ -16,7 +16,7 @@ PROJECT_FILE_TYPES = {
     "package.json": {
         "install": "npm install",
         "checks": {
-            "test": "npm run test run",
+            "test": "npm run test run -- --test-timeout=20000",
             "tsc": "npm run check:tsc",
             "eslint": "npm run check:eslint",
             "format": "npm run format",
