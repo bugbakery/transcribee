@@ -1,34 +1,219 @@
+/// documents in transcribee desktop go through different phases:
+/// they are created as _new_ documents that live in our appdata folder. when they are in this phase
+/// they do not contain an embedded media file but we store the media separately. For _new_ files we
+/// store the media path and the displayname separately in our state.
+/// When the user first saves the file, we show them a file picker so that they can select where
+/// to store the file. They then become _mature_ files that have the media embedded.
+/// For _mature_ documents, the media file is embedded and we derive the display name from the
+/// file name.
+use crate::tar::{
+    get_byte_range_of_file_in_tar, get_bytes_of_file_in_tar, TarHeader, TAR_BLOCK_SIZE,
+};
 use anyhow::{anyhow, Context, Result};
 use http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE};
 use http::response::Builder as ResponseBuilder;
 use http::StatusCode;
 use http_range::HttpRange;
 use log::{info, warn};
-use std::fs::File;
+use serde::{Deserialize, Serialize};
+use std::fs::{self, remove_file, File};
 use std::io::SeekFrom::Start;
 use std::io::{Read, Seek, Write};
+use std::path::PathBuf;
+use tauri::path::BaseDirectory;
 use tauri::{command, ipc::Response};
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_store::StoreExt;
+use uuid::Uuid;
+use worker_adapter::state::TranscribeTaskParameters;
+use worker_adapter::WorkerAdapter;
 
-use crate::tar::{get_byte_range_of_file_in_tar, TarHeader, TAR_BLOCK_SIZE};
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Document {
+    /// this is the working copy of the document where we put all changes as they occur.
+    /// this ID is also used as the main identifyer to of the document
+    pub app_data_path: String,
+
+    /// this is the path under which the user explicitly saved their document. We only write this
+    /// when explicitly instructed to do so.
+    save_path: Option<String>,
+
+    /// the path of the original media file that was used to create the document.
+    /// if the document came here already as a mature document, this is None.
+    original_media_file: Option<String>,
+    transcription_progress: f32,
+}
+
+fn get_documents_store(app_handle: &AppHandle) -> Result<Vec<Document>> {
+    let documents_json = app_handle
+        .get_store("documents.json")
+        .ok_or(anyhow!("documents.json store was not loaded"))?
+        .get("documents")
+        .ok_or(anyhow!("documents.json does not contain document key"))?;
+    let documents: Vec<Document> = serde_json::from_value(documents_json)?;
+    Ok(documents)
+}
+
+fn update_document_store(
+    app_handle: &AppHandle,
+    op: impl Fn(Vec<Document>) -> Result<Vec<Document>>,
+) -> Result<()> {
+    let documents = get_documents_store(app_handle)?;
+    let new_documents = op(documents)?;
+    let documents_json = serde_json::to_value(new_documents)?;
+    app_handle
+        .get_store("documents.json")
+        .ok_or(anyhow!("documents.json store was not loaded"))?
+        .set("documents", documents_json);
+    Ok(())
+}
+
+fn get_document(app_handle: &AppHandle, path: &str) -> Result<Document> {
+    let active_doc = get_documents_store(app_handle)?.into_iter().find(|doc| {
+        doc.app_data_path == path || doc.save_path.as_ref().map(|p| p == path).unwrap_or(false)
+    });
+    if let Some(active) = active_doc {
+        Ok(active.clone())
+    } else {
+        // we open a new mature document and import it into our document list
+        let automerge_doc = get_bytes_of_file_in_tar(&mut File::open(path)?, "document.automerge")?;
+        let app_data_path = create_new_appdata_transcribee_archive(app_handle, &automerge_doc)?;
+        let document = Document {
+            app_data_path: app_data_path.to_str().unwrap().to_string(),
+            save_path: Some(path.to_string()),
+            original_media_file: None,
+            transcription_progress: 1.0,
+        };
+        update_document_store(app_handle, |mut documents| {
+            documents.push(document.clone());
+            Ok(documents)
+        })?;
+        Ok(document)
+    }
+}
+
+fn create_new_appdata_transcribee_archive(
+    app_handle: &AppHandle,
+    automerge_doc: &[u8],
+) -> Result<PathBuf> {
+    let filename = format!("new_files/{}.transcribee", Uuid::now_v7());
+    let path = app_handle
+        .path()
+        .resolve(filename, BaseDirectory::AppData)?;
+    if !fs::exists(path.parent().unwrap())? {
+        fs::create_dir_all(&path)?;
+    }
+    let mut file = File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&path)
+        .with_context(|| format!("could not open file '{}'", path.display()))?;
+
+    file.write_all(
+        &TarHeader {
+            path: "document.automerge".to_string(),
+            size: automerge_doc.len() as u64,
+        }
+        .as_bytes()?,
+    )?;
+    file.write_all(automerge_doc)?;
+    Ok(path)
+}
+
+pub fn create_new_document(app_handle: &AppHandle, media_file_path: String) -> Result<Document> {
+    let app_data_path = create_new_appdata_transcribee_archive(app_handle, &[])?;
+    Ok(Document {
+        app_data_path: app_data_path.to_str().unwrap().to_string(),
+        save_path: None,
+        original_media_file: Some(media_file_path),
+        transcription_progress: 0.0,
+    })
+}
+
 #[command]
-pub async fn read_automerge(path: String) -> std::result::Result<Response, String> {
+pub fn list_documents(app_handle: AppHandle) -> std::result::Result<Vec<Document>, String> {
+    Ok(get_documents_store(&app_handle)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .rev()
+        .collect())
+}
+
+#[command]
+pub fn document_info(app_handle: AppHandle, path: String) -> std::result::Result<Document, String> {
+    get_document(&app_handle, &path).map_err(|e| e.to_string())
+}
+
+/// this deletes the document from the list of recent documents.
+/// If a transcription job is currently running for this document, it gets canceled.
+/// If the document has unsaved changes, these get deleted, so in this case the frontend
+/// should display a confirmation dialog.
+/// TODO: build cancelation logic
+#[command]
+pub fn forget_document(
+    app_handle: AppHandle,
+    document_app_data_path: String,
+) -> std::result::Result<(), String> {
+    update_document_store(&app_handle, |mut documents| {
+        if let Some(position) = documents
+            .iter()
+            .position(|doc| doc.app_data_path == document_app_data_path)
+        {
+            let doc = documents.remove(position);
+            remove_file(doc.app_data_path)?;
+        }
+        Ok(documents)
+    })
+    .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn transcribe_file(
+    app_handle: AppHandle,
+    worker_adapter: State<'_, WorkerAdapter>,
+    media_file_path: String,
+) -> Result<String, String> {
+    let document =
+        create_new_document(&app_handle, media_file_path.clone()).map_err(|e| e.to_string())?;
+    let job_uuid = worker_adapter
+        .start_transcription(
+            media_file_path,
+            TranscribeTaskParameters {
+                lang: "auto".to_string(),
+                model: "tiny".to_string(),
+            },
+        )
+        .await;
+
+    let app_data_path = document.app_data_path.clone();
+    worker_adapter
+        .add_change_listener(move |uuid, change| {
+            if uuid == job_uuid {
+                append_automerge_change_to_transcribee_file(&app_data_path, change).unwrap()
+            }
+        })
+        .await;
+
+    Ok(document.app_data_path)
+}
+
+#[command]
+pub fn read_automerge(path: String) -> std::result::Result<Response, String> {
     read_automerge_internal(path)
-        .await
         .map_err(|e| e.to_string())
         .map(tauri::ipc::Response::new)
 }
 
-async fn read_automerge_internal(path: String) -> Result<Vec<u8>> {
+fn read_automerge_internal(path: String) -> Result<Vec<u8>> {
     let mut file = File::open(&path).with_context(|| format!("could not open file '{}'", path))?;
-    let data_range = get_byte_range_of_file_in_tar(&mut file, "document.automerge")?;
-    file.seek(Start(data_range.start))?;
-    let mut buf = vec![0u8; (data_range.end - data_range.start) as usize];
-    file.read_exact(&mut buf)?;
-    Ok(buf)
+    get_bytes_of_file_in_tar(&mut file, "document.automerge")
 }
 
 #[command]
-pub async fn append_automerge_change(
+pub fn append_automerge_change(
+    app_handle: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> std::result::Result<(), String> {
     let tauri::ipc::InvokeBody::Raw(change) = request.body() else {
@@ -37,13 +222,12 @@ pub async fn append_automerge_change(
     let Some(path) = request.headers().get("path") else {
         return Err("missing path for append_automerge_change".to_string());
     };
-
-    append_automerge_change_internal(path.to_str().unwrap(), change)
-        .await
+    let document = get_document(&app_handle, path.to_str().unwrap()).map_err(|e| e.to_string())?;
+    append_automerge_change_to_transcribee_file(&document.app_data_path, change)
         .map_err(|e| e.to_string())
 }
 
-async fn append_automerge_change_internal(path: &str, change: &[u8]) -> Result<()> {
+fn append_automerge_change_to_transcribee_file(path: &str, change: &[u8]) -> Result<()> {
     info!("got change with len={}", change.len());
     let mut file = File::options()
         .read(true)

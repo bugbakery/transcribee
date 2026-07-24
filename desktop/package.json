@@ -24,6 +24,7 @@
     "@tauri-apps/plugin-log": "^2.9.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-shell": "^2.3.5",
+    "@tauri-apps/plugin-store": "^2.4.4",
     "autoprefixer": "^10.4.16",
     "clsx": "^1.2.1",
     "react": "^19.1.0",

@@ -128,6 +128,13 @@ pub fn get_byte_range_of_file_in_tar(tar_file: &mut File, path_in_tar: &str) -> 
     }
     bail!("could not find a file with path '{path_in_tar}' in tar")
 }
+pub fn get_bytes_of_file_in_tar(tar_file: &mut File, path_in_tar: &str) -> Result<Vec<u8>> {
+    let data_range = get_byte_range_of_file_in_tar(tar_file, path_in_tar)?;
+    tar_file.seek(Start(data_range.start))?;
+    let mut buf = vec![0u8; (data_range.end - data_range.start) as usize];
+    tar_file.read_exact(&mut buf)?;
+    Ok(buf)
+}
 
 #[cfg(test)]
 mod test {
