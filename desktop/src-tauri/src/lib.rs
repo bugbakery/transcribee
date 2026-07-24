@@ -82,11 +82,11 @@ pub fn run() {
         })
         .setup(|app| {
             let worker_adapter = app.state::<WorkerAdapter>();
-            tokio::runtime::Handle::current().block_on(worker_adapter.add_change_listener(
-                |doc, change| {
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(worker_adapter.add_change_listener(|doc, change| {
                     println!("Change for {:?}: {:?}", doc, change);
-                },
-            ));
+                }));
             Ok(())
         })
         .run(tauri::generate_context!())
