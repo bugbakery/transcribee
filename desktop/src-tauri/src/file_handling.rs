@@ -16,19 +16,20 @@ use http::StatusCode;
 use http_range::HttpRange;
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::fs::{self, remove_file, File};
 use std::io::SeekFrom::Start;
 use std::io::{Read, Seek, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::path::BaseDirectory;
 use tauri::{command, ipc::Response};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_store::StoreExt;
 use uuid::Uuid;
 use worker_adapter::state::TranscribeTaskParameters;
 use worker_adapter::WorkerAdapter;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Document {
     /// this is the working copy of the document where we put all changes as they occur.
     /// this ID is also used as the main identifyer to of the document
@@ -43,13 +44,55 @@ pub struct Document {
     original_media_file: Option<String>,
     transcription_progress: f32,
 }
+impl Document {
+    pub fn into_frontend_document(self) -> FrontendDocument {
+        let (display_name, path) = if let Some(save_path) = self.save_path {
+            (
+                Path::new(&save_path)
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+                save_path,
+            )
+        } else {
+            (
+                Path::new(&self.original_media_file.unwrap())
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+                self.app_data_path,
+            )
+        };
+
+        FrontendDocument {
+            path,
+            display_name,
+            transcription_progress: self.transcription_progress,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FrontendDocument {
+    pub path: String,
+    pub display_name: String,
+    pub transcription_progress: f32,
+}
 
 fn get_documents_store(app_handle: &AppHandle) -> Result<Vec<Document>> {
-    let documents_json = app_handle
+    let store = app_handle
         .get_store("documents.json")
-        .ok_or(anyhow!("documents.json store was not loaded"))?
+        .ok_or(anyhow!("documents.json store was not loaded"))?;
+    if !store.has("documents") {
+        store.set("documents", json!([]));
+    }
+    let documents_json = store
         .get("documents")
-        .ok_or(anyhow!("documents.json does not contain document key"))?;
+        .ok_or(anyhow!("documents.json does not contain documents key"))?;
     let documents: Vec<Document> = serde_json::from_value(documents_json)?;
     Ok(documents)
 }
@@ -60,11 +103,18 @@ fn update_document_store(
 ) -> Result<()> {
     let documents = get_documents_store(app_handle)?;
     let new_documents = op(documents)?;
-    let documents_json = serde_json::to_value(new_documents)?;
+    let documents_json = serde_json::to_value(new_documents.clone())?;
     app_handle
         .get_store("documents.json")
         .ok_or(anyhow!("documents.json store was not loaded"))?
         .set("documents", documents_json);
+    let frontend_documents: Vec<FrontendDocument> = new_documents
+        .into_iter()
+        .map(Document::into_frontend_document)
+        .collect();
+    app_handle
+        .emit("documents-changed", &frontend_documents)
+        .unwrap();
     Ok(())
 }
 
@@ -124,26 +174,37 @@ fn create_new_appdata_transcribee_archive(
 
 pub fn create_new_document(app_handle: &AppHandle, media_file_path: String) -> Result<Document> {
     let app_data_path = create_new_appdata_transcribee_archive(app_handle, &[])?;
-    Ok(Document {
+    let document = Document {
         app_data_path: app_data_path.to_str().unwrap().to_string(),
         save_path: None,
         original_media_file: Some(media_file_path),
         transcription_progress: 0.0,
-    })
+    };
+    update_document_store(app_handle, |mut documents| {
+        documents.push(document.clone());
+        Ok(documents)
+    })?;
+    Ok(document)
 }
 
 #[command]
-pub fn list_documents(app_handle: AppHandle) -> std::result::Result<Vec<Document>, String> {
+pub fn list_documents(app_handle: AppHandle) -> std::result::Result<Vec<FrontendDocument>, String> {
     Ok(get_documents_store(&app_handle)
         .map_err(|e| e.to_string())?
         .into_iter()
+        .map(Document::into_frontend_document)
         .rev()
         .collect())
 }
 
 #[command]
-pub fn document_info(app_handle: AppHandle, path: String) -> std::result::Result<Document, String> {
-    get_document(&app_handle, &path).map_err(|e| e.to_string())
+pub fn document_info(
+    app_handle: AppHandle,
+    path: String,
+) -> std::result::Result<FrontendDocument, String> {
+    get_document(&app_handle, &path)
+        .map(Document::into_frontend_document)
+        .map_err(|e| e.to_string())
 }
 
 /// this deletes the document from the list of recent documents.
@@ -152,15 +213,11 @@ pub fn document_info(app_handle: AppHandle, path: String) -> std::result::Result
 /// should display a confirmation dialog.
 /// TODO: build cancelation logic
 #[command]
-pub fn forget_document(
-    app_handle: AppHandle,
-    document_app_data_path: String,
-) -> std::result::Result<(), String> {
+pub fn forget_document(app_handle: AppHandle, path: String) -> std::result::Result<(), String> {
     update_document_store(&app_handle, |mut documents| {
-        if let Some(position) = documents
-            .iter()
-            .position(|doc| doc.app_data_path == document_app_data_path)
-        {
+        if let Some(position) = documents.iter().position(|doc| {
+            doc.app_data_path == path || doc.save_path.as_ref().map(|p| p == &path).unwrap_or(false)
+        }) {
             let doc = documents.remove(position);
             remove_file(doc.app_data_path)?;
         }
@@ -174,7 +231,7 @@ pub async fn transcribe_file(
     app_handle: AppHandle,
     worker_adapter: State<'_, WorkerAdapter>,
     media_file_path: String,
-) -> Result<String, String> {
+) -> Result<FrontendDocument, String> {
     let document =
         create_new_document(&app_handle, media_file_path.clone()).map_err(|e| e.to_string())?;
     let job_uuid = worker_adapter
@@ -196,19 +253,23 @@ pub async fn transcribe_file(
         })
         .await;
 
-    Ok(document.app_data_path)
+    Ok(document.into_frontend_document())
 }
 
 #[command]
-pub fn read_automerge(path: String) -> std::result::Result<Response, String> {
-    read_automerge_internal(path)
+pub fn read_automerge(
+    app_handle: AppHandle,
+    path: String,
+) -> std::result::Result<Response, String> {
+    let path = get_document(&app_handle, &path)
+        .map_err(|e| e.to_string())?
+        .app_data_path;
+    let mut file = File::open(&path)
+        .with_context(|| format!("could not open file '{}'", path))
+        .map_err(|e| e.to_string())?;
+    get_bytes_of_file_in_tar(&mut file, "document.automerge")
         .map_err(|e| e.to_string())
         .map(tauri::ipc::Response::new)
-}
-
-fn read_automerge_internal(path: String) -> Result<Vec<u8>> {
-    let mut file = File::open(&path).with_context(|| format!("could not open file '{}'", path))?;
-    get_bytes_of_file_in_tar(&mut file, "document.automerge")
 }
 
 #[command]
