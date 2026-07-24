@@ -20,8 +20,8 @@ class ListDocumentsCmd(Command):
                 .join(Document.user)
             )
             result = session.exec(statement)
-            format = "{} {:10.2f} {: >20} {}"
             for created, dur, name, username in result:
                 if dur is None:
-                    dur = -42.0
-                print(format.format(created, float(dur), username, name))
+                    print(f"{created}          None {username: >20} {name}")
+                else:
+                    print(f"{created} {float(dur):10.2f} {username: >20} {name}")
