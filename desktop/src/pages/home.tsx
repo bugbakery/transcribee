@@ -22,7 +22,7 @@ export function HomePage() {
               },
             ],
           });
-          invoke('transcribe_file', { filePath: file });
+          invoke('transcribe_file', { mediaFilePath: file });
         }}
       >
         Transcribe Audio

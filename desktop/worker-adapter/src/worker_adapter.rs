@@ -76,13 +76,17 @@ impl WorkerAdapter {
         header == format!("Worker {}", self.token)
     }
 
-    pub async fn start_transcription(&self, file_path: String, params: TranscribeTaskParameters) {
+    pub async fn start_transcription(
+        &self,
+        file_path: String,
+        params: TranscribeTaskParameters,
+    ) -> Uuid {
         let mut tasks = self.tasks.lock().await;
         let media_file = MediaFile::new(file_path.clone());
         let doc = Document::new(file_path, vec![media_file]);
-
+        let id = Uuid::new_v4();
         tasks.add_task(Task {
-            id: Uuid::new_v4(),
+            id,
             current_attempt: None,
             dependencies: vec![],
             state: TaskState::New,
@@ -90,6 +94,7 @@ impl WorkerAdapter {
             document: doc,
             task_type: TaskType::Transcribe,
         });
+        id
     }
 
     pub async fn add_change_listener(

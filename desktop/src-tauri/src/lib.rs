@@ -1,3 +1,9 @@
+use std::time::Duration;
+
+use crate::file_handling::{
+    append_automerge_change, document_info, forget_document, get_file_from_archive_as_response,
+    list_documents, transcribe_file,
+};
 use colored::Color;
 use file_handling::read_automerge;
 use http::{
@@ -6,33 +12,14 @@ use http::{
     StatusCode,
 };
 use log::Level;
-use tauri::{Manager, State};
+use tauri::Manager;
 use tauri_plugin_log::fern;
-use worker_adapter::{state::TranscribeTaskParameters, WorkerAdapter};
-
-use crate::file_handling::{append_automerge_change, get_file_from_archive_as_response};
+use tauri_plugin_store::StoreExt;
+use worker_adapter::WorkerAdapter;
 
 mod file_handling;
 mod tar;
 mod worker_plugin;
-
-#[tauri::command]
-async fn transcribe_file(
-    worker_adapter: State<'_, WorkerAdapter>,
-    file_path: String,
-) -> Result<String, String> {
-    worker_adapter
-        .start_transcription(
-            file_path,
-            TranscribeTaskParameters {
-                lang: "auto".to_string(),
-                model: "tiny".to_string(),
-            },
-        )
-        .await;
-
-    Ok("".to_string())
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -61,11 +48,15 @@ pub fn run() {
         )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(worker_plugin::init())
         .invoke_handler(tauri::generate_handler![
+            transcribe_file,
+            list_documents,
+            document_info,
+            forget_document,
             read_automerge,
             append_automerge_change,
-            transcribe_file,
         ])
         .register_asynchronous_uri_scheme_protocol("archive", move |_ctx, request, responder| {
             match get_file_from_archive_as_response(request) {
@@ -81,6 +72,10 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            app.store_builder("documents.json")
+                .auto_save(Duration::from_secs(1))
+                .build()?;
+
             let worker_adapter = app.state::<WorkerAdapter>();
             tokio::runtime::Runtime::new()
                 .unwrap()

@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-
 use crate::WorkerAdapter;
 use crate::state::{Task, TaskAttempt, TaskType};
 use crate::sync_message::SyncMessage;
@@ -14,6 +12,7 @@ use axum::{
 use axum_extra::extract::Query;
 use futures_util::stream::StreamExt;
 use serde::Deserialize;
+use std::net::SocketAddr;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
