@@ -1,8 +1,7 @@
-use std::time::Duration;
-
 use crate::file_handling::{
-    append_automerge_change, document_info, forget_document, get_file_from_archive_as_response,
-    list_documents, transcribe_file,
+    append_automerge_change, append_automerge_change_to_transcribee_file, document_media,
+    forget_document, get_document, get_documents, get_media_file_response, open_document,
+    transcribe_file, DocumentsStoreExt,
 };
 use colored::Color;
 use file_handling::read_automerge;
@@ -12,12 +11,15 @@ use http::{
     StatusCode,
 };
 use log::Level;
-use tauri::Manager;
+use serde_json::json;
+use std::time::Duration;
+use tauri::{Emitter, Manager};
 use tauri_plugin_log::fern;
 use tauri_plugin_store::StoreExt;
 use worker_adapter::WorkerAdapter;
 
 mod file_handling;
+mod http_partial_content;
 mod tar;
 mod worker_plugin;
 
@@ -51,22 +53,24 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(worker_plugin::init())
         .invoke_handler(tauri::generate_handler![
-            transcribe_file,
-            list_documents,
-            document_info,
+            get_documents,
             forget_document,
+            get_document,
+            open_document,
+            transcribe_file,
+            document_media,
             read_automerge,
             append_automerge_change,
         ])
-        .register_asynchronous_uri_scheme_protocol("archive", move |_ctx, request, responder| {
-            match get_file_from_archive_as_response(request) {
+        .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
+            match get_media_file_response(ctx.app_handle(), request) {
                 Ok(http_response) => responder.respond(http_response),
                 Err(e) => responder.respond(
                     ResponseBuilder::new()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
                         .header(CONTENT_TYPE, "text/plain")
                         .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                        .body(dbg!(e.to_string()).as_bytes().to_vec())
+                        .body(e.to_string().as_bytes().to_vec())
                         .unwrap(),
                 ),
             }
@@ -77,11 +81,47 @@ pub fn run() {
                 .build()?;
 
             let worker_adapter = app.state::<WorkerAdapter>();
-            tokio::runtime::Runtime::new()
-                .unwrap()
-                .block_on(worker_adapter.add_change_listener(|doc, change| {
-                    println!("Change for {:?}: {:?}", doc, change);
-                }));
+            tokio::runtime::Runtime::new().unwrap().block_on(async {
+                let app_handle = app.app_handle().clone();
+                worker_adapter
+                    .inner()
+                    .automerge_listeners
+                    .lock()
+                    .await
+                    .add_listener(move |task, change: Vec<u8>| {
+                        let document = app_handle.get_document_from_task(task).unwrap();
+                        append_automerge_change_to_transcribee_file(
+                            &document.app_data_path,
+                            &change,
+                        )
+                        .unwrap();
+                        app_handle
+                            .emit(
+                                &format!("automerge_change:{}", document.id),
+                                json!({
+                                    "change": change,
+                                }),
+                            )
+                            .unwrap();
+                    });
+                let app_handle = app.app_handle().clone();
+                worker_adapter
+                    .inner()
+                    .progress_listeners
+                    .lock()
+                    .await
+                    .add_listener(move |task, progress: Option<f32>| {
+                        if let Some(progress) = progress {
+                            let doc = app_handle.get_document_from_task(task).unwrap();
+                            app_handle
+                                .update_document(doc.id, |mut doc| {
+                                    doc.transcription_progress = progress;
+                                    doc
+                                })
+                                .unwrap();
+                        }
+                    })
+            });
             Ok(())
         })
         .run(tauri::generate_context!())

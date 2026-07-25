@@ -16,8 +16,8 @@ use crate::handlers::{
     claim_unassigned_task, document_sync, keepalive, mark_completed, mark_failed, noop,
 };
 use crate::state::{
-    ChangeListener, Document, ListenersContainer, MediaFile, Task, TaskParameters, TaskState,
-    TaskType, TasksContainer, TranscribeTaskParameters,
+    Document, ListenersContainer, MediaFile, Task, TaskParameters, TaskState, TaskType,
+    TasksContainer, TranscribeTaskParameters,
 };
 
 async fn worker_auth(
@@ -53,22 +53,19 @@ async fn worker_ws_auth(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct WorkerAdapter {
     token: String,
-    pub(crate) tasks: Arc<Mutex<TasksContainer>>,
-    pub(crate) listeners: Arc<Mutex<ListenersContainer>>,
+    pub tasks: Arc<Mutex<TasksContainer>>,
+    pub automerge_listeners: Arc<Mutex<ListenersContainer<Vec<u8>>>>,
+    pub progress_listeners: Arc<Mutex<ListenersContainer<Option<f32>>>>,
 }
 
 impl WorkerAdapter {
     pub fn new(token: String) -> WorkerAdapter {
-        let tasks: Arc<Mutex<TasksContainer>> = Default::default();
-        let listeners: Arc<Mutex<ListenersContainer>> = Default::default();
-
         WorkerAdapter {
-            token: token.clone(),
-            listeners: listeners.clone(),
-            tasks: tasks.clone(),
+            token,
+            ..Default::default()
         }
     }
 
@@ -83,10 +80,10 @@ impl WorkerAdapter {
     ) -> Uuid {
         let mut tasks = self.tasks.lock().await;
         let media_file = MediaFile::new(file_path.clone());
-        let doc = Document::new(file_path, vec![media_file]);
-        let id = Uuid::new_v4();
+        let task_uuid = Uuid::now_v7();
+        let doc = Document::new(file_path, vec![media_file], task_uuid);
         tasks.add_task(Task {
-            id,
+            id: task_uuid,
             current_attempt: None,
             dependencies: vec![],
             state: TaskState::New,
@@ -94,20 +91,7 @@ impl WorkerAdapter {
             document: doc,
             task_type: TaskType::Transcribe,
         });
-        id
-    }
-
-    pub async fn add_change_listener(
-        &self,
-        listener: impl FnMut(Uuid, &[u8]) + Send + Sync + 'static,
-    ) -> ChangeListener {
-        let mut listeners = self.listeners.lock().await;
-        listeners.add_document_listener(listener)
-    }
-
-    pub async fn remove_change_listener(&self, listener: ChangeListener) {
-        let mut listeners = self.listeners.lock().await;
-        listeners.remove_document_listener(listener);
+        task_uuid
     }
 
     pub fn bind(port: Option<u16>) -> std::io::Result<TcpListener> {

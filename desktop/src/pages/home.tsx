@@ -2,30 +2,21 @@ import { PrimaryButton, SecondaryButton } from 'transcribee-ui-common/components
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { useLocation } from 'wouter';
-import { useEffect, useState } from 'react';
-import { listen } from '@tauri-apps/api/event';
+import { useTauriState } from '../util/use_tauri_event';
 
-type Document = {
-  path: string;
+export type Document = {
+  id: string;
   display_name: string;
   transcription_progress: number;
 };
 
 export function HomePage() {
   const [_, navigate] = useLocation();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  useEffect(() => {
-    let unlisten = () => {};
-    (async () => {
-      const documents: Document[] = await invoke('list_documents');
-      setDocuments(documents);
-      unlisten = await listen<Document[]>('documents-changed', (e) => {
-        console.log(e);
-        setDocuments(e.payload);
-      });
-    })();
-    return unlisten;
-  }, []);
+  const documents = useTauriState<Document[]>(
+    async () => await invoke('get_documents'),
+    'documents_changed',
+    [],
+  );
 
   return (
     <div className="flex flex-col w-full h-full items-center justify-center gap-4">
@@ -62,7 +53,10 @@ export function HomePage() {
                 },
               ],
             });
-            navigate(`document/${file}`);
+            if (file) {
+              const document = await invoke<Document>('open_document', { path: file });
+              navigate(`document/${document.id}`);
+            }
           }}
         >
           Open Transcribed File
@@ -73,15 +67,12 @@ export function HomePage() {
         <table>
           <tbody>
             {documents.map((doc) => (
-              <tr
-                key={doc.path}
-                className="border-separate border-spacing-2 border border-gray-400"
-              >
+              <tr key={doc.id} className="border-separate border-spacing-2 border border-gray-400">
                 <td
                   className="p-2"
-                  title={doc.path}
+                  title={doc.id}
                   onClick={() => {
-                    navigate(`document/${doc.path}`);
+                    navigate(`document/${doc.id}`);
                   }}
                 >
                   {doc.display_name}
@@ -90,7 +81,7 @@ export function HomePage() {
                 <td
                   className="p-2"
                   onClick={() => {
-                    invoke('forget_document', { path: doc.path });
+                    invoke('forget_document', { id: doc.id });
                   }}
                 >
                   X

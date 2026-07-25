@@ -25,7 +25,7 @@ pub enum TaskType {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TaskAttempt {
-    progress: Option<f64>,
+    pub progress: Option<f32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -52,9 +52,9 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn new(name: String, media_files: Vec<MediaFile>) -> Self {
+    pub fn new(name: String, media_files: Vec<MediaFile>, uuid: Uuid) -> Self {
         Document {
-            id: Uuid::new_v4(),
+            id: uuid,
             name,
             created_at: chrono::Local::now(),
             changed_at: chrono::Local::now(),
@@ -87,32 +87,29 @@ pub struct Task {
     pub task_parameters: TaskParameters,
 }
 
-pub type ChangeListener = Arc<Mutex<dyn FnMut(Uuid, &[u8]) + Send + Sync>>;
-
 #[derive(Default, Clone)]
-pub struct ListenersContainer {
-    pub document_listeners: Vec<ChangeListener>,
+pub struct ListenersContainer<T> {
+    pub listeners: Vec<Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>>>,
 }
 
-impl ListenersContainer {
-    pub fn add_document_listener(
+impl<T: Clone> ListenersContainer<T> {
+    pub fn add_listener(
         &mut self,
-        listener: impl FnMut(Uuid, &[u8]) + Send + Sync + 'static,
-    ) -> ChangeListener {
+        listener: impl FnMut(Uuid, T) + Send + Sync + 'static,
+    ) -> Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>> {
         let listener = Arc::new(Mutex::new(listener));
-        self.document_listeners.push(listener.clone());
+        self.listeners.push(listener.clone());
         listener
     }
 
-    pub fn remove_document_listener(&mut self, listener: ChangeListener) {
-        self.document_listeners
-            .retain(|l| !Arc::ptr_eq(l, &listener));
+    pub fn remove_listener(&mut self, listener: Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>>) {
+        self.listeners.retain(|l| !Arc::ptr_eq(l, &listener));
     }
 
-    pub async fn notify_document_listeners(&mut self, document_id: Uuid, change: &[u8]) {
-        for listener in &self.document_listeners {
+    pub async fn notify_listeners(&mut self, uuid: Uuid, x: T) {
+        for listener in &self.listeners {
             let mut listener = listener.lock().await;
-            listener(document_id, change);
+            listener(uuid, x.clone());
         }
     }
 }

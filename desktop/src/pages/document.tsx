@@ -1,7 +1,7 @@
 import { RouteComponentProps } from 'wouter';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Editor, createEditor } from 'slate';
-import { withHistory } from 'slate-history';
+import { HistoryEditor, withHistory } from 'slate-history';
 import { withReact } from 'slate-react';
 import { withAutomergeDoc } from 'slate-automerge-doc';
 import { next as Automerge } from '@automerge/automerge';
@@ -11,8 +11,11 @@ import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { TranscriptionEditor } from 'transcribee-ui-common/editor/transcription_editor';
 import { PlayerBar } from 'transcribee-ui-common/editor/player';
 import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
+import { listen } from '@tauri-apps/api/event';
+import { useTauriState } from '../util/use_tauri_event';
+import { Document as DocumentOverview } from './home';
 
-export function useAutomergeLocalFileEditor(documentPath: string): [Editor?, Paragraph[]?] {
+function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
     editor: Editor;
     initialValue: Paragraph[];
@@ -27,10 +30,9 @@ export function useAutomergeLocalFileEditor(documentPath: string): [Editor?, Par
     if (lastChange) {
       const decoded = Automerge.decodeChange(lastChange);
       if (!sentChanges.current.has(decoded.hash)) {
-        console.log(lastChange);
         await invoke('append_automerge_change', lastChange, {
           headers: {
-            path: documentPath,
+            path: documentId,
           },
         });
         sentChanges.current.add(decoded.hash);
@@ -61,17 +63,36 @@ export function useAutomergeLocalFileEditor(documentPath: string): [Editor?, Par
       });
     };
 
+    const unlisten = { current: () => {} };
     (async () => {
-      const document_bytes: ArrayBuffer = await invoke('read_automerge', { path: documentPath });
+      const document_bytes: ArrayBuffer = await invoke('read_automerge', { id: documentId });
       console.time('automerge load full doc');
       const newDoc = Automerge.load(new Uint8Array(document_bytes), { allowMissingChanges: true });
       console.timeEnd('automerge load full doc');
       doc = newDoc;
       createNewEditor(doc as Automerge.Doc<Document>);
+
+      unlisten.current = await listen<{
+        documentId: string;
+        change: number[];
+      }>(`automerge_change:${documentId}`, (e) => {
+        const msg = new Uint8Array(e.payload.change);
+        if (!editorRef.current) {
+          return;
+        }
+        const [newDoc] = Automerge.applyChanges(editorRef.current.doc, [msg]);
+        console.time('setDoc');
+        HistoryEditor.withoutSaving(editorRef.current, () => {
+          editorRef.current?.setDoc(newDoc);
+        });
+        console.timeEnd('setDoc');
+      });
     })();
 
-    return () => {};
-  }, [documentPath, setEditorAndInitialValue]);
+    return () => {
+      unlisten.current();
+    };
+  }, [documentId, setEditorAndInitialValue]);
 
   return [editorAndInitialValue?.editor, editorAndInitialValue?.initialValue];
 }
@@ -82,16 +103,35 @@ const LazyDebugPanel = lazy(() =>
   })),
 );
 
+type MediaFile = {
+  content_type: string;
+  tags: string[];
+  url: string;
+};
+
 export function DocumentPage({
-  params: { '*': documentPath },
+  params: { '*': documentId },
 }: RouteComponentProps<{ '*': string }>) {
   const debugMode = useDebugMode();
-  const [editor, initialValue] = useAutomergeLocalFileEditor(documentPath);
-  const file_url = convertFileSrc(`${documentPath}/media`, 'archive');
+  const [editor, initialValue] = useAutomergeLocalFileEditor(documentId);
+  const document = useTauriState<DocumentOverview>(
+    async () => await invoke('get_document', { id: documentId }),
+    `document_changed:${documentId}`,
+    {
+      id: '<unknown>',
+      display_name: '',
+      transcription_progress: 0,
+    },
+  );
+  const mediaFiles = useTauriState<MediaFile[]>(
+    async () => await invoke('document_media', { id: documentId }),
+    `document_media_changed:${documentId}`,
+    [],
+  );
 
   return (
     <div className="max-w-screen-xl p-6 mx-auto flex flex-col border-box">
-      <div className="pb-6">{documentPath}</div>
+      <div className="pb-6">{document.display_name}</div>
       <TranscriptionEditor
         editor={editor}
         initialValue={initialValue}
@@ -100,15 +140,12 @@ export function DocumentPage({
       >
         {editor && (
           <PlayerBar
-            documentId={documentPath}
+            documentId={documentId}
             editor={editor}
-            mediaFiles={[
-              {
-                content_type: 'audio/mpeg', // TODO: handle this properly once we have the media handling in place
-                tags: [],
-                url: file_url,
-              },
-            ]}
+            mediaFiles={mediaFiles.map((m) => ({
+              ...m,
+              url: convertFileSrc(m.url, 'media'),
+            }))}
           />
         )}
       </TranscriptionEditor>
