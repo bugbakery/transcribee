@@ -35,6 +35,10 @@ pub async fn mark_completed(
 ) -> Json<()> {
     let mut tasks = app_state.tasks.lock().await;
     tasks.complete_task(task_id);
+    let mut progress_listeners = app_state.progress_listeners.lock().await;
+    progress_listeners
+        .notify_listeners(task_id, Some(1.0))
+        .await;
     Json(())
 }
 
@@ -53,7 +57,11 @@ pub async fn keepalive(
     Json(payload): Json<TaskAttempt>,
 ) -> Json<()> {
     let mut tasks = app_state.tasks.lock().await;
-    tasks.update_task_attempt(task_id, payload);
+    tasks.update_task_attempt(task_id, payload.clone());
+    let mut progress_listeners = app_state.progress_listeners.lock().await;
+    progress_listeners
+        .notify_listeners(task_id, payload.progress)
+        .await;
     Json(())
 }
 
@@ -85,8 +93,8 @@ async fn handle_document_sync_socket(
         if let Ok(msg) = msg {
             match msg {
                 Message::Binary(change) => {
-                    let mut state = app_state.listeners.lock().await;
-                    state.notify_document_listeners(document_id, &change).await;
+                    let mut state = app_state.automerge_listeners.lock().await;
+                    state.notify_listeners(document_id, change.to_vec()).await;
                 }
                 Message::Close(close_frame_opt) => {
                     log::debug!("ws: client {who} closed connection {:?}", close_frame_opt);

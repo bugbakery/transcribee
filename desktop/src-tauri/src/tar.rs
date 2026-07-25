@@ -112,19 +112,27 @@ impl TarHeader {
     }
 }
 
-pub fn get_byte_range_of_file_in_tar(tar_file: &mut File, path_in_tar: &str) -> Result<Range<u64>> {
+pub fn get_next_tar_entry(tar_file: &mut File, offset: u64) -> Result<Option<(TarHeader, u64)>> {
+    let offset = offset.div_ceil(TAR_BLOCK_SIZE) * TAR_BLOCK_SIZE;
     let file_len = tar_file.metadata().unwrap().len();
-    let mut offset = 0;
-    while offset + TAR_BLOCK_SIZE <= file_len {
+    Ok(if offset + TAR_BLOCK_SIZE <= file_len {
         tar_file.seek(Start(offset))?;
         let mut buf = vec![0u8; TAR_BLOCK_SIZE as usize];
         tar_file.read_exact(&mut buf)?;
         let header = TarHeader::from_bytes(&buf)?;
-        offset += TAR_BLOCK_SIZE;
+        let file_start = offset + TAR_BLOCK_SIZE;
+        Some((header, file_start))
+    } else {
+        None
+    })
+}
+pub fn get_byte_range_of_file_in_tar(tar_file: &mut File, path_in_tar: &str) -> Result<Range<u64>> {
+    let mut offset = 0;
+    while let Some((header, file_start)) = get_next_tar_entry(tar_file, offset)? {
         if header.path == path_in_tar {
-            return Ok(offset..offset + header.size);
+            return Ok(file_start..file_start + header.size);
         }
-        offset = (offset + header.size).div_ceil(TAR_BLOCK_SIZE) * TAR_BLOCK_SIZE;
+        offset = file_start + header.size;
     }
     bail!("could not find a file with path '{path_in_tar}' in tar")
 }
