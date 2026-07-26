@@ -1,8 +1,8 @@
 use crate::file_handling::{
     append_automerge_change, append_automerge_change_to_transcribee_file, document_media,
-    forget_document, get_document, get_documents, get_media_file_response, open_document,
-    transcribe_file, DocumentsStoreExt,
+    forget_document, get_document, get_documents, get_media_file_response, DocumentsStoreExt,
 };
+use crate::window::create_or_focus_main_window;
 use colored::Color;
 use file_handling::read_automerge;
 use http::{
@@ -13,19 +13,29 @@ use http::{
 use log::Level;
 use serde_json::json;
 use std::time::Duration;
+use tauri::RunEvent;
 use tauri::{Emitter, Manager};
 use tauri_plugin_log::fern;
 use tauri_plugin_store::StoreExt;
+use tauri_plugin_window_state::StateFlags;
 use worker_adapter::WorkerAdapter;
 
+mod cmd;
 mod file_handling;
 mod http_partial_content;
+mod menu;
 mod tar;
+mod window;
 mod worker_plugin;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(StateFlags::POSITION | StateFlags::SIZE | StateFlags::MAXIMIZED)
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -56,11 +66,13 @@ pub fn run() {
             get_documents,
             forget_document,
             get_document,
-            open_document,
-            transcribe_file,
             document_media,
             read_automerge,
             append_automerge_change,
+            cmd::transcribe_file,
+            cmd::toggle_devtools,
+            cmd::open_document_via_file_picker,
+            cmd::open_document_window,
         ])
         .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
             match get_media_file_response(ctx.app_handle(), request) {
@@ -81,7 +93,7 @@ pub fn run() {
                 .build()?;
 
             let worker_adapter = app.state::<WorkerAdapter>();
-            tokio::runtime::Runtime::new().unwrap().block_on(async {
+            tauri::async_runtime::block_on(async {
                 let app_handle = app.app_handle().clone();
                 worker_adapter
                     .inner()
@@ -122,8 +134,38 @@ pub fn run() {
                         }
                     })
             });
+
+            create_or_focus_main_window(app.handle()).unwrap();
+
+            #[cfg(target_os = "macos")]
+            crate::menu::setup_macos_menu(app.handle())?;
+
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|#[allow(unused_variables)] app, event| match event {
+            RunEvent::Exit => {
+                log::info!("Exit");
+            }
+            RunEvent::ExitRequested { api, code, .. } => {
+                log::info!("Exit requested with code {:?}", code);
+
+                if code.is_none() {
+                    // on macOS do not exit when last window is closed
+                    if cfg!(target_os = "macos") {
+                        api.prevent_exit();
+                    }
+                }
+            }
+            #[cfg(target_os = "macos")]
+            RunEvent::Reopen {
+                has_visible_windows,
+                ..
+            } if !has_visible_windows => {
+                // click on macOS dock opens main window again
+                create_or_focus_main_window(app).unwrap();
+            }
+            _ => {}
+        });
 }

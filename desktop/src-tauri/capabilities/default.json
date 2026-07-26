@@ -3,14 +3,18 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "document/*",
+    "new_document_dialog"
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-show",
     "dialog:default",
     "log:default",
     "opener:default",
     "shell:default",
-    "store:default"
+    "store:default",
+    "window-state:default"
   ]
 }
