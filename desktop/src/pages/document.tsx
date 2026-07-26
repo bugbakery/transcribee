@@ -135,7 +135,6 @@ export function DocumentPage({
 
   return (
     <div className="max-w-screen-xl p-6 mx-auto flex flex-col border-box">
-      <div className="pb-6">{document.display_name}</div>
       <TranscriptionEditor
         editor={editor}
         initialValue={initialValue}

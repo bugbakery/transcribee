@@ -1,5 +1,4 @@
 import { PrimaryButton, SecondaryButton } from 'transcribee-ui-common/components/button';
-import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { useTauriState } from '../util/use_tauri_event';
 
@@ -22,18 +21,7 @@ export function HomePage() {
         <PrimaryButton
           className="block w-60"
           onClick={async () => {
-            const file = await open({
-              multiple: false,
-              directory: false,
-              filters: [
-                { name: 'Audio Files', extensions: ['mp3', 'acc', 'm4a', 'ogg', 'wav'] },
-                {
-                  name: 'Video Files',
-                  extensions: ['mkv', 'mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'],
-                },
-              ],
-            });
-            invoke('transcribe_file', { mediaFilePath: file });
+            invoke('show_new_transcript_dialog');
           }}
         >
           Transcribe Audio

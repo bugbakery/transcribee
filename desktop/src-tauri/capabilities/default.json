@@ -2,17 +2,17 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": [
-    "main",
-    "document/*",
-    "new_document_dialog"
-  ],
+  "windows": ["*"],
   "permissions": [
     "core:default",
+    "core:webview:allow-set-webview-size",
+    "core:window:allow-close",
+    "core:window:allow-set-size",
     "core:window:allow-show",
     "dialog:default",
     "log:default",
     "opener:default",
+    "os:default",
     "shell:default",
     "store:default",
     "window-state:default"
