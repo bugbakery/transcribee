@@ -25,11 +25,9 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use tauri::path::BaseDirectory;
 use tauri::{command, ipc::Response};
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_store::StoreExt;
 use uuid::Uuid;
-use worker_adapter::state::TranscribeTaskParameters;
-use worker_adapter::WorkerAdapter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
@@ -291,38 +289,6 @@ pub fn forget_document(app_handle: AppHandle, id: Uuid) -> std::result::Result<(
             Ok(documents)
         })
         .map_err(|e| e.to_string())
-}
-
-#[command]
-pub fn open_document(
-    app_handle: AppHandle,
-    path: &str,
-) -> std::result::Result<FrontendDocument, String> {
-    app_handle
-        .open_document(path)
-        .map_err(|e| e.to_string())
-        .map(|doc| doc.as_frontend_document())
-}
-
-#[command]
-pub async fn transcribe_file(
-    app_handle: AppHandle,
-    worker_adapter: State<'_, WorkerAdapter>,
-    media_file_path: String,
-) -> Result<FrontendDocument, String> {
-    let task_uuid = worker_adapter
-        .start_transcription(
-            media_file_path.clone(),
-            TranscribeTaskParameters {
-                lang: "auto".to_string(),
-                model: "tiny".to_string(),
-            },
-        )
-        .await;
-    let document = app_handle
-        .create_new_document(media_file_path, vec![task_uuid])
-        .map_err(|e| e.to_string())?;
-    Ok(document.as_frontend_document())
 }
 
 #[command]

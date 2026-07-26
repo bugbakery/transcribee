@@ -1,7 +1,6 @@
 import { PrimaryButton, SecondaryButton } from 'transcribee-ui-common/components/button';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { useLocation } from 'wouter';
 import { useTauriState } from '../util/use_tauri_event';
 
 export type Document = {
@@ -11,7 +10,6 @@ export type Document = {
 };
 
 export function HomePage() {
-  const [_, navigate] = useLocation();
   const documents = useTauriState<Document[]>(
     async () => await invoke('get_documents'),
     'documents_changed',
@@ -43,20 +41,7 @@ export function HomePage() {
         <SecondaryButton
           className="block w-60"
           onClick={async () => {
-            const file = await open({
-              multiple: false,
-              directory: false,
-              filters: [
-                {
-                  name: 'Transcribee Archive',
-                  extensions: ['transcribee'],
-                },
-              ],
-            });
-            if (file) {
-              const document = await invoke<Document>('open_document', { path: file });
-              navigate(`document/${document.id}`);
-            }
+            await invoke('open_document_via_file_picker');
           }}
         >
           Open Transcribed File
@@ -71,8 +56,8 @@ export function HomePage() {
                 <td
                   className="p-2"
                   title={doc.id}
-                  onClick={() => {
-                    navigate(`document/${doc.id}`);
+                  onClick={async () => {
+                    await invoke('open_document_window', { id: doc.id });
                   }}
                 >
                   {doc.display_name}
