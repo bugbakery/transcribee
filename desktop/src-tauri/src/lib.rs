@@ -31,9 +31,11 @@ mod worker_plugin;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(StateFlags::POSITION | StateFlags::SIZE | StateFlags::MAXIMIZED)
+                .with_filter(|label| !label.starts_with("dialog/"))
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
@@ -69,7 +71,8 @@ pub fn run() {
             document_media,
             read_automerge,
             append_automerge_change,
-            cmd::transcribe_file,
+            cmd::transcribe_files,
+            cmd::show_new_transcript_dialog,
             cmd::toggle_devtools,
             cmd::open_document_via_file_picker,
             cmd::open_document_window,

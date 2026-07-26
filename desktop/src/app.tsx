@@ -2,6 +2,7 @@ import { Route, Router } from 'wouter';
 import { ModalHolder } from 'transcribee-ui-common/components/modal';
 import { HomePage } from './pages/home';
 import { DocumentPage } from './pages/document';
+import { NewTranscriptDialog } from './pages/new_transcript_dialog';
 import { useEffect } from 'react';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
@@ -26,6 +27,7 @@ function App() {
       <ModalHolder />
       <Route path="/" component={HomePage} />
       <Route path="/document/*" component={DocumentPage} />
+      <Route path="/new_transcript" component={NewTranscriptDialog} />
     </Router>
   );
 }

@@ -1,33 +1,42 @@
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, State, WebviewUrl};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::oneshot;
 use uuid::Uuid;
 use worker_adapter::{state::TranscribeTaskParameters, WorkerAdapter};
 
 use crate::{
-    file_handling::{DocumentsStoreExt, FrontendDocument},
-    window::{create_or_focus_document_window, create_or_focus_main_window, focused_window},
+    file_handling::DocumentsStoreExt,
+    window::{
+        create_or_focus_document_window, create_or_focus_main_window, create_or_focus_window,
+        focused_window,
+    },
 };
 
 #[tauri::command]
-pub async fn transcribe_file(
-    app_handle: AppHandle,
+pub async fn transcribe_files(
+    app: AppHandle,
     worker_adapter: State<'_, WorkerAdapter>,
-    media_file_path: String,
-) -> Result<FrontendDocument, String> {
-    let task_uuid = worker_adapter
-        .start_transcription(
-            media_file_path.clone(),
-            TranscribeTaskParameters {
-                lang: "auto".to_string(),
-                model: "tiny".to_string(),
-            },
-        )
-        .await;
-    let document = app_handle
-        .create_new_document(media_file_path, vec![task_uuid])
-        .map_err(|e| e.to_string())?;
-    Ok(document.as_frontend_document())
+    media_file_paths: Vec<String>,
+    language: String,
+    model: String,
+) -> Result<(), String> {
+    for f in media_file_paths {
+        let task_uuid = worker_adapter
+            .start_transcription(
+                f.clone(),
+                TranscribeTaskParameters {
+                    lang: language.clone(),
+                    model: model.clone(),
+                },
+            )
+            .await;
+
+        app.create_new_document(f, vec![task_uuid])
+            .map_err(|e| e.to_string())?;
+    }
+
+    create_or_focus_main_window(&app).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -101,4 +110,37 @@ pub async fn open_document_via_file_picker(app: AppHandle) -> Result<(), String>
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn show_new_transcript_dialog(app: AppHandle) {
+    let main_window = create_or_focus_main_window(&app).unwrap();
+    let main_scale_factor = main_window.scale_factor().unwrap();
+    let main_pos: LogicalPosition<f64> = main_window
+        .outer_position()
+        .unwrap()
+        .to_logical(main_scale_factor);
+    let main_size: LogicalSize<f64> = main_window
+        .outer_size()
+        .unwrap()
+        .to_logical(main_scale_factor);
+
+    let width = 380.0;
+    let height = 450.0;
+
+    create_or_focus_window(
+        &app,
+        "dialog/new_transcript",
+        WebviewUrl::App("/new_transcript".into()),
+        |builder| {
+            builder
+                .inner_size(width, height)
+                .position(
+                    main_pos.x + (main_size.width - width) / 2.0,
+                    main_pos.y + 40.0,
+                )
+                .resizable(false)
+        },
+    )
+    .unwrap();
 }
