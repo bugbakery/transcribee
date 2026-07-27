@@ -1,14 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
-import { clsx } from 'clsx';
-import { FormControl, Slider } from 'transcribee-ui-common/components/form';
 import { SpeakerDetectionInput } from 'transcribee-ui-common/components/inputs/speaker_detection';
 import {
   ModelLanguageInput,
   ModelLanguage,
 } from 'transcribee-ui-common/components/inputs/model_language';
+import {
+  ModelSize,
+  TranscriptionQualityInput,
+} from 'transcribee-ui-common/components/inputs/transcription_quality';
 import { PrimaryButton } from 'transcribee-ui-common/components/button';
-import { HelpPopup } from 'transcribee-ui-common/components/popup';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
@@ -16,7 +17,7 @@ import { useResizeWindowToFitElement } from '../utils/window';
 
 type FieldValues = {
   files: string[];
-  quality: number;
+  model: ModelSize;
   language: ModelLanguage;
   speakerDetection: 'off' | 'on' | 'advanced';
   numberOfSpeakers: number;
@@ -38,7 +39,7 @@ export function NewTranscriptDialog() {
     watch,
   } = useForm<FieldValues>({
     values: {
-      quality: 4,
+      model: 'large',
       language: 'auto',
       files: [],
       speakerDetection: 'on',
@@ -51,8 +52,6 @@ export function NewTranscriptDialog() {
   });
 
   const files = watch('files');
-  const speakerDetection = watch('speakerDetection');
-  const quality = watch('quality');
 
   const submitHandler: SubmitHandler<FieldValues> = async (data) => {
     if (data.files.length == 0) {
@@ -60,12 +59,9 @@ export function NewTranscriptDialog() {
       return;
     }
 
-    const modelRanking = ['tiny', 'base', 'small', 'large'] as const;
-    const model = modelRanking[data.quality - 1];
-
     await invoke('transcribe_files', {
       mediaFilePaths: data.files,
-      model,
+      model: data.model,
       language: data.language,
     });
     await getCurrentWindow().close();
@@ -106,66 +102,23 @@ export function NewTranscriptDialog() {
               <p className="text-center text-red-600 text-sm mt-2">You have to select a file.</p>
             )}
           </div>
-          <>
-            <FormControl
-              label="Transcription Quality"
-              error={errors.quality?.message}
-              className={clsx('p-3 -mb-2 -mx-3 rounded', quality < 3 && 'bg-red-500 bg-opacity-10')}
-            >
-              <HelpPopup className="mr-3">
-                <p className="pb-2">
-                  With this slider you can influence the quality of the transcription.
-                </p>
-                <p className="pb-2">
-                  Moving the slider to the right produces better transcripts at the cost of longer
-                  wait times. Moving it to the left produces worse transcripts but shortens the
-                  transcription time.
-                </p>
-                <p>The default position of the slider should be a good tradeoff for most uses.</p>
-              </HelpPopup>
-              <div className="relative mb-5">
-                <Slider min={1} max={4} {...register('quality')} />
-                <span
-                  className={clsx(
-                    'text-sm text-gray-500 dark:text-gray-400 absolute start-0 -bottom-6',
-                  )}
-                >
-                  Fastest
-                </span>
-                <span
-                  className={clsx(
-                    'text-sm text-gray-500 dark:text-gray-400 absolute end-0 -bottom-6',
-                  )}
-                >
-                  Best
-                </span>
-              </div>
+          <TranscriptionQualityInput
+            value={watch('model')}
+            onChange={(value) => setValue('model', value)}
+            error={errors.model?.message}
+          />
+          <ModelLanguageInput
+            value={watch('language')}
+            onChange={(value) => setValue('language', value)}
+            error={errors.language?.message}
+          />
+          <SpeakerDetectionInput
+            value={watch('speakerDetection')}
+            onChange={(value) => setValue('speakerDetection', value)}
+            numberOfSpeakers={watch('numberOfSpeakers')}
+            onNumberOfSpeakersChange={(value) => setValue('numberOfSpeakers', value)}
+          />
 
-              {quality < 3 ? (
-                <>
-                  <p className="py-2 pt-6 text-red-700 dark:text-red-400">
-                    It is not recommended to use a low quality setting for real work. The result
-                    will be very underwhelming.
-                  </p>
-                </>
-              ) : (
-                <></>
-              )}
-            </FormControl>
-
-            <ModelLanguageInput
-              value={watch('language')}
-              onChange={(value) => setValue('language', value)}
-              error={errors.language?.message}
-            />
-
-            <SpeakerDetectionInput
-              value={speakerDetection}
-              onChange={(value) => setValue('speakerDetection', value)}
-              numberOfSpeakers={watch('numberOfSpeakers')}
-              onNumberOfSpeakersChange={(value) => setValue('numberOfSpeakers', value)}
-            />
-          </>
           <div className="flex justify-end">
             <PrimaryButton type="submit">Create</PrimaryButton>
           </div>
