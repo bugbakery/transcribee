@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import clsx from 'clsx';
 import { useLocation } from 'wouter';
-import languages from './languages.json';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { createDocument, importDocument } from '../api/document';
 import { Dialog, DialogTitle } from 'transcribee-ui-common/components/dialog';
-import { FormControl, Input, Select, Slider } from 'transcribee-ui-common/components/form';
+import { FormControl, Input, Slider } from 'transcribee-ui-common/components/form';
 import { LoadingSpinnerButton, SecondaryButton } from 'transcribee-ui-common/components/button';
 import { SpeakerDetectionInput } from 'transcribee-ui-common/components/inputs/speaker_detection';
+import {
+  ModelLanguageInput,
+  ModelLanguage,
+} from 'transcribee-ui-common/components/inputs/model_language';
 import { AppContainer } from '../components/app_container';
 import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../api/auth';
@@ -20,7 +23,7 @@ type FieldValues = {
   name: string;
   audioFile: File | null;
   quality: number;
-  language: string;
+  language: ModelLanguage;
   speakerDetection: 'off' | 'on' | 'advanced';
   numberOfSpeakers: number;
 };
@@ -217,27 +220,11 @@ export function NewDocumentPage() {
                   )}
                 </FormControl>
 
-                <FormControl label="Language" error={errors.language?.message}>
-                  <HelpPopup>
-                    <p className="pb-2">
-                      If you know the language of your document (and if only one language is
-                      spoken), you can set it here explicitly. Doing so might result in slightly
-                      better & faster transcriptions.
-                    </p>
-                    <p className="pb-2">
-                      It is also fine to leave this control on &lsquo;Auto Detect&rsquo;.
-                    </p>
-                  </HelpPopup>
-                  <div>
-                    <Select {...register('language')}>
-                      {Object.entries(languages).map(([lang, name]) => (
-                        <option value={lang} key={lang}>
-                          {name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                </FormControl>
+                <ModelLanguageInput
+                  value={watch('language')}
+                  onChange={(value) => setValue('language', value)}
+                  error={errors.language?.message}
+                />
 
                 <SpeakerDetectionInput
                   value={speakerDetection}
