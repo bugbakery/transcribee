@@ -2,10 +2,17 @@ import { PrimaryButton, SecondaryButton } from 'transcribee-ui-common/components
 import { invoke } from '@tauri-apps/api/core';
 import { useTauriState } from '../util/use_tauri_event';
 
+type MediaFile = {
+  content_type: string;
+  tags: string[];
+  url: string;
+};
 export type Document = {
   id: string;
   display_name: string;
   transcription_progress: number;
+  save_path?: string;
+  media_files: MediaFile[];
 };
 
 export function HomePage() {

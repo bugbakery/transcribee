@@ -1,6 +1,6 @@
 use crate::file_handling::{
-    append_automerge_change, append_automerge_change_to_transcribee_file, document_media,
-    forget_document, get_document, get_documents, get_media_file_response, DocumentsStoreExt,
+    append_automerge_change, append_automerge_change_to_transcribee_file, forget_document,
+    get_document, get_documents, get_media_file_response, DocumentsStoreExt,
 };
 use crate::window::create_or_focus_main_window;
 use colored::Color;
@@ -75,7 +75,6 @@ pub fn run() {
             get_documents,
             forget_document,
             get_document,
-            document_media,
             read_automerge,
             append_automerge_change,
             cmd::transcribe_files,
