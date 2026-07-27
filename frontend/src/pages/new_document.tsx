@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { SubmitHandler, useForm } from 'react-hook-form';
-import clsx from 'clsx';
 import { useLocation } from 'wouter';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 import { createDocument, importDocument } from '../api/document';
 import { Dialog, DialogTitle } from 'transcribee-ui-common/components/dialog';
-import { FormControl, Input, Slider } from 'transcribee-ui-common/components/form';
+import { FormControl, Input } from 'transcribee-ui-common/components/form';
 import { LoadingSpinnerButton, SecondaryButton } from 'transcribee-ui-common/components/button';
 import { SpeakerDetectionInput } from 'transcribee-ui-common/components/inputs/speaker_detection';
 import {
   ModelLanguageInput,
   ModelLanguage,
 } from 'transcribee-ui-common/components/inputs/model_language';
+import {
+  TranscriptionQualityInput,
+  ModelSize,
+} from 'transcribee-ui-common/components/inputs/transcription_quality';
 import { AppContainer } from '../components/app_container';
 import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../api/auth';
@@ -22,7 +25,7 @@ import { loadTranscribeeArchive } from '../components/transcribee_archive_reader
 type FieldValues = {
   name: string;
   audioFile: File | null;
-  quality: number;
+  model: ModelSize;
   language: ModelLanguage;
   speakerDetection: 'off' | 'on' | 'advanced';
   numberOfSpeakers: number;
@@ -39,7 +42,7 @@ export function NewDocumentPage() {
     watch,
   } = useForm<FieldValues>({
     values: {
-      quality: 4,
+      model: 'large',
       language: 'auto',
       audioFile: null,
       name: '',
@@ -55,8 +58,6 @@ export function NewDocumentPage() {
   });
 
   const audioFile = watch('audioFile');
-  const speakerDetection = watch('speakerDetection');
-  const quality = watch('quality');
   const name = watch('name');
 
   useEffect(() => {
@@ -108,14 +109,10 @@ export function NewDocumentPage() {
       } else {
         type DocumentCreateParameters = Parameters<typeof createDocument>[0];
 
-        // since large uses the faster turbo model, there is no reason to use the medium model
-        const modelRanking = ['tiny', 'base', 'small', 'large'] as const;
-        const model = modelRanking[data.quality - 1];
-
         const documentParameters: DocumentCreateParameters = {
           name: data.name,
           file: data.audioFile,
-          model,
+          model: data.model,
           language: data.language,
         };
         if (data.speakerDetection == 'off') {
@@ -172,62 +169,18 @@ export function NewDocumentPage() {
               </div>
             ) : (
               <>
-                <FormControl
-                  label="Transcription Quality"
-                  error={errors.quality?.message}
-                  className={clsx('p-3 -mx-3 rounded', quality < 3 && 'bg-red-500 bg-opacity-10')}
-                >
-                  <HelpPopup className="mr-3">
-                    <p className="pb-2">
-                      With this slider you can influence the quality of the transcription.
-                    </p>
-                    <p className="pb-2">
-                      Moving the slider to the right produces better transcripts at the cost of
-                      longer wait times. Moving it to the left produces worse transcripts but
-                      shortens the transcription time.
-                    </p>
-                    <p>
-                      The default position of the slider should be a good tradeoff for most uses.
-                    </p>
-                  </HelpPopup>
-                  <div className="relative mb-6">
-                    <Slider min={1} max={4} {...register('quality')} />
-                    <span
-                      className={clsx(
-                        'text-sm text-gray-500 dark:text-gray-400 absolute start-0 -bottom-6',
-                      )}
-                    >
-                      Fastest
-                    </span>
-                    <span
-                      className={clsx(
-                        'text-sm text-gray-500 dark:text-gray-400 absolute end-0 -bottom-6',
-                      )}
-                    >
-                      Best
-                    </span>
-                  </div>
-
-                  {quality < 3 ? (
-                    <>
-                      <p className="py-2 text-red-700 dark:text-red-400">
-                        It is not recommended to use a low quality setting for real work. The result
-                        will be very underwhelming.
-                      </p>
-                    </>
-                  ) : (
-                    <></>
-                  )}
-                </FormControl>
-
+                <TranscriptionQualityInput
+                  value={watch('model')}
+                  onChange={(value) => setValue('model', value)}
+                  error={errors.model?.message}
+                />
                 <ModelLanguageInput
                   value={watch('language')}
                   onChange={(value) => setValue('language', value)}
                   error={errors.language?.message}
                 />
-
                 <SpeakerDetectionInput
-                  value={speakerDetection}
+                  value={watch('speakerDetection')}
                   onChange={(value) => setValue('speakerDetection', value)}
                   numberOfSpeakers={watch('numberOfSpeakers')}
                   onNumberOfSpeakersChange={(value) => setValue('numberOfSpeakers', value)}
