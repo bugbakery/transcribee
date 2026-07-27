@@ -8,6 +8,7 @@ import { createDocument, importDocument } from '../api/document';
 import { Dialog, DialogTitle } from 'transcribee-ui-common/components/dialog';
 import { FormControl, Input, Select, Slider } from 'transcribee-ui-common/components/form';
 import { LoadingSpinnerButton, SecondaryButton } from 'transcribee-ui-common/components/button';
+import { SpeakerDetectionInput } from 'transcribee-ui-common/components/inputs/speaker_detection';
 import { AppContainer } from '../components/app_container';
 import * as Automerge from '@automerge/automerge';
 import { getDocumentWsUrl } from '../api/auth';
@@ -238,82 +239,12 @@ export function NewDocumentPage() {
                   </div>
                 </FormControl>
 
-                <FormControl label={'Speaker Detection'}>
-                  <HelpPopup>
-                    <p className="pb-2">
-                      If multiple persons speek in your recording, transcribee can try to annotate
-                      your text with speaker information. Leaving this setting on &quot;On&quot;
-                      will result in transcribee trying to guess how many people are speaking in the
-                      recording and detect them.
-                    </p>
-                    <p className="pb-2">
-                      If you know how many people speek in your recording, you can set this control
-                      to advanced and manually enter the number of speakers. If only one person is
-                      speeking (or if you dont need speaker information) you can turn the speaker
-                      detection off.
-                    </p>
-                  </HelpPopup>
-                  <div className="flex">
-                    <input
-                      type="radio"
-                      id="off"
-                      value={'off'}
-                      className="hidden peer/off"
-                      {...register('speakerDetection')}
-                    />
-                    <label
-                      htmlFor="off"
-                      className={clsx(
-                        'block bg-transparent py-2 text-center flex-grow basis-1',
-                        'peer-checked/off:bg-gray-300 dark:peer-checked/off:bg-gray-700',
-                        'border-black dark:border-white border-2 rounded-l',
-                      )}
-                    >
-                      Off
-                    </label>
-
-                    <input
-                      type="radio"
-                      id="on"
-                      value={'on'}
-                      className="hidden peer/on"
-                      {...register('speakerDetection')}
-                    />
-                    <label
-                      htmlFor="on"
-                      className={clsx(
-                        'block bg-transparent  py-2 text-center flex-grow basis-1',
-                        'peer-checked/on:bg-gray-300 dark:peer-checked/on:bg-gray-700',
-                        'border-black dark:border-white border-y-2',
-                      )}
-                    >
-                      On
-                    </label>
-
-                    <input
-                      type="radio"
-                      id="advanced"
-                      value={'advanced'}
-                      className="hidden peer/advanced"
-                      {...register('speakerDetection')}
-                    />
-                    <label
-                      htmlFor="advanced"
-                      className={clsx(
-                        'block bg-transparent py-2 text-center flex-grow basis-1',
-                        'peer-checked/advanced:bg-gray-300 dark:peer-checked/advanced:bg-gray-700',
-                        'border-black dark:border-white border-2 rounded-r',
-                      )}
-                    >
-                      Advanced
-                    </label>
-                  </div>
-                </FormControl>
-                {speakerDetection == 'advanced' && (
-                  <FormControl label="Number of Speakers" className="-mt-4">
-                    <Input type="number" min={2} {...register('numberOfSpeakers')} />
-                  </FormControl>
-                )}
+                <SpeakerDetectionInput
+                  value={speakerDetection}
+                  onChange={(value) => setValue('speakerDetection', value)}
+                  numberOfSpeakers={watch('numberOfSpeakers')}
+                  onNumberOfSpeakersChange={(value) => setValue('numberOfSpeakers', value)}
+                />
               </>
             )}
 
