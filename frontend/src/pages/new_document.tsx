@@ -141,7 +141,7 @@ export function NewDocumentPage() {
       <Dialog className={'w-96'}>
         <DialogTitle>New Document</DialogTitle>
         <form onSubmit={handleSubmit(submitHandler)}>
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-7">
             <FormControl label="Name" error={errors.name && 'This field is required.'}>
               <HelpPopup>
                 <p>This name will be used in the overview to identify the transcript.</p>

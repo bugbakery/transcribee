@@ -71,7 +71,7 @@ export function NewTranscriptDialog() {
   return (
     <div className="px-8 py-8" ref={containerRef}>
       <form onSubmit={handleSubmit(submitHandler)}>
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-7">
           <div>
             <PrimaryButton
               onClick={async () => {
@@ -107,7 +107,7 @@ export function NewTranscriptDialog() {
             <FormControl
               label="Transcription Quality"
               error={errors.quality?.message}
-              className={clsx('p-3 -mx-3 rounded', quality < 3 && 'bg-red-500 bg-opacity-10')}
+              className={clsx('p-3 -mb-2 -mx-3 rounded', quality < 3 && 'bg-red-500 bg-opacity-10')}
             >
               <HelpPopup className="mr-3">
                 <p className="pb-2">
@@ -120,7 +120,7 @@ export function NewTranscriptDialog() {
                 </p>
                 <p>The default position of the slider should be a good tradeoff for most uses.</p>
               </HelpPopup>
-              <div className="relative mb-6">
+              <div className="relative mb-5">
                 <Slider min={1} max={4} {...register('quality')} />
                 <span
                   className={clsx(
@@ -140,7 +140,7 @@ export function NewTranscriptDialog() {
 
               {quality < 3 ? (
                 <>
-                  <p className="py-2 text-red-700 dark:text-red-400">
+                  <p className="py-2 pt-6 text-red-700 dark:text-red-400">
                     It is not recommended to use a low quality setting for real work. The result
                     will be very underwhelming.
                   </p>
