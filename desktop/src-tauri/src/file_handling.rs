@@ -181,6 +181,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             .set("documents", documents_json);
         let frontend_documents: Vec<FrontendDocument> = new_documents
             .iter()
+            .rev()
             .map(Document::as_frontend_document)
             .collect();
         self.emit("documents_changed", &frontend_documents).unwrap();
