@@ -1,3 +1,4 @@
+use anyhow::Result;
 use log::{error, info, log, Level};
 use rand::{distr::Alphanumeric, RngExt};
 use std::{net::SocketAddr, time::Duration};
@@ -16,7 +17,7 @@ fn setup_worker<R: Runtime>(
     app: &AppHandle<R>,
     local_addr: SocketAddr,
     token: String,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     let ext = if cfg!(target_family = "windows") {
         "bat"
     } else {
@@ -24,9 +25,7 @@ fn setup_worker<R: Runtime>(
     };
     let resource_path = app
         .path()
-        .resolve(format!("worker/run_worker.{ext}"), BaseDirectory::Resource)
-        .map_err(|e| e.to_string())?;
-    println!("{:?}", resource_path);
+        .resolve(format!("worker/run_worker.{ext}"), BaseDirectory::Resource)?;
 
     let app = app.clone();
 
