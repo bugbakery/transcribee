@@ -8,11 +8,9 @@
 //! file name.
 
 use crate::cmd_error::CmdResult;
-use crate::file_handling::MediaFileSource::InTar;
 use crate::http_partial_content::http_response_maybe_partial;
 use crate::tar::{
-    get_byte_range_of_file_in_tar, get_bytes_of_file_in_tar, get_next_tar_entry, TarHeader,
-    TAR_BLOCK_SIZE,
+    get_byte_range_of_file_in_tar, get_bytes_of_file_in_tar, TarHeader, TAR_BLOCK_SIZE,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use log::{info, warn};
@@ -42,23 +40,28 @@ pub struct Document {
     /// when explicitly instructed to do so.
     pub save_path: Option<String>,
 
-    /// the path of the original media file that was used to create the document.
-    /// if the document came here already as a mature document, this is None.
-    pub original_media_file: Option<String>,
-
     pub tasks: Vec<Uuid>,
     pub transcription_progress: f32,
+
+    pub media_files: Vec<MediaFile>,
 }
 impl Document {
     pub fn display_name(&self) -> String {
         let original_media_file = self
-            .original_media_file
-            .as_ref()
-            .map_or("unknown_file".to_string(), |x| x.clone());
+            .media_files
+            .iter()
+            .find(|media_file| media_file.tags.iter().any(|tag| tag == "original"));
+        let original_media_file_path = match original_media_file {
+            Some(MediaFile {
+                source: MediaFileSource::Fs { media_path },
+                ..
+            }) => media_path.to_string(),
+            _ => "<unknown>".to_string(),
+        };
         let path = self
             .save_path
             .as_ref()
-            .map_or(original_media_file, |x| x.clone());
+            .map_or(original_media_file_path, |x| x.clone());
         Path::new(&path)
             .file_name()
             .unwrap()
@@ -72,47 +75,9 @@ impl Document {
             id: self.id,
             display_name: self.display_name(),
             transcription_progress: self.transcription_progress,
+            save_path: self.save_path.clone(),
+            media_files: self.media_files.clone(),
         }
-    }
-
-    pub fn media_files(&self) -> Result<Vec<MediaFile>> {
-        let mut to_return = vec![];
-
-        if let Some(original) = &self.original_media_file {
-            let mime = infer::get_from_path(original)?
-                .map(|x| x.mime_type())
-                .unwrap_or("application/octet-stream");
-            to_return.push(MediaFile {
-                content_type: mime.to_string(),
-                tags: vec!["original".to_string()],
-                url: format!("{}/original", self.id),
-                source: MediaFileSource::Fs(original.to_string()),
-            })
-        }
-
-        if let Some(saved_archive) = &self.save_path {
-            let mut file = File::open(saved_archive)?;
-            let mut offset = 0;
-            while let Some((header, file_start)) = get_next_tar_entry(&mut file, offset)? {
-                if header.path != "document.automerge" {
-                    let mime_guess_bytes = 24;
-                    let mut buf = vec![0u8; mime_guess_bytes];
-                    file.read_exact(&mut buf)?;
-                    let mime = infer::get(&buf)
-                        .map(|x| x.mime_type())
-                        .unwrap_or("application/octet-stream");
-                    to_return.push(MediaFile {
-                        content_type: mime.to_string(),
-                        tags: vec![],
-                        url: format!("{}/{}", self.id, header.path),
-                        source: InTar(saved_archive.to_string(), header.path),
-                    });
-                }
-                offset = file_start + header.size;
-            }
-        }
-
-        Ok(to_return)
     }
 }
 
@@ -121,21 +86,28 @@ pub struct FrontendDocument {
     id: Uuid,
     display_name: String,
     transcription_progress: f32,
+    save_path: Option<String>,
+    media_files: Vec<MediaFile>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MediaFile {
     content_type: String,
     tags: Vec<String>,
     /// this must be in the format {document_id}/{something}
     url: String,
-    #[serde(skip)]
     source: MediaFileSource,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 enum MediaFileSource {
-    Fs(String),
-    InTar(String, String),
+    Fs {
+        media_path: String,
+    },
+    InTar {
+        archive_path: String,
+        path_in_archive: String,
+    },
 }
 
 pub trait DocumentsStoreExt<R: Runtime> {
@@ -210,15 +182,35 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             return Ok(document);
         }
 
-        let automerge_doc = get_bytes_of_file_in_tar(&mut File::open(path)?, "document.automerge")?;
+        let tar_file = &mut File::open(path)?;
+        let automerge_doc = get_bytes_of_file_in_tar(tar_file, "document.automerge")?;
         let (id, app_data_path) = create_new_appdata_transcribee_archive(self, &automerge_doc)?;
+
+        let media_file = get_byte_range_of_file_in_tar(tar_file, "media")?;
+        let mime_guess_bytes = 24;
+        let mut buf = vec![0u8; mime_guess_bytes];
+        tar_file.seek(Start(media_file.start))?;
+        tar_file.read_exact(&mut buf)?;
+        let mime = infer::get(&buf)
+            .map(|x| x.mime_type())
+            .unwrap_or("application/octet-stream");
+        let media_files = vec![MediaFile {
+            content_type: mime.to_string(),
+            tags: vec![],
+            url: format!("{id}/media"),
+            source: MediaFileSource::InTar {
+                archive_path: path.to_string(),
+                path_in_archive: "media".to_string(),
+            },
+        }];
+
         let document = Document {
             id,
             app_data_path: app_data_path.to_str().unwrap().to_string(),
             save_path: Some(path.to_string()),
-            original_media_file: None,
             transcription_progress: 1.0,
             tasks: vec![],
+            media_files,
         };
         self.update_documents(|mut documents| {
             documents.push(document.clone());
@@ -236,13 +228,24 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
 
     fn create_new_document(&self, media_file_path: String, tasks: Vec<Uuid>) -> Result<Document> {
         let (id, app_data_path) = create_new_appdata_transcribee_archive(self, &[])?;
+        let mime = infer::get_from_path(&media_file_path)?
+            .map(|x| x.mime_type())
+            .unwrap_or("application/octet-stream");
+        let media_files = vec![MediaFile {
+            content_type: mime.to_string(),
+            tags: vec!["original".to_string()],
+            url: format!("{id}/original"),
+            source: MediaFileSource::Fs {
+                media_path: media_file_path.to_string(),
+            },
+        }];
         let document = Document {
             id,
             app_data_path: app_data_path.to_str().unwrap().to_string(),
             save_path: None,
-            original_media_file: Some(media_file_path),
             transcription_progress: 0.0,
             tasks,
+            media_files,
         };
         self.update_documents(|mut documents| {
             documents.push(document.clone());
@@ -311,12 +314,6 @@ pub fn append_automerge_change(
     Ok(())
 }
 
-#[command]
-pub fn document_media(app_handle: AppHandle, id: Uuid) -> CmdResult<Vec<MediaFile>> {
-    let document = app_handle.get_document(id)?;
-    Ok(document.media_files()?)
-}
-
 pub fn get_media_file_response(
     app_handle: &AppHandle,
     request: http::Request<Vec<u8>>,
@@ -333,7 +330,7 @@ pub fn get_media_file_response(
 
     let document = app_handle.get_document(uuid)?;
     let media = document
-        .media_files()?
+        .media_files
         .into_iter()
         .find(|m| m.url == path)
         .ok_or(anyhow!(
@@ -341,8 +338,8 @@ pub fn get_media_file_response(
         ))?;
 
     match &media.source {
-        MediaFileSource::Fs(path) => {
-            let mut file = File::open(path)
+        MediaFileSource::Fs { media_path } => {
+            let mut file = File::open(media_path)
                 .with_context(|| format!("could not open media file '{}'", path))?;
             let len = file.metadata()?.len();
             let get_content = move |range: Range<u64>| {
@@ -358,10 +355,13 @@ pub fn get_media_file_response(
                 &media.content_type,
             )
         }
-        MediaFileSource::InTar(tar_path, path_in_tar) => {
-            let mut file = File::open(tar_path)
+        MediaFileSource::InTar {
+            archive_path,
+            path_in_archive,
+        } => {
+            let mut file = File::open(archive_path)
                 .with_context(|| format!("could not open archive file '{}'", path))?;
-            let file_range = get_byte_range_of_file_in_tar(&mut file, path_in_tar)?;
+            let file_range = get_byte_range_of_file_in_tar(&mut file, path_in_archive)?;
             let len = file_range.end - file_range.start;
             let get_content = move |range: Range<u64>| {
                 file.seek(Start(range.start))?;

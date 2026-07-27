@@ -103,12 +103,6 @@ const LazyDebugPanel = lazy(() =>
   })),
 );
 
-type MediaFile = {
-  content_type: string;
-  tags: string[];
-  url: string;
-};
-
 export function DocumentPage({
   params: { '*': documentId },
 }: RouteComponentProps<{ '*': string }>) {
@@ -121,12 +115,8 @@ export function DocumentPage({
       id: '<unknown>',
       display_name: '',
       transcription_progress: 0,
+      media_files: [],
     },
-  );
-  const mediaFiles = useTauriState<MediaFile[]>(
-    async () => await invoke('document_media', { id: documentId }),
-    `document_media_changed:${documentId}`,
-    [],
   );
 
   useEffect(() => {
@@ -145,7 +135,7 @@ export function DocumentPage({
           <PlayerBar
             documentId={documentId}
             editor={editor}
-            mediaFiles={mediaFiles.map((m) => ({
+            mediaFiles={document.media_files.map((m) => ({
               ...m,
               url: convertFileSrc(m.url, 'media'),
             }))}
