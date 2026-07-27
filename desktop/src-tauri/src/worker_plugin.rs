@@ -1,7 +1,6 @@
 use log::{error, info, log, Level};
 use rand::{distr::Alphanumeric, RngExt};
 use std::{net::SocketAddr, time::Duration};
-#[cfg(debug_assertions)]
 use tauri::is_dev;
 use tauri::{
     path::BaseDirectory,
