@@ -21,6 +21,7 @@ use tauri_plugin_window_state::StateFlags;
 use worker_adapter::WorkerAdapter;
 
 mod cmd;
+mod cmd_error;
 mod file_handling;
 mod http_partial_content;
 mod menu;

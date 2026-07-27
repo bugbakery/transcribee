@@ -5,6 +5,7 @@ use uuid::Uuid;
 use worker_adapter::{state::TranscribeTaskParameters, WorkerAdapter};
 
 use crate::{
+    cmd_error::CmdResult,
     file_handling::DocumentsStoreExt,
     window::{
         create_or_focus_document_window, create_or_focus_main_window, create_or_focus_window,
@@ -19,7 +20,7 @@ pub async fn transcribe_files(
     media_file_paths: Vec<String>,
     language: String,
     model: String,
-) -> Result<(), String> {
+) -> CmdResult<()> {
     for f in media_file_paths {
         let task_uuid = worker_adapter
             .start_transcription(
@@ -31,11 +32,10 @@ pub async fn transcribe_files(
             )
             .await;
 
-        app.create_new_document(f, vec![task_uuid])
-            .map_err(|e| e.to_string())?;
+        app.create_new_document(f, vec![task_uuid])?;
     }
 
-    create_or_focus_main_window(&app).map_err(|e| e.to_string())?;
+    create_or_focus_main_window(&app)?;
     Ok(())
 }
 
@@ -57,13 +57,13 @@ pub fn toggle_devtools(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn open_document_window(app: AppHandle, id: Uuid) -> Result<(), String> {
+pub fn open_document_window(app: AppHandle, id: Uuid) -> CmdResult<()> {
     let focused_window = focused_window(&app);
     let fullscreen = focused_window
         .clone()
         .and_then(|w| w.is_fullscreen().ok())
         .unwrap_or(false);
-    let document = app.get_document(id).map_err(|e| e.to_string())?;
+    let document = app.get_document(id)?;
 
     if let Some(focused_window) = focused_window {
         if focused_window.label() == "main" {
@@ -71,12 +71,12 @@ pub fn open_document_window(app: AppHandle, id: Uuid) -> Result<(), String> {
         }
     }
 
-    create_or_focus_document_window(&app, &document, fullscreen).map_err(|e| e.to_string())?;
+    create_or_focus_document_window(&app, &document, fullscreen)?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn open_document_via_file_picker(app: AppHandle) -> Result<(), String> {
+pub async fn open_document_via_file_picker(app: AppHandle) -> CmdResult<()> {
     let parent = match focused_window(&app) {
         Some(window) if window.label().starts_with("document/") => window,
         _ => create_or_focus_main_window(&app).unwrap(),
@@ -95,18 +95,16 @@ pub async fn open_document_via_file_picker(app: AppHandle) -> Result<(), String>
             });
     });
 
-    let file = rx.await.map_err(|e| e.to_string())?;
+    let file = rx.await?;
     if let Some(file) = file {
         let fullscreen = parent.is_fullscreen().unwrap_or(false);
-        let document = app
-            .open_document(&file.to_string())
-            .map_err(|e| e.to_string())?;
+        let document = app.open_document(&file.to_string())?;
 
         if parent.label() == "main" {
             parent.close().unwrap();
         }
 
-        create_or_focus_document_window(&app, &document, fullscreen).map_err(|e| e.to_string())?;
+        create_or_focus_document_window(&app, &document, fullscreen)?;
     }
 
     Ok(())

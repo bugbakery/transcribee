@@ -7,6 +7,7 @@
 //! For _mature_ documents, the media file is embedded and we derive the display name from the
 //! file name.
 
+use crate::cmd_error::CmdResult;
 use crate::file_handling::MediaFileSource::InTar;
 use crate::http_partial_content::http_response_maybe_partial;
 use crate::tar::{
@@ -252,10 +253,9 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
 }
 
 #[command]
-pub fn get_documents(app_handle: AppHandle) -> std::result::Result<Vec<FrontendDocument>, String> {
+pub fn get_documents(app_handle: AppHandle) -> CmdResult<Vec<FrontendDocument>> {
     Ok(app_handle
-        .get_documents()
-        .map_err(|e| e.to_string())?
+        .get_documents()?
         .iter()
         .map(Document::as_frontend_document)
         .rev()
@@ -263,14 +263,8 @@ pub fn get_documents(app_handle: AppHandle) -> std::result::Result<Vec<FrontendD
 }
 
 #[command]
-pub fn get_document(
-    app_handle: AppHandle,
-    id: Uuid,
-) -> std::result::Result<FrontendDocument, String> {
-    app_handle
-        .get_document(id)
-        .map_err(|e| e.to_string())
-        .map(|doc| doc.as_frontend_document())
+pub fn get_document(app_handle: AppHandle, id: Uuid) -> CmdResult<FrontendDocument> {
+    Ok(app_handle.get_document(id)?.as_frontend_document())
 }
 
 /// this deletes the document from the list of recent documents.
@@ -279,57 +273,48 @@ pub fn get_document(
 /// should display a confirmation dialog.
 /// TODO: build cancelation logic
 #[command]
-pub fn forget_document(app_handle: AppHandle, id: Uuid) -> std::result::Result<(), String> {
-    app_handle
-        .update_documents(|mut documents| {
-            if let Some(position) = documents.iter().position(|doc| doc.id == id) {
-                let doc = documents.remove(position);
-                remove_file(doc.app_data_path)?;
-            }
-            Ok(documents)
-        })
-        .map_err(|e| e.to_string())
+pub fn forget_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
+    app_handle.update_documents(|mut documents| {
+        if let Some(position) = documents.iter().position(|doc| doc.id == id) {
+            let doc = documents.remove(position);
+            remove_file(doc.app_data_path)?;
+        }
+        Ok(documents)
+    })?;
+    Ok(())
 }
 
 #[command]
-pub fn read_automerge(app_handle: AppHandle, id: Uuid) -> std::result::Result<Response, String> {
-    let path = app_handle
-        .get_document(id)
-        .map_err(|e| e.to_string())?
-        .app_data_path;
-    let mut file = File::open(&path)
-        .with_context(|| format!("could not open file '{}'", path))
-        .map_err(|e| e.to_string())?;
-    get_bytes_of_file_in_tar(&mut file, "document.automerge")
-        .map_err(|e| e.to_string())
-        .map(tauri::ipc::Response::new)
+pub fn read_automerge(app_handle: AppHandle, id: Uuid) -> CmdResult<Response> {
+    let path = app_handle.get_document(id)?.app_data_path;
+    let mut file = File::open(&path).with_context(|| format!("could not open file '{}'", path))?;
+    Ok(tauri::ipc::Response::new(get_bytes_of_file_in_tar(
+        &mut file,
+        "document.automerge",
+    )?))
 }
 
 #[command]
 pub fn append_automerge_change(
     app_handle: AppHandle,
     request: tauri::ipc::Request<'_>,
-) -> std::result::Result<(), String> {
+) -> CmdResult<()> {
     let tauri::ipc::InvokeBody::Raw(change) = request.body() else {
-        return Err("request body to append_automerge_change must be raw".to_string());
+        return Err(anyhow!("request body to append_automerge_change must be raw").into());
     };
     let Some(id) = request.headers().get("id") else {
-        return Err("missing id for append_automerge_change".to_string());
+        return Err(anyhow!("missing id for append_automerge_change").into());
     };
-    let uuid =
-        Uuid::from_str(id.to_str().map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-    let document = app_handle.get_document(uuid).map_err(|e| e.to_string())?;
-    append_automerge_change_to_transcribee_file(&document.app_data_path, change)
-        .map_err(|e| e.to_string())
+    let uuid = Uuid::from_str(id.to_str()?)?;
+    let document = app_handle.get_document(uuid)?;
+    append_automerge_change_to_transcribee_file(&document.app_data_path, change)?;
+    Ok(())
 }
 
 #[command]
-pub fn document_media(
-    app_handle: AppHandle,
-    id: Uuid,
-) -> std::result::Result<Vec<MediaFile>, String> {
-    let document = app_handle.get_document(id).map_err(|e| e.to_string())?;
-    document.media_files().map_err(|e| e.to_string())
+pub fn document_media(app_handle: AppHandle, id: Uuid) -> CmdResult<Vec<MediaFile>> {
+    let document = app_handle.get_document(id)?;
+    Ok(document.media_files()?)
 }
 
 pub fn get_media_file_response(
