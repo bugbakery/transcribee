@@ -9,7 +9,6 @@ import {
   useReadOnly,
 } from 'slate-react';
 import { SpeakerDropdown } from './speaker_dropdown';
-import { useEvent } from '../utils/use_event';
 import { SeekToEvent, Paragraph } from './types';
 import { startTimeToClassName } from './player';
 import clsx from 'clsx';
@@ -231,15 +230,6 @@ export function TranscriptionEditor({
   initialValue?: Paragraph[];
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
-  // prevent ctrl+s
-  useEvent('keydown', (e: KeyboardEvent) => {
-    const ctrlOrCmd = window.navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey;
-    if (ctrlOrCmd && e.key === 's') {
-      e.preventDefault();
-      console.log('CommandOrControl + S prevented – we automatically save the document anyways');
-    }
-  });
-
   const loadingState = useState(true);
 
   const renderLeaf = useCallback(

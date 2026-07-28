@@ -25,6 +25,7 @@ import { ExportModal } from 'transcribee-ui-common/editor/export/index';
 import { PlayerBar } from 'transcribee-ui-common/editor/player';
 import { minutesInMs } from 'transcribee-ui-common/utils/duration_in_ms';
 import { Editor } from 'slate';
+import { useEvent } from 'transcribee-ui-common/utils/use_event';
 
 const LazyDebugPanel = lazy(() =>
   import('transcribee-ui-common/editor/debug_panel').then((module) => ({
@@ -134,6 +135,15 @@ export function DocumentPage({
         navigate('/');
       }
     },
+  });
+
+  // prevent ctrl+s
+  useEvent('keydown', (e: KeyboardEvent) => {
+    const ctrlOrCmd = window.navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey;
+    if (ctrlOrCmd && e.key === 's') {
+      e.preventDefault();
+      console.log('CommandOrControl + S prevented – we automatically save the document anyways');
+    }
   });
 
   return (
