@@ -160,7 +160,11 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             for doc in &mut documents {
                 if doc.id == id {
                     *doc = op(doc.clone());
-                    self.emit(&format!("document_changed:{id}"), &doc).unwrap();
+                    self.emit(
+                        &format!("document_changed:{id}"),
+                        &doc.as_frontend_document(),
+                    )
+                    .unwrap();
                     break;
                 }
             }
