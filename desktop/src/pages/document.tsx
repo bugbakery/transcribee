@@ -32,7 +32,7 @@ function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?
       if (!sentChanges.current.has(decoded.hash)) {
         await invoke('append_automerge_change', lastChange, {
           headers: {
-            path: documentId,
+            id: documentId,
           },
         });
         sentChanges.current.add(decoded.hash);
@@ -108,20 +108,6 @@ export function DocumentPage({
 }: RouteComponentProps<{ '*': string }>) {
   const debugMode = useDebugMode();
   const [editor, initialValue] = useAutomergeLocalFileEditor(documentId);
-  const document = useTauriState<DocumentOverview>(
-    async () => await invoke('get_document', { id: documentId }),
-    `document_changed:${documentId}`,
-    {
-      id: '<unknown>',
-      display_name: '',
-      transcription_progress: 0,
-      media_files: [],
-    },
-  );
-
-  useEffect(() => {
-    window.document.title = document.display_name;
-  }, [document]);
 
   return (
     <div className="max-w-screen-xl p-6 mx-auto flex flex-col border-box">
@@ -131,16 +117,7 @@ export function DocumentPage({
         className={'grow flex flex-col'}
         readOnly={false}
       >
-        {editor && (
-          <PlayerBar
-            documentId={documentId}
-            editor={editor}
-            mediaFiles={document.media_files.map((m) => ({
-              ...m,
-              url: convertFileSrc(m.url, 'media'),
-            }))}
-          />
-        )}
+        <PlayerBarWithMedia documentId={documentId} editor={editor} />
       </TranscriptionEditor>
 
       {/* Spacer to prevent video preview from hiding text */}
@@ -149,4 +126,42 @@ export function DocumentPage({
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </div>
   );
+}
+
+function PlayerBarWithMedia({
+  documentId,
+  editor,
+}: {
+  documentId: string;
+  editor: Editor | undefined;
+}) {
+  const document = useTauriState<DocumentOverview>(
+    async () => await invoke('get_document', { id: documentId }),
+    `document_changed:${documentId}`,
+    {
+      id: '<unknown>',
+      display_name: '',
+      transcription_progress: 0,
+      media_files: [],
+      has_unsaved_changes: false,
+    },
+  );
+
+  useEffect(() => {
+    const changed_mark = document.has_unsaved_changes ? '*' : '';
+    window.document.title = changed_mark + document.display_name;
+  }, [document]);
+
+  if (editor) {
+    return (
+      <PlayerBar
+        documentId={documentId}
+        editor={editor}
+        mediaFiles={document.media_files.map((m) => ({
+          ...m,
+          url: convertFileSrc(m.url, 'media'),
+        }))}
+      />
+    );
+  }
 }

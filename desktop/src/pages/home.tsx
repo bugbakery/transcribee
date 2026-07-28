@@ -13,6 +13,7 @@ export type Document = {
   transcription_progress: number;
   save_path?: string;
   media_files: MediaFile[];
+  has_unsaved_changes: boolean;
 };
 
 export function HomePage() {
