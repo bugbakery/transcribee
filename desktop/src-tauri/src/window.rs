@@ -1,4 +1,6 @@
+use anyhow::anyhow;
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use uuid::Uuid;
 
 use crate::file_handling::Document;
 
@@ -35,12 +37,20 @@ pub fn create_or_focus_main_window(app: &AppHandle) -> tauri::Result<WebviewWind
 }
 
 pub fn focused_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
-    let windows = app.webview_windows();
+    app.webview_windows()
+        .into_values()
+        .find(|window| window.is_focused().unwrap_or(false))
+}
 
-    windows
-        .iter()
-        .find(|(_, window)| window.is_focused().unwrap_or(false))
-        .map(|entry| entry.1.clone())
+pub fn get_focused_document_id(app: &AppHandle) -> anyhow::Result<Uuid> {
+    let webview = focused_window(app).ok_or(anyhow!("could not find focused window"))?;
+    let uuid = Uuid::parse_str(
+        webview
+            .label()
+            .strip_prefix("document/")
+            .ok_or(anyhow!("focused window is not a document window"))?,
+    )?;
+    Ok(uuid)
 }
 
 pub fn create_or_focus_document_window(
@@ -48,13 +58,9 @@ pub fn create_or_focus_document_window(
     document: &Document,
     fullscreen: bool,
 ) -> tauri::Result<tauri::WebviewWindow> {
-    let label_name: String = document
-        .display_name()
-        .replace(|c: char| !c.is_alphanumeric() && !"-/:_".contains(c), "_");
-
     create_or_focus_window(
         app,
-        &format!("document/{label_name}"),
+        &format!("document/{}", document.id),
         WebviewUrl::App(format!("document/{}", document.id).into()),
         |builder| builder.inner_size(1200.0, 800.0).fullscreen(fullscreen),
     )

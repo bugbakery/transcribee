@@ -1,6 +1,6 @@
 use crate::file_handling::{
-    append_automerge_change, append_automerge_change_to_transcribee_file, forget_document,
-    get_document, get_documents, get_media_file_response, DocumentsStoreExt,
+    append_automerge_change, forget_document, get_document, get_documents, get_media_file_response,
+    DocumentsStoreExt,
 };
 use crate::window::create_or_focus_main_window;
 use colored::Color;
@@ -25,7 +25,9 @@ mod cmd_error;
 mod file_handling;
 mod http_partial_content;
 mod menu;
+mod range_util;
 mod tar;
+mod transcribee_archive;
 mod window;
 mod worker_plugin;
 
@@ -111,7 +113,7 @@ pub fn run() {
                     .await
                     .add_listener(move |task, change: Vec<u8>| {
                         let document = app_handle.get_document_from_task(task).unwrap();
-                        append_automerge_change_to_transcribee_file(
+                        transcribee_archive::append_automerge_change(
                             &document.app_data_path,
                             &change,
                         )
