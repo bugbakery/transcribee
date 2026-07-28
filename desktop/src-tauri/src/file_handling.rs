@@ -9,23 +9,21 @@
 
 use crate::cmd_error::CmdResult;
 use crate::http_partial_content::http_response_maybe_partial;
-use crate::tar::{
-    get_byte_range_of_file_in_tar, get_bytes_of_file_in_tar, TarHeader, TAR_BLOCK_SIZE,
-};
-use anyhow::{anyhow, bail, Context, Result};
-use log::{info, warn};
+use crate::transcribee_archive::{self, MediaFileSource};
+use crate::window::focused_window;
+use anyhow::{anyhow, bail, Result};
+use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::fs::{self, remove_file, File};
-use std::io::SeekFrom::Start;
-use std::io::{Read, Seek, Write};
-use std::ops::Range;
+use std::fs::{self, remove_file};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use tauri::path::BaseDirectory;
 use tauri::{command, ipc::Response};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_store::StoreExt;
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +77,15 @@ impl Document {
             media_files: self.media_files.clone(),
         }
     }
+
+    pub fn find_media_file_for_save(&self) -> Option<MediaFileSource> {
+        // TODO: find a better heuristic what file we bundle with the saved files once we have transcoding
+        self.media_files
+            .iter()
+            .find(|m| m.tags.iter().any(|t| t == "original"))
+            .map(|f| f.source.clone())
+            .or_else(|| self.media_files.first().map(|f| f.source.clone()))
+    }
 }
 
 #[derive(Serialize, Debug)]
@@ -97,17 +104,6 @@ pub struct MediaFile {
     /// this must be in the format {document_id}/{something}
     url: String,
     source: MediaFileSource,
-}
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-enum MediaFileSource {
-    Fs {
-        media_path: String,
-    },
-    InTar {
-        archive_path: String,
-        path_in_archive: String,
-    },
 }
 
 pub trait DocumentsStoreExt<R: Runtime> {
@@ -182,26 +178,23 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             return Ok(document);
         }
 
-        let tar_file = &mut File::open(path)?;
-        let automerge_doc = get_bytes_of_file_in_tar(tar_file, "document.automerge")?;
+        let automerge_doc = transcribee_archive::get_automerge_doc(path)?;
         let (id, app_data_path) = create_new_appdata_transcribee_archive(self, &automerge_doc)?;
 
-        let media_file = get_byte_range_of_file_in_tar(tar_file, "media")?;
+        let media_source = MediaFileSource::InTar {
+            archive_path: path.to_string(),
+            path_in_archive: "media".to_string(),
+        };
         let mime_guess_bytes = 24;
-        let mut buf = vec![0u8; mime_guess_bytes];
-        tar_file.seek(Start(media_file.start))?;
-        tar_file.read_exact(&mut buf)?;
-        let mime = infer::get(&buf)
+        let mime_guess_buf = media_source.get_bytes(0..mime_guess_bytes)?;
+        let mime = infer::get(&mime_guess_buf)
             .map(|x| x.mime_type())
             .unwrap_or("application/octet-stream");
         let media_files = vec![MediaFile {
             content_type: mime.to_string(),
             tags: vec![],
             url: format!("{id}/media"),
-            source: MediaFileSource::InTar {
-                archive_path: path.to_string(),
-                path_in_archive: "media".to_string(),
-            },
+            source: media_source,
         }];
 
         let document = Document {
@@ -288,13 +281,78 @@ pub fn forget_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
 }
 
 #[command]
+pub async fn save_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
+    let document = app_handle.get_document(id)?;
+    let Some(save_path) = &document.save_path else {
+        return save_document_as_dialog(app_handle.clone(), id).await;
+    };
+
+    let new_automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
+    if !fs::exists(save_path)? {
+        warn!("save target file under {save_path} does not exist, even if we think it should. Recreating file...");
+        transcribee_archive::create_new(
+            save_path,
+            document.find_media_file_for_save(),
+            &new_automerge_doc,
+        )?;
+    } else {
+        if let Err(e) = transcribee_archive::update_automerge_file(save_path, &new_automerge_doc) {
+            warn!("transcribee_archive::update_automerge_file failed with error {e}, trying to re-creating the file...");
+            transcribee_archive::create_new(
+                save_path,
+                document.find_media_file_for_save(),
+                &new_automerge_doc,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+#[command]
+pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
+    let document = app_handle.get_document(id)?;
+
+    let focused_window =
+        focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
+    let (tx, rx) = oneshot::channel();
+    let default_filename = document
+        .display_name()
+        .rsplit_once(".")
+        .map(|(basename, _suffix)| basename.to_string())
+        .unwrap_or(document.display_name());
+    tauri::async_runtime::spawn(async move {
+        focused_window
+            .dialog()
+            .file()
+            .add_filter("Transcribee Archive", &["transcribee"])
+            .set_file_name(default_filename)
+            .save_file(|f| {
+                tx.send(f).unwrap();
+            });
+    });
+    let Some(save_path) = rx.await? else {
+        return Ok(());
+    };
+
+    let automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
+    transcribee_archive::create_new(
+        &save_path.to_string(),
+        document.find_media_file_for_save(),
+        &automerge_doc,
+    )?;
+
+    app_handle.update_document(id, |mut doc| {
+        doc.save_path = Some(save_path.to_string());
+        doc
+    })?;
+    Ok(())
+}
+
+#[command]
 pub fn read_automerge(app_handle: AppHandle, id: Uuid) -> CmdResult<Response> {
-    let path = app_handle.get_document(id)?.app_data_path;
-    let mut file = File::open(&path).with_context(|| format!("could not open file '{}'", path))?;
-    Ok(tauri::ipc::Response::new(get_bytes_of_file_in_tar(
-        &mut file,
-        "document.automerge",
-    )?))
+    Ok(tauri::ipc::Response::new(
+        transcribee_archive::get_automerge_doc(&app_handle.get_document(id)?.app_data_path)?,
+    ))
 }
 
 #[command]
@@ -310,7 +368,7 @@ pub fn append_automerge_change(
     };
     let uuid = Uuid::from_str(id.to_str()?)?;
     let document = app_handle.get_document(uuid)?;
-    append_automerge_change_to_transcribee_file(&document.app_data_path, change)?;
+    transcribee_archive::append_automerge_change(&document.app_data_path, change)?;
     Ok(())
 }
 
@@ -337,46 +395,12 @@ pub fn get_media_file_response(
             "media file {suffix} not found in document {document_id}"
         ))?;
 
-    match &media.source {
-        MediaFileSource::Fs { media_path } => {
-            let mut file = File::open(media_path)
-                .with_context(|| format!("could not open media file '{}'", path))?;
-            let len = file.metadata()?.len();
-            let get_content = move |range: Range<u64>| {
-                file.seek(Start(range.start))?;
-                let mut buf = vec![0u8; (range.end - range.start) as usize];
-                file.read_exact(&mut buf)?;
-                Ok(buf)
-            };
-            http_response_maybe_partial(
-                request.headers().get("range"),
-                get_content,
-                len,
-                &media.content_type,
-            )
-        }
-        MediaFileSource::InTar {
-            archive_path,
-            path_in_archive,
-        } => {
-            let mut file = File::open(archive_path)
-                .with_context(|| format!("could not open archive file '{}'", path))?;
-            let file_range = get_byte_range_of_file_in_tar(&mut file, path_in_archive)?;
-            let len = file_range.end - file_range.start;
-            let get_content = move |range: Range<u64>| {
-                file.seek(Start(range.start))?;
-                let mut buf = vec![0u8; (range.end - range.start) as usize];
-                file.read_exact(&mut buf)?;
-                Ok(buf)
-            };
-            http_response_maybe_partial(
-                request.headers().get("range"),
-                get_content,
-                len,
-                &media.content_type,
-            )
-        }
-    }
+    http_response_maybe_partial(
+        request.headers().get("range"),
+        |range| media.source.get_bytes(range),
+        media.source.len()?,
+        &media.content_type,
+    )
 }
 
 fn create_new_appdata_transcribee_archive<R: Runtime, T: Manager<R> + Emitter<R>>(
@@ -393,56 +417,6 @@ fn create_new_appdata_transcribee_archive<R: Runtime, T: Manager<R> + Emitter<R>
             fs::create_dir_all(parent)?;
         }
     }
-    let mut file = File::options()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&path)
-        .with_context(|| format!("could not open file '{}'", path.display()))?;
-
-    file.write_all(
-        &TarHeader {
-            path: "document.automerge".to_string(),
-            size: automerge_doc.len() as u64,
-        }
-        .as_bytes()?,
-    )?;
-    file.write_all(automerge_doc)?;
+    transcribee_archive::create_new(path.to_str().unwrap(), None, automerge_doc)?;
     Ok((id, path))
-}
-
-pub fn append_automerge_change_to_transcribee_file(path: &str, change: &[u8]) -> Result<()> {
-    info!("got change with len={}", change.len());
-    let mut file = File::options()
-        .read(true)
-        .write(true)
-        .open(path)
-        .with_context(|| format!("could not open file '{}'", path))?;
-    let file_len = file.metadata()?.len();
-    let data_range = get_byte_range_of_file_in_tar(&mut file, "document.automerge")?;
-    if data_range.end != file_len {
-        // this is only a warning because if transcribee crashes between writing the file and updating the tar header
-        // (see below), we can get a tar file where document.automerge is not right at the end
-        warn!(
-            "document.automerge is not at the end of the archive. (document.automerge end: {}; file length: {})",
-            data_range.end, file_len
-        );
-    }
-    // first, append the data to the end of the document. This does not yet
-    // change the data that transcribee woulde see when opening the file next time
-    file.seek(Start(data_range.end))?;
-    file.write_all(change)?;
-
-    // patch the tar header for document.automerge. This is kinda the commit step
-    file.seek(Start(data_range.start - TAR_BLOCK_SIZE))?;
-    file.write_all(
-        &TarHeader {
-            path: "document.automerge".to_string(),
-            size: data_range.end + change.len() as u64 - data_range.start,
-        }
-        .as_bytes()?,
-    )?;
-
-    Ok(())
 }

@@ -1,10 +1,12 @@
 use anyhow::{bail, ensure, Context, Result};
 use std::{
     fs::File,
-    io::{Read, Seek, SeekFrom::Start},
+    io::{Read, Seek, SeekFrom::Start, Write},
     ops::Range,
     string::FromUtf8Error,
 };
+
+use crate::range_util::RangeLen;
 
 pub const TAR_BLOCK_SIZE: u64 = 512;
 
@@ -139,13 +141,22 @@ pub fn get_byte_range_of_file_in_tar(tar_file: &mut File, path_in_tar: &str) -> 
 pub fn get_bytes_of_file_in_tar(tar_file: &mut File, path_in_tar: &str) -> Result<Vec<u8>> {
     let data_range = get_byte_range_of_file_in_tar(tar_file, path_in_tar)?;
     tar_file.seek(Start(data_range.start))?;
-    let mut buf = vec![0u8; (data_range.end - data_range.start) as usize];
+    let mut buf = vec![0u8; data_range.len() as usize];
     tar_file.read_exact(&mut buf)?;
     Ok(buf)
 }
 
+pub fn pad_file_to_next_tar_block(file: &mut File) -> Result<()> {
+    let file_len = file.metadata()?.len();
+    let desired_len = file_len.div_ceil(TAR_BLOCK_SIZE) * TAR_BLOCK_SIZE;
+    file.write_all(&vec![0u8; (desired_len - file_len) as usize])?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
+    use crate::range_util::RangeLen;
+
     use super::*;
 
     #[test]
@@ -170,7 +181,7 @@ mod test {
         assert_eq!(data_range, 512..197450);
 
         file.seek(Start(data_range.start)).unwrap();
-        let mut buf = vec![0u8; (data_range.end - data_range.start) as usize];
+        let mut buf = vec![0u8; data_range.len() as usize];
         file.read_exact(&mut buf).unwrap();
     }
 }
