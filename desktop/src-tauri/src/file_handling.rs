@@ -36,12 +36,19 @@ pub struct Document {
 
     /// this is the path under which the user explicitly saved their document. We only write this
     /// when explicitly instructed to do so.
+    #[serde(default)]
     pub save_path: Option<String>,
 
+    #[serde(default)]
     pub tasks: Vec<Uuid>,
+    #[serde(default)]
     pub transcription_progress: f32,
 
+    #[serde(default)]
     pub media_files: Vec<MediaFile>,
+
+    #[serde(default)]
+    pub has_unsaved_changes: bool,
 }
 impl Document {
     pub fn display_name(&self) -> String {
@@ -75,6 +82,7 @@ impl Document {
             transcription_progress: self.transcription_progress,
             save_path: self.save_path.clone(),
             media_files: self.media_files.clone(),
+            has_unsaved_changes: self.has_unsaved_changes,
         }
     }
 
@@ -95,6 +103,7 @@ pub struct FrontendDocument {
     transcription_progress: f32,
     save_path: Option<String>,
     media_files: Vec<MediaFile>,
+    has_unsaved_changes: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -208,6 +217,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             transcription_progress: 1.0,
             tasks: vec![],
             media_files,
+            has_unsaved_changes: false,
         };
         self.update_documents(|mut documents| {
             documents.push(document.clone());
@@ -243,6 +253,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             transcription_progress: 0.0,
             tasks,
             media_files,
+            has_unsaved_changes: false,
         };
         self.update_documents(|mut documents| {
             documents.push(document.clone());
@@ -309,6 +320,10 @@ pub async fn save_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
             )?;
         }
     }
+    app_handle.update_document(id, |mut doc| {
+        doc.has_unsaved_changes = false;
+        doc
+    })?;
     Ok(())
 }
 
@@ -347,6 +362,7 @@ pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResu
 
     app_handle.update_document(id, |mut doc| {
         doc.save_path = Some(save_path.to_string());
+        doc.has_unsaved_changes = false;
         doc
     })?;
     Ok(())
@@ -373,6 +389,10 @@ pub fn append_automerge_change(
     let uuid = Uuid::from_str(id.to_str()?)?;
     let document = app_handle.get_document(uuid)?;
     transcribee_archive::append_automerge_change(&document.app_data_path, change)?;
+    app_handle.update_document(uuid, |mut doc| {
+        doc.has_unsaved_changes = true;
+        doc
+    })?;
     Ok(())
 }
 

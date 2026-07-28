@@ -126,6 +126,12 @@ pub fn run() {
                                 }),
                             )
                             .unwrap();
+                        app_handle
+                            .update_document(document.id, |mut doc| {
+                                doc.has_unsaved_changes = true;
+                                doc
+                            })
+                            .unwrap();
                     });
                 let app_handle = app.app_handle().clone();
                 worker_adapter
