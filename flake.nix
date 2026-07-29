@@ -78,6 +78,11 @@
             pkgs.redis
 
             pkgs.glibcLocales
+
+            # required by desktop
+            pkgs.libsoup_3
+            pkgs.webkitgtk_4_1
+            pkgs.pkg-config
           ];
 
           RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
