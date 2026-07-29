@@ -45,16 +45,22 @@ pub fn run() {
                 .level(tauri_plugin_log::log::LevelFilter::Info)
                 .format(|callback: fern::FormatCallback, message, record| {
                     let mut color = match record.metadata().target() {
-                        "worker" => Color::Blue,
-                        _ => Color::Black,
+                        "worker" => Some(Color::Blue),
+                        _ => None,
                     };
                     if record.metadata().level() == Level::Error {
-                        color = Color::Red;
+                        color = Some(Color::Red);
                     }
+
+                    let color_code = if let Some(color) = color {
+                        color.to_fg_str()
+                    } else {
+                        "0".into()
+                    };
 
                     callback.finish(format_args!(
                         "{color_line}{target: <8}| {message}\x1B[0m",
-                        color_line = format_args!("\x1B[{}m", color.to_fg_str()),
+                        color_line = format_args!("\x1B[{}m", color_code),
                         target = record.target(),
                         message = message,
                     ))
