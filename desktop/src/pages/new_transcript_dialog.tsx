@@ -78,10 +78,22 @@ export function NewTranscriptDialog() {
                   multiple: true,
                   directory: false,
                   filters: [
-                    { name: 'Audio Files', extensions: ['mp3', 'acc', 'm4a', 'ogg', 'wav'] },
                     {
-                      name: 'Video Files',
-                      extensions: ['mkv', 'mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'],
+                      name: 'Media Files',
+                      extensions: [
+                        'mp3',
+                        'acc',
+                        'm4a',
+                        'ogg',
+                        'wav',
+                        'mkv',
+                        'mp4',
+                        'mov',
+                        'avi',
+                        'wmv',
+                        'flv',
+                        'webm',
+                      ],
                     },
                   ],
                 });
