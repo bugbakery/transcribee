@@ -10,7 +10,7 @@ import pkg from './package.json';
 import ui_common_pkg from '../ui-common/package.json'
 
 function gitVersionPlugin() {
-  const virtualModuleId = 'virtual:git-version';
+  const virtualModuleId = 'virtual-git-version';
 
   return {
     name: 'git-version', // required, will show up in warnings and errors

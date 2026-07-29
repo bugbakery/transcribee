@@ -1,4 +1,4 @@
-declare module 'virtual:git-version' {
+declare module 'virtual-git-version' {
   export interface Commit {
     hash?: string;
     date?: string;

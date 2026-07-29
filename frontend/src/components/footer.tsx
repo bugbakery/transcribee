@@ -1,6 +1,6 @@
 import './footer';
 // eslint-disable-next-line import/no-unresolved
-import version, { Commit } from 'virtual:git-version';
+import version, { Commit } from 'virtual-git-version';
 import { IoMdOpen } from 'react-icons/io';
 import clsx from 'clsx';
 import { Link } from 'wouter';
