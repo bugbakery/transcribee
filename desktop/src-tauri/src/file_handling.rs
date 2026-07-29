@@ -388,8 +388,10 @@ fn create_new_appdata_transcribee_archive<R: Runtime, T: Manager<R> + Emitter<R>
     let path = app_handle
         .path()
         .resolve(filename, BaseDirectory::AppData)?;
-    if !fs::exists(path.parent().unwrap())? {
-        fs::create_dir_all(&path)?;
+    if let Some(parent) = path.parent() {
+        if !fs::exists(parent)? {
+            fs::create_dir_all(parent)?;
+        }
     }
     let mut file = File::options()
         .read(true)
