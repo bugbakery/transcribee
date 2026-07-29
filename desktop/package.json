@@ -32,6 +32,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.83.0",
+    "react-icons": "^5.7.0",
     "slate": "^0.94.1",
     "slate-automerge-doc": "github:bugbakery/slate-automerge-doc#23c4ca47cb8cc58fa12a63a39294d3e891cda6f1",
     "slate-history": "^0.93.0",
