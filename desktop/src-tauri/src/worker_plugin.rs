@@ -89,10 +89,8 @@ fn setup_worker<R: Runtime>(
                         error!(target: "worker", "error: {e}")
                     }
                     tauri_plugin_shell::process::CommandEvent::Terminated(terminated_payload) => {
-                        for (buf, level) in
-                            [(&mut stderr, Level::Error), (&mut stdout, Level::Info)]
-                        {
-                            output_buffer(buf, level, true);
+                        for buf in [&mut stderr, &mut stdout] {
+                            output_buffer(buf, Level::Info, true);
                         }
                         if let Some(code) = terminated_payload.code {
                             error!(target: "worker", "worker terminated with exit code {code}")
@@ -105,8 +103,8 @@ fn setup_worker<R: Runtime>(
                     _ => {}
                 }
 
-                for (buf, level) in [(&mut stderr, Level::Error), (&mut stdout, Level::Info)] {
-                    output_buffer(buf, level, false);
+                for buf in [&mut stderr, &mut stdout] {
+                    output_buffer(buf, Level::Info, false);
                 }
             }
 
