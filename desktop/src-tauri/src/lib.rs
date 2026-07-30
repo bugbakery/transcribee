@@ -129,6 +129,7 @@ pub fn run() {
                         app_handle
                             .update_document(document.id, |mut doc| {
                                 doc.has_unsaved_changes = true;
+                                doc.transcription_progress = doc.transcription_progress.max(0.01);
                                 doc
                             })
                             .unwrap();
@@ -144,7 +145,7 @@ pub fn run() {
                             let doc = app_handle.get_document_from_task(task).unwrap();
                             app_handle
                                 .update_document(doc.id, |mut doc| {
-                                    doc.transcription_progress = progress;
+                                    doc.transcription_progress = progress.max(0.01);
                                     doc
                                 })
                                 .unwrap();
