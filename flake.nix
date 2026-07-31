@@ -78,7 +78,7 @@
             pkgs.redis
 
             pkgs.glibcLocales
-
+          ] ++ pkgs.lib.optionals (!pkgs.stdenv.isDarwin) [
             # required by desktop
             pkgs.libsoup_3
             pkgs.webkitgtk_4_1
