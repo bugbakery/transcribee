@@ -1,4 +1,4 @@
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import { FormControl, Input } from '../form';
 import { HelpPopup } from '../popup';
 

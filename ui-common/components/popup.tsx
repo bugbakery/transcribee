@@ -1,11 +1,10 @@
-import clsx from 'clsx';
-import { cloneElement, ComponentProps, ReactElement, ReactNode, useState } from 'react';
-import { usePopper } from 'react-popper';
+import { clsx } from 'clsx';
+import { cloneElement, ComponentProps, ReactElement, ReactNode, useRef } from 'react';
 import { useOnClickOutside } from '../utils/use_on_click_outside';
 import { useStateDelayed } from '../utils/use_state_delayed';
 import { IoHelpCircleOutline } from 'react-icons/io5';
 import { IconButton } from './button';
-import { Placement } from '@popperjs/core';
+import { useFloating, Placement, offset, arrow, flip, shift } from '@floating-ui/react-dom';
 
 export function Popup({
   children,
@@ -15,45 +14,28 @@ export function Popup({
   ...props
 }: {
   children?: ReactNode;
-  button: ReactElement;
+  button: ReactElement<{ onClick: () => void }>;
   placement?: Placement;
   popupClassName?: string;
 } & ComponentProps<'div'>) {
-  const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
-  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
-  const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
-
-  const { styles, attributes, update } = usePopper(referenceElement, popperElement, {
+  const arrowRef = useRef(null);
+  const {
+    refs,
+    floatingStyles,
+    middlewareData,
+    update,
+    placement: actualPlacement,
+  } = useFloating<HTMLDivElement>({
     placement: placement,
-    modifiers: [
-      {
-        name: 'flip',
-        options: {
-          fallbackPlacements: ['bottom', 'top', 'right', 'left'],
-          flipVariations: true,
-        },
-      },
-      {
-        name: 'offset',
-        options: {
-          offset: [0, 8],
-        },
-      },
-      {
-        name: 'arrow',
-        options: {
-          element: arrowElement,
-        },
-      },
-    ],
+    middleware: [flip(), shift({ padding: 10 }), offset(8), arrow({ element: arrowRef })],
   });
   const [show, setShow] = useStateDelayed(false);
-  useOnClickOutside(referenceElement, () => {
+  useOnClickOutside(refs.reference.current, () => {
     setShow(false);
   });
 
   return (
-    <div {...props} ref={setReferenceElement}>
+    <div {...props} ref={refs.setReference}>
       {cloneElement(button, {
         onClick: () => {
           setShow(!show.now);
@@ -82,33 +64,30 @@ export function Popup({
           )}
           aria-hidden={!show.now}
           style={{
-            ...styles.popper,
-            transform: `${styles.popper.transform || ''} ${
+            ...floatingStyles,
+            transform: `${floatingStyles.transform || ''} ${
               show.late ? 'scale(100%)' : 'scale(75%)'
             }`,
           }}
-          ref={setPopperElement}
-          {...attributes.popper}
+          ref={refs.setFloating}
         >
           {children}
           <div
-            ref={setArrowElement}
-            style={styles.arrow}
+            ref={arrowRef}
+            style={{
+              position: 'absolute',
+              left: middlewareData.arrow?.x,
+              top: middlewareData.arrow?.y,
+            }}
             className={clsx(
-              attributes?.popper?.['data-popper-placement'] == 'bottom' && [
-                'top-[-7px]',
-                'before:rotate-45',
-              ],
-              attributes?.popper?.['data-popper-placement'] == 'top' && [
-                'bottom-[4px]',
-                'before:rotate-[225deg]',
-              ],
-              attributes?.popper?.['data-popper-placement'] == 'right' && [
+              actualPlacement == 'bottom' && ['top-[-7px]', 'before:rotate-45'],
+              actualPlacement == 'top' && ['bottom-[4px]', 'before:rotate-[225deg]'],
+              actualPlacement == 'right' && [
                 'left-[-1px]',
                 'before:top-[-8px]',
                 'before:rotate-[-45deg]',
               ],
-              attributes?.popper?.['data-popper-placement'] == 'left' && [
+              actualPlacement == 'left' && [
                 'right-[-2px]',
                 'before:top-[-8px]',
                 'before:rotate-[135deg]',

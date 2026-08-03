@@ -1,53 +1,34 @@
-import clsx from 'clsx';
-import React, { ComponentProps, useEffect, useState } from 'react';
-import { usePopper } from 'react-popper';
-import { Placement } from '@popperjs/core';
+import { clsx } from 'clsx';
+import React, { ComponentProps, useEffect, useRef } from 'react';
+import { useFloating, Placement, offset, arrow, flip } from '@floating-ui/react-dom';
 import { useStateDelayed } from '../utils/use_state_delayed';
 
 export function Tooltip({
   children,
   tooltipText,
-  placements = 'bottom',
-  fallbackPlacements = ['top'],
+  placement = 'bottom',
+  fallbackPlacements = ['bottom', 'top'],
   ...props
 }: {
   children?: React.ReactNode;
   tooltipText: React.ReactNode;
-  placements?: Placement;
+  placement?: Placement;
   fallbackPlacements?: Placement[];
 } & ComponentProps<'div'>) {
-  const [referenceElement, setReferenceElement] = useState<HTMLDivElement | null>(null);
-  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
-  const [arrowElement, setArrowElement] = useState<HTMLDivElement | null>(null);
-
-  const { styles, attributes } = usePopper(referenceElement, popperElement, {
-    placement: placements,
-    modifiers: [
-      {
-        name: 'flip',
-        options: {
-          fallbackPlacements: fallbackPlacements,
-          flipVariations: true,
-        },
-      },
-      {
-        name: 'offset',
-        options: {
-          offset: [0, 8],
-        },
-      },
-      {
-        name: 'arrow',
-        options: {
-          element: arrowElement,
-        },
-      },
-    ],
+  const arrowRef = useRef(null);
+  const {
+    refs,
+    floatingStyles,
+    middlewareData,
+    placement: actualPlacement,
+  } = useFloating<HTMLDivElement>({
+    placement,
+    middleware: [flip({ fallbackPlacements }), offset(9), arrow({ element: arrowRef })],
   });
 
-  const [show, setShow] = useStateDelayed(false);
-
+  const [show, setShow] = useStateDelayed(false, { late: 1, prolong: 1 });
   useEffect(() => {
+    const referenceElement = refs.reference.current;
     if (referenceElement === null) {
       return;
     }
@@ -73,15 +54,15 @@ export function Tooltip({
         referenceElement.removeEventListener(event, hide);
       });
     };
-  }, [referenceElement]);
+  }, [refs.reference.current]);
 
   return (
-    <div {...props} ref={setReferenceElement}>
+    <div {...props} ref={refs.setReference}>
       {children}
       {show.prolonged && tooltipText ? (
         <div
           className={clsx(
-            'p-4',
+            'px-3 py-1.5',
             'bg-white dark:bg-neutral-900',
             'border-black dark:border-neutral-200',
             'border-2',
@@ -92,14 +73,17 @@ export function Tooltip({
             'z-10',
             'group',
           )}
-          style={styles.popper}
-          ref={setPopperElement}
-          {...attributes.popper}
+          style={floatingStyles}
+          ref={refs.setFloating}
         >
           {tooltipText}
           <div
-            ref={setArrowElement}
-            style={styles.arrow}
+            ref={arrowRef}
+            style={{
+              position: 'absolute',
+              left: middlewareData.arrow?.x,
+              top: middlewareData.arrow?.y,
+            }}
             className={clsx(
               'before:absolute',
               'before:w-[11px]',
@@ -111,12 +95,18 @@ export function Tooltip({
               'before:border-t-2',
               'before:border-solid',
               'before:border-black dark:before:border-neutral-200',
-
-              'group-data-[popper-placement=bottom]:top-[-7px]',
-              'group-data-[popper-placement=bottom]:before:rotate-[45deg]',
-
-              'group-data-[popper-placement=top]:bottom-[4px]',
-              'group-data-[popper-placement=top]:before:rotate-[225deg]',
+              actualPlacement == 'bottom' && ['top-[-7px]', 'before:rotate-45'],
+              actualPlacement == 'top' && ['bottom-[4px]', 'before:rotate-[225deg]'],
+              actualPlacement == 'right' && [
+                'left-[-1px]',
+                'before:top-[-6px]',
+                'before:rotate-[-45deg]',
+              ],
+              actualPlacement == 'left' && [
+                'right-[-2px]',
+                'before:top-[-6px]',
+                'before:rotate-[135deg]',
+              ],
             )}
           />
         </div>

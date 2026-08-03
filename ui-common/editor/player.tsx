@@ -1,4 +1,4 @@
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import { IconButton } from '../components/button';
 import { ImBackward2, ImPause2, ImPlay3 } from 'react-icons/im';
 import { useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react';
@@ -232,7 +232,7 @@ function PlayButton({
   playing: boolean;
   buffering: boolean;
 }) {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout>(null);
   const [delayedBuffering, setDelayedBuffering] = useState(false);
 
   useEffect(() => {
@@ -243,7 +243,7 @@ function PlayButton({
     } else {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
-        timeoutRef.current = undefined;
+        timeoutRef.current = null;
       }
       setDelayedBuffering(false);
     }

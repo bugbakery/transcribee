@@ -11,8 +11,8 @@ import {
 import { SpeakerDropdown } from './speaker_dropdown';
 import { SeekToEvent, Paragraph } from './types';
 import { startTimeToClassName } from './player';
-import clsx from 'clsx';
-import React, { ComponentProps, useContext, useCallback, memo, useState } from 'react';
+import { clsx } from 'clsx';
+import React, { ComponentProps, useContext, useCallback, memo, useState, JSX } from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';

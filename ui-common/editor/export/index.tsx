@@ -1,4 +1,4 @@
-import { ComponentProps, useState } from 'react';
+import { ComponentProps, JSX, useState } from 'react';
 import { Editor } from 'slate';
 
 import { FormControl, Input, Select } from '../../components/form';

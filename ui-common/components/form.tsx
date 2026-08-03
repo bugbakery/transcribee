@@ -1,5 +1,6 @@
 import {
   ComponentProps,
+  JSX,
   ReactNode,
   forwardRef,
   useCallback,
@@ -8,7 +9,7 @@ import {
   useRef,
 } from 'react';
 import { primitiveWithClassname } from '../utils/styled';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 
 export type FormControlProps = {
   label: string;

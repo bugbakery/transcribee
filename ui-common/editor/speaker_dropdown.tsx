@@ -11,7 +11,7 @@ import { getSpeakerName, useSpeakerName, useSpeakerNames } from '../utils/docume
 import { showModal, Modal } from '../components/modal';
 import { SpeakerColorsContext } from './speaker_colors';
 import { Editor, Transforms } from 'slate';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 
 export function calculateParagraphIdxOfSpeakerEnd(editor: Editor, idx: number): number {
   const speaker = editor.doc.children[idx].speaker;
