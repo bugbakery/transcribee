@@ -99,6 +99,9 @@
               export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
               # `dyld` needs to find the libraries
               export DYLD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DYLD_LIBRARY_PATH
+
+              # use external xcode
+              export SDK_ROOT=/Applications/Xcode.app/Contents/Developer
             '';
         };
       }
