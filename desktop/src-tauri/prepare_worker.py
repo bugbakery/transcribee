@@ -5,8 +5,11 @@ from pathlib import Path
 from subprocess import check_call
 
 if __name__ == "__main__":
-    platform = os.environ["TAURI_ENV_PLATFORM"]
-    arch = os.environ["TAURI_ENV_ARCH"]
+    platform = os.environ["CARGO_CFG_TARGET_OS"]
+    if platform == "macos":
+        platform = "darwin"
+
+    arch = os.environ["CARGO_CFG_TARGET_ARCH"]
     target = f"{platform}-{arch}"
 
     worker_dir = Path(__file__).parent.parent.parent / "worker" / "packaging"
