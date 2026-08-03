@@ -1,4 +1,4 @@
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import { useLocation } from 'wouter';
 import { storeAuthToken } from '../api';
 import { logout } from '../api/user';

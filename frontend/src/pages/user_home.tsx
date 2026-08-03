@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import TruncateMarkup from 'react-truncate-markup';
 import { deleteDocument, useListDocuments } from '../api/document';
 import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../components/top_bar';
@@ -8,7 +8,7 @@ import { AiOutlinePlus } from 'react-icons/ai';
 import { IoMdTrash } from 'react-icons/io';
 import { IconButton } from 'transcribee-ui-common/components/button';
 import { WorkerStatusWithData } from '../components/worker_status';
-import { ComponentProps, useEffect, useState } from 'react';
+import { ComponentProps, JSX, useEffect, useState } from 'react';
 import { RequestDataType } from '../api';
 
 type ApiDocument = RequestDataType<typeof useListDocuments>[0];

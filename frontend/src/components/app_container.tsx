@@ -1,5 +1,6 @@
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import { Footer } from './footer';
+import { JSX } from 'react/jsx-runtime';
 
 export function AppContainer({
   children,
