@@ -23,7 +23,11 @@ export function Tooltip({
     placement: actualPlacement,
   } = useFloating<HTMLDivElement>({
     placement,
-    middleware: [flip({ fallbackPlacements }), offset(9), arrow({ element: arrowRef })],
+    middleware: [
+      flip({ fallbackPlacements, padding: 12 }),
+      offset(9),
+      arrow({ element: arrowRef }),
+    ],
   });
 
   const [show, setShow] = useStateDelayed(false, { late: 1, prolong: 1 });

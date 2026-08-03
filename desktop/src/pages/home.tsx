@@ -37,10 +37,10 @@ export function HomePage() {
 
   return (
     <div className="min-h-full flex">
-      <div className="my-auto flex flex-col w-full items-center margin-auto gap-4 pt-20">
-        <div className="flex flex-row w-[500px] items-center justify-center gap-4 pb-12">
+      <div className="m-auto w-full flex flex-col items-center gap-4 pt-20 pb-16">
+        <div className="flex max-w-[500px] w-full px-4 items-stretch justify-center gap-4 pb-12">
           <PrimaryButton
-            className="block grow basis-1"
+            className="grow basis-1"
             onClick={async () => {
               invoke('show_new_transcript_dialog');
             }}
@@ -48,7 +48,7 @@ export function HomePage() {
             Transcribe Audio
           </PrimaryButton>
           <SecondaryButton
-            className="block grow basis-1"
+            className="grow basis-1"
             onClick={async () => {
               await invoke('open_document_via_file_picker');
             }}
@@ -60,7 +60,6 @@ export function HomePage() {
           <TranscriptionQueue documents={transcriptionQueueDocuments} />
         )}
         {recentDocuments.length > 0 && <RecentDocuments documents={recentDocuments} />}
-        <div className="pb-16" />
       </div>
     </div>
   );
@@ -70,11 +69,10 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
   documents.sort((a, b) => a.transcription_progress - b.transcription_progress);
 
   return (
-    <div className="w-[500px] pb-8">
-      <h2 className="block font-semibold text-center px-1 mb-4">Transcription Queue</h2>
-      <div className="relative -top-2">
+    <div className="w-full max-w-[500px] px-4 pb-8">
+      <h2 className="font-semibold text-center px-1 mb-4">Transcription Queue</h2>
+      <div>
         {documents.map((doc) => {
-          console.log(doc);
           let progressIndicator;
           if (doc.transcription_progress == 0) {
             progressIndicator = (
@@ -89,7 +87,7 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
                 }
                 className="ml-2"
               >
-                <FaRegClock className="text-gray-400 text-xl shrink-0" />
+                <FaRegClock className="text-neutral-400 shrink-0" size={21} />
               </Tooltip>
             );
           } else {
@@ -115,15 +113,12 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
           return (
             <div
               key={doc.id}
-              className="px-3 py-2.5 my-2 border rounded-md flex items-center justify-between hover:bg-gray-100 cursor-pointer"
+              className="px-3 py-2.5 my-2 border rounded-md flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
               onClick={() => {
                 invoke('open_document_window', { id: doc.id });
               }}
             >
-              <div
-                title={doc.save_path}
-                className="whitespace-pre text-ellipsis overflow-hidden text-sm"
-              >
+              <div title={doc.save_path} className="truncate text-sm">
                 {doc.display_name}
               </div>
               {progressIndicator}
@@ -150,7 +145,10 @@ function ProgressPie({
 
   return (
     <svg
-      className={clsx(className, progress >= 1 ? 'text-green-600' : 'text-black')}
+      className={clsx(
+        className,
+        progress >= 1 ? 'text-green-600 dark:text-green-300' : 'text-black dark:text-white',
+      )}
       viewBox={`${minXY} ${minXY} ${wh} ${wh}`}
       stroke="currentColor"
       strokeLinecap="round"
@@ -161,16 +159,19 @@ function ProgressPie({
     >
       <path
         className="animate-[spin_3s_linear_infinite]"
-        mask="url(#myMask)"
-        d={`
+        d={
+          // circle segment according to progress
+          `
           M ${endX} ${endY}
           A 1 1 0 ${progressReal > 0.5 ? 1 : 0} 0 0 -1
-        `}
+        `
+        }
       />
 
       <circle r="1" opacity={0.1} />
 
       {progress >= 1 && (
+        // checkbox:
         <path
           d={`
           M -0.42 0.1
@@ -185,20 +186,20 @@ function ProgressPie({
 
 function RecentDocuments({ documents }: { documents: Document[] }) {
   return (
-    <div className="w-[500px] rounded-md">
+    <div className="w-full max-w-[500px] px-4 rounded-md">
       <h2 className="font-semibold text-center mb-2">Recent Documents</h2>
       <ul>
         {documents.map((doc) => (
           <li
             key={doc.id}
-            className="px-3 py-1.5 text-sm flex items-center even:bg-gray-100 rouded-md justify-between group hover:underline"
+            className="px-3 py-1.5 text-sm flex items-center even:bg-neutral-100 dark:even:bg-neutral-800 rounded-md justify-between group hover:underline"
           >
             <div
               title={doc.save_path}
               onClick={() => {
                 invoke('open_document_window', { id: doc.id });
               }}
-              className="whitespace-pre text-ellipsis overflow-hidden cursor-pointer"
+              className="truncate cursor-pointer"
             >
               {doc.display_name}
             </div>
@@ -206,7 +207,7 @@ function RecentDocuments({ documents }: { documents: Document[] }) {
               icon={IoClose}
               label={'remove document from recent list'}
               discreet
-              className="hidden group-hover:block text-gray-600"
+              className="hidden group-hover:block text-neutral-600 dark:text-neutral-400"
               onClick={() => {
                 invoke('forget_document', { id: doc.id });
               }}
