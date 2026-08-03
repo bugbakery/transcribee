@@ -3,15 +3,15 @@ import {
   IconButton,
   LoadingSpinnerButton,
   SecondaryButton,
-} from 'transcribee-ui-common//components/button';
-import { Checkbox, FormControl, Input } from 'transcribee-ui-common//components/form';
-import { DoubleWidthModal, Modal } from 'transcribee-ui-common//components/modal';
+} from 'transcribee-ui-common/components/button';
+import { Checkbox, FormControl, Input } from 'transcribee-ui-common/components/form';
+import { DoubleWidthModal, Modal } from 'transcribee-ui-common/components/modal';
 import { deleteShareToken, shareDocument, useListShareTokens } from '../api/document';
 import { IoIosTrash } from 'react-icons/io';
 import { HiOutlineClipboardCopy } from 'react-icons/hi';
 import { clsx } from 'clsx';
-import { DialogSeparator } from 'transcribee-ui-common//components/dialog';
-import { Tooltip } from 'transcribee-ui-common//components/tooltip';
+import { DialogSeparator } from 'transcribee-ui-common/components/dialog';
+import { Tooltip } from 'transcribee-ui-common/components/tooltip';
 import { RequestDataType } from '../api';
 
 type ShareToken = RequestDataType<typeof useListShareTokens>[0];
