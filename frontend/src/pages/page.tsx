@@ -17,8 +17,8 @@ export function PagePage({ params: { pageId } }: RouteComponentProps<{ pageId: s
   }
   return (
     <AppCenter>
-      <div>
-        <ReactMarkdown className="prose dark:prose-invert">{data.text}</ReactMarkdown>
+      <div className="prose dark:prose-invert">
+        <ReactMarkdown>{data.text}</ReactMarkdown>
       </div>
     </AppCenter>
   );
