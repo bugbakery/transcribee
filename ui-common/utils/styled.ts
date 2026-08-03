@@ -1,7 +1,7 @@
-import clsx, { ClassValue } from 'clsx';
-import { createElement, forwardRef, ReactHTML } from 'react';
+import { clsx, ClassValue } from 'clsx';
+import { createElement, forwardRef, HTMLElementType, JSX } from 'react';
 
-export function primitiveWithClassname<T extends keyof ReactHTML>(type: T, classValue: ClassValue) {
+export function primitiveWithClassname<T extends HTMLElementType>(type: T, classValue: ClassValue) {
   const C = forwardRef((props: JSX.IntrinsicElements[T], ref) => {
     return createElement(type, {
       ...props,

@@ -1,5 +1,5 @@
 import { actions, video, events, props } from '@podlove/html5-audio-driver';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { padRect, rectContains } from './rect_utils';
 

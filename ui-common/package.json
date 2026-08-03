@@ -25,20 +25,19 @@
   },
   "dependencies": {
     "@audapolis/webvtt-writer": "^1.0.6",
+    "@floating-ui/react": "^0.27.20",
     "@podlove/html5-audio-driver": "^2.0.3",
-    "@popperjs/core": "^2.11.8",
     "@zip.js/zip.js": "^2.7.31",
-    "react-base16-styling": "^0.9.1",
-    "react-icons": "^4.12.0",
+    "react-base16-styling": "^0.10.0",
+    "react-icons": "^5.7.0",
     "react-intersection-observer": "^9.5.3",
-    "react-json-tree": "^0.18.0",
-    "react-popper": "^2.3.0"
+    "react-json-tree": "^0.20.0"
   },
   "peerDependencies": {
     "@automerge/automerge": "~3.3.1",
     "clsx": "^1.2.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "slate": "^0.94.1",
     "slate-automerge-doc": "github:bugbakery/slate-automerge-doc#23c4ca47cb8cc58fa12a63a39294d3e891cda6f1",
     "slate-history": "^0.93.0",
@@ -47,8 +46,8 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
-    "@types/react": "^18.2.37",
-    "@types/react-dom": "^18.2.15",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
     "@typescript-eslint/parser": "^8.64.0",
     "eslint": "^8.53.0",

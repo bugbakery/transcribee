@@ -1,4 +1,4 @@
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import { ComponentProps, ReactNode, useState } from 'react';
 
 import { IconType } from 'react-icons';

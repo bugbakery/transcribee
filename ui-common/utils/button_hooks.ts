@@ -18,7 +18,7 @@ export function useButtonHoldRepeat({
   delayMs?: number;
   intervalMs?: number;
 }) {
-  const interval = useRef<number | undefined>();
+  const interval = useRef<number>(undefined);
 
   const onLongPressStart = useCallback(() => {
     interval.current = window.setInterval(() => {
@@ -61,7 +61,7 @@ export function useButtonLongPress({
   onMouseLeave: () => void;
 } {
   const longPressing = useRef(false);
-  const timeout = useRef<number | undefined>();
+  const timeout = useRef<number>(undefined);
 
   const down = useCallback(() => {
     timeout.current = window.setTimeout(() => {

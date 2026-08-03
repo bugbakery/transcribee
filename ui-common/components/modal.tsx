@@ -1,7 +1,7 @@
-import { ComponentProps, cloneElement, useRef, useState } from 'react';
+import { ComponentProps, JSX, cloneElement, useRef, useState } from 'react';
 import { useEvent } from '../utils/use_event';
 import { Dialog, DialogTitle } from './dialog';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 
 const SHOW_MODAL_EVENT = 'showModal';
 class ShowModalEvent extends CustomEvent<{ children: JSX.Element | null }> {
@@ -59,7 +59,7 @@ export function Modal({
   transitionClassName?: string;
   dialogClassName?: string;
 } & ComponentProps<'div'>) {
-  const dialogRef = useRef<HTMLDivElement>();
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEvent<KeyboardEvent>('keydown', (e) => {
     if (e.key == 'Escape') {
       onClose();
