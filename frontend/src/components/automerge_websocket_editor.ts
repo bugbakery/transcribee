@@ -26,7 +26,7 @@ export function useAutomergeWebsocketEditor(
     editor: Editor;
     initialValue: Paragraph[];
   }>(null);
-  const editorRef = useRef<undefined | Editor>();
+  const editorRef = useRef<Editor>(undefined);
   if (editorRef.current !== editorAndInitialValue?.editor)
     editorRef.current = editorAndInitialValue?.editor;
   const wsRef = useRef<ReconnectingWebSocket | null>(null);

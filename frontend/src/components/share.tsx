@@ -1,4 +1,4 @@
-import { ComponentProps, useState } from 'react';
+import { ComponentProps, JSX, useState } from 'react';
 import {
   IconButton,
   LoadingSpinnerButton,
@@ -9,7 +9,7 @@ import { DoubleWidthModal, Modal } from 'transcribee-ui-common//components/modal
 import { deleteShareToken, shareDocument, useListShareTokens } from '../api/document';
 import { IoIosTrash } from 'react-icons/io';
 import { HiOutlineClipboardCopy } from 'react-icons/hi';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import { DialogSeparator } from 'transcribee-ui-common//components/dialog';
 import { Tooltip } from 'transcribee-ui-common//components/tooltip';
 import { RequestDataType } from '../api';

@@ -2,7 +2,7 @@ import { useGetDocumentTasks } from '../api/document';
 import { IconButton } from 'transcribee-ui-common/components/button';
 import { Popup } from 'transcribee-ui-common/components/popup';
 import { BsRobot } from 'react-icons/bs';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import React from 'react';
 import { useMediaQuery } from 'transcribee-ui-common/utils/use_media_query';
 import { RequestDataType } from '../api';

@@ -2,7 +2,7 @@ import './footer';
 // eslint-disable-next-line import/no-unresolved
 import version, { Commit } from 'virtual-git-version';
 import { IoMdOpen } from 'react-icons/io';
-import clsx from 'clsx';
+import { clsx } from 'clsx';
 import { Link } from 'wouter';
 import { useGetPages } from '../api/pages';
 import { primitiveWithClassname } from 'transcribee-ui-common/utils/styled';
