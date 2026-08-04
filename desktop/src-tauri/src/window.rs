@@ -4,7 +4,9 @@ use uuid::Uuid;
 
 use crate::file_handling::Document;
 
-pub fn create_or_focus_window<R: Runtime>(
+// this is async since this would deadlock in synchronous commands or event handlers on windows
+// (see https://docs.rs/tauri/latest/tauri/webview/struct.WebviewWindowBuilder.html#known-issues)
+pub async fn create_or_focus_window<R: Runtime>(
     app: &AppHandle<R>,
     label: &str,
     url: WebviewUrl,
@@ -30,10 +32,11 @@ pub fn create_or_focus_window<R: Runtime>(
     }
 }
 
-pub fn create_or_focus_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
+pub async fn create_or_focus_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     create_or_focus_window(app, "main", WebviewUrl::App("".into()), |buider| {
         buider.inner_size(800.0, 600.0)
     })
+    .await
 }
 
 pub fn focused_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
@@ -53,7 +56,7 @@ pub fn get_focused_document_id(app: &AppHandle) -> anyhow::Result<Uuid> {
     Ok(uuid)
 }
 
-pub fn create_or_focus_document_window(
+pub async fn create_or_focus_document_window(
     app: &AppHandle,
     document: &Document,
     fullscreen: bool,
@@ -64,4 +67,5 @@ pub fn create_or_focus_document_window(
         WebviewUrl::App(format!("document/{}", document.id).into()),
         |builder| builder.inner_size(1200.0, 800.0).fullscreen(fullscreen),
     )
+    .await
 }
