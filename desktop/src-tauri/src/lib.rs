@@ -153,7 +153,9 @@ pub fn run() {
                     })
             });
 
-            create_or_focus_main_window(app.handle()).unwrap();
+            tauri::async_runtime::block_on(async {
+                create_or_focus_main_window(app.handle()).await.unwrap();
+            });
 
             #[cfg(target_os = "macos")]
             crate::menu::setup_macos_menu(app.handle())?;
@@ -181,8 +183,10 @@ pub fn run() {
                 has_visible_windows,
                 ..
             } if !has_visible_windows => {
-                // click on macOS dock opens main window again
-                create_or_focus_main_window(app).unwrap();
+                tauri::async_runtime::block_on(async {
+                    // click on macOS dock opens main window again
+                    create_or_focus_main_window(app).await.unwrap();
+                });
             }
             _ => {}
         });

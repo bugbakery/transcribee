@@ -35,7 +35,7 @@ pub async fn transcribe_files(
         app.create_new_document(f, vec![task_uuid])?;
     }
 
-    create_or_focus_main_window(&app)?;
+    create_or_focus_main_window(&app).await?;
     Ok(())
 }
 
@@ -57,7 +57,7 @@ pub fn toggle_devtools(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn open_document_window(app: AppHandle, id: Uuid) -> CmdResult<()> {
+pub async fn open_document_window(app: AppHandle, id: Uuid) -> CmdResult<()> {
     let focused_window = focused_window(&app);
     let fullscreen = focused_window
         .clone()
@@ -71,15 +71,15 @@ pub fn open_document_window(app: AppHandle, id: Uuid) -> CmdResult<()> {
         }
     }
 
-    create_or_focus_document_window(&app, &document, fullscreen)?;
+    create_or_focus_document_window(&app, &document, fullscreen).await?;
     Ok(())
 }
 
 #[tauri::command]
 pub async fn open_document_via_file_picker(app: AppHandle) -> CmdResult<()> {
-    let parent = match focused_window(&app) {
+    let parent: tauri::WebviewWindow = match focused_window(&app) {
         Some(window) if window.label().starts_with("document/") => window,
-        _ => create_or_focus_main_window(&app).unwrap(),
+        _ => create_or_focus_main_window(&app).await.unwrap(),
     };
 
     let (tx, rx) = oneshot::channel();
@@ -104,15 +104,15 @@ pub async fn open_document_via_file_picker(app: AppHandle) -> CmdResult<()> {
             parent.close().unwrap();
         }
 
-        create_or_focus_document_window(&app, &document, fullscreen)?;
+        create_or_focus_document_window(&app, &document, fullscreen).await?;
     }
 
     Ok(())
 }
 
 #[tauri::command]
-pub fn show_new_transcript_dialog(app: AppHandle) {
-    let main_window = create_or_focus_main_window(&app).unwrap();
+pub async fn show_new_transcript_dialog(app: AppHandle) {
+    let main_window = create_or_focus_main_window(&app).await.unwrap();
     let main_scale_factor = main_window.scale_factor().unwrap();
     let main_pos: LogicalPosition<f64> = main_window
         .outer_position()
@@ -140,5 +140,6 @@ pub fn show_new_transcript_dialog(app: AppHandle) {
                 .resizable(false)
         },
     )
+    .await
     .unwrap();
 }

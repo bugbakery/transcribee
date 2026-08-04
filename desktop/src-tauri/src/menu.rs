@@ -108,7 +108,7 @@ pub fn setup_macos_menu(app: &AppHandle) -> tauri::Result<()> {
                 open_document_via_file_picker(app).await?;
             }
             "new" => {
-                create_or_focus_main_window(&app)?;
+                create_or_focus_main_window(&app).await?;
             }
             "save" => save_document(app.clone(), get_focused_document_id(&app)?).await?,
             "save_as" => {
