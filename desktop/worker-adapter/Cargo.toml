@@ -17,13 +17,8 @@ tower-http = { version = "0.7.0", features = ["trace"] }
 tracing = "0.1.44"
 uuid = { version = "1.23.1", features = ["serde", "v7"] }
 
-[features]
-standalone = ["dep:env_logger", "dep:clap"]
-
-[[bin]]
-name = "standalone"
-required-features = ["standalone"]
-
 [dev-dependencies]
 automerge = "0.10.0"
 kill_tree = "0.2.4"
+nonblock = "0.2.0"
+reqwest = "0.13.4"
