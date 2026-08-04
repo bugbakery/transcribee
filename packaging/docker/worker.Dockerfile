@@ -12,7 +12,6 @@ WORKDIR /app/worker
 # enable caching dependencies in separate layer
 COPY worker/uv.lock worker/pyproject.toml worker/.python-version ./
 COPY proto /app/proto
-COPY .python-version /app/.python-version
 RUN uv sync --frozen --no-install-project
 
 COPY worker ./
