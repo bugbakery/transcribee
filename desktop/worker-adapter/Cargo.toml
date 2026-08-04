@@ -23,3 +23,7 @@ standalone = ["dep:env_logger", "dep:clap"]
 [[bin]]
 name = "standalone"
 required-features = ["standalone"]
+
+[dev-dependencies]
+automerge = "0.10.0"
+kill_tree = "0.2.4"
