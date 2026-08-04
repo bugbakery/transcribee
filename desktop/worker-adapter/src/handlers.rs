@@ -7,7 +7,7 @@ use axum::{
     Json,
     body::Bytes,
     extract::{ConnectInfo, WebSocketUpgrade, ws::WebSocket},
-    response::IntoResponse,
+    response::{IntoResponse, Result},
 };
 use axum_extra::extract::Query;
 use futures_util::stream::StreamExt;
@@ -32,37 +32,37 @@ pub async fn claim_unassigned_task(
 pub async fn mark_completed(
     State(app_state): State<WorkerAdapter>,
     Path(task_id): Path<Uuid>,
-) -> Json<()> {
+) -> Result<Json<()>> {
     let mut tasks = app_state.tasks.lock().await;
-    tasks.complete_task(task_id);
+    tasks.complete_task(task_id)?;
     let mut progress_listeners = app_state.progress_listeners.lock().await;
     progress_listeners
         .notify_listeners(task_id, Some(1.0))
         .await;
-    Json(())
+    Ok(Json(()))
 }
 
 pub async fn mark_failed(
     State(app_state): State<WorkerAdapter>,
     Path(task_id): Path<Uuid>,
-) -> Json<()> {
+) -> Result<Json<()>> {
     let mut tasks = app_state.tasks.lock().await;
-    tasks.fail_task(task_id);
-    Json(())
+    tasks.fail_task(task_id)?;
+    Ok(Json(()))
 }
 
 pub async fn keepalive(
     State(app_state): State<WorkerAdapter>,
     Path(task_id): Path<Uuid>,
     Json(payload): Json<TaskAttempt>,
-) -> Json<()> {
+) -> Result<Json<()>> {
     let mut tasks = app_state.tasks.lock().await;
-    tasks.update_task_attempt(task_id, payload.clone());
+    tasks.update_task_attempt(task_id, payload.clone())?;
     let mut progress_listeners = app_state.progress_listeners.lock().await;
     progress_listeners
         .notify_listeners(task_id, payload.progress)
         .await;
-    Json(())
+    Ok(Json(()))
 }
 
 pub async fn noop(body: Bytes) -> Json<()> {
