@@ -20,11 +20,12 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use tauri::path::BaseDirectory;
 use tauri::{command, ipc::Response};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_store::StoreExt;
 use tokio::sync::oneshot;
 use uuid::Uuid;
+use worker_adapter::WorkerAdapter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
@@ -282,12 +283,22 @@ pub fn get_document(app_handle: AppHandle, id: Uuid) -> CmdResult<FrontendDocume
 /// If a transcription job is currently running for this document, it gets canceled.
 /// If the document has unsaved changes, these get deleted, so in this case the frontend
 /// should display a confirmation dialog.
-/// TODO: build cancelation logic
 #[command]
-pub fn forget_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
+pub fn forget_document(
+    app_handle: AppHandle,
+    worker_adapter: State<'_, WorkerAdapter>,
+    id: Uuid,
+) -> CmdResult<()> {
     app_handle.update_documents(|mut documents| {
         if let Some(position) = documents.iter().position(|doc| doc.id == id) {
             let doc = documents.remove(position);
+            for task in doc.tasks {
+                worker_adapter
+                    .tasks
+                    .blocking_lock()
+                    .remove_task(task)
+                    .unwrap();
+            }
             remove_file(doc.app_data_path)?;
         }
         Ok(documents)

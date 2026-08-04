@@ -10,6 +10,9 @@ import { IoClose } from 'react-icons/io5';
 import { FaRegClock } from 'react-icons/fa6';
 import { clsx } from 'clsx';
 import { ComponentProps } from 'react';
+import { Menu, MenuItem } from '@tauri-apps/api/menu';
+import { ask, message } from '@tauri-apps/plugin-dialog';
+import { getAllWindows } from '@tauri-apps/api/window';
 
 type MediaFile = {
   content_type: string;
@@ -74,7 +77,9 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
       <div>
         {documents.map((doc) => {
           let progressIndicator;
+          let contextMenuDeleteText;
           if (doc.transcription_progress == 0) {
+            contextMenuDeleteText = 'remove from transcription queue';
             progressIndicator = (
               <Tooltip
                 placement={'right'}
@@ -91,6 +96,11 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
               </Tooltip>
             );
           } else {
+            if (doc.transcription_progress == 1) {
+              contextMenuDeleteText = 'delete transcribed document';
+            } else {
+              contextMenuDeleteText = 'abort transcription and delete';
+            }
             progressIndicator = (
               <Tooltip
                 placement={'right'}
@@ -116,6 +126,40 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
               className="px-3 py-2.5 my-2 border rounded-md flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
               onClick={() => {
                 invoke('open_document_window', { id: doc.id });
+              }}
+              onContextMenu={async (e) => {
+                console.log(e);
+                e.preventDefault();
+                const menu = await Menu.new({
+                  items: [
+                    await MenuItem.new({
+                      text: contextMenuDeleteText,
+                      async action() {
+                        if (await isDocumentOpen(doc.id)) {
+                          await message(
+                            'Document cannot be deleted while it is opened. Please close the document window first!',
+                            { title: contextMenuDeleteText, kind: 'error' },
+                          );
+                          return;
+                        }
+                        const answer = await ask('Do you really want to delete the document?', {
+                          title: contextMenuDeleteText,
+                          kind: 'warning',
+                        });
+                        if (answer) {
+                          invoke('forget_document', { id: doc.id });
+                        }
+                      },
+                    }),
+                    await MenuItem.new({
+                      text: 'open document',
+                      action() {
+                        invoke('open_document_window', { id: doc.id });
+                      },
+                    }),
+                  ],
+                });
+                await menu.popup();
               }}
             >
               <div title={doc.save_path} className="truncate text-sm">
@@ -208,7 +252,14 @@ function RecentDocuments({ documents }: { documents: Document[] }) {
               label={'remove document from recent list'}
               discreet
               className="hidden group-hover:block text-neutral-600 dark:text-neutral-400"
-              onClick={() => {
+              onClick={async () => {
+                if (await isDocumentOpen(doc.id)) {
+                  await message(
+                    'Document cannot be removed from recent documents while it is opened. Please close the document window first!',
+                    { title: 'remove from recent documents', kind: 'error' },
+                  );
+                  return;
+                }
                 invoke('forget_document', { id: doc.id });
               }}
             />
@@ -217,4 +268,13 @@ function RecentDocuments({ documents }: { documents: Document[] }) {
       </ul>
     </div>
   );
+}
+
+async function isDocumentOpen(id: string) {
+  for (const window of await getAllWindows()) {
+    if (window.label == `document/${id}`) {
+      return true;
+    }
+  }
+  return false;
 }
