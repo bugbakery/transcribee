@@ -4,14 +4,14 @@ import mimetypes
 import tempfile
 import time
 import traceback
-from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncGenerator, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 import automerge
 import numpy.typing as npt
 from pydantic import TypeAdapter
+from requests.exceptions import HTTPError
 from transcribee_proto.api import (
     AssignedTask,
     BaseDocumentMedia,
@@ -161,12 +161,21 @@ class Worker:
             raise ValueError(f"Document {document} has no audio attached.")
         return load_audio(document_audio)
 
-    def keepalive(self, task_id: UUID, progress: Optional[float]):
+    def keepalive(self, task_id: UUID, progress: Optional[float]) -> bool:
         body = {}
         if progress is not None:
             body["progress"] = progress
         logging.debug(f"Sending keepalive for {task_id=}: {body=}")
-        self.api_client.post(f"tasks/{task_id}/keepalive/", json=body)
+        try:
+            self.api_client.post(f"tasks/{task_id}/keepalive/", json=body)
+        except HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                # The Task does not exist anymore and we should abort the task
+                logging.info("keepalive returned 404, this means this task should end")
+                return False
+            else:
+                logging.error(f"keepalive failed: {e}")
+        return True
 
     async def perform_task(self, task: AssignedTask):
         logging.info(f"Running task: {task=}")
@@ -363,54 +372,41 @@ class Worker:
         )
         self.progress = progress
 
-    @asynccontextmanager
-    async def keepalive_task(
-        self, task_id: UUID, seconds: float
-    ) -> AsyncGenerator[None, None]:
-        stop_event = asyncio.Event()
-
-        async def _work():
-            while not stop_event.is_set():
-                try:
-                    self.keepalive(task_id, self.progress)
-                except Exception as exc:
-                    logging.error("Keepliave failed", exc_info=exc)
-                finally:
-                    await asyncio.sleep(seconds)
-
-        task = asyncio.create_task(_work())
-
-        try:
-            yield
-        finally:
-            stop_event.set()
-            await task
-
     async def run_task(self, mark_completed=True):
-        task = self.claim_task()
+        task_description = self.claim_task()
         no_work = False
         self._result_data = {"progress": []}
 
-        if task is not None:
+        if task_description is not None:
             try:
                 self.progress = None
                 with tempfile.TemporaryDirectory() as tmpdir:
-                    async with self.keepalive_task(
-                        task.id, settings.KEEPALIVE_INTERVAL
-                    ):
-                        self.tmpdir = Path(tmpdir)
-                        task_result = await self.perform_task(task)
-                        logging.info(f"Worker returned: {task_result=}")
-                        if mark_completed:
-                            self.mark_completed(task.id, {"result": task_result})
+                    self.tmpdir = Path(tmpdir)
+                    asyncio_task = asyncio.create_task(
+                        self.perform_task(task_description)
+                    )
+                    while not asyncio_task.done():
+                        should_continue = self.keepalive(
+                            task_description.id, self.progress
+                        )
+                        if not should_continue:
+                            asyncio_task.cancel()
+                            logging.info("canceling task!")
+                        await asyncio.sleep(1)
+                    task_result = await asyncio_task
+                    logging.info(f"Worker returned: {task_result=}")
+                    if mark_completed:
+                        self.mark_completed(
+                            task_description.id, {"result": task_result}
+                        )
                 self.tmpdir = None
             except Exception as exc:
                 logging.warning("Worker failed with exception", exc_info=exc)
                 self.mark_failed(
-                    task.id, {"exception": traceback.format_exception(exc)}
+                    task_description.id, {"exception": traceback.format_exception(exc)}
                 )
         else:
-            logging.info("Got no task, not running worker")
+            logging.debug("Got no task, not running worker")
             no_work = True
 
         logging.debug("run_task() done :)")

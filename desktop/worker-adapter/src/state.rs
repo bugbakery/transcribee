@@ -1,5 +1,9 @@
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::Display;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -18,7 +22,6 @@ pub enum TaskState {
 pub enum TaskType {
     IdentifySpeakers,
     Transcribe,
-    Align,
     Reencode,
     Export,
 }
@@ -119,27 +122,64 @@ pub struct TasksContainer {
     tasks: HashMap<Uuid, Task>,
 }
 
+#[derive(Debug)]
+pub struct TaskNotFoundError;
+impl Display for TaskNotFoundError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TaskNotFoundError")
+    }
+}
+impl Error for TaskNotFoundError {}
+impl IntoResponse for TaskNotFoundError {
+    fn into_response(self) -> axum::response::Response {
+        (StatusCode::NOT_FOUND, "task not found").into_response()
+    }
+}
+
 impl TasksContainer {
     pub fn add_task(&mut self, task: Task) {
         self.tasks.insert(task.id, task);
     }
 
-    pub fn complete_task(&mut self, id: Uuid) {
-        self.tasks.entry(id).and_modify(|t| {
-            t.state = TaskState::Completed;
-        });
+    pub fn complete_task(&mut self, id: Uuid) -> Result<(), TaskNotFoundError> {
+        match self.tasks.get_mut(&id) {
+            Some(task) => {
+                task.state = TaskState::Completed;
+                Ok(())
+            }
+            None => Err(TaskNotFoundError),
+        }
     }
 
-    pub fn fail_task(&mut self, id: Uuid) {
-        self.tasks.entry(id).and_modify(|t| {
-            t.state = TaskState::Failed;
-        });
+    pub fn remove_task(&mut self, id: Uuid) -> Result<(), TaskNotFoundError> {
+        match self.tasks.remove(&id) {
+            Some(_) => Ok(()),
+            None => Err(TaskNotFoundError),
+        }
     }
 
-    pub fn update_task_attempt(&mut self, task_id: Uuid, attempt: TaskAttempt) {
-        self.tasks.entry(task_id).and_modify(|t| {
-            t.current_attempt = Some(attempt);
-        });
+    pub fn fail_task(&mut self, id: Uuid) -> Result<(), TaskNotFoundError> {
+        match self.tasks.get_mut(&id) {
+            Some(task) => {
+                task.state = TaskState::Failed;
+                Ok(())
+            }
+            None => Err(TaskNotFoundError),
+        }
+    }
+
+    pub fn update_task_attempt(
+        &mut self,
+        task_id: Uuid,
+        attempt: TaskAttempt,
+    ) -> Result<(), TaskNotFoundError> {
+        match self.tasks.get_mut(&task_id) {
+            Some(task) => {
+                task.current_attempt = Some(attempt);
+                Ok(())
+            }
+            None => Err(TaskNotFoundError),
+        }
     }
 
     fn get_ready_task<'a>(&'a mut self, task_types: &[TaskType]) -> Option<&'a mut Task> {
