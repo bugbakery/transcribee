@@ -112,7 +112,7 @@ class Worker:
             ]
 
     def claim_task(self) -> Optional[AssignedTask]:
-        logging.info("Asking backend for new task")
+        logging.debug("Asking backend for new task")
         req = self.api_client.post(
             "tasks/claim_unassigned_task/", params={"task_type": self.task_types}
         )
