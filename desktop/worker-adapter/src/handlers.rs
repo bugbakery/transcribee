@@ -95,8 +95,15 @@ async fn handle_document_sync_socket(
 ) {
     log::debug!("ws: client {who} upgraded");
 
+    let document = app_state
+        .document_getter
+        .lock()
+        .await
+        .as_ref()
+        .map(|getter| getter(document_id))
+        .unwrap_or(vec![]);
     socket
-        .send(SyncMessage::FullDocument(&[]).into())
+        .send(SyncMessage::FullDocument(&document).into())
         .await
         .unwrap();
     socket

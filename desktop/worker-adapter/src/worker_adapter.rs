@@ -58,6 +58,7 @@ async fn worker_ws_auth(
 #[derive(Clone, Default)]
 pub struct WorkerAdapter {
     token: String,
+    pub document_getter: Arc<Mutex<Option<Box<dyn Fn(Uuid) -> Vec<u8> + Send>>>>,
     pub tasks: Arc<Mutex<TasksContainer>>,
     pub automerge_listeners: Arc<Mutex<ListenersContainer<Vec<u8>>>>,
     pub progress_listeners: Arc<Mutex<ListenersContainer<()>>>,
@@ -70,6 +71,10 @@ impl WorkerAdapter {
             token,
             ..Default::default()
         }
+    }
+
+    pub async fn install_document_getter(&self, getter: impl Fn(Uuid) -> Vec<u8> + Send + 'static) {
+        self.document_getter.lock().await.replace(Box::new(getter));
     }
 
     fn check_auth_header(&self, header: &str) -> bool {
