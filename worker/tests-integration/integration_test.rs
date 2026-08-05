@@ -17,6 +17,7 @@ mod test {
         task::JoinHandle,
         time::{sleep, timeout},
     };
+    use uuid::Uuid;
     use worker_adapter::{WorkerAdapter, state::TranscribeTaskParameters};
 
     async fn run_worker_and_adapter() -> (Child, WorkerAdapter, JoinHandle<()>) {
@@ -73,8 +74,10 @@ mod test {
             .to_str()
             .unwrap()
             .to_string();
+        let document_uuid = Uuid::now_v7();
         adapter
             .start_transcription(
+                document_uuid,
                 audio_path,
                 TranscribeTaskParameters {
                     lang: "auto".to_string(),
@@ -147,8 +150,10 @@ mod test {
             .to_str()
             .unwrap()
             .to_string();
+        let document_uuid = Uuid::now_v7();
         let task = adapter
             .start_transcription(
+                document_uuid,
                 audio_path,
                 TranscribeTaskParameters {
                     lang: "auto".to_string(),
@@ -177,7 +182,7 @@ mod test {
             panic!("transcription start timed out after {timeout_duration:?}");
         }
 
-        adapter.tasks.lock().await.remove_task(task).unwrap();
+        adapter.tasks.lock().await.remove_task(task.id).unwrap();
 
         let stderr = worker.stderr.take().unwrap();
         let mut noblock_stderr = NonBlockingReader::from_fd(stderr).unwrap();
@@ -202,5 +207,51 @@ mod test {
 
         kill_tree(worker.id()).unwrap();
         adapter_join_handle.abort();
+    }
+
+    #[tokio::test]
+    async fn test_reencode() {
+        let (worker, adapter, adapter_join_handle) = run_worker_and_adapter().await;
+        let audio_path = Path::new("../tests/data/sample.mp3")
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        let document_uuid = Uuid::now_v7();
+        adapter
+            .start_reencode(
+                document_uuid,
+                audio_path,
+                Path::new("target/")
+                    .canonicalize()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            )
+            .await;
+
+        let (tx, rx) = oneshot::channel();
+        let mut tx_holder = Some(tx);
+        adapter
+            .media_file_listeners
+            .lock()
+            .await
+            .add_listener(move |_uuid, media_file| {
+                tx_holder.take().unwrap().send(media_file).unwrap();
+            });
+
+        let timeout_duration = Duration::from_mins(1);
+        let media_file = match timeout(timeout_duration, rx).await {
+            Ok(media_file) => media_file.unwrap(),
+            Err(_) => panic!("reencode timed out after {timeout_duration:?}"),
+        };
+
+        kill_tree(worker.id()).unwrap();
+        adapter_join_handle.abort();
+
+        assert!(fs::exists(&media_file.path).unwrap());
+        fs::remove_file(&media_file.path).unwrap();
     }
 }

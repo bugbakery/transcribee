@@ -22,17 +22,21 @@ pub async fn transcribe_files(
     model: String,
 ) -> CmdResult<()> {
     for f in media_file_paths {
-        let task_uuid = worker_adapter
+        let document = app.create_new_document(f.clone())?;
+        let task = worker_adapter
             .start_transcription(
-                f.clone(),
+                document.id,
+                f,
                 TranscribeTaskParameters {
                     lang: language.clone(),
                     model: model.clone(),
                 },
             )
             .await;
-
-        app.create_new_document(f, vec![task_uuid])?;
+        app.update_document(document.id, |mut doc| {
+            doc.tasks.push(task.id);
+            doc
+        })?;
     }
 
     create_or_focus_main_window(&app).await?;

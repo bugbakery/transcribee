@@ -2096,6 +2096,7 @@ dependencies = [
  "nonblock",
  "reqwest",
  "tokio",
+ "uuid",
  "worker-adapter",
 ]
 

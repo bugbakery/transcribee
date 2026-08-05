@@ -12,4 +12,5 @@ kill_tree = "0.2.4"
 nonblock = "0.2.0"
 reqwest = "0.13.4"
 tokio = "1.53.1"
+uuid = "1.24.0"
 worker-adapter = { path = "../../desktop/worker-adapter" }
