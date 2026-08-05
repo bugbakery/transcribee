@@ -181,13 +181,13 @@ pub fn run() {
                         move |document, media_file: worker_adapter::state::MediaFile| {
                             app_handle
                                 .update_document(document, |mut doc| {
-                                    doc.media_files.push(
-                                        MediaFile::from_worker_adapter_media_file(
+                                    let mut media_file = MediaFile::from_worker_adapter_media_file(
                                             media_file.clone(),
                                             document,
                                         )
-                                        .unwrap(),
-                                    );
+                                        .unwrap();
+                                    media_file.tags.push("browser_compatible".to_string());
+                                    doc.media_files.push(media_file);
                                     doc
                                 })
                                 .unwrap();
