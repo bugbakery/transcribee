@@ -1,5 +1,5 @@
 use crate::WorkerAdapter;
-use crate::state::{MediaFile, Task, TaskAttempt, TaskType};
+use crate::state::{MediaFile, Task, TaskAttempt, TaskNotFoundError, TaskType};
 use crate::sync_message::SyncMessage;
 use axum::extract::ws::Message;
 use axum::extract::{Path, State};
@@ -26,7 +26,14 @@ pub async fn claim_unassigned_task(
     Query(query): Query<GetUnassingedTaskQuery>,
 ) -> Json<Option<Task>> {
     let mut tasks = app_state.tasks.lock().await;
-    Json(tasks.claim_unassigned_task(&query.task_types))
+    let task = tasks.claim_unassigned_task(&query.task_types);
+    if let Some(task) = &task {
+        let mut progress_listeners = app_state.progress_listeners.lock().await;
+        progress_listeners
+            .notify_listeners(task.document.id, ())
+            .await;
+    }
+    Json(task)
 }
 
 pub async fn mark_completed(
@@ -34,11 +41,10 @@ pub async fn mark_completed(
     Path(task_id): Path<Uuid>,
 ) -> Result<Json<()>> {
     let mut tasks = app_state.tasks.lock().await;
+    let document_uuid = tasks.get(&task_id).ok_or(TaskNotFoundError)?.document.id;
     tasks.complete_task(task_id)?;
     let mut progress_listeners = app_state.progress_listeners.lock().await;
-    progress_listeners
-        .notify_listeners(task_id, Some(1.0))
-        .await;
+    progress_listeners.notify_listeners(document_uuid, ()).await;
     Ok(Json(()))
 }
 
@@ -57,11 +63,10 @@ pub async fn keepalive(
     Json(payload): Json<TaskAttempt>,
 ) -> Result<Json<()>> {
     let mut tasks = app_state.tasks.lock().await;
+    let document_uuid = tasks.get(&task_id).ok_or(TaskNotFoundError)?.document.id;
     tasks.update_task_attempt(task_id, payload.clone())?;
     let mut progress_listeners = app_state.progress_listeners.lock().await;
-    progress_listeners
-        .notify_listeners(task_id, payload.progress)
-        .await;
+    progress_listeners.notify_listeners(document_uuid, ()).await;
     Ok(Json(()))
 }
 
@@ -105,8 +110,10 @@ async fn handle_document_sync_socket(
         if let Ok(msg) = msg {
             match msg {
                 Message::Binary(change) => {
-                    let mut state = app_state.automerge_listeners.lock().await;
-                    state.notify_listeners(document_id, change.to_vec()).await;
+                    let mut automerge_listeners = app_state.automerge_listeners.lock().await;
+                    automerge_listeners
+                        .notify_listeners(document_id, change.to_vec())
+                        .await;
                 }
                 Message::Close(close_frame_opt) => {
                     log::debug!("ws: client {who} closed connection {:?}", close_frame_opt);

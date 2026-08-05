@@ -11,12 +11,14 @@ use tauri::{
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::ShellExt;
 use tokio::time::sleep;
+use worker_adapter::state::TaskType::{self, IdentifySpeakers, Reencode, Transcribe};
 use worker_adapter::WorkerAdapter;
 
 fn setup_worker<R: Runtime>(
     app: &AppHandle<R>,
     local_addr: SocketAddr,
     token: String,
+    task_types: Vec<TaskType>,
 ) -> Result<()> {
     let ext = if cfg!(target_family = "windows") {
         "bat"
@@ -47,6 +49,11 @@ fn setup_worker<R: Runtime>(
                         &format!("http://{}:{}", local_addr.ip(), local_addr.port()),
                         "--token",
                         &token,
+                        "--task-types",
+                        &task_types
+                            .iter()
+                            .map(TaskType::as_worker_arg)
+                            .collect::<String>(),
                     ])
                     .current_dir("../../worker")
             } else {
@@ -140,7 +147,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("transcribee-worker")
         .setup(|app, _| {
             let (addr, token) = setup_worker_adapter(app)?;
-            setup_worker(app, addr, token)?;
+            setup_worker(app, addr, token.clone(), vec![Reencode])?;
+            setup_worker(app, addr, token, vec![Transcribe, IdentifySpeakers])?;
             Ok(())
         })
         .build()

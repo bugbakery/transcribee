@@ -204,9 +204,9 @@ function PlayerBarWithMedia({
     {
       id: '<unknown>',
       display_name: '',
-      transcription_progress: 0,
       media_files: [],
       has_unsaved_changes: false,
+      tasks: [],
     },
   );
 

@@ -60,7 +60,7 @@ pub struct WorkerAdapter {
     token: String,
     pub tasks: Arc<Mutex<TasksContainer>>,
     pub automerge_listeners: Arc<Mutex<ListenersContainer<Vec<u8>>>>,
-    pub progress_listeners: Arc<Mutex<ListenersContainer<Option<f32>>>>,
+    pub progress_listeners: Arc<Mutex<ListenersContainer<()>>>,
     pub media_file_listeners: Arc<Mutex<ListenersContainer<MediaFile>>>,
 }
 
@@ -84,9 +84,9 @@ impl WorkerAdapter {
     ) -> Task {
         let mut tasks = self.tasks.lock().await;
         let media_file = MediaFile::new(file_path.clone());
-        let doc = Document::new(file_path, vec![media_file], Uuid::now_v7());
+        let doc = Document::new(file_path, vec![media_file], document_uuid);
         tasks.add_task(Task {
-            id: document_uuid,
+            id: Uuid::now_v7(),
             current_attempt: None,
             dependencies: vec![],
             state: TaskState::New,
@@ -104,9 +104,9 @@ impl WorkerAdapter {
     ) -> Task {
         let mut tasks = self.tasks.lock().await;
         let media_file = MediaFile::new(file_path.clone());
-        let doc = Document::new(file_path, vec![media_file], Uuid::now_v7());
+        let doc = Document::new(file_path, vec![media_file], document_uuid);
         tasks.add_task(Task {
-            id: document_uuid,
+            id: Uuid::now_v7(),
             current_attempt: None,
             dependencies: vec![],
             state: TaskState::New,
@@ -125,9 +125,9 @@ impl WorkerAdapter {
     ) -> Task {
         let mut tasks = self.tasks.lock().await;
         let media_file = MediaFile::new(file_path.clone());
-        let doc = Document::new(file_path, vec![media_file], Uuid::now_v7());
+        let doc = Document::new(file_path, vec![media_file], document_uuid);
         tasks.add_task(Task {
-            id: document_uuid,
+            id: Uuid::now_v7(),
             current_attempt: None,
             dependencies: vec![transcribe_task],
             state: TaskState::New,

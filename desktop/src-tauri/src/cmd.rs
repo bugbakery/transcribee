@@ -1,4 +1,8 @@
-use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, Window};
+use std::fs;
+use tauri::{
+    path::BaseDirectory, AppHandle, LogicalPosition, LogicalSize, Manager, State, WebviewUrl,
+    Window,
+};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -24,18 +28,30 @@ pub async fn transcribe_files(
 ) -> CmdResult<()> {
     for f in media_file_paths {
         let document = app.create_new_document(f.clone())?;
-        let task = worker_adapter
+        let transcription_task = worker_adapter
             .start_transcription(
                 document.id,
-                f,
+                f.clone(),
                 TranscribeTaskParameters {
                     lang: language.clone(),
                     model: model.clone(),
                 },
             )
             .await;
+
+        let media_files_folder = app
+            .path()
+            .resolve("media_files", BaseDirectory::AppData)?
+            .to_string_lossy()
+            .to_string();
+        fs::create_dir_all(&media_files_folder)?;
+        let reencode_task = worker_adapter
+            .start_reencode(document.id, f, media_files_folder)
+            .await;
+
         app.update_document(document.id, |mut doc| {
-            doc.tasks.push(task.id);
+            doc.worker_tasks.push(transcription_task.clone());
+            doc.worker_tasks.push(reencode_task.clone());
             doc
         })?;
     }
