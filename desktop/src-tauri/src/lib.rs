@@ -18,6 +18,7 @@ use tauri::{Emitter, Manager};
 use tauri_plugin_log::fern;
 use tauri_plugin_store::StoreExt;
 use tauri_plugin_window_state::StateFlags;
+use worker_adapter::state::TaskState::{Aborted, Assigned, New};
 use worker_adapter::WorkerAdapter;
 
 mod cmd;
@@ -200,6 +201,19 @@ pub fn run() {
                         },
                     )
             });
+
+            // mark all jobs that are unfinished as aborted
+            app.update_documents(move |mut documents| {
+                for doc in &mut documents {
+                    for task in &mut doc.worker_tasks {
+                        if task.state == New || task.state == Assigned {
+                            task.current_attempt = None;
+                            task.state = Aborted;
+                        }
+                    }
+                }
+                Ok(documents)
+            })?;
 
             tauri::async_runtime::block_on(async {
                 create_or_focus_main_window(app.handle()).await.unwrap();

@@ -15,6 +15,7 @@ pub enum TaskState {
     Assigned,
     Completed,
     Failed,
+    Aborted,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
