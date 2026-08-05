@@ -33,8 +33,8 @@ pub struct TaskAttempt {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MediaFile {
-    tags: Vec<String>,
-    path: String,
+    pub tags: Vec<String>,
+    pub path: String,
 }
 
 impl MediaFile {
@@ -73,10 +73,22 @@ pub struct TranscribeTaskParameters {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct IdentifySpeakersTaskParameters {
+    pub number_of_speakers: Option<u32>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ReencodeTaskParameters {
+    pub output_path: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TaskParameters {
     NoParameters(HashMap<(), ()>),
     Transcribe(TranscribeTaskParameters),
+    IdentifySpeakers(IdentifySpeakersTaskParameters),
+    Reencode(ReencodeTaskParameters),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -90,9 +102,16 @@ pub struct Task {
     pub task_parameters: TaskParameters,
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct ListenersContainer<T> {
     pub listeners: Vec<Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>>>,
+}
+impl<T> Default for ListenersContainer<T> {
+    fn default() -> Self {
+        Self {
+            listeners: Default::default(),
+        }
+    }
 }
 
 impl<T: Clone> ListenersContainer<T> {
@@ -137,8 +156,9 @@ impl IntoResponse for TaskNotFoundError {
 }
 
 impl TasksContainer {
-    pub fn add_task(&mut self, task: Task) {
-        self.tasks.insert(task.id, task);
+    pub fn add_task(&mut self, task: Task) -> Task {
+        self.tasks.insert(task.id, task.clone());
+        task
     }
 
     pub fn complete_task(&mut self, id: Uuid) -> Result<(), TaskNotFoundError> {

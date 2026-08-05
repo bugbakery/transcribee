@@ -1,5 +1,5 @@
 use crate::WorkerAdapter;
-use crate::state::{Task, TaskAttempt, TaskType};
+use crate::state::{MediaFile, Task, TaskAttempt, TaskType};
 use crate::sync_message::SyncMessage;
 use axum::extract::ws::Message;
 use axum::extract::{Path, State};
@@ -61,6 +61,18 @@ pub async fn keepalive(
     let mut progress_listeners = app_state.progress_listeners.lock().await;
     progress_listeners
         .notify_listeners(task_id, payload.progress)
+        .await;
+    Ok(Json(()))
+}
+
+pub async fn add_media_file(
+    State(app_state): State<WorkerAdapter>,
+    Path(document_id): Path<Uuid>,
+    Json(payload): Json<MediaFile>,
+) -> Result<Json<()>> {
+    let mut media_file_listeners = app_state.media_file_listeners.lock().await;
+    media_file_listeners
+        .notify_listeners(document_id, payload)
         .await;
     Ok(Json(()))
 }
