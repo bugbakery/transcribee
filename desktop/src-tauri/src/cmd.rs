@@ -143,3 +143,8 @@ pub async fn show_new_transcript_dialog(app: AppHandle) {
     .await
     .unwrap();
 }
+
+#[tauri::command]
+pub async fn show_main_window(app: AppHandle) {
+    create_or_focus_main_window(&app).await.unwrap();
+}

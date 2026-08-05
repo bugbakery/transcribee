@@ -17,6 +17,7 @@
   "dependencies": {
     "@automerge/automerge": "~3.3.1",
     "@automerge/automerge-wasm": "^0.17.0",
+    "@floating-ui/react": "^0.27.20",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
     "@tauri-apps/api": "^2",

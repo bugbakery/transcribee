@@ -1,6 +1,6 @@
 use crate::file_handling::{
     append_automerge_change, forget_document, get_document, get_documents, get_media_file_response,
-    DocumentsStoreExt,
+    save_document, save_document_as_dialog, DocumentsStoreExt,
 };
 use crate::window::create_or_focus_main_window;
 use colored::Color;
@@ -79,11 +79,14 @@ pub fn run() {
             get_document,
             read_automerge,
             append_automerge_change,
+            save_document,
+            save_document_as_dialog,
             cmd::transcribe_files,
             cmd::show_new_transcript_dialog,
             cmd::toggle_devtools,
             cmd::open_document_via_file_picker,
             cmd::open_document_window,
+            cmd::show_main_window,
         ])
         .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
             match get_media_file_response(ctx.app_handle(), request) {
