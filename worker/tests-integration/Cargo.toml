@@ -1,0 +1,15 @@
+[package]
+name = "transcribee-worker-integration-tests"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "integration_test.rs"
+
+[dependencies]
+automerge = "0.10.0"
+kill_tree = "0.2.4"
+nonblock = "0.2.0"
+reqwest = "0.13.4"
+tokio = "1.53.1"
+worker-adapter = { path = "../../desktop/worker-adapter" }

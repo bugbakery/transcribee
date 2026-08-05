@@ -10,7 +10,7 @@ use http::{
     response::Builder as ResponseBuilder,
     StatusCode,
 };
-use log::Level;
+use log::{warn, Level};
 use serde_json::json;
 use std::time::Duration;
 use tauri::RunEvent;
@@ -112,7 +112,10 @@ pub fn run() {
                     .lock()
                     .await
                     .add_listener(move |task, change: Vec<u8>| {
-                        let document = app_handle.get_document_from_task(task).unwrap();
+                        let Ok(document) = app_handle.get_document_from_task(task) else {
+                            warn!("document for which we received a change does not exist anymore");
+                            return;
+                        };
                         transcribee_archive::append_automerge_change(
                             &document.app_data_path,
                             &change,
@@ -142,7 +145,10 @@ pub fn run() {
                     .await
                     .add_listener(move |task, progress: Option<f32>| {
                         if let Some(progress) = progress {
-                            let doc = app_handle.get_document_from_task(task).unwrap();
+                            let Ok(doc) = app_handle.get_document_from_task(task) else {
+                                warn!("got progress ({progress}) for task {task} which does not exist");
+                                return;
+                            };
                             app_handle
                                 .update_document(doc.id, |mut doc| {
                                     doc.transcription_progress = progress.max(0.01);
