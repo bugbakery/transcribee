@@ -25,6 +25,7 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_store::StoreExt;
 use tokio::sync::oneshot;
 use uuid::Uuid;
+use worker_adapter::state::Task;
 use worker_adapter::WorkerAdapter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,9 +42,7 @@ pub struct Document {
     pub save_path: Option<String>,
 
     #[serde(default)]
-    pub tasks: Vec<Uuid>,
-    #[serde(default)]
-    pub transcription_progress: f32,
+    pub worker_tasks: Vec<Task>,
 
     #[serde(default)]
     pub media_files: Vec<MediaFile>,
@@ -80,10 +79,10 @@ impl Document {
         FrontendDocument {
             id: self.id,
             display_name: self.display_name(),
-            transcription_progress: self.transcription_progress,
             save_path: self.save_path.clone(),
             media_files: self.media_files.clone(),
             has_unsaved_changes: self.has_unsaved_changes,
+            tasks: self.worker_tasks.clone(),
         }
     }
 
@@ -101,10 +100,10 @@ impl Document {
 pub struct FrontendDocument {
     id: Uuid,
     display_name: String,
-    transcription_progress: f32,
     save_path: Option<String>,
     media_files: Vec<MediaFile>,
     has_unsaved_changes: bool,
+    tasks: Vec<Task>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -115,6 +114,22 @@ pub struct MediaFile {
     url: String,
     source: MediaFileSource,
 }
+impl MediaFile {
+    pub fn from_worker_adapter_media_file(
+        v: worker_adapter::state::MediaFile,
+        document_uuid: Uuid,
+    ) -> Result<Self> {
+        let mime = infer::get_from_path(&v.path)?
+            .map(|x| x.mime_type())
+            .unwrap_or("application/octet-stream");
+        Ok(Self {
+            content_type: mime.to_string(),
+            tags: v.tags,
+            url: format!("{document_uuid}/reencode"),
+            source: MediaFileSource::Fs { media_path: v.path },
+        })
+    }
+}
 
 pub trait DocumentsStoreExt<R: Runtime> {
     fn get_documents(&self) -> Result<Vec<Document>>;
@@ -122,7 +137,6 @@ pub trait DocumentsStoreExt<R: Runtime> {
     fn update_documents(&self, op: impl Fn(Vec<Document>) -> Result<Vec<Document>>) -> Result<()>;
     fn update_document(&self, id: Uuid, op: impl Fn(Document) -> Document) -> Result<()>;
     fn open_document(&self, path: &str) -> Result<Document>;
-    fn get_document_from_task(&self, task: Uuid) -> Result<Document>;
     fn create_new_document(&self, media_file_path: String) -> Result<Document>;
 }
 impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
@@ -215,8 +229,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             id,
             app_data_path: app_data_path.to_str().unwrap().to_string(),
             save_path: Some(path.to_string()),
-            transcription_progress: 1.0,
-            tasks: vec![],
+            worker_tasks: vec![],
             media_files,
             has_unsaved_changes: false,
         };
@@ -225,13 +238,6 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             Ok(documents)
         })?;
         Ok(document)
-    }
-
-    fn get_document_from_task(&self, task: Uuid) -> Result<Document> {
-        self.get_documents()?
-            .into_iter()
-            .find(|doc| doc.tasks.iter().any(|t| t == &task))
-            .ok_or(anyhow!("could not find document for task {task}"))
     }
 
     fn create_new_document(&self, media_file_path: String) -> Result<Document> {
@@ -251,8 +257,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             id,
             app_data_path: app_data_path.to_str().unwrap().to_string(),
             save_path: None,
-            transcription_progress: 0.0,
-            tasks: vec![],
+            worker_tasks: vec![],
             media_files,
             has_unsaved_changes: false,
         };
@@ -292,12 +297,10 @@ pub fn forget_document(
     app_handle.update_documents(|mut documents| {
         if let Some(position) = documents.iter().position(|doc| doc.id == id) {
             let doc = documents.remove(position);
-            for task in doc.tasks {
-                worker_adapter
-                    .tasks
-                    .blocking_lock()
-                    .remove_task(task)
-                    .unwrap();
+            for task in doc.worker_tasks {
+                if let Err(e) = worker_adapter.tasks.blocking_lock().remove_task(task.id) {
+                    warn!("could not remove task: {e}")
+                }
             }
             remove_file(doc.app_data_path)?;
         }

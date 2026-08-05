@@ -23,10 +23,21 @@ type MediaFile = {
 export type Document = {
   id: string;
   display_name: string;
-  transcription_progress: number;
   save_path?: string;
   media_files: MediaFile[];
   has_unsaved_changes: boolean;
+  tasks: WorkerTask[];
+};
+
+type WorkerTask = {
+  id: string;
+  task_type: 'IDENTIFY_SPEAKERS' | 'TRANSCRIBE' | 'REENCODE';
+  state: 'NEW' | 'ASSIGNED' | 'COMPLETED' | 'FAILED';
+  current_attempt: WorkerTaskAttempt | null;
+};
+
+type WorkerTaskAttempt = {
+  progress: number;
 };
 
 export function HomePage() {
@@ -86,16 +97,19 @@ export function HomePage() {
 }
 
 function TranscriptionQueue({ documents }: { documents: Document[] }) {
-  documents.sort((a, b) => a.transcription_progress - b.transcription_progress);
+  documents.sort(
+    (a, b) => calculateTranscriptionProgress(a.tasks) - calculateTranscriptionProgress(b.tasks),
+  );
 
   return (
     <div className="w-full max-w-[500px] px-4 pb-8">
       <h2 className="font-semibold text-center px-1 mb-4">Transcription Queue</h2>
       <div>
         {documents.map((doc) => {
+          const transcriptionProgress = calculateTranscriptionProgress(doc.tasks);
           let progressIndicator;
           let contextMenuDeleteText;
-          if (doc.transcription_progress == 0) {
+          if (transcriptionProgress == 0) {
             contextMenuDeleteText = 'Remove from Transcription Queue';
             progressIndicator = (
               <Tooltip
@@ -113,7 +127,7 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
               </Tooltip>
             );
           } else {
-            if (doc.transcription_progress == 1) {
+            if (transcriptionProgress == 1) {
               contextMenuDeleteText = 'Delete Transcribed Document';
             } else {
               contextMenuDeleteText = 'Abort Transcription and Delete';
@@ -123,14 +137,14 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
                 placement={'right'}
                 fallbackPlacements={['bottom', 'top']}
                 tooltipText={
-                  doc.transcription_progress == 1
+                  transcriptionProgress == 1
                     ? `transcription done`
-                    : `transcription ${(doc.transcription_progress * 100).toFixed(0)}%`
+                    : `transcription ${(transcriptionProgress * 100).toFixed(0)}%`
                 }
                 className="ml-2"
               >
                 <ProgressPie
-                  progress={doc.transcription_progress}
+                  progress={transcriptionProgress}
                   lineWidth={0.25}
                   className="w-[21px] shrink-0"
                 />
@@ -242,6 +256,34 @@ function ProgressPie({
       )}
     </svg>
   );
+}
+
+export function calculateTranscriptionProgress(
+  tasks: {
+    task_type: 'IDENTIFY_SPEAKERS' | 'TRANSCRIBE' | 'REENCODE';
+    state: 'NEW' | 'ASSIGNED' | 'COMPLETED' | 'FAILED';
+    current_attempt: { progress: number | null } | null;
+  }[],
+) {
+  const weights = {
+    IDENTIFY_SPEAKERS: 0.1,
+    TRANSCRIBE: 2.0,
+    REENCODE: 0.1,
+  };
+  let numerator = 0;
+  let denominator = 0;
+  for (const task of tasks) {
+    const weight = weights[task.task_type];
+    let progress = 0.0;
+    if (task.current_attempt && task.current_attempt.progress) {
+      progress = task.current_attempt.progress;
+    } else if (task.state == 'COMPLETED') {
+      progress = 1.0;
+    }
+    numerator += weight * progress;
+    denominator += weight;
+  }
+  return numerator / denominator;
 }
 
 function RecentDocuments({ documents }: { documents: Document[] }) {
