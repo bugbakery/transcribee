@@ -24,9 +24,12 @@ pub async fn transcribe_files(
     media_file_paths: Vec<String>,
     language: String,
     model: String,
+    speaker_detection: String,
+    number_of_speakers: u32,
 ) -> CmdResult<()> {
     for f in media_file_paths {
         let document = app.create_new_document(f.clone())?;
+        let mut tasks = vec![];
         let transcription_task = worker_adapter
             .start_transcription(
                 document.id,
@@ -37,6 +40,24 @@ pub async fn transcribe_files(
                 },
             )
             .await;
+        tasks.push(transcription_task.id);
+
+        if speaker_detection != "off" {
+            let number_of_speakers = if speaker_detection == "advanced" {
+                Some(number_of_speakers)
+            } else {
+                None
+            };
+            let identify_speakers_task = worker_adapter
+                .start_identify_speakers(
+                    document.id,
+                    f.clone(),
+                    transcription_task.id,
+                    number_of_speakers,
+                )
+                .await;
+            tasks.push(identify_speakers_task.id);
+        }
 
         let media_files_folder = app
             .path()
@@ -47,10 +68,10 @@ pub async fn transcribe_files(
         let reencode_task = worker_adapter
             .start_reencode(document.id, f, media_files_folder)
             .await;
+        tasks.push(reencode_task.id);
 
         app.update_document(document.id, |mut doc| {
-            doc.tasks.push(transcription_task.id);
-            doc.tasks.push(reencode_task.id);
+            doc.tasks.append(&mut tasks.clone());
             doc
         })?;
     }

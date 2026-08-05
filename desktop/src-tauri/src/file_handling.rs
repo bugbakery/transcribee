@@ -320,7 +320,9 @@ pub async fn get_document_media_for_save_or_display_error(
             .kind(MessageDialogKind::Error)
             .title("could not save")
             .show(|_result| {});
-        return Err(anyhow!("could not save because no suitable media file was found!"));
+        return Err(anyhow!(
+            "could not save because no suitable media file was found!"
+        ));
     };
 
     Ok(media_file.source.clone())
