@@ -21,7 +21,7 @@ use std::str::FromStr;
 use tauri::path::BaseDirectory;
 use tauri::{command, ipc::Response};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_store::StoreExt;
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -85,15 +85,6 @@ impl Document {
             tasks: self.worker_tasks.clone(),
         }
     }
-
-    pub fn find_media_file_for_save(&self) -> Option<MediaFileSource> {
-        // TODO: find a better heuristic what file we bundle with the saved files once we have transcoding
-        self.media_files
-            .iter()
-            .find(|m| m.tags.iter().any(|t| t == "original"))
-            .map(|f| f.source.clone())
-            .or_else(|| self.media_files.first().map(|f| f.source.clone()))
-    }
 }
 
 #[derive(Serialize, Debug)]
@@ -108,11 +99,11 @@ pub struct FrontendDocument {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MediaFile {
-    content_type: String,
-    tags: Vec<String>,
+    pub content_type: String,
+    pub tags: Vec<String>,
     /// this must be in the format {document_id}/{something}
-    url: String,
-    source: MediaFileSource,
+    pub url: String,
+    pub source: MediaFileSource,
 }
 impl MediaFile {
     pub fn from_worker_adapter_media_file(
@@ -220,7 +211,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             .unwrap_or("application/octet-stream");
         let media_files = vec![MediaFile {
             content_type: mime.to_string(),
-            tags: vec![],
+            tags: vec!["browser_compatible".to_string()],
             url: format!("{id}/media"),
             source: media_source,
         }];
@@ -309,29 +300,44 @@ pub fn forget_document(
     Ok(())
 }
 
+pub async fn get_document_media_for_save_or_display_error(
+    app_handle: &AppHandle,
+    document: &Document,
+) -> Result<MediaFileSource> {
+    let Some(media_file) = document
+        .media_files
+        .iter()
+        .find(|m| m.tags.iter().any(|t| t == "browser_compatible"))
+    else {
+        let focused_window =
+            focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
+        focused_window
+            .dialog()
+            .message("Could not save, because the media file is still being processed. Please try again in a few seconds when transcribee has prepared a suitable file.")
+            .kind(MessageDialogKind::Error)
+            .title("Could Not Save")
+            .show(|_result| {});
+        return Err(anyhow!("could not save because no suitable media file was found!").into());
+    };
+
+    Ok(media_file.source.clone())
+}
+
 #[command]
 pub async fn save_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
     let document = app_handle.get_document(id)?;
     let Some(save_path) = &document.save_path else {
         return save_document_as_dialog(app_handle.clone(), id).await;
     };
-
+    let media_file = get_document_media_for_save_or_display_error(&app_handle, &document).await?;
     let new_automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
     if !fs::exists(save_path)? {
         warn!("save target file under {save_path} does not exist, even if we think it should. Recreating file...");
-        transcribee_archive::create_new(
-            save_path,
-            document.find_media_file_for_save(),
-            &new_automerge_doc,
-        )?;
+        transcribee_archive::create_new(save_path, Some(media_file), &new_automerge_doc)?;
     } else {
         if let Err(e) = transcribee_archive::update_automerge_file(save_path, &new_automerge_doc) {
             warn!("transcribee_archive::update_automerge_file failed with error {e}, trying to re-creating the file...");
-            transcribee_archive::create_new(
-                save_path,
-                document.find_media_file_for_save(),
-                &new_automerge_doc,
-            )?;
+            transcribee_archive::create_new(save_path, Some(media_file), &new_automerge_doc)?;
         }
     }
     app_handle.update_document(id, |mut doc| {
@@ -344,6 +350,7 @@ pub async fn save_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
 #[command]
 pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
     let document = app_handle.get_document(id)?;
+    let media_file = get_document_media_for_save_or_display_error(&app_handle, &document).await?;
 
     let focused_window =
         focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
@@ -368,11 +375,7 @@ pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResu
     };
 
     let automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
-    transcribee_archive::create_new(
-        &save_path.to_string(),
-        document.find_media_file_for_save(),
-        &automerge_doc,
-    )?;
+    transcribee_archive::create_new(&save_path.to_string(), Some(media_file), &automerge_doc)?;
 
     app_handle.update_document(id, |mut doc| {
         doc.save_path = Some(save_path.to_string());
