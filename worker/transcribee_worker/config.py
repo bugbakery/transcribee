@@ -55,12 +55,6 @@ class Settings(BaseSettings):
         ),
     }
 
-    KEEPALIVE_INTERVAL: float = 0.5
-
-    CPU_THREADS: int = 4
-
-    COMPUTE_TYPE: str = "int8"
-
     WORKER_TYPE: Literal["web", "desktop"] = "web"
 
     model_config = SettingsConfigDict(env_file=".env")
