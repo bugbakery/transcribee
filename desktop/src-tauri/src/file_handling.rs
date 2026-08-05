@@ -21,7 +21,7 @@ use std::str::FromStr;
 use tauri::path::BaseDirectory;
 use tauri::{command, ipc::Response};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_store::StoreExt;
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -86,15 +86,6 @@ impl Document {
             has_unsaved_changes: self.has_unsaved_changes,
         }
     }
-
-    pub fn find_media_file_for_save(&self) -> Option<MediaFileSource> {
-        // TODO: find a better heuristic what file we bundle with the saved files once we have transcoding
-        self.media_files
-            .iter()
-            .find(|m| m.tags.iter().any(|t| t == "original"))
-            .map(|f| f.source.clone())
-            .or_else(|| self.media_files.first().map(|f| f.source.clone()))
-    }
 }
 
 #[derive(Serialize, Debug)]
@@ -109,11 +100,27 @@ pub struct FrontendDocument {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MediaFile {
-    content_type: String,
-    tags: Vec<String>,
+    pub content_type: String,
+    pub tags: Vec<String>,
     /// this must be in the format {document_id}/{something}
-    url: String,
-    source: MediaFileSource,
+    pub url: String,
+    pub source: MediaFileSource,
+}
+impl MediaFile {
+    pub fn from_worker_adapter_media_file(
+        v: worker_adapter::state::MediaFile,
+        document_uuid: Uuid,
+    ) -> Result<Self> {
+        let mime = infer::get_from_path(&v.path)?
+            .map(|x| x.mime_type())
+            .unwrap_or("application/octet-stream");
+        Ok(Self {
+            content_type: mime.to_string(),
+            tags: v.tags,
+            url: format!("{document_uuid}/reencode"),
+            source: MediaFileSource::Fs { media_path: v.path },
+        })
+    }
 }
 
 pub trait DocumentsStoreExt<R: Runtime> {
@@ -122,8 +129,7 @@ pub trait DocumentsStoreExt<R: Runtime> {
     fn update_documents(&self, op: impl Fn(Vec<Document>) -> Result<Vec<Document>>) -> Result<()>;
     fn update_document(&self, id: Uuid, op: impl Fn(Document) -> Document) -> Result<()>;
     fn open_document(&self, path: &str) -> Result<Document>;
-    fn get_document_from_task(&self, task: Uuid) -> Result<Document>;
-    fn create_new_document(&self, media_file_path: String, tasks: Vec<Uuid>) -> Result<Document>;
+    fn create_new_document(&self, media_file_path: String) -> Result<Document>;
 }
 impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
     fn get_documents(&self) -> Result<Vec<Document>> {
@@ -206,7 +212,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             .unwrap_or("application/octet-stream");
         let media_files = vec![MediaFile {
             content_type: mime.to_string(),
-            tags: vec![],
+            tags: vec!["browser_compatible".to_string()],
             url: format!("{id}/media"),
             source: media_source,
         }];
@@ -227,14 +233,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
         Ok(document)
     }
 
-    fn get_document_from_task(&self, task: Uuid) -> Result<Document> {
-        self.get_documents()?
-            .into_iter()
-            .find(|doc| doc.tasks.iter().any(|t| t == &task))
-            .ok_or(anyhow!("could not find document for task {task}"))
-    }
-
-    fn create_new_document(&self, media_file_path: String, tasks: Vec<Uuid>) -> Result<Document> {
+    fn create_new_document(&self, media_file_path: String) -> Result<Document> {
         let (id, app_data_path) = create_new_appdata_transcribee_archive(self, &[])?;
         let mime = infer::get_from_path(&media_file_path)?
             .map(|x| x.mime_type())
@@ -252,7 +251,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             app_data_path: app_data_path.to_str().unwrap().to_string(),
             save_path: None,
             transcription_progress: 0.0,
-            tasks,
+            tasks: vec![],
             media_files,
             has_unsaved_changes: false,
         };
@@ -293,11 +292,9 @@ pub fn forget_document(
         if let Some(position) = documents.iter().position(|doc| doc.id == id) {
             let doc = documents.remove(position);
             for task in doc.tasks {
-                worker_adapter
-                    .tasks
-                    .blocking_lock()
-                    .remove_task(task)
-                    .unwrap();
+                if let Err(e) = worker_adapter.tasks.blocking_lock().remove_task(task) {
+                    warn!("could not remove task: {e}")
+                }
             }
             remove_file(doc.app_data_path)?;
         }
@@ -306,29 +303,46 @@ pub fn forget_document(
     Ok(())
 }
 
+pub async fn get_document_media_for_save_or_display_error(
+    app_handle: &AppHandle,
+    document: &Document,
+) -> Result<MediaFileSource> {
+    let Some(media_file) = document
+        .media_files
+        .iter()
+        .find(|m| m.tags.iter().any(|t| t == "browser_compatible"))
+    else {
+        let focused_window =
+            focused_window(app_handle).ok_or(anyhow!("could not get focused window"))?;
+        focused_window
+            .dialog()
+            .message("Could not save because no suitable media file was found. Please try again in a few seconds when transcribee has prepared a suitable file.")
+            .kind(MessageDialogKind::Error)
+            .title("could not save")
+            .show(|_result| {});
+        return Err(anyhow!(
+            "could not save because no suitable media file was found!"
+        ));
+    };
+
+    Ok(media_file.source.clone())
+}
+
 #[command]
 pub async fn save_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
     let document = app_handle.get_document(id)?;
     let Some(save_path) = &document.save_path else {
         return save_document_as_dialog(app_handle.clone(), id).await;
     };
-
+    let media_file = get_document_media_for_save_or_display_error(&app_handle, &document).await?;
     let new_automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
     if !fs::exists(save_path)? {
         warn!("save target file under {save_path} does not exist, even if we think it should. Recreating file...");
-        transcribee_archive::create_new(
-            save_path,
-            document.find_media_file_for_save(),
-            &new_automerge_doc,
-        )?;
+        transcribee_archive::create_new(save_path, Some(media_file), &new_automerge_doc)?;
     } else {
         if let Err(e) = transcribee_archive::update_automerge_file(save_path, &new_automerge_doc) {
             warn!("transcribee_archive::update_automerge_file failed with error {e}, trying to re-creating the file...");
-            transcribee_archive::create_new(
-                save_path,
-                document.find_media_file_for_save(),
-                &new_automerge_doc,
-            )?;
+            transcribee_archive::create_new(save_path, Some(media_file), &new_automerge_doc)?;
         }
     }
     app_handle.update_document(id, |mut doc| {
@@ -341,6 +355,7 @@ pub async fn save_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
 #[command]
 pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
     let document = app_handle.get_document(id)?;
+    let media_file = get_document_media_for_save_or_display_error(&app_handle, &document).await?;
 
     let focused_window =
         focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
@@ -365,11 +380,14 @@ pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResu
     };
 
     let automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
-    transcribee_archive::create_new(
-        &save_path.to_string(),
-        document.find_media_file_for_save(),
-        &automerge_doc,
-    )?;
+    transcribee_archive::create_new(&save_path.to_string(), Some(media_file), &automerge_doc)?;
+
+    // kick out any other loaded documents with the same path to only ever have one document with
+    // the same save path in transcribee desktop.
+    app_handle.update_documents(|mut documents| {
+        documents.retain(|doc| doc.save_path != Some(save_path.to_string()));
+        Ok(documents)
+    })?;
 
     app_handle.update_document(id, |mut doc| {
         doc.save_path = Some(save_path.to_string());

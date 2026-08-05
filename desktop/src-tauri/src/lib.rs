@@ -1,6 +1,6 @@
 use crate::file_handling::{
     append_automerge_change, forget_document, get_document, get_documents, get_media_file_response,
-    DocumentsStoreExt,
+    DocumentsStoreExt, MediaFile,
 };
 use crate::window::create_or_focus_main_window;
 use colored::Color;
@@ -10,7 +10,7 @@ use http::{
     response::Builder as ResponseBuilder,
     StatusCode,
 };
-use log::{warn, Level};
+use log::{error, warn, Level};
 use serde_json::json;
 use std::time::Duration;
 use tauri::RunEvent;
@@ -111,8 +111,8 @@ pub fn run() {
                     .automerge_listeners
                     .lock()
                     .await
-                    .add_listener(move |task, change: Vec<u8>| {
-                        let Ok(document) = app_handle.get_document_from_task(task) else {
+                    .add_listener(move |document_uuid, change: Vec<u8>| {
+                        let Ok(document) = app_handle.get_document(document_uuid) else {
                             warn!("document for which we received a change does not exist anymore");
                             return;
                         };
@@ -143,21 +143,76 @@ pub fn run() {
                     .progress_listeners
                     .lock()
                     .await
-                    .add_listener(move |task, progress: Option<f32>| {
-                        if let Some(progress) = progress {
-                            let Ok(doc) = app_handle.get_document_from_task(task) else {
-                                warn!("got progress ({progress}) for task {task} which does not exist");
-                                return;
-                            };
+                    .add_listener(move |document_uuid, _| {
+                        let Ok(doc) = app_handle.get_document(document_uuid) else {
+                            warn!("got progress for document {document_uuid} which does not exist");
+                            return;
+                        };
+                        let app_handle = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let worker_adapter = app_handle.state::<WorkerAdapter>();
+                            let tasks = worker_adapter.tasks.lock().await;
+                            let mut numerator = 0.0;
+                            let mut denominator = 0.0;
+                            for task_uuid in doc.tasks {
+                                if let Some(task) = tasks.get(&task_uuid) {
+                                    numerator += task.progress() * task.task_type.progress_weight();
+                                    denominator += task.task_type.progress_weight();
+                                }
+                            }
+
+                            let progress = numerator / denominator;
                             app_handle
                                 .update_document(doc.id, |mut doc| {
                                     doc.transcription_progress = progress.max(0.01);
                                     doc
                                 })
                                 .unwrap();
-                        }
-                    })
+                        });
+                    });
+
+                let app_handle = app.app_handle().clone();
+                worker_adapter
+                    .inner()
+                    .media_file_listeners
+                    .lock()
+                    .await
+                    .add_listener(
+                        move |document, media_file: worker_adapter::state::MediaFile| {
+                            app_handle
+                                .update_document(document, |mut doc| {
+                                    let mut media_file = MediaFile::from_worker_adapter_media_file(
+                                        media_file.clone(),
+                                        document,
+                                    )
+                                    .unwrap();
+                                    media_file.tags.push("browser_compatible".to_string());
+                                    doc.media_files.push(media_file);
+                                    doc
+                                })
+                                .unwrap();
+                        },
+                    )
             });
+
+            // forget all documents that have unfinished transcription jobs
+            let app_handle = app.app_handle().clone();
+            app.update_documents(move |mut documents| {
+                let app_handle = app_handle.clone();
+                let worker_adapter = worker_adapter.clone();
+                documents.retain(move |doc| {
+                    let keep = doc.transcription_progress == 1.0;
+                    if !keep {
+                        if let Err(e) =
+                            forget_document(app_handle.clone(), worker_adapter.clone(), doc.id)
+                        {
+                            error!("could not remove document {}: {:?}", doc.id, e);
+                        }
+                    }
+                    keep
+                });
+                Ok(documents)
+            })?;
 
             tauri::async_runtime::block_on(async {
                 create_or_focus_main_window(app.handle()).await.unwrap();

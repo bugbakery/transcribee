@@ -1,4 +1,8 @@
-use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, State, WebviewUrl};
+use std::fs;
+
+use tauri::{
+    path::BaseDirectory, AppHandle, LogicalPosition, LogicalSize, Manager, State, WebviewUrl,
+};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -20,10 +24,15 @@ pub async fn transcribe_files(
     media_file_paths: Vec<String>,
     language: String,
     model: String,
+    speaker_detection: String,
+    number_of_speakers: u32,
 ) -> CmdResult<()> {
     for f in media_file_paths {
-        let task_uuid = worker_adapter
+        let document = app.create_new_document(f.clone())?;
+        let mut tasks = vec![];
+        let transcription_task = worker_adapter
             .start_transcription(
+                document.id,
                 f.clone(),
                 TranscribeTaskParameters {
                     lang: language.clone(),
@@ -31,8 +40,40 @@ pub async fn transcribe_files(
                 },
             )
             .await;
+        tasks.push(transcription_task.id);
 
-        app.create_new_document(f, vec![task_uuid])?;
+        if speaker_detection != "off" {
+            let number_of_speakers = if speaker_detection == "advanced" {
+                Some(number_of_speakers)
+            } else {
+                None
+            };
+            let identify_speakers_task = worker_adapter
+                .start_identify_speakers(
+                    document.id,
+                    f.clone(),
+                    transcription_task.id,
+                    number_of_speakers,
+                )
+                .await;
+            tasks.push(identify_speakers_task.id);
+        }
+
+        let media_files_folder = app
+            .path()
+            .resolve("media_files", BaseDirectory::AppData)?
+            .to_string_lossy()
+            .to_string();
+        fs::create_dir_all(&media_files_folder)?;
+        let reencode_task = worker_adapter
+            .start_reencode(document.id, f, media_files_folder)
+            .await;
+        tasks.push(reencode_task.id);
+
+        app.update_document(document.id, |mut doc| {
+            doc.tasks.append(&mut tasks.clone());
+            doc
+        })?;
     }
 
     create_or_focus_main_window(&app).await?;

@@ -11,12 +11,17 @@ use tauri::{
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::ShellExt;
 use tokio::time::sleep;
+use worker_adapter::state::TaskType::{self, IdentifySpeakers, Reencode, Transcribe};
 use worker_adapter::WorkerAdapter;
+
+use crate::file_handling::DocumentsStoreExt;
+use crate::transcribee_archive;
 
 fn setup_worker<R: Runtime>(
     app: &AppHandle<R>,
     local_addr: SocketAddr,
     token: String,
+    task_types: Vec<TaskType>,
 ) -> Result<()> {
     let ext = if cfg!(target_family = "windows") {
         "bat"
@@ -47,6 +52,11 @@ fn setup_worker<R: Runtime>(
                         &format!("http://{}:{}", local_addr.ip(), local_addr.port()),
                         "--token",
                         &token,
+                        "--task-types",
+                        &task_types
+                            .iter()
+                            .map(TaskType::as_worker_arg)
+                            .collect::<String>(),
                     ])
                     .current_dir("../../worker")
             } else {
@@ -126,6 +136,19 @@ fn setup_worker_adapter<R: Runtime>(
     let token: String = random_token();
 
     let adapter = WorkerAdapter::new(token.clone());
+    let app_handle = app.clone();
+    tauri::async_runtime::block_on(adapter.install_document_getter(move |uuid| {
+        match app_handle
+            .get_document(uuid)
+            .and_then(|document| transcribee_archive::get_automerge_doc(&document.app_data_path))
+        {
+            Ok(document) => document,
+            Err(e) => {
+                error!("could not get automerge doc for document {uuid}: {e:?}");
+                vec![]
+            }
+        }
+    }));
     app.manage(adapter.clone());
 
     let listener = WorkerAdapter::bind(None)?;
@@ -140,7 +163,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("transcribee-worker")
         .setup(|app, _| {
             let (addr, token) = setup_worker_adapter(app)?;
-            setup_worker(app, addr, token)?;
+            setup_worker(app, addr, token.clone(), vec![Reencode])?;
+            setup_worker(app, addr, token, vec![Transcribe, IdentifySpeakers])?;
             Ok(())
         })
         .build()

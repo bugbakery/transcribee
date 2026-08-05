@@ -112,7 +112,7 @@ class Worker:
             ]
 
     def claim_task(self) -> Optional[AssignedTask]:
-        logging.info("Asking backend for new task")
+        logging.debug("Asking backend for new task")
         req = self.api_client.post(
             "tasks/claim_unassigned_task/", params={"task_type": self.task_types}
         )
@@ -266,8 +266,18 @@ class Worker:
         }
         n_profiles = len(applicable_profiles)
 
-        for i, (profile, parameters) in enumerate(applicable_profiles.items()):
-            output_path = self._get_tmpfile(f"reencode_{profile.replace(':', '_')}")
+        for i, (profile, parameters) in enumerate(
+            reversed(applicable_profiles.items())
+        ):
+            if settings.WORKER_TYPE == "desktop":
+                output_path = Path(task.task_parameters["output_path"])
+                output_path = (
+                    output_path
+                    / f"{task.document.id}_reencode_{profile.replace(':', '_')}"
+                )
+            else:
+                assert settings.WORKER_TYPE == "web"
+                output_path = self._get_tmpfile(f"reencode_{profile.replace(':', '_')}")
 
             def work(_):
                 return reencode(
@@ -292,6 +302,11 @@ class Worker:
             await loop.run_in_executor(
                 None, self.add_document_media_file, task, output_path, tags
             )
+
+            if settings.WORKER_TYPE == "desktop":
+                # we only reencode one version for desktop (no need to save bandwidth)
+                # in only loading the audio if video preview is disabled
+                break
 
     async def export(self, task: ExportTask, progress_callback: ProgressCallbackType):
         async with self.api_client.document(task.document.id) as doc:
@@ -332,12 +347,21 @@ class Worker:
         )
 
     def add_document_media_file(self, task: AssignedTask, path: Path, tags: list[str]):
-        logging.debug(f"Replacing document audio for document {task.document.id=}")
-        self.api_client.post(
-            f"documents/{task.document.id}/add_media_file/",
-            files={"file": open(path, "rb")},
-            data=[("tags", tag) for tag in tags],
-        )
+        logging.debug(f"Adding document audio for document {task.document.id=}")
+        if settings.WORKER_TYPE == "web":
+            self.api_client.post(
+                f"documents/{task.document.id}/add_media_file/",
+                files={"file": open(path, "rb")},
+                data=[("tags", tag) for tag in tags],
+            )
+        elif settings.WORKER_TYPE == "desktop":
+            self.api_client.post(
+                f"documents/{task.document.id}/add_media_file/",
+                json={
+                    "path": str(path),
+                    "tags": tags,
+                },
+            )
 
     def mark_completed(self, task_id: UUID, additional_data: Optional[dict] = None):
         extra_data = {**self._result_data}

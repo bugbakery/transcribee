@@ -25,6 +25,24 @@ pub enum TaskType {
     Reencode,
     Export,
 }
+impl TaskType {
+    pub fn as_worker_arg(&self) -> &str {
+        match self {
+            TaskType::IdentifySpeakers => "identify",
+            TaskType::Transcribe => "transcribe",
+            TaskType::Reencode => "reencode",
+            TaskType::Export => "export",
+        }
+    }
+    pub fn progress_weight(&self) -> f32 {
+        match self {
+            TaskType::IdentifySpeakers => 0.1,
+            TaskType::Transcribe => 2.0,
+            TaskType::Reencode => 0.1,
+            TaskType::Export => 0.01,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TaskAttempt {
@@ -33,8 +51,8 @@ pub struct TaskAttempt {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MediaFile {
-    tags: Vec<String>,
-    path: String,
+    pub tags: Vec<String>,
+    pub path: String,
 }
 
 impl MediaFile {
@@ -73,10 +91,22 @@ pub struct TranscribeTaskParameters {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct IdentifySpeakersTaskParameters {
+    pub number_of_speakers: Option<u32>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ReencodeTaskParameters {
+    pub output_path: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum TaskParameters {
     NoParameters(HashMap<(), ()>),
     Transcribe(TranscribeTaskParameters),
+    IdentifySpeakers(IdentifySpeakersTaskParameters),
+    Reencode(ReencodeTaskParameters),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -89,10 +119,24 @@ pub struct Task {
     pub document: Document,
     pub task_parameters: TaskParameters,
 }
+impl Task {
+    pub fn progress(&self) -> f32 {
+        self.current_attempt
+            .as_ref()
+            .map_or(0.0, |attempt| attempt.progress.unwrap_or(0.0))
+    }
+}
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct ListenersContainer<T> {
     pub listeners: Vec<Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>>>,
+}
+impl<T> Default for ListenersContainer<T> {
+    fn default() -> Self {
+        Self {
+            listeners: Default::default(),
+        }
+    }
 }
 
 impl<T: Clone> ListenersContainer<T> {
@@ -119,7 +163,7 @@ impl<T: Clone> ListenersContainer<T> {
 
 #[derive(Default, Clone, Debug)]
 pub struct TasksContainer {
-    tasks: HashMap<Uuid, Task>,
+    pub tasks: HashMap<Uuid, Task>,
 }
 
 #[derive(Debug)]
@@ -137,14 +181,22 @@ impl IntoResponse for TaskNotFoundError {
 }
 
 impl TasksContainer {
-    pub fn add_task(&mut self, task: Task) {
-        self.tasks.insert(task.id, task);
+    pub fn get(&self, uuid: &Uuid) -> Option<&Task> {
+        self.tasks.get(uuid)
+    }
+
+    pub fn add_task(&mut self, task: Task) -> Task {
+        self.tasks.insert(task.id, task.clone());
+        task
     }
 
     pub fn complete_task(&mut self, id: Uuid) -> Result<(), TaskNotFoundError> {
         match self.tasks.get_mut(&id) {
             Some(task) => {
                 task.state = TaskState::Completed;
+                if let Some(current_attempt) = &mut task.current_attempt {
+                    current_attempt.progress = Some(1.0);
+                }
                 Ok(())
             }
             None => Err(TaskNotFoundError),
@@ -207,7 +259,9 @@ impl TasksContainer {
     }
     pub fn claim_unassigned_task(&mut self, task_types: &[TaskType]) -> Option<Task> {
         if let Some(task) = self.get_ready_task(task_types) {
-            task.current_attempt = Some(TaskAttempt { progress: None });
+            task.current_attempt = Some(TaskAttempt {
+                progress: Some(0.0),
+            });
             task.state = TaskState::Assigned;
             return Some(task.clone());
         }
