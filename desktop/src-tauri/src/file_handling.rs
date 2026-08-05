@@ -123,7 +123,7 @@ pub trait DocumentsStoreExt<R: Runtime> {
     fn update_document(&self, id: Uuid, op: impl Fn(Document) -> Document) -> Result<()>;
     fn open_document(&self, path: &str) -> Result<Document>;
     fn get_document_from_task(&self, task: Uuid) -> Result<Document>;
-    fn create_new_document(&self, media_file_path: String, tasks: Vec<Uuid>) -> Result<Document>;
+    fn create_new_document(&self, media_file_path: String) -> Result<Document>;
 }
 impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
     fn get_documents(&self) -> Result<Vec<Document>> {
@@ -234,7 +234,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             .ok_or(anyhow!("could not find document for task {task}"))
     }
 
-    fn create_new_document(&self, media_file_path: String, tasks: Vec<Uuid>) -> Result<Document> {
+    fn create_new_document(&self, media_file_path: String) -> Result<Document> {
         let (id, app_data_path) = create_new_appdata_transcribee_archive(self, &[])?;
         let mime = infer::get_from_path(&media_file_path)?
             .map(|x| x.mime_type())
@@ -252,7 +252,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             app_data_path: app_data_path.to_str().unwrap().to_string(),
             save_path: None,
             transcription_progress: 0.0,
-            tasks,
+            tasks: vec![],
             media_files,
             has_unsaved_changes: false,
         };

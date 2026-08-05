@@ -13,11 +13,13 @@ use tracing::metadata::Level;
 use uuid::Uuid;
 
 use crate::handlers::{
-    claim_unassigned_task, document_sync, keepalive, mark_completed, mark_failed, noop,
+    add_media_file, claim_unassigned_task, document_sync, keepalive, mark_completed, mark_failed,
+    noop,
 };
 use crate::state::{
-    Document, ListenersContainer, MediaFile, Task, TaskParameters, TaskState, TaskType,
-    TasksContainer, TranscribeTaskParameters,
+    Document, IdentifySpeakersTaskParameters, ListenersContainer, MediaFile,
+    ReencodeTaskParameters, Task, TaskParameters, TaskState, TaskType, TasksContainer,
+    TranscribeTaskParameters,
 };
 
 async fn worker_auth(
@@ -59,6 +61,7 @@ pub struct WorkerAdapter {
     pub tasks: Arc<Mutex<TasksContainer>>,
     pub automerge_listeners: Arc<Mutex<ListenersContainer<Vec<u8>>>>,
     pub progress_listeners: Arc<Mutex<ListenersContainer<Option<f32>>>>,
+    pub media_file_listeners: Arc<Mutex<ListenersContainer<MediaFile>>>,
 }
 
 impl WorkerAdapter {
@@ -75,23 +78,65 @@ impl WorkerAdapter {
 
     pub async fn start_transcription(
         &self,
+        document_uuid: Uuid,
         file_path: String,
         params: TranscribeTaskParameters,
-    ) -> Uuid {
+    ) -> Task {
         let mut tasks = self.tasks.lock().await;
         let media_file = MediaFile::new(file_path.clone());
-        let task_uuid = Uuid::now_v7();
-        let doc = Document::new(file_path, vec![media_file], task_uuid);
+        let doc = Document::new(file_path, vec![media_file], Uuid::now_v7());
         tasks.add_task(Task {
-            id: task_uuid,
+            id: document_uuid,
             current_attempt: None,
             dependencies: vec![],
             state: TaskState::New,
             task_parameters: TaskParameters::Transcribe(params),
             document: doc,
             task_type: TaskType::Transcribe,
-        });
-        task_uuid
+        })
+    }
+
+    pub async fn start_reencode(
+        &self,
+        document_uuid: Uuid,
+        file_path: String,
+        output_path: String,
+    ) -> Task {
+        let mut tasks = self.tasks.lock().await;
+        let media_file = MediaFile::new(file_path.clone());
+        let doc = Document::new(file_path, vec![media_file], Uuid::now_v7());
+        tasks.add_task(Task {
+            id: document_uuid,
+            current_attempt: None,
+            dependencies: vec![],
+            state: TaskState::New,
+            task_parameters: TaskParameters::Reencode(ReencodeTaskParameters { output_path }),
+            document: doc,
+            task_type: TaskType::Reencode,
+        })
+    }
+
+    pub async fn start_identify_speakers(
+        &self,
+        document_uuid: Uuid,
+        file_path: String,
+        transcribe_task: Uuid,
+        number_of_speakers: Option<u32>,
+    ) -> Task {
+        let mut tasks = self.tasks.lock().await;
+        let media_file = MediaFile::new(file_path.clone());
+        let doc = Document::new(file_path, vec![media_file], Uuid::now_v7());
+        tasks.add_task(Task {
+            id: document_uuid,
+            current_attempt: None,
+            dependencies: vec![transcribe_task],
+            state: TaskState::New,
+            task_parameters: TaskParameters::IdentifySpeakers(IdentifySpeakersTaskParameters {
+                number_of_speakers,
+            }),
+            document: doc,
+            task_type: TaskType::IdentifySpeakers,
+        })
     }
 
     pub fn bind(port: Option<u16>) -> std::io::Result<TcpListener> {
@@ -129,7 +174,7 @@ impl WorkerAdapter {
             .route("/api/v1/documents/{document_id}/set_duration/", post(noop))
             .route(
                 "/api/v1/documents/{document_id}/add_media_file/",
-                post(noop),
+                post(add_media_file),
             )
             .route_layer(middleware::from_fn_with_state(self.clone(), worker_auth));
 
