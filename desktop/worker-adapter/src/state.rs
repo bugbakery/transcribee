@@ -163,7 +163,7 @@ impl<T: Clone> ListenersContainer<T> {
 
 #[derive(Default, Clone, Debug)]
 pub struct TasksContainer {
-    tasks: HashMap<Uuid, Task>,
+    pub tasks: HashMap<Uuid, Task>,
 }
 
 #[derive(Debug)]
