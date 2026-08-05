@@ -25,6 +25,24 @@ pub enum TaskType {
     Reencode,
     Export,
 }
+impl TaskType {
+    pub fn as_worker_arg(&self) -> &str {
+        match self {
+            TaskType::IdentifySpeakers => "identify",
+            TaskType::Transcribe => "transcribe",
+            TaskType::Reencode => "reencode",
+            TaskType::Export => "export",
+        }
+    }
+    pub fn progress_weight(&self) -> f32 {
+        match self {
+            TaskType::IdentifySpeakers => 0.1,
+            TaskType::Transcribe => 2.0,
+            TaskType::Reencode => 0.1,
+            TaskType::Export => 0.01,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TaskAttempt {
@@ -101,6 +119,13 @@ pub struct Task {
     pub document: Document,
     pub task_parameters: TaskParameters,
 }
+impl Task {
+    pub fn progress(&self) -> f32 {
+        self.current_attempt
+            .as_ref()
+            .map_or(0.0, |attempt| attempt.progress.unwrap_or(0.0))
+    }
+}
 
 #[derive(Clone)]
 pub struct ListenersContainer<T> {
@@ -156,6 +181,10 @@ impl IntoResponse for TaskNotFoundError {
 }
 
 impl TasksContainer {
+    pub fn get(&self, uuid: &Uuid) -> Option<&Task> {
+        self.tasks.get(uuid)
+    }
+
     pub fn add_task(&mut self, task: Task) -> Task {
         self.tasks.insert(task.id, task.clone());
         task
@@ -165,6 +194,9 @@ impl TasksContainer {
         match self.tasks.get_mut(&id) {
             Some(task) => {
                 task.state = TaskState::Completed;
+                if let Some(current_attempt) = &mut task.current_attempt {
+                    current_attempt.progress = Some(1.0);
+                }
                 Ok(())
             }
             None => Err(TaskNotFoundError),

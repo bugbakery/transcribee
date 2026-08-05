@@ -115,6 +115,22 @@ pub struct MediaFile {
     url: String,
     source: MediaFileSource,
 }
+impl MediaFile {
+    pub fn from_worker_adapter_media_file(
+        v: worker_adapter::state::MediaFile,
+        document_uuid: Uuid,
+    ) -> Result<Self> {
+        let mime = infer::get_from_path(&v.path)?
+            .map(|x| x.mime_type())
+            .unwrap_or("application/octet-stream");
+        Ok(Self {
+            content_type: mime.to_string(),
+            tags: v.tags,
+            url: format!("{document_uuid}/reencode"),
+            source: MediaFileSource::Fs { media_path: v.path },
+        })
+    }
+}
 
 pub trait DocumentsStoreExt<R: Runtime> {
     fn get_documents(&self) -> Result<Vec<Document>>;
@@ -122,7 +138,6 @@ pub trait DocumentsStoreExt<R: Runtime> {
     fn update_documents(&self, op: impl Fn(Vec<Document>) -> Result<Vec<Document>>) -> Result<()>;
     fn update_document(&self, id: Uuid, op: impl Fn(Document) -> Document) -> Result<()>;
     fn open_document(&self, path: &str) -> Result<Document>;
-    fn get_document_from_task(&self, task: Uuid) -> Result<Document>;
     fn create_new_document(&self, media_file_path: String) -> Result<Document>;
 }
 impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
@@ -227,13 +242,6 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
         Ok(document)
     }
 
-    fn get_document_from_task(&self, task: Uuid) -> Result<Document> {
-        self.get_documents()?
-            .into_iter()
-            .find(|doc| doc.tasks.iter().any(|t| t == &task))
-            .ok_or(anyhow!("could not find document for task {task}"))
-    }
-
     fn create_new_document(&self, media_file_path: String) -> Result<Document> {
         let (id, app_data_path) = create_new_appdata_transcribee_archive(self, &[])?;
         let mime = infer::get_from_path(&media_file_path)?
@@ -293,11 +301,9 @@ pub fn forget_document(
         if let Some(position) = documents.iter().position(|doc| doc.id == id) {
             let doc = documents.remove(position);
             for task in doc.tasks {
-                worker_adapter
-                    .tasks
-                    .blocking_lock()
-                    .remove_task(task)
-                    .unwrap();
+                if let Err(e) = worker_adapter.tasks.blocking_lock().remove_task(task) {
+                    warn!("could not remove task: {e}")
+                }
             }
             remove_file(doc.app_data_path)?;
         }
