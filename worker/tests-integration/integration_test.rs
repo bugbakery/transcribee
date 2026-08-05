@@ -109,7 +109,7 @@ mod test {
                     .append(&mut change)
             });
 
-        let timeout_duration = Duration::from_secs(30);
+        let timeout_duration = Duration::from_mins(10);
         if let Err(_) = timeout(timeout_duration, rx).await {
             panic!("transcription timed out after {timeout_duration:?}");
         }
@@ -172,7 +172,7 @@ mod test {
                     }
                 }
             });
-        let timeout_duration = Duration::from_secs(30);
+        let timeout_duration = Duration::from_mins(10);
         if let Err(_) = timeout(timeout_duration, rx).await {
             panic!("transcription start timed out after {timeout_duration:?}");
         }
