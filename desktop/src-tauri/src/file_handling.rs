@@ -382,6 +382,13 @@ pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResu
     let automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
     transcribee_archive::create_new(&save_path.to_string(), Some(media_file), &automerge_doc)?;
 
+    // kick out any other loaded documents with the same path to only ever have one document with
+    // the same save path in transcribee desktop.
+    app_handle.update_documents(|mut documents| {
+        documents.retain(|doc| doc.save_path != Some(save_path.to_string()));
+        Ok(documents)
+    })?;
+
     app_handle.update_document(id, |mut doc| {
         doc.save_path = Some(save_path.to_string());
         doc.has_unsaved_changes = false;
