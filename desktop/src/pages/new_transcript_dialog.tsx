@@ -63,6 +63,8 @@ export function NewTranscriptDialog() {
       mediaFilePaths: data.files,
       model: data.model,
       language: data.language,
+      speakerDetection: data.speakerDetection,
+      numberOfSpeakers: data.numberOfSpeakers,
     });
     await getCurrentWindow().close();
   };

@@ -14,6 +14,9 @@ use tokio::time::sleep;
 use worker_adapter::state::TaskType::{self, IdentifySpeakers, Reencode, Transcribe};
 use worker_adapter::WorkerAdapter;
 
+use crate::file_handling::DocumentsStoreExt;
+use crate::transcribee_archive;
+
 fn setup_worker<R: Runtime>(
     app: &AppHandle<R>,
     local_addr: SocketAddr,
@@ -133,6 +136,19 @@ fn setup_worker_adapter<R: Runtime>(
     let token: String = random_token();
 
     let adapter = WorkerAdapter::new(token.clone());
+    let app_handle = app.clone();
+    tauri::async_runtime::block_on(adapter.install_document_getter(move |uuid| {
+        match app_handle
+            .get_document(uuid)
+            .and_then(|document| transcribee_archive::get_automerge_doc(&document.app_data_path))
+        {
+            Ok(document) => document,
+            Err(e) => {
+                error!("could not get automerge doc for document {uuid}: {e:?}");
+                vec![]
+            }
+        }
+    }));
     app.manage(adapter.clone());
 
     let listener = WorkerAdapter::bind(None)?;

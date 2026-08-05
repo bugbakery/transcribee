@@ -188,10 +188,10 @@ pub fn run() {
                             app_handle
                                 .update_document(document, |mut doc| {
                                     let mut media_file = MediaFile::from_worker_adapter_media_file(
-                                            media_file.clone(),
-                                            document,
-                                        )
-                                        .unwrap();
+                                        media_file.clone(),
+                                        document,
+                                    )
+                                    .unwrap();
                                     media_file.tags.push("browser_compatible".to_string());
                                     doc.media_files.push(media_file);
                                     doc

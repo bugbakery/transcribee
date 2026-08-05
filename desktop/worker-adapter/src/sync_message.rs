@@ -5,7 +5,7 @@ use axum::{body::Bytes, extract::ws::Message};
 pub enum SyncMessage<'a> {
     Change(&'a [u8]),
     ChangeBacklogComplete,
-    FullDocument(&'a [&'a [u8]]),
+    FullDocument(&'a [u8]),
 }
 
 impl<'a> SyncMessage<'a> {
@@ -25,11 +25,7 @@ impl<'a> From<SyncMessage<'a>> for Message {
         match val {
             SyncMessage::Change(change) => msg.extend_from_slice(change),
             SyncMessage::ChangeBacklogComplete => (),
-            SyncMessage::FullDocument(changes) => {
-                for c in changes {
-                    msg.extend_from_slice(c);
-                }
-            }
+            SyncMessage::FullDocument(changes) => msg.extend_from_slice(changes),
         };
 
         Message::Binary(Bytes::from(msg))
