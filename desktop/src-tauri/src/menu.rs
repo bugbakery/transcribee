@@ -11,6 +11,7 @@ use tauri::{
     AppHandle, Emitter, Listener, Manager, Wry,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogResult};
+use worker_adapter::{state::TaskState::Completed, WorkerAdapter};
 
 use crate::{
     cmd::{open_document_via_file_picker, toggle_devtools},
@@ -126,15 +127,28 @@ pub fn setup_macos_menu(app: &AppHandle) -> tauri::Result<()> {
     async fn menu_event_handler(app: AppHandle, event_id: &str) -> CmdResult<()> {
         match event_id {
             "quit" => {
-                // TODO: only show when transcription jobs are running
-                let dialog_res = app
+                let adapter = app.state::<WorkerAdapter>();
+                let close = if adapter
+                    .tasks
+                    .lock()
+                    .await
+                    .tasks
+                    .iter()
+                    .any(|(_uuid, task)| task.state != Completed)
+                {
+                    let dialog_res = app
                     .dialog()
-                    .message("There are still transcription jobs running, which will be canceled.")
+                    .message("There are still transcription jobs running, which will be canceled and their progress will be lost.")
                     .title("Quit Transcribee?")
                     .kind(tauri_plugin_dialog::MessageDialogKind::Warning)
                     .buttons(tauri_plugin_dialog::MessageDialogButtons::YesNo)
                     .blocking_show_with_result();
-                if dialog_res == MessageDialogResult::Yes {
+                    dialog_res == MessageDialogResult::Yes
+                } else {
+                    true
+                };
+
+                if close {
                     app.exit(0);
                 }
             }
