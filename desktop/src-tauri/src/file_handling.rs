@@ -313,14 +313,14 @@ pub async fn get_document_media_for_save_or_display_error(
         .find(|m| m.tags.iter().any(|t| t == "browser_compatible"))
     else {
         let focused_window =
-            focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
+            focused_window(app_handle).ok_or(anyhow!("could not get focused window"))?;
         focused_window
             .dialog()
             .message("Could not save because no suitable media file was found. Please try again in a few seconds when transcribee has prepared a suitable file.")
             .kind(MessageDialogKind::Error)
             .title("could not save")
             .show(|_result| {});
-        return Err(anyhow!("could not save because no suitable media file was found!").into());
+        return Err(anyhow!("could not save because no suitable media file was found!"));
     };
 
     Ok(media_file.source.clone())

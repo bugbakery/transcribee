@@ -18,7 +18,10 @@ mod test {
         time::{sleep, timeout},
     };
     use uuid::Uuid;
-    use worker_adapter::{WorkerAdapter, state::TranscribeTaskParameters};
+    use worker_adapter::{
+        WorkerAdapter,
+        state::{TaskState::Completed, TranscribeTaskParameters},
+    };
 
     async fn run_worker_and_adapter() -> (Child, WorkerAdapter, JoinHandle<()>) {
         let token = "SECRET_TOKEN";
@@ -75,7 +78,7 @@ mod test {
             .unwrap()
             .to_string();
         let document_uuid = Uuid::now_v7();
-        adapter
+        let task = adapter
             .start_transcription(
                 document_uuid,
                 audio_path,
@@ -87,15 +90,28 @@ mod test {
             .await;
 
         let (tx, rx) = oneshot::channel();
-        let mut tx_holder = Some(tx);
+        let tx_holder = Arc::new(tokio::sync::Mutex::new(Some(tx)));
+        let adapter_for_listener = adapter.clone();
         adapter
             .progress_listeners
             .lock()
             .await
-            .add_listener(move |_uuid, progress| {
-                if let Some(1.0) = progress {
-                    tx_holder.take().unwrap().send(()).unwrap();
-                }
+            .add_listener(move |_uuid, _| {
+                let adapter_for_listener = adapter_for_listener.clone();
+                let tx_holder = tx_holder.clone();
+                spawn(async move {
+                    if adapter_for_listener
+                        .tasks
+                        .lock()
+                        .await
+                        .get(&task.id)
+                        .unwrap()
+                        .state
+                        == Completed
+                    {
+                        tx_holder.lock().await.take().unwrap().send(()).unwrap();
+                    }
+                });
             });
 
         let automerge_doc = Arc::new(Mutex::new(Vec::new()));
@@ -168,13 +184,9 @@ mod test {
             .progress_listeners
             .lock()
             .await
-            .add_listener(move |_uuid, progress| {
-                if let Some(x) = progress
-                    && x > 0.0
-                {
-                    if let Some(tx) = tx_holder.take() {
-                        tx.send(()).unwrap();
-                    }
+            .add_listener(move |_uuid, _| {
+                if let Some(tx) = tx_holder.take() {
+                    tx.send(()).unwrap();
                 }
             });
         let timeout_duration = Duration::from_mins(10);

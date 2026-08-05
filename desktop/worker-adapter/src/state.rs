@@ -259,7 +259,9 @@ impl TasksContainer {
     }
     pub fn claim_unassigned_task(&mut self, task_types: &[TaskType]) -> Option<Task> {
         if let Some(task) = self.get_ready_task(task_types) {
-            task.current_attempt = Some(TaskAttempt { progress: None });
+            task.current_attempt = Some(TaskAttempt {
+                progress: Some(0.0),
+            });
             task.state = TaskState::Assigned;
             return Some(task.clone());
         }

@@ -60,7 +60,7 @@ pub struct WorkerAdapter {
     token: String,
     pub tasks: Arc<Mutex<TasksContainer>>,
     pub automerge_listeners: Arc<Mutex<ListenersContainer<Vec<u8>>>>,
-    pub progress_listeners: Arc<Mutex<ListenersContainer<Option<f32>>>>,
+    pub progress_listeners: Arc<Mutex<ListenersContainer<()>>>,
     pub media_file_listeners: Arc<Mutex<ListenersContainer<MediaFile>>>,
 }
 

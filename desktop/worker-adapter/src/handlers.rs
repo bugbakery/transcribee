@@ -26,7 +26,14 @@ pub async fn claim_unassigned_task(
     Query(query): Query<GetUnassingedTaskQuery>,
 ) -> Json<Option<Task>> {
     let mut tasks = app_state.tasks.lock().await;
-    Json(tasks.claim_unassigned_task(&query.task_types))
+    let task = tasks.claim_unassigned_task(&query.task_types);
+    if let Some(task) = &task {
+        let mut progress_listeners = app_state.progress_listeners.lock().await;
+        progress_listeners
+            .notify_listeners(task.document.id, ())
+            .await;
+    }
+    Json(task)
 }
 
 pub async fn mark_completed(
@@ -37,9 +44,7 @@ pub async fn mark_completed(
     let document_uuid = tasks.get(&task_id).ok_or(TaskNotFoundError)?.document.id;
     tasks.complete_task(task_id)?;
     let mut progress_listeners = app_state.progress_listeners.lock().await;
-    progress_listeners
-        .notify_listeners(document_uuid, Some(1.0))
-        .await;
+    progress_listeners.notify_listeners(document_uuid, ()).await;
     Ok(Json(()))
 }
 
@@ -61,9 +66,7 @@ pub async fn keepalive(
     let document_uuid = tasks.get(&task_id).ok_or(TaskNotFoundError)?.document.id;
     tasks.update_task_attempt(task_id, payload.clone())?;
     let mut progress_listeners = app_state.progress_listeners.lock().await;
-    progress_listeners
-        .notify_listeners(document_uuid, payload.progress)
-        .await;
+    progress_listeners.notify_listeners(document_uuid, ()).await;
     Ok(Json(()))
 }
 
