@@ -10,7 +10,7 @@ use http::{
     response::Builder as ResponseBuilder,
     StatusCode,
 };
-use log::{warn, Level};
+use log::{error, warn, Level};
 use serde_json::json;
 use std::time::Duration;
 use tauri::RunEvent;
@@ -194,6 +194,25 @@ pub fn run() {
                         },
                     )
             });
+
+            // forget all documents that have unfinished transcription jobs
+            let app_handle = app.app_handle().clone();
+            app.update_documents(move |mut documents| {
+                let app_handle = app_handle.clone();
+                let worker_adapter = worker_adapter.clone();
+                documents.retain(move |doc| {
+                    let keep = doc.transcription_progress == 1.0;
+                    if !keep {
+                        if let Err(e) =
+                            forget_document(app_handle.clone(), worker_adapter.clone(), doc.id)
+                        {
+                            error!("could not remove document {}: {:?}", doc.id, e);
+                        }
+                    }
+                    keep
+                });
+                Ok(documents)
+            })?;
 
             tauri::async_runtime::block_on(async {
                 create_or_focus_main_window(app.handle()).await.unwrap();
