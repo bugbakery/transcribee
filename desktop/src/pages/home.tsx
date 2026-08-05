@@ -13,6 +13,7 @@ import { ComponentProps } from 'react';
 import { Menu, MenuItem } from '@tauri-apps/api/menu';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { getAllWindows } from '@tauri-apps/api/window';
+import { MenuBar, MenuItem as TbMenuItem, SubMenu } from '../menu';
 
 type MediaFile = {
   content_type: string;
@@ -40,6 +41,18 @@ export function HomePage() {
 
   return (
     <div className="min-h-full flex">
+      <MenuBar hidden>
+        <SubMenu title="File">
+          <TbMenuItem
+            onClick={() => {
+              invoke('open_document_via_file_picker');
+            }}
+            accelerator="Ctrl+O"
+          >
+            Open Transcript…
+          </TbMenuItem>
+        </SubMenu>
+      </MenuBar>
       <div className="m-auto w-full flex flex-col items-center gap-4 pt-20 pb-16">
         <div className="flex max-w-[500px] w-full px-4 items-stretch justify-center gap-4 pb-12">
           <PrimaryButton
