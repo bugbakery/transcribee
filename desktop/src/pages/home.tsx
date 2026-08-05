@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useTauriState } from '../util/use_tauri_event';
 import { IoClose } from 'react-icons/io5';
 import { FaRegClock } from 'react-icons/fa6';
+import { IoIosCloseCircle } from 'react-icons/io';
 import { clsx } from 'clsx';
 import { ComponentProps } from 'react';
 import { Menu, MenuItem } from '@tauri-apps/api/menu';
@@ -32,7 +33,7 @@ export type Document = {
 type WorkerTask = {
   id: string;
   task_type: 'IDENTIFY_SPEAKERS' | 'TRANSCRIBE' | 'REENCODE';
-  state: 'NEW' | 'ASSIGNED' | 'COMPLETED' | 'FAILED';
+  state: 'NEW' | 'ASSIGNED' | 'COMPLETED' | 'FAILED' | 'ABORTED';
   current_attempt: WorkerTaskAttempt | null;
 };
 
@@ -106,10 +107,26 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
       <h2 className="font-semibold text-center px-1 mb-4">Transcription Queue</h2>
       <div>
         {documents.map((doc) => {
-          const transcriptionProgress = calculateTranscriptionProgress(doc.tasks);
           let progressIndicator;
           let contextMenuDeleteText;
-          if (transcriptionProgress == 0) {
+          if (doc.tasks.some((t) => t.state == 'ABORTED' || t.state == 'FAILED')) {
+            contextMenuDeleteText = 'Remove Incomplete Document';
+            progressIndicator = (
+              <Tooltip
+                placement={'right'}
+                fallbackPlacements={['bottom', 'top']}
+                tooltipText={
+                  <span>
+                    Automatic transcription did not complete! This may happen <br />
+                    when transcribee is closed while a task is running.
+                  </span>
+                }
+                className="ml-2"
+              >
+                <IoIosCloseCircle className="text-red-600 shrink-0" size={21} />
+              </Tooltip>
+            );
+          } else if (doc.tasks.every((t) => t.state == 'NEW')) {
             contextMenuDeleteText = 'Remove from Transcription Queue';
             progressIndicator = (
               <Tooltip
@@ -127,6 +144,7 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
               </Tooltip>
             );
           } else {
+            const transcriptionProgress = calculateTranscriptionProgress(doc.tasks);
             if (transcriptionProgress == 1) {
               contextMenuDeleteText = 'Delete Transcribed Document';
             } else {
@@ -261,7 +279,7 @@ function ProgressPie({
 export function calculateTranscriptionProgress(
   tasks: {
     task_type: 'IDENTIFY_SPEAKERS' | 'TRANSCRIBE' | 'REENCODE';
-    state: 'NEW' | 'ASSIGNED' | 'COMPLETED' | 'FAILED';
+    state: 'NEW' | 'ASSIGNED' | 'COMPLETED' | 'FAILED' | 'ABORTED';
     current_attempt: { progress: number | null } | null;
   }[],
 ) {
