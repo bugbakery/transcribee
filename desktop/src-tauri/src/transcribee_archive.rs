@@ -105,7 +105,9 @@ pub fn update_automerge_file(path: &str, new_automerge_doc: &[u8]) -> Result<()>
         })?;
     let len = file.metadata()?.len();
     let old_automerge_doc = get_automerge_doc(path)?;
-    if new_automerge_doc[0..old_automerge_doc.len()] != old_automerge_doc {
+    if new_automerge_doc.len() < old_automerge_doc.len()
+        || new_automerge_doc[0..old_automerge_doc.len()] != old_automerge_doc
+    {
         warn!("old automerge doc does not match beginning of automerge doc, this sounds bad");
         let automerge_range: Range<u64> =
             get_byte_range_of_file_in_tar(&mut file, "document.automerge")?;
