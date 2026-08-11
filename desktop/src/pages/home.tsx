@@ -5,6 +5,7 @@ import {
 } from 'transcribee-ui-common/components/button';
 import {
   calculateTranscriptionProgress,
+  ProgressPie,
   TranscriptionProgressIndicator,
 } from 'transcribee-ui-common/components/transcription_progress';
 import { invoke } from '@tauri-apps/api/core';
@@ -14,6 +15,7 @@ import { Menu, MenuItem } from '@tauri-apps/api/menu';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { getAllWindows } from '@tauri-apps/api/window';
 import { MenuBar } from '../menu';
+import { Tooltip } from 'transcribee-ui-common/components/tooltip';
 
 type MediaFile = {
   content_type: string;
@@ -33,11 +35,20 @@ type WorkerTask = {
   id: string;
   task_type: 'IDENTIFY_SPEAKERS' | 'TRANSCRIBE' | 'REENCODE';
   state: 'NEW' | 'ASSIGNED' | 'COMPLETED' | 'FAILED' | 'ABORTED';
-  current_attempt: WorkerTaskAttempt | null;
+  current_attempt: WorkerTaskAttempt | WorkerTaskAttemptDownloading | null;
 };
 
 type WorkerTaskAttempt = {
   progress: number;
+  step: string;
+  timestamp: number;
+  extra_data: null;
+};
+type WorkerTaskAttemptDownloading = {
+  progress: 0.0;
+  step: 'TaskType.TRANSCRIBE:downloading_model';
+  timestamp: number;
+  extra_data: { download_model_loaded: number; download_model_total: number };
 };
 
 export function HomePage() {
@@ -90,6 +101,7 @@ export function HomePage() {
         {transcriptionQueueDocuments.length > 0 && (
           <TranscriptionQueue documents={transcriptionQueueDocuments} />
         )}
+
         {recentDocuments.length > 0 && <RecentDocuments documents={recentDocuments} />}
       </div>
     </div>
@@ -116,55 +128,109 @@ function TranscriptionQueue({ documents }: { documents: Document[] }) {
           } else {
             contextMenuDeleteText = 'Abort Transcription and Delete';
           }
+
+          const downloadProgress = calculateDownloadProgress(doc.tasks);
           return (
-            <div
-              key={doc.id}
-              className="px-3 py-2.5 my-2 border rounded-md flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
-              onClick={() => {
-                invoke('open_document_window', { id: doc.id });
-              }}
-              onContextMenu={async (e) => {
-                e.preventDefault();
-                const menu = await Menu.new({
-                  items: [
-                    await MenuItem.new({
-                      text: contextMenuDeleteText,
-                      async action() {
-                        if (await isDocumentOpen(doc.id)) {
-                          await message(
-                            'Document cannot be deleted while it is opened. Please close the document window first!',
-                            { title: contextMenuDeleteText, kind: 'error' },
-                          );
-                          return;
-                        }
-                        const answer = await ask('Do you really want to delete the document?', {
-                          title: contextMenuDeleteText,
-                          kind: 'warning',
-                        });
-                        if (answer) {
-                          invoke('forget_document', { id: doc.id });
-                        }
-                      },
-                    }),
-                    await MenuItem.new({
-                      text: 'Open Document',
-                      action() {
-                        invoke('open_document_window', { id: doc.id });
-                      },
-                    }),
-                  ],
-                });
-                await menu.popup();
-              }}
-            >
-              <div title={doc.save_path} className="truncate text-sm">
-                {doc.display_name}
+            <>
+              {downloadProgress && (
+                <ModelDownloadProgress
+                  key={`${doc.id}-download`}
+                  downloadProgress={downloadProgress}
+                />
+              )}
+              <div
+                key={doc.id}
+                className="px-3 py-2.5 my-2 border rounded-md flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
+                onClick={() => {
+                  invoke('open_document_window', { id: doc.id });
+                }}
+                onContextMenu={async (e) => {
+                  e.preventDefault();
+                  const menu = await Menu.new({
+                    items: [
+                      await MenuItem.new({
+                        text: contextMenuDeleteText,
+                        async action() {
+                          if (await isDocumentOpen(doc.id)) {
+                            await message(
+                              'Document cannot be deleted while it is opened. Please close the document window first!',
+                              { title: contextMenuDeleteText, kind: 'error' },
+                            );
+                            return;
+                          }
+                          const answer = await ask('Do you really want to delete the document?', {
+                            title: contextMenuDeleteText,
+                            kind: 'warning',
+                          });
+                          if (answer) {
+                            invoke('forget_document', { id: doc.id });
+                          }
+                        },
+                      }),
+                      await MenuItem.new({
+                        text: 'Open Document',
+                        action() {
+                          invoke('open_document_window', { id: doc.id });
+                        },
+                      }),
+                    ],
+                  });
+                  await menu.popup();
+                }}
+              >
+                <div title={doc.save_path} className="truncate text-sm">
+                  {doc.display_name}
+                </div>
+                <TranscriptionProgressIndicator
+                  tasks={doc.tasks}
+                  waitingForDownload={downloadProgress != null}
+                />
               </div>
-              <TranscriptionProgressIndicator tasks={doc.tasks} />
-            </div>
+            </>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function calculateDownloadProgress(tasks: WorkerTask[]) {
+  const downloadTask = tasks.find(
+    (task) => task.current_attempt?.step == 'TaskType.TRANSCRIBE:downloading_model',
+  );
+
+  if (!downloadTask || downloadTask?.current_attempt?.extra_data == null) {
+    return null;
+  } else {
+    const data = downloadTask.current_attempt.extra_data;
+    if (data.download_model_loaded == data.download_model_total) {
+      return null;
+    }
+    return {
+      progress: data.download_model_loaded / data.download_model_total,
+      gb: data.download_model_total / 1e9,
+    };
+  }
+}
+
+function ModelDownloadProgress({
+  downloadProgress: { gb, progress },
+}: {
+  downloadProgress: { progress: number; gb: number };
+}) {
+  return (
+    <div className="px-3 py-2.5 my-2 rounded-md flex items-center justify-between bg-orange-50 dark:bg-orange-900">
+      <div className="truncate text-sm">
+        Downloading Transcription Model ({gb.toFixed(1)}&thinsp;GB)
+      </div>
+      <Tooltip
+        placement={'right'}
+        fallbackPlacements={['bottom', 'top']}
+        tooltipText={`${(progress * 100).toFixed(0)}%`}
+        className="ml-2 tabular-nums"
+      >
+        <ProgressPie progress={progress} lineWidth={0.25} className="w-[21px] shrink-0" />
+      </Tooltip>
     </div>
   );
 }
