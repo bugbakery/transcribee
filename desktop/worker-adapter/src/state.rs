@@ -37,9 +37,12 @@ impl TaskType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct TaskAttempt {
-    pub progress: Option<f32>,
+    pub progress: f32,
+    pub step: String,
+    pub extra_data: serde_json::Value,
+    pub timestamp: f32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -244,9 +247,7 @@ impl TasksContainer {
     }
     pub fn claim_unassigned_task(&mut self, task_types: &[TaskType]) -> Option<Task> {
         if let Some(task) = self.get_ready_task(task_types) {
-            task.current_attempt = Some(TaskAttempt {
-                progress: Some(0.0),
-            });
+            task.current_attempt = Some(TaskAttempt::default());
             task.state = TaskState::Assigned;
             return Some(task.clone());
         }

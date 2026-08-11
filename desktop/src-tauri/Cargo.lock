@@ -5482,6 +5482,7 @@ dependencies = [
  "futures-util",
  "log",
  "serde",
+ "serde_json",
  "tokio",
  "tower-http 0.7.0",
  "tracing",
