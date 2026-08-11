@@ -85,8 +85,25 @@ export function calculateTranscriptionProgress(tasks: Task[]) {
   }
   return numerator / denominator;
 }
-export function TranscriptionProgressIndicator({ tasks }: { tasks: Task[] }) {
-  if (tasks.some((t) => t.state == 'ABORTED' || t.state == 'FAILED')) {
+export function TranscriptionProgressIndicator({
+  tasks,
+  waitingForDownload,
+}: {
+  tasks: Task[];
+  waitingForDownload?: boolean;
+}) {
+  if (waitingForDownload) {
+    return (
+      <Tooltip
+        placement={'right'}
+        fallbackPlacements={['bottom', 'top']}
+        tooltipText={<span>waiting for model download</span>}
+        className="ml-2"
+      >
+        <FaRegClock className="text-neutral-400 shrink-0" size={21} />
+      </Tooltip>
+    );
+  } else if (tasks.some((t) => t.state == 'ABORTED' || t.state == 'FAILED')) {
     return (
       <Tooltip
         placement={'right'}
@@ -124,7 +141,7 @@ export function TranscriptionProgressIndicator({ tasks }: { tasks: Task[] }) {
             ? `transcription done`
             : `transcription ${(transcriptionProgress * 100).toFixed(0)}%`
         }
-        className="ml-2"
+        className="ml-2 tabular-nums"
       >
         <ProgressPie
           progress={transcriptionProgress}
