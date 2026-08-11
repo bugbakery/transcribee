@@ -7,23 +7,11 @@ import { AppContainer } from '../components/app_container';
 import { AiOutlinePlus } from 'react-icons/ai';
 import { IoMdTrash } from 'react-icons/io';
 import { IconButton } from 'transcribee-ui-common/components/button';
-import { WorkerStatusWithData } from '../components/worker_status';
+import { TranscriptionProgressIndicator } from 'transcribee-ui-common/components/transcription_progress';
 import { ComponentProps, JSX, useEffect, useState } from 'react';
 import { RequestDataType } from '../api';
 
 type ApiDocument = RequestDataType<typeof useListDocuments>[0];
-type Tasks = RequestDataType<typeof useListDocuments>[0]['tasks'];
-
-function getTaskProgress(tasks: Tasks) {
-  if (tasks.length == 0) return 0;
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((task) => task.state == 'COMPLETED').length;
-  const runningTasks = tasks
-    .filter((task) => task.state == 'ASSIGNED')
-    .map((task) => task.current_attempt?.progress || 0)
-    .reduce((a, b) => a + b, 0);
-  return (completedTasks + runningTasks) / totalTasks;
-}
 
 export function UserHomePage() {
   // Trusting the SWR documentation, we *should* be able to just set `refreshInterval` to a function
@@ -42,7 +30,9 @@ export function UserHomePage() {
     },
   );
   useEffect(() => {
-    const hasUnfinishedDocuments = data?.some((doc) => getTaskProgress(doc.tasks) < 1);
+    const hasUnfinishedDocuments = data?.some((doc) =>
+      doc.tasks.some((t) => t.state != 'NEW' && t.state != 'ASSIGNED'),
+    );
     // Refresh every second if there are still unfinished documents to update the task progress
     // and every hour otherwise
     const refreshInterval =
@@ -86,8 +76,8 @@ function DocumentCard({ doc, mutate }: { doc: ApiDocument; mutate: () => void })
   return (
     <LinkCard to={`document/${doc.id}`}>
       <div className="w-full flex flex-row items-center justify-between relative">
-        {getTaskProgress(doc.tasks) < 1 ? (
-          <WorkerStatusWithData data={doc.tasks} />
+        {doc.tasks.some((t) => t.state !== 'COMPLETED') ? (
+          <TranscriptionProgressIndicator tasks={doc.tasks} />
         ) : (
           // we need to keep this div, because otherwise the trashbin jumps to the left
           <div></div>

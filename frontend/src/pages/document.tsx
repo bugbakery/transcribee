@@ -8,8 +8,12 @@ import {
   SecondaryButton,
 } from 'transcribee-ui-common/components/button';
 import { TranscriptionEditor } from 'transcribee-ui-common/editor/transcription_editor';
-import { WorkerStatus } from '../components/worker_status';
-import { updateDocument, useGetDocument, useGetDocumentMediaFiles } from '../api/document';
+import {
+  updateDocument,
+  useGetDocument,
+  useGetDocumentMediaFiles,
+  useGetDocumentTasks,
+} from '../api/document';
 import { TbFileExport, TbShare3 } from 'react-icons/tb';
 import { Suspense, lazy, useState, useCallback } from 'react';
 import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
@@ -26,6 +30,7 @@ import { PlayerBar } from 'transcribee-ui-common/editor/player';
 import { minutesInMs } from 'transcribee-ui-common/utils/duration_in_ms';
 import { Editor } from 'slate';
 import { useEvent } from 'transcribee-ui-common/utils/use_event';
+import { TranscriptionProgressIndicator } from 'transcribee-ui-common/components/transcription_progress';
 
 const LazyDebugPanel = lazy(() =>
   import('transcribee-ui-common/editor/debug_panel').then((module) => ({
@@ -202,7 +207,7 @@ export function DocumentPage({
               }}
             />
           )}
-          <WorkerStatus documentId={documentId} />
+          <TranscriptionProgressIndicatorAutoRefresh documentId={documentId} />
           {isLoggedIn && <MeButton />}
         </TopBarPart>
       </TopBar>
@@ -222,6 +227,13 @@ export function DocumentPage({
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </AppContainer>
   );
+}
+
+export function TranscriptionProgressIndicatorAutoRefresh({ documentId }: { documentId: string }) {
+  const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
+  if (data) {
+    return <TranscriptionProgressIndicator tasks={data} />;
+  }
 }
 
 function PlayerBarAutoMediaFiles({
