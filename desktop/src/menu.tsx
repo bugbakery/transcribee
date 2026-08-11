@@ -97,37 +97,40 @@ export function MenuBar({ hidden, menus }: { hidden?: boolean; menus: MenuDef[] 
   }
 
   return (
-    <div className="flex gap-1 px-2 fixed top-0 right-0 left-0 z-50 bg-white dark:bg-neutral-900">
-      {menus.map((menu) => (
-        <Menu
-          key={menu.title}
-          title={menu.title}
-          open={openMenu == menu.title}
-          onClick={() => {
-            if (openMenu == menu.title) {
+    <>
+      <div className="flex gap-2 h-10 px-4 items-center fixed top-0 right-0 left-0 z-50 bg-[rgb(252_252_252)] dark:bg-[rgb(28_28_28)] border-b border-b-[rgb(240_240_240)] dark:border-b-neutral-800">
+        {menus.map((menu) => (
+          <Menu
+            key={menu.title}
+            title={menu.title}
+            open={openMenu == menu.title}
+            onClick={() => {
+              if (openMenu == menu.title) {
+                setOpenMenu(null);
+              } else {
+                setOpenMenu(menu.title);
+              }
+            }}
+            onMouseEnter={() => {
+              // immitate native menus, which switch menus on hover when any menu is active
+              if (openMenu) {
+                setOpenMenu(menu.title);
+              }
+            }}
+            onClose={() => {
               setOpenMenu(null);
-            } else {
-              setOpenMenu(menu.title);
-            }
-          }}
-          onMouseEnter={() => {
-            // immitate native menus, which switch menus on hover when any menu is active
-            if (openMenu) {
-              setOpenMenu(menu.title);
-            }
-          }}
-          onClose={() => {
-            setOpenMenu(null);
-          }}
-        >
-          {menu.items.map((item) => (
-            <MenuItem key={item.text} onClick={item.action} accelerator={item.accelerator}>
-              {item.text}
-            </MenuItem>
-          ))}
-        </Menu>
-      ))}
-    </div>
+            }}
+          >
+            {menu.items.map((item) => (
+              <MenuItem key={item.text} onClick={item.action} accelerator={item.accelerator}>
+                {item.text}
+              </MenuItem>
+            ))}
+          </Menu>
+        ))}
+      </div>
+      <div className="h-10" /> {/* spacer */}
+    </>
   );
 }
 
