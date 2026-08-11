@@ -87,6 +87,7 @@ pub fn run() {
             cmd::open_document_via_file_picker,
             cmd::open_document_window,
             cmd::show_main_window,
+            cmd::set_available_menu_items,
         ])
         .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
             match get_media_file_response(ctx.app_handle(), request) {

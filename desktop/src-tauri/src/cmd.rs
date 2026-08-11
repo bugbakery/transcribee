@@ -1,4 +1,4 @@
-use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, State, WebviewUrl};
+use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, State, WebviewUrl, Window};
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -7,6 +7,7 @@ use worker_adapter::{state::TranscribeTaskParameters, WorkerAdapter};
 use crate::{
     cmd_error::CmdResult,
     file_handling::DocumentsStoreExt,
+    menu::{update_macos_menu_items, MenuState},
     window::{
         create_or_focus_document_window, create_or_focus_main_window, create_or_focus_window,
         focused_window,
@@ -147,4 +148,18 @@ pub async fn show_new_transcript_dialog(app: AppHandle) {
 #[tauri::command]
 pub async fn show_main_window(app: AppHandle) {
     create_or_focus_main_window(&app).await.unwrap();
+}
+
+#[tauri::command]
+pub fn set_available_menu_items(
+    app: AppHandle,
+    window: Window,
+    menu_state: State<MenuState>,
+    items: Vec<String>,
+) {
+    let mut menu_items = menu_state.menu_items.lock().unwrap();
+    menu_items.insert(window.label().to_string(), items);
+    drop(menu_items); // update_macos_menu_items also needs to acquire menu_items
+
+    update_macos_menu_items(&app);
 }
