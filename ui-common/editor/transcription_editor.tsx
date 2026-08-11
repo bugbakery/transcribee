@@ -223,10 +223,12 @@ export function TranscriptionEditor({
   readOnly,
   initialValue,
   children,
+  disableUndoRedoHotkeys,
   ...props
 }: {
   editor?: Editor;
   readOnly: boolean;
+  disableUndoRedoHotkeys?: boolean;
   initialValue?: Paragraph[];
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
@@ -296,6 +298,13 @@ export function TranscriptionEditor({
                     ) {
                       const [leaf] = editor.leaf(selection.anchor);
                       window.dispatchEvent(new SeekToEvent(leaf.start));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (disableUndoRedoHotkeys) {
+                      if (e.key == 'z' && (e.metaKey || e.ctrlKey)) {
+                        return true; // tell slate we handle the event ourselfs
+                      }
                     }
                   }}
                   className={clsx('2xl:-ml-20')}

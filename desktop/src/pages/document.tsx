@@ -148,7 +148,28 @@ export function DocumentPage({
                 },
               },
             ],
-          }
+          },
+          {
+            title: 'Edit',
+            items: [
+              {
+                text: 'Undo',
+                accelerator: 'Ctrl+Z',
+                macOsMenuItemId: 'undo',
+                action: () => {
+                  editor?.undo();
+                },
+              },
+              {
+                text: 'Redo',
+                accelerator: 'Shift+Ctrl+Z',
+                macOsMenuItemId: 'redo',
+                action: () => {
+                  editor?.redo();
+                },
+              },
+            ],
+          },
         ]}
       />
 
@@ -157,6 +178,7 @@ export function DocumentPage({
         initialValue={initialValue}
         className={'grow flex flex-col'}
         readOnly={false}
+        disableUndoRedoHotkeys // handled by the menu
       >
         <PlayerBarWithMedia documentId={documentId} editor={editor} />
       </TranscriptionEditor>

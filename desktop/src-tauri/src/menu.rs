@@ -78,6 +78,22 @@ pub fn setup_macos_menu(app: &AppHandle) -> tauri::Result<()> {
         .build()
         .unwrap();
 
+    let edit_menu = SubmenuBuilder::new(app, "Edit")
+        .item(
+            &MenuItemBuilder::with_id("undo", "Undo")
+                .accelerator("Cmd+Z")
+                .build(app)
+                .unwrap(),
+        )
+        .item(
+            &MenuItemBuilder::with_id("redo", "Redo")
+                .accelerator("Shift+Cmd+Z")
+                .build(app)
+                .unwrap(),
+        )
+        .build()
+        .unwrap();
+
     let window_menu = SubmenuBuilder::new(app, "Window")
         .minimize()
         .maximize()
@@ -93,6 +109,7 @@ pub fn setup_macos_menu(app: &AppHandle) -> tauri::Result<()> {
     let menu = MenuBuilder::new(app)
         .item(&transcribee_menu)
         .item(&file_menu)
+        .item(&edit_menu)
         .item(&window_menu)
         .item(&help_menu)
         .build()
