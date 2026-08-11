@@ -1,15 +1,11 @@
 use crate::file_handling::{
-    append_automerge_change, forget_document, get_document, get_documents, get_media_file_response,
-    save_document, save_document_as_dialog, DocumentsStoreExt, MediaFile,
+    append_automerge_change, forget_document, get_document, get_documents, save_document,
+    save_document_as_dialog, DocumentsStoreExt, MediaFile,
 };
+use crate::media_file_serve::install_media_file_serve;
 use crate::window::create_or_focus_main_window;
 use colored::Color;
 use file_handling::read_automerge;
-use http::{
-    header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
-    response::Builder as ResponseBuilder,
-    StatusCode,
-};
 use log::{warn, Level};
 use serde_json::json;
 use std::time::Duration;
@@ -25,6 +21,7 @@ mod cmd;
 mod cmd_error;
 mod file_handling;
 mod http_partial_content;
+mod media_file_serve;
 mod menu;
 mod range_util;
 mod tar;
@@ -34,7 +31,7 @@ mod worker_plugin;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
@@ -90,19 +87,6 @@ pub fn run() {
             cmd::show_main_window,
             cmd::set_available_menu_items,
         ])
-        .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
-            match get_media_file_response(ctx.app_handle(), request) {
-                Ok(http_response) => responder.respond(http_response),
-                Err(e) => responder.respond(
-                    ResponseBuilder::new()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .header(CONTENT_TYPE, "text/plain")
-                        .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                        .body(e.to_string().as_bytes().to_vec())
-                        .unwrap(),
-                ),
-            }
-        })
         .setup(|app| {
             app.store_builder("documents.json")
                 .auto_save(Duration::from_secs(1))
@@ -223,7 +207,11 @@ pub fn run() {
             crate::menu::setup_macos_menu(app.handle())?;
 
             Ok(())
-        })
+        });
+
+    let builder = install_media_file_serve(builder);
+
+    builder
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|#[allow(unused_variables)] app, event| match event {

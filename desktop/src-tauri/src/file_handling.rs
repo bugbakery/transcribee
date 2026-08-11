@@ -8,7 +8,6 @@
 //! file name.
 
 use crate::cmd_error::CmdResult;
-use crate::http_partial_content::http_response_maybe_partial;
 use crate::transcribee_archive::{self, MediaFileSource};
 use crate::window::focused_window;
 use anyhow::{anyhow, bail, Result};
@@ -420,37 +419,6 @@ pub fn append_automerge_change(
         doc
     })?;
     Ok(())
-}
-
-pub fn get_media_file_response(
-    app_handle: &AppHandle,
-    request: http::Request<Vec<u8>>,
-) -> Result<http::Response<Vec<u8>>> {
-    let path = percent_encoding::percent_decode(request.uri().path().as_bytes())
-        .decode_utf8_lossy()
-        .to_string();
-    let path = path.trim_start_matches("/");
-
-    let (document_id, suffix) = &path
-        .split_once("/")
-        .ok_or(anyhow!("invalid path (needs to contain at least one /)"))?;
-    let uuid = Uuid::from_str(document_id)?;
-
-    let document = app_handle.get_document(uuid)?;
-    let media = document
-        .media_files
-        .into_iter()
-        .find(|m| m.url == path)
-        .ok_or(anyhow!(
-            "media file {suffix} not found in document {document_id}"
-        ))?;
-
-    http_response_maybe_partial(
-        request.headers().get("range"),
-        |range| media.source.get_bytes(range),
-        media.source.len()?,
-        &media.content_type,
-    )
 }
 
 fn create_new_appdata_transcribee_archive<R: Runtime, T: Manager<R> + Emitter<R>>(
