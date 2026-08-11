@@ -189,7 +189,19 @@ def transcribe_clean(
     decent_whisper.settings.models_dir = settings.MODELS_DIR
     if not decent_whisper.is_model_downloaded(model):
         logging.info("Downloading model...")
-        decent_whisper.model.download_model(model)
+
+        def progress_callback_download(loaded, total):
+            if progress_callback is not None:
+                progress_callback(
+                    progress=0.0,
+                    step="downloading_model",
+                    extra_data={
+                        "download_model_loaded": loaded,
+                        "download_model_total": total,
+                    },
+                )
+
+        decent_whisper.model.download_model(model, progress_callback_download)
         logging.info("Model downloaded")
 
     paragraphs, transcription_info = backend.transcribe(

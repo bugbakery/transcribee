@@ -161,10 +161,8 @@ class Worker:
             raise ValueError(f"Document {document} has no audio attached.")
         return load_audio(document_audio)
 
-    def keepalive(self, task_id: UUID, progress: Optional[float]) -> bool:
-        body = {}
-        if progress is not None:
-            body["progress"] = progress
+    def keepalive(self, task_id: UUID) -> bool:
+        body = self._result_data["progress"][-1]
         logging.debug(f"Sending keepalive for {task_id=}: {body=}")
         try:
             self.api_client.post(f"tasks/{task_id}/keepalive/", json=body)
@@ -182,9 +180,8 @@ class Worker:
 
         def progress_callback(*, progress, step: Optional[str] = "", extra_data=None):
             step = f"{task.task_type}:{step}"
-            self._set_progress(task.id, step, progress=progress, extra_data=extra_data)
+            self._set_progress(step, progress=progress, extra_data=extra_data)
 
-        progress_callback(progress=0)
         if task.task_type == TaskType.IDENTIFY_SPEAKERS:
             await self.identify_speakers(task, progress_callback)
         elif task.task_type == TaskType.TRANSCRIBE:
@@ -196,7 +193,7 @@ class Worker:
         else:
             raise ValueError(f"Invalid task type: '{task.task_type}'")
 
-        progress_callback(progress=1)
+        progress_callback(step="done", progress=1)
 
     async def transcribe(
         self, task: TranscribeTask, progress_callback: ProgressCallbackType
@@ -363,24 +360,21 @@ class Worker:
             )
 
     def mark_completed(self, task_id: UUID, additional_data: Optional[dict] = None):
-        extra_data = {**self._result_data}
-        if additional_data:
-            extra_data.update(additional_data)
-        body = {"extra_data": extra_data if extra_data is not None else {}}
+        body = {**self._result_data}
+        if additional_data is not None:
+            body.update(additional_data)
         logging.debug(f"Marking task as completed {task_id=} {body=}")
         self.api_client.post(f"tasks/{task_id}/mark_completed/", json=body)
 
     def mark_failed(self, task_id: UUID, additional_data: Optional[dict] = None):
-        extra_data = {**self._result_data}
-        if additional_data:
-            extra_data.update(additional_data)
-        body = {"extra_data": extra_data if extra_data is not None else {}}
+        body = {**self._result_data}
+        if additional_data is not None:
+            body.update(additional_data)
         logging.debug(f"Marking task as completed {task_id=} {body=}")
         self.api_client.post(f"tasks/{task_id}/mark_failed/", json=body)
 
     def _set_progress(
         self,
-        _task_id: UUID,
         step: str,
         progress: Optional[float],
         extra_data: Any = None,
@@ -393,25 +387,22 @@ class Worker:
                 "timestamp": time.time(),
             }
         )
-        self.progress = progress
 
     async def run_task(self, mark_completed=True):
         task_description = self.claim_task()
         no_work = False
-        self._result_data = {"progress": []}
 
         if task_description is not None:
+            self._result_data = {"progress": []}
+            self._set_progress(f"{task_description.task_type}:initial", 0.0)
             try:
-                self.progress = None
                 with tempfile.TemporaryDirectory() as tmpdir:
                     self.tmpdir = Path(tmpdir)
                     asyncio_task = asyncio.create_task(
                         self.perform_task(task_description)
                     )
                     while not asyncio_task.done():
-                        should_continue = self.keepalive(
-                            task_description.id, self.progress
-                        )
+                        should_continue = self.keepalive(task_description.id)
                         if not should_continue:
                             asyncio_task.cancel()
                             logging.info("canceling task!")
