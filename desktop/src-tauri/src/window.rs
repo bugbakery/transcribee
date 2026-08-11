@@ -1,6 +1,4 @@
-use anyhow::anyhow;
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
-use uuid::Uuid;
 
 use crate::file_handling::Document;
 
@@ -43,17 +41,6 @@ pub fn focused_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
     app.webview_windows()
         .into_values()
         .find(|window| window.is_focused().unwrap_or(false))
-}
-
-pub fn get_focused_document_id(app: &AppHandle) -> anyhow::Result<Uuid> {
-    let webview = focused_window(app).ok_or(anyhow!("could not find focused window"))?;
-    let uuid = Uuid::parse_str(
-        webview
-            .label()
-            .strip_prefix("document/")
-            .ok_or(anyhow!("focused window is not a document window"))?,
-    )?;
-    Ok(uuid)
 }
 
 pub async fn create_or_focus_document_window(
