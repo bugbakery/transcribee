@@ -1,11 +1,8 @@
-use crate::file_handling::{
-    append_automerge_change, forget_document, get_document, get_documents, save_document,
-    save_document_as_dialog, DocumentsStoreExt, MediaFile,
-};
+use crate::cmd::install_cmds;
+use crate::file_handling::{DocumentsStoreExt, MediaFile};
 use crate::media_file_serve::install_media_file_serve;
 use crate::window::create_or_focus_main_window;
 use colored::Color;
-use file_handling::read_automerge;
 use log::{warn, Level};
 use serde_json::json;
 use std::time::Duration;
@@ -70,145 +67,127 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(worker_plugin::init())
-        .invoke_handler(tauri::generate_handler![
-            get_documents,
-            forget_document,
-            get_document,
-            read_automerge,
-            append_automerge_change,
-            save_document,
-            save_document_as_dialog,
-            cmd::transcribe_files,
-            cmd::show_new_transcript_dialog,
-            cmd::toggle_devtools,
-            cmd::open_document_via_file_picker,
-            cmd::open_document_window,
-            cmd::show_main_window,
-            cmd::set_available_menu_items,
-        ])
-        .setup(|app| {
-            app.store_builder("documents.json")
-                .auto_save(Duration::from_secs(1))
-                .build()?;
+        .plugin(worker_plugin::init());
+    let builder = install_cmds(builder);
 
-            let worker_adapter = app.state::<WorkerAdapter>();
-            tauri::async_runtime::block_on(async {
-                let app_handle = app.app_handle().clone();
-                worker_adapter
-                    .inner()
-                    .automerge_listeners
-                    .lock()
-                    .await
-                    .add_listener(move |document_uuid, change: Vec<u8>| {
-                        let Ok(document) = app_handle.get_document(document_uuid) else {
-                            warn!("document for which we received a change does not exist anymore");
-                            return;
-                        };
-                        transcribee_archive::append_automerge_change(
-                            &document.app_data_path,
-                            &change,
+    let builder = builder.setup(|app| {
+        app.store_builder("documents.json")
+            .auto_save(Duration::from_secs(1))
+            .build()?;
+
+        let worker_adapter = app.state::<WorkerAdapter>();
+        tauri::async_runtime::block_on(async {
+            let app_handle = app.app_handle().clone();
+            worker_adapter
+                .inner()
+                .automerge_listeners
+                .lock()
+                .await
+                .add_listener(move |document_uuid, change: Vec<u8>| {
+                    let Ok(document) = app_handle.get_document(document_uuid) else {
+                        warn!("document for which we received a change does not exist anymore");
+                        return;
+                    };
+                    transcribee_archive::append_automerge_change(&document.app_data_path, &change)
+                        .unwrap();
+                    app_handle
+                        .emit(
+                            &format!("automerge_change:{}", document.id),
+                            json!({
+                                "change": change,
+                            }),
                         )
                         .unwrap();
+                    app_handle
+                        .update_document(document.id, |mut doc| {
+                            doc.has_unsaved_changes = true;
+                            doc
+                        })
+                        .unwrap();
+                });
+            let app_handle = app.app_handle().clone();
+            worker_adapter
+                .inner()
+                .progress_listeners
+                .lock()
+                .await
+                .add_listener(move |document_uuid, _| {
+                    let Ok(doc) = app_handle.get_document(document_uuid) else {
+                        warn!("got progress for document {document_uuid} which does not exist");
+                        return;
+                    };
+                    let app_handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let worker_adapter = app_handle.state::<WorkerAdapter>();
+                        let tasks: Vec<_> = worker_adapter
+                            .tasks
+                            .lock()
+                            .await
+                            .tasks
+                            .values()
+                            .filter_map(|task| {
+                                if task.document.id == document_uuid {
+                                    Some(task.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
                         app_handle
-                            .emit(
-                                &format!("automerge_change:{}", document.id),
-                                json!({
-                                    "change": change,
-                                }),
-                            )
-                            .unwrap();
-                        app_handle
-                            .update_document(document.id, |mut doc| {
-                                doc.has_unsaved_changes = true;
+                            .update_document(doc.id, move |mut doc| {
+                                doc.worker_tasks = tasks.clone();
                                 doc
                             })
                             .unwrap();
                     });
-                let app_handle = app.app_handle().clone();
-                worker_adapter
-                    .inner()
-                    .progress_listeners
-                    .lock()
-                    .await
-                    .add_listener(move |document_uuid, _| {
-                        let Ok(doc) = app_handle.get_document(document_uuid) else {
-                            warn!("got progress for document {document_uuid} which does not exist");
-                            return;
-                        };
-                        let app_handle = app_handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            let worker_adapter = app_handle.state::<WorkerAdapter>();
-                            let tasks: Vec<_> = worker_adapter
-                                .tasks
-                                .lock()
-                                .await
-                                .tasks
-                                .values()
-                                .filter_map(|task| {
-                                    if task.document.id == document_uuid {
-                                        Some(task.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect();
-                            app_handle
-                                .update_document(doc.id, move |mut doc| {
-                                    doc.worker_tasks = tasks.clone();
-                                    doc
-                                })
+                });
+
+            let app_handle = app.app_handle().clone();
+            worker_adapter
+                .inner()
+                .media_file_listeners
+                .lock()
+                .await
+                .add_listener(
+                    move |document, media_file: worker_adapter::state::MediaFile| {
+                        app_handle
+                            .update_document(document, |mut doc| {
+                                let mut media_file = MediaFile::from_worker_adapter_media_file(
+                                    media_file.clone(),
+                                    document,
+                                )
                                 .unwrap();
-                        });
-                    });
-
-                let app_handle = app.app_handle().clone();
-                worker_adapter
-                    .inner()
-                    .media_file_listeners
-                    .lock()
-                    .await
-                    .add_listener(
-                        move |document, media_file: worker_adapter::state::MediaFile| {
-                            app_handle
-                                .update_document(document, |mut doc| {
-                                    let mut media_file = MediaFile::from_worker_adapter_media_file(
-                                        media_file.clone(),
-                                        document,
-                                    )
-                                    .unwrap();
-                                    media_file.tags.push("browser_compatible".to_string());
-                                    doc.media_files.push(media_file);
-                                    doc
-                                })
-                                .unwrap();
-                        },
-                    )
-            });
-
-            // mark all jobs that are unfinished as aborted
-            app.update_documents(move |mut documents| {
-                for doc in &mut documents {
-                    for task in &mut doc.worker_tasks {
-                        if task.state == New || task.state == Assigned {
-                            task.current_attempt = None;
-                            task.state = Aborted;
-                        }
-                    }
-                }
-                Ok(documents)
-            })?;
-
-            tauri::async_runtime::block_on(async {
-                create_or_focus_main_window(app.handle()).await.unwrap();
-            });
-
-            #[cfg(target_os = "macos")]
-            crate::menu::setup_macos_menu(app.handle())?;
-
-            Ok(())
+                                media_file.tags.push("browser_compatible".to_string());
+                                doc.media_files.push(media_file);
+                                doc
+                            })
+                            .unwrap();
+                    },
+                )
         });
 
+        // mark all jobs that are unfinished as aborted
+        app.update_documents(move |mut documents| {
+            for doc in &mut documents {
+                for task in &mut doc.worker_tasks {
+                    if task.state == New || task.state == Assigned {
+                        task.current_attempt = None;
+                        task.state = Aborted;
+                    }
+                }
+            }
+            Ok(documents)
+        })?;
+
+        tauri::async_runtime::block_on(async {
+            create_or_focus_main_window(app.handle()).await.unwrap();
+        });
+
+        #[cfg(target_os = "macos")]
+        crate::menu::setup_macos_menu(app.handle())?;
+
+        Ok(())
+    });
     let builder = install_media_file_serve(builder);
 
     builder

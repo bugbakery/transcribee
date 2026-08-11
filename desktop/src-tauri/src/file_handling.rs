@@ -7,25 +7,17 @@
 //! For _mature_ documents, the media file is embedded and we derive the display name from the
 //! file name.
 
-use crate::cmd_error::CmdResult;
 use crate::transcribee_archive::{self, MediaFileSource};
-use crate::window::focused_window;
 use anyhow::{anyhow, bail, Result};
-use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::fs::{self, remove_file};
+use std::fs::{self};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use tauri::path::BaseDirectory;
-use tauri::{command, ipc::Response};
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
-use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use tauri::{Emitter, Manager, Runtime};
 use tauri_plugin_store::StoreExt;
-use tokio::sync::oneshot;
 use uuid::Uuid;
 use worker_adapter::state::Task;
-use worker_adapter::WorkerAdapter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
@@ -257,168 +249,6 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
         })?;
         Ok(document)
     }
-}
-
-#[command]
-pub fn get_documents(app_handle: AppHandle) -> CmdResult<Vec<FrontendDocument>> {
-    Ok(app_handle
-        .get_documents()?
-        .iter()
-        .map(Document::as_frontend_document)
-        .rev()
-        .collect())
-}
-
-#[command]
-pub fn get_document(app_handle: AppHandle, id: Uuid) -> CmdResult<FrontendDocument> {
-    Ok(app_handle.get_document(id)?.as_frontend_document())
-}
-
-/// this deletes the document from the list of recent documents.
-/// If a transcription job is currently running for this document, it gets canceled.
-/// If the document has unsaved changes, these get deleted, so in this case the frontend
-/// should display a confirmation dialog.
-#[command]
-pub fn forget_document(
-    app_handle: AppHandle,
-    worker_adapter: State<'_, WorkerAdapter>,
-    id: Uuid,
-) -> CmdResult<()> {
-    app_handle.update_documents(|mut documents| {
-        if let Some(position) = documents.iter().position(|doc| doc.id == id) {
-            let doc = documents.remove(position);
-            for task in doc.worker_tasks {
-                if let Err(e) = worker_adapter.tasks.blocking_lock().remove_task(task.id) {
-                    warn!("could not remove task: {e}")
-                }
-            }
-            remove_file(doc.app_data_path)?;
-        }
-        Ok(documents)
-    })?;
-    Ok(())
-}
-
-pub async fn get_document_media_for_save_or_display_error(
-    app_handle: &AppHandle,
-    document: &Document,
-) -> Result<MediaFileSource> {
-    let Some(media_file) = document
-        .media_files
-        .iter()
-        .find(|m| m.tags.iter().any(|t| t == "browser_compatible"))
-    else {
-        let focused_window =
-            focused_window(app_handle).ok_or(anyhow!("could not get focused window"))?;
-        focused_window
-            .dialog()
-            .message("Could not save, because the media file is still being processed. Please try again in a few seconds when transcribee has prepared a suitable file.")
-            .kind(MessageDialogKind::Error)
-            .title("Could Not Save")
-            .show(|_result| {});
-        return Err(anyhow!(
-            "could not save because no suitable media file was found!"
-        ));
-    };
-
-    Ok(media_file.source.clone())
-}
-
-#[command]
-pub async fn save_document(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
-    let document = app_handle.get_document(id)?;
-    let Some(save_path) = &document.save_path else {
-        return save_document_as_dialog(app_handle.clone(), id).await;
-    };
-    let media_file = get_document_media_for_save_or_display_error(&app_handle, &document).await?;
-    let new_automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
-    if !fs::exists(save_path)? {
-        warn!("save target file under {save_path} does not exist, even if we think it should. Recreating file...");
-        transcribee_archive::create_new(save_path, Some(media_file), &new_automerge_doc)?;
-    } else {
-        if let Err(e) = transcribee_archive::update_automerge_file(save_path, &new_automerge_doc) {
-            warn!("transcribee_archive::update_automerge_file failed with error {e}, trying to re-creating the file...");
-            transcribee_archive::create_new(save_path, Some(media_file), &new_automerge_doc)?;
-        }
-    }
-    app_handle.update_document(id, |mut doc| {
-        doc.has_unsaved_changes = false;
-        doc
-    })?;
-    Ok(())
-}
-
-#[command]
-pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResult<()> {
-    let document = app_handle.get_document(id)?;
-    let media_file = get_document_media_for_save_or_display_error(&app_handle, &document).await?;
-
-    let focused_window =
-        focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
-    let (tx, rx) = oneshot::channel();
-    let default_filename = document
-        .display_name()
-        .rsplit_once(".")
-        .map(|(basename, _suffix)| basename.to_string())
-        .unwrap_or(document.display_name());
-    tauri::async_runtime::spawn(async move {
-        focused_window
-            .dialog()
-            .file()
-            .add_filter("Transcribee Archive", &["transcribee"])
-            .set_file_name(default_filename)
-            .save_file(|f| {
-                tx.send(f).unwrap();
-            });
-    });
-    let Some(save_path) = rx.await? else {
-        return Ok(());
-    };
-
-    let automerge_doc = transcribee_archive::get_automerge_doc(&document.app_data_path)?;
-    transcribee_archive::create_new(&save_path.to_string(), Some(media_file), &automerge_doc)?;
-
-    // kick out any other loaded documents with the same path to only ever have one document with
-    // the same save path in transcribee desktop.
-    app_handle.update_documents(|mut documents| {
-        documents.retain(|doc| doc.save_path != Some(save_path.to_string()));
-        Ok(documents)
-    })?;
-
-    app_handle.update_document(id, |mut doc| {
-        doc.save_path = Some(save_path.to_string());
-        doc.has_unsaved_changes = false;
-        doc
-    })?;
-    Ok(())
-}
-
-#[command]
-pub fn read_automerge(app_handle: AppHandle, id: Uuid) -> CmdResult<Response> {
-    Ok(tauri::ipc::Response::new(
-        transcribee_archive::get_automerge_doc(&app_handle.get_document(id)?.app_data_path)?,
-    ))
-}
-
-#[command]
-pub fn append_automerge_change(
-    app_handle: AppHandle,
-    request: tauri::ipc::Request<'_>,
-) -> CmdResult<()> {
-    let tauri::ipc::InvokeBody::Raw(change) = request.body() else {
-        return Err(anyhow!("request body to append_automerge_change must be raw").into());
-    };
-    let Some(id) = request.headers().get("id") else {
-        return Err(anyhow!("missing id for append_automerge_change").into());
-    };
-    let uuid = Uuid::from_str(id.to_str()?)?;
-    let document = app_handle.get_document(uuid)?;
-    transcribee_archive::append_automerge_change(&document.app_data_path, change)?;
-    app_handle.update_document(uuid, |mut doc| {
-        doc.has_unsaved_changes = true;
-        doc
-    })?;
-    Ok(())
 }
 
 fn create_new_appdata_transcribee_archive<R: Runtime, T: Manager<R> + Emitter<R>>(
