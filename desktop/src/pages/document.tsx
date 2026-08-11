@@ -14,7 +14,7 @@ import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
 import { listen } from '@tauri-apps/api/event';
 import { useTauriState } from '../util/use_tauri_event';
 import { Document as DocumentOverview } from './home';
-import { MenuBar, MenuItem, SubMenu } from '../menu';
+import { MenuBar } from '../menu';
 
 function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
@@ -112,42 +112,46 @@ export function DocumentPage({
 
   return (
     <div className="max-w-screen-xl p-6 mx-auto flex flex-col border-box">
-      <MenuBar>
-        <SubMenu title="File">
-          <MenuItem
-            accelerator="Ctrl+N"
-            onClick={() => {
-              invoke('show_main_window');
-            }}
-          >
-            New Window
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              invoke('open_document_via_file_picker');
-            }}
-            accelerator="Ctrl+O"
-          >
-            Open Transcript…
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              invoke('save_document', { id: documentId });
-            }}
-            accelerator="Ctrl+S"
-          >
-            Save
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              invoke('save_document_as_dialog', { id: documentId });
-            }}
-            accelerator="Shift+Ctrl+O"
-          >
-            Save As…
-          </MenuItem>
-        </SubMenu>
-      </MenuBar>
+      <MenuBar
+        menus={[
+          {
+            title: 'File',
+            items: [
+              {
+                text: 'New Window',
+                accelerator: 'Ctrl+N',
+                action: () => {
+                  invoke('show_main_window');
+                },
+              },
+              {
+                text: 'Open Transcript…',
+                accelerator: 'Ctrl+O',
+                action: () => {
+                  invoke('open_document_via_file_picker');
+                },
+              },
+              {
+                text: 'Save',
+                accelerator: 'Ctrl+S',
+                macOsMenuItemId: 'save',
+                action: () => {
+                  invoke('save_document', { id: documentId });
+                },
+              },
+              {
+                text: 'Save As…',
+                accelerator: 'Shift+Ctrl+S',
+                macOsMenuItemId: 'save_as',
+                action: () => {
+                  invoke('save_document_as_dialog', { id: documentId });
+                },
+              },
+            ],
+          }
+        ]}
+      />
+
       <TranscriptionEditor
         editor={editor}
         initialValue={initialValue}
