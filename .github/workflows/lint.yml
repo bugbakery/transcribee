@@ -29,5 +29,13 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.10
 
+      - name: cache downloaded test data
+        uses: actions/cache@v6
+        with:
+          path: |
+            desktop/worker-adapter/target/mlk.mp3
+            worker/transcribee_worker/.data/models/
+          key: models
+
       - name: run pre-commit
         run: pre-commit run --show-diff-on-failure --color=always --all-files
