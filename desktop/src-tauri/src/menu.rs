@@ -8,6 +8,7 @@ use anyhow::bail;
 use log::{error, warn};
 use tauri::{
     menu::{Menu, MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder},
+    plugin::{Builder, TauriPlugin},
     AppHandle, Emitter, Listener, Manager, Wry,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogResult};
@@ -28,10 +29,19 @@ pub struct MenuState {
     pub menu_items: Mutex<HashMap<String, Vec<String>>>,
 }
 
-#[allow(dead_code)]
-pub fn setup_macos_menu(app: &AppHandle) -> tauri::Result<()> {
-    app.manage(MenuState::default());
+pub fn init() -> TauriPlugin<Wry> {
+    Builder::new("macos-menu")
+        .setup(|app, _| {
+            app.manage(MenuState::default());
+            if cfg!(target_os = "macos") {
+                setup_macos_menu(app)?;
+            }
+            Ok(())
+        })
+        .build()
+}
 
+fn setup_macos_menu(app: &AppHandle) -> std::result::Result<(), Box<dyn std::error::Error>> {
     // the first submenu automatically becomes the bold menu with the application name
     let transcribee_menu = SubmenuBuilder::new(app, "")
         .about(None)

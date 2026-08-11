@@ -1,8 +1,11 @@
+use crate::file_handling::{DocumentsStoreExt, MediaFile};
+use crate::transcribee_archive;
 use anyhow::Result;
-use log::{error, info, log, Level};
+use log::{error, info, log, warn, Level};
 use rand::{distr::Alphanumeric, RngExt};
+use serde_json::json;
 use std::{net::SocketAddr, time::Duration};
-use tauri::is_dev;
+use tauri::{is_dev, Emitter};
 use tauri::{
     path::BaseDirectory,
     plugin::{Builder, TauriPlugin},
@@ -14,8 +17,17 @@ use tokio::time::sleep;
 use worker_adapter::state::TaskType::{self, IdentifySpeakers, Reencode, Transcribe};
 use worker_adapter::WorkerAdapter;
 
-use crate::file_handling::DocumentsStoreExt;
-use crate::transcribee_archive;
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+    Builder::new("transcribee-worker")
+        .setup(|app, _| {
+            let (addr, token) = setup_worker_adapter(app)?;
+            setup_worker(app, addr, token.clone(), vec![Reencode])?;
+            setup_worker(app, addr, token, vec![Transcribe, IdentifySpeakers])?;
+            install_worker_adapter_documents_store_sync(app)?;
+            Ok(())
+        })
+        .build()
+}
 
 fn setup_worker<R: Runtime>(
     app: &AppHandle<R>,
@@ -159,13 +171,98 @@ fn setup_worker_adapter<R: Runtime>(
     Ok((local_addr, token))
 }
 
-pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("transcribee-worker")
-        .setup(|app, _| {
-            let (addr, token) = setup_worker_adapter(app)?;
-            setup_worker(app, addr, token.clone(), vec![Reencode])?;
-            setup_worker(app, addr, token, vec![Transcribe, IdentifySpeakers])?;
-            Ok(())
-        })
-        .build()
+pub fn install_worker_adapter_documents_store_sync<R: Runtime>(
+    app: &AppHandle<R>,
+) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let worker_adapter = app.state::<WorkerAdapter>();
+    tauri::async_runtime::block_on(async {
+        let app_handle = app.app_handle().clone();
+        worker_adapter
+            .inner()
+            .automerge_listeners
+            .lock()
+            .await
+            .add_listener(move |document_uuid, change: Vec<u8>| {
+                let Ok(document) = app_handle.get_document(document_uuid) else {
+                    warn!("document for which we received a change does not exist anymore");
+                    return;
+                };
+                transcribee_archive::append_automerge_change(&document.app_data_path, &change)
+                    .unwrap();
+                app_handle
+                    .emit(
+                        &format!("automerge_change:{}", document.id),
+                        json!({
+                            "change": change,
+                        }),
+                    )
+                    .unwrap();
+                app_handle
+                    .update_document(document.id, |mut doc| {
+                        doc.has_unsaved_changes = true;
+                        doc
+                    })
+                    .unwrap();
+            });
+        let app_handle = app.app_handle().clone();
+        worker_adapter
+            .inner()
+            .progress_listeners
+            .lock()
+            .await
+            .add_listener(move |document_uuid, _| {
+                let Ok(doc) = app_handle.get_document(document_uuid) else {
+                    warn!("got progress for document {document_uuid} which does not exist");
+                    return;
+                };
+                let app_handle = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let worker_adapter = app_handle.state::<WorkerAdapter>();
+                    let tasks: Vec<_> = worker_adapter
+                        .tasks
+                        .lock()
+                        .await
+                        .tasks
+                        .values()
+                        .filter_map(|task| {
+                            if task.document.id == document_uuid {
+                                Some(task.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    app_handle
+                        .update_document(doc.id, move |mut doc| {
+                            doc.worker_tasks = tasks.clone();
+                            doc
+                        })
+                        .unwrap();
+                });
+            });
+
+        let app_handle = app.app_handle().clone();
+        worker_adapter
+            .inner()
+            .media_file_listeners
+            .lock()
+            .await
+            .add_listener(
+                move |document, media_file: worker_adapter::state::MediaFile| {
+                    app_handle
+                        .update_document(document, |mut doc| {
+                            let mut media_file = MediaFile::from_worker_adapter_media_file(
+                                media_file.clone(),
+                                document,
+                            )
+                            .unwrap();
+                            media_file.tags.push("browser_compatible".to_string());
+                            doc.media_files.push(media_file);
+                            doc
+                        })
+                        .unwrap();
+                },
+            );
+    });
+    Ok(())
 }

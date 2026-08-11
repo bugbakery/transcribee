@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::{file_handling::DocumentsStoreExt, http_partial_content::http_response_maybe_partial};
 use anyhow::{anyhow, Result};
 use http::{
@@ -7,23 +5,29 @@ use http::{
     response::Builder as ResponseBuilder,
     StatusCode,
 };
-use tauri::{AppHandle, Builder, Wry};
+use std::str::FromStr;
+use tauri::{
+    plugin::{Builder, TauriPlugin},
+    AppHandle, Wry,
+};
 use uuid::Uuid;
 
-pub fn install_media_file_serve(builder: Builder<Wry>) -> Builder<Wry> {
-    builder.register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
-        match get_media_file_response(ctx.app_handle(), request) {
-            Ok(http_response) => responder.respond(http_response),
-            Err(e) => responder.respond(
-                ResponseBuilder::new()
-                    .status(StatusCode::INTERNAL_SERVER_ERROR)
-                    .header(CONTENT_TYPE, "text/plain")
-                    .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                    .body(e.to_string().as_bytes().to_vec())
-                    .unwrap(),
-            ),
-        }
-    })
+pub fn init() -> TauriPlugin<Wry> {
+    Builder::new("media-file-serve")
+        .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
+            match get_media_file_response(ctx.app_handle(), request) {
+                Ok(http_response) => responder.respond(http_response),
+                Err(e) => responder.respond(
+                    ResponseBuilder::new()
+                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .header(CONTENT_TYPE, "text/plain")
+                        .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                        .body(e.to_string().as_bytes().to_vec())
+                        .unwrap(),
+                ),
+            }
+        })
+        .build()
 }
 
 fn get_media_file_response(
