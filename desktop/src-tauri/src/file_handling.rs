@@ -13,11 +13,38 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::{self};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tauri::path::BaseDirectory;
+use tauri::plugin::{Builder, TauriPlugin};
 use tauri::{Emitter, Manager, Runtime};
 use tauri_plugin_store::StoreExt;
 use uuid::Uuid;
 use worker_adapter::state::Task;
+use worker_adapter::state::TaskState::{Aborted, Assigned, New};
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+    Builder::new("file-handling")
+        .setup(|app, _| {
+            app.store_builder("documents.json")
+                .auto_save(Duration::from_secs(1))
+                .build()?;
+
+            // mark all jobs that are unfinished as aborted
+            app.update_documents(move |mut documents| {
+                for doc in &mut documents {
+                    for task in &mut doc.worker_tasks {
+                        if task.state == New || task.state == Assigned {
+                            task.current_attempt = None;
+                            task.state = Aborted;
+                        }
+                    }
+                }
+                Ok(documents)
+            })?;
+            Ok(())
+        })
+        .build()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
