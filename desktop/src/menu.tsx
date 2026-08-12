@@ -92,13 +92,33 @@ export function MenuBar({ hidden, menus }: { hidden?: boolean; menus: MenuDef[] 
     };
   }, [menus]);
 
+  // close menu when escape is pressed
+  useEffect(() => {
+    if (!open) return;
+
+    const listener = (e: KeyboardEvent) => {
+      if (e.key == 'Escape') {
+        setOpenMenu(null);
+      }
+    };
+
+    window.addEventListener('keydown', listener);
+
+    return () => {
+      window.removeEventListener('keydown', listener);
+    };
+  }, [open]);
+
   if (hidden || !enableMenuBar) {
     return null;
   }
 
   return (
     <>
-      <div className="flex gap-2 h-10 px-4 items-center fixed top-0 right-0 left-0 z-50 bg-[rgb(252_252_252)] dark:bg-[rgb(28_28_28)] border-b border-b-[rgb(240_240_240)] dark:border-b-neutral-800">
+      <menu
+        role="menubar"
+        className="flex gap-2 h-10 px-4 items-center fixed top-0 right-0 left-0 z-50 bg-[rgb(252_252_252)] dark:bg-[rgb(28_28_28)] border-b border-b-[rgb(240_240_240)] dark:border-b-neutral-800"
+      >
         {menus.map((menu) => (
           <Menu
             key={menu.title}
@@ -128,7 +148,7 @@ export function MenuBar({ hidden, menus }: { hidden?: boolean; menus: MenuDef[] 
             ))}
           </Menu>
         ))}
-      </div>
+      </menu>
       <div className="h-10" /> {/* spacer */}
     </>
   );
@@ -161,9 +181,13 @@ function Menu({
     }
   });
 
+  const buttonId = `menubar-menu-button-${title}`;
+  const menuId = `menubar-menu-${title}`;
+
   return (
-    <div>
+    <li role="presentation">
       <button
+        id={buttonId}
         ref={refs.setReference}
         className={clsx(
           'text-sm hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-md px-2 py-1',
@@ -171,20 +195,29 @@ function Menu({
         )}
         onClick={onClick}
         onMouseEnter={onMouseEnter}
+        type="button"
+        aria-haspopup="menu"
+        aria-controls={menuId}
+        aria-expanded={open}
       >
         {title}
       </button>
-      <div
-        ref={refs.setFloating}
-        style={floatingStyles}
-        className={clsx(
-          'bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-600 rounded-md py-2 px-2 shadow-lg grid-cols-[auto_auto] grid',
-          !open && 'hidden',
-        )}
-      >
-        {children}
-      </div>
-    </div>
+      {open && (
+        <ul
+          aria-labelledby={buttonId}
+          id={menuId}
+          ref={refs.setFloating}
+          style={floatingStyles}
+          className={clsx(
+            'bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-600 rounded-md py-2 px-2 shadow-lg grid-cols-[auto_auto] grid',
+            !open && 'hidden',
+          )}
+          role="menu"
+        >
+          {children}
+        </ul>
+      )}
+    </li>
   );
 }
 
@@ -198,7 +231,8 @@ function MenuItem({
   onClick?: () => void;
 }) {
   return (
-    <div
+    <li
+      role="menuitem"
       className="contents group cursor-pointer select-none"
       onClick={() => {
         if (onClick) {
@@ -209,9 +243,12 @@ function MenuItem({
       <div className="text-sm whitespace-nowrap group-hover:bg-gray-100 dark:group-hover:bg-neutral-800 rounded-l pl-2 py-1">
         {children}
       </div>
-      <div className="pl-6 text-black/40 dark:text-white/50 text-xs group-hover:bg-gray-100 dark:group-hover:bg-neutral-800 rounded-r pr-2 py-1 flex items-center">
+      <div
+        role="presentation"
+        className="pl-6 text-black/40 dark:text-white/50 text-xs group-hover:bg-gray-100 dark:group-hover:bg-neutral-800 rounded-r pr-2 py-1 flex items-center"
+      >
         <div className="ml-auto">{accelerator}</div>
       </div>
-    </div>
+    </li>
   );
 }
