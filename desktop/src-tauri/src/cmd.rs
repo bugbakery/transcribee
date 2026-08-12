@@ -1,6 +1,7 @@
 use crate::{
     cmd_error::CmdResult,
     file_handling::{Document, DocumentsStoreExt, FrontendDocument},
+    media_file_serve::MediaFileBase,
     menu::{update_macos_menu_items, MenuState},
     transcribee_archive::{self, MediaFileSource},
     window::{
@@ -44,14 +45,16 @@ pub fn get_documents(app_handle: AppHandle) -> CmdResult<Vec<FrontendDocument>> 
     Ok(app_handle
         .get_documents()?
         .iter()
-        .map(Document::as_frontend_document)
+        .map(|doc| doc.as_frontend_document(&app_handle.state::<MediaFileBase>().0))
         .rev()
         .collect())
 }
 
 #[tauri::command]
 pub fn get_document(app_handle: AppHandle, id: Uuid) -> CmdResult<FrontendDocument> {
-    Ok(app_handle.get_document(id)?.as_frontend_document())
+    Ok(app_handle
+        .get_document(id)?
+        .as_frontend_document(&app_handle.state::<MediaFileBase>().0))
 }
 
 /// this deletes the document from the list of recent documents.

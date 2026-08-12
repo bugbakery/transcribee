@@ -7,6 +7,7 @@
 //! For _mature_ documents, the media file is embedded and we derive the display name from the
 //! file name.
 
+use crate::media_file_serve::MediaFileBase;
 use crate::transcribee_archive::{self, MediaFileSource};
 use anyhow::{anyhow, bail, Result};
 use serde::{Deserialize, Serialize};
@@ -93,12 +94,16 @@ impl Document {
             .to_string()
     }
 
-    pub fn as_frontend_document(&self) -> FrontendDocument {
+    pub fn as_frontend_document(&self, media_file_base_url: &str) -> FrontendDocument {
         FrontendDocument {
             id: self.id,
             display_name: self.display_name(),
             save_path: self.save_path.clone(),
-            media_files: self.media_files.clone(),
+            media_files: self
+                .media_files
+                .iter()
+                .map(|f| f.with_base_url(media_file_base_url))
+                .collect(),
             has_unsaved_changes: self.has_unsaved_changes,
             tasks: self.worker_tasks.clone(),
         }
@@ -137,6 +142,12 @@ impl MediaFile {
             url: format!("{document_uuid}/reencode"),
             source: MediaFileSource::Fs { media_path: v.path },
         })
+    }
+    fn with_base_url(&self, base_url: &str) -> Self {
+        Self {
+            url: format!("{base_url}/{}", self.url),
+            ..self.clone()
+        }
     }
 }
 
@@ -182,7 +193,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
         let frontend_documents: Vec<FrontendDocument> = new_documents
             .iter()
             .rev()
-            .map(Document::as_frontend_document)
+            .map(|doc| doc.as_frontend_document(&self.state::<MediaFileBase>().0))
             .collect();
         self.emit("documents_changed", &frontend_documents).unwrap();
         Ok(())
@@ -195,7 +206,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
                     *doc = op(doc.clone());
                     self.emit(
                         &format!("document_changed:{id}"),
-                        &doc.as_frontend_document(),
+                        &doc.as_frontend_document(&self.state::<MediaFileBase>().0),
                     )
                     .unwrap();
                     break;

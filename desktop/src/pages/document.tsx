@@ -7,7 +7,7 @@ import { withAutomergeDoc } from 'slate-automerge-doc';
 import { next as Automerge } from '@automerge/automerge';
 import { Document, Paragraph } from 'transcribee-ui-common/editor/types';
 import { migrateDocument } from 'transcribee-ui-common/editor/migrate_document';
-import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import { TranscriptionEditor } from 'transcribee-ui-common/editor/transcription_editor';
 import { PlayerBar } from 'transcribee-ui-common/editor/player';
 import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
@@ -222,7 +222,7 @@ function PlayerBarWithMedia({
         editor={editor}
         mediaFiles={document.media_files.map((m) => ({
           ...m,
-          url: convertFileSrc(m.url, 'media'),
+          url: m.url,
         }))}
       />
     );

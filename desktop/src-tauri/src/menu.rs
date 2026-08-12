@@ -2,10 +2,9 @@
 /// a custom JS menu bar for other platforms. The JS menu bar is also used for indicating which
 /// window specific menu items should be enabled in the macOS menu and provides the corresponding
 /// handlers.
-use std::{collections::HashMap, sync::Mutex};
-
 use anyhow::bail;
 use log::{error, warn};
+use std::{collections::HashMap, sync::Mutex};
 use tauri::{
     menu::{Menu, MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder},
     plugin::{Builder, TauriPlugin},

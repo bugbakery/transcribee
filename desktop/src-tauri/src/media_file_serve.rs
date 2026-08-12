@@ -1,38 +1,104 @@
 use crate::{file_handling::DocumentsStoreExt, http_partial_content::http_response_maybe_partial};
 use anyhow::{anyhow, Result};
+use axum::{
+    body::Body,
+    extract::{Request, State},
+    response::Response,
+    routing::get,
+    Router,
+};
 use http::{
     header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
     response::Builder as ResponseBuilder,
     StatusCode,
 };
-use std::str::FromStr;
+use log::info;
+use std::{
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    str::FromStr,
+};
 use tauri::{
     plugin::{Builder, TauriPlugin},
-    AppHandle, Wry,
+    AppHandle, Manager, Wry,
 };
+use tokio::net::TcpListener;
 use uuid::Uuid;
 
+pub struct MediaFileBase(pub String);
+
 pub fn init() -> TauriPlugin<Wry> {
-    Builder::new("media-file-serve")
-        .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
-            match get_media_file_response(ctx.app_handle(), request) {
-                Ok(http_response) => responder.respond(http_response),
-                Err(e) => responder.respond(
-                    ResponseBuilder::new()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .header(CONTENT_TYPE, "text/plain")
-                        .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                        .body(e.to_string().as_bytes().to_vec())
-                        .unwrap(),
-                ),
-            }
+    let builder = Builder::new("media-file-serve");
+    let builder = if cfg!(target_os = "linux") {
+        // due to an upstream bug in webgkitgtk (https://bugs.webkit.org/show_bug.cgi?id=146351)
+        // loading media from custom protocols does not work. Thus, just spawn an ordinary http server.
+        builder.setup(move |app, _| {
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let listener =
+                    TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 0)).await?;
+
+                info!(
+                    "starting fallback media server on http://{}",
+                    listener.local_addr().unwrap()
+                );
+
+                app.manage(MediaFileBase(format!(
+                    "http://{}",
+                    listener.local_addr().unwrap()
+                )));
+
+                #[axum::debug_handler]
+                async fn get_response(State(app): State<AppHandle>, request: Request) -> Response {
+                    match get_media_file_response(&app, request) {
+                        Ok(http_response) => http_response.map(Body::from),
+                        Err(e) => ResponseBuilder::new()
+                            .status(StatusCode::INTERNAL_SERVER_ERROR)
+                            .header(CONTENT_TYPE, "text/plain")
+                            .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                            .body(Body::from(e.to_string()))
+                            .unwrap(),
+                    }
+                }
+
+                let router = Router::new()
+                    .route("/{*path}", get(get_response))
+                    .with_state(app);
+                axum::serve(
+                    listener,
+                    router.into_make_service_with_connect_info::<SocketAddr>(),
+                )
+                .await
+            });
+
+            Ok(())
         })
-        .build()
+    } else {
+        builder
+            .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
+                match get_media_file_response(ctx.app_handle(), request) {
+                    Ok(http_response) => responder.respond(http_response),
+                    Err(e) => responder.respond(
+                        ResponseBuilder::new()
+                            .status(StatusCode::INTERNAL_SERVER_ERROR)
+                            .header(CONTENT_TYPE, "text/plain")
+                            .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                            .body(e.to_string().as_bytes().to_vec())
+                            .unwrap(),
+                    ),
+                }
+            })
+            .setup(|app, _| {
+                app.manage(MediaFileBase("media://localhost".to_string()));
+                Ok(())
+            })
+    };
+
+    builder.build()
 }
 
-fn get_media_file_response(
+fn get_media_file_response<R>(
     app_handle: &AppHandle,
-    request: http::Request<Vec<u8>>,
+    request: http::Request<R>,
 ) -> Result<http::Response<Vec<u8>>> {
     let path = percent_encoding::percent_decode(request.uri().path().as_bytes())
         .decode_utf8_lossy()
