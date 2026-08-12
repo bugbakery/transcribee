@@ -4,11 +4,13 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:numtide/flake-utils";
+    nixgl.url = "github:nix-community/nixGL";
   };
 
   outputs =
     {
       nixpkgs,
+      nixgl,
       flake-utils,
       self,
       ...
@@ -21,6 +23,7 @@
       let
         pkgs = import nixpkgs {
           inherit system;
+          overlays = [ nixgl.overlay ];
         };
         python = pkgs."${pythonPkgName}";
 
@@ -102,6 +105,15 @@
 
               # use external xcode
               export SDK_ROOT=/Applications/Xcode.app/Contents/Developer
+            ''
+            + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+              # setup nix mesa on non-nixos env variables
+              # wrap in a function, to make the $@ that niGLIntel
+              # passes to exec empty
+              _doit () {
+                  source ${pkgs.nixgl.nixGLIntel}/bin/nixGLIntel
+              }
+              _doit
             '';
         };
       }
