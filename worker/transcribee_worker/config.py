@@ -27,6 +27,8 @@ class OutputProfile:
     container: str
     audio: AudioOptions
     video: VideoOptions | None
+    for_audio: bool
+    for_video: bool
 
 
 class Settings(BaseSettings):
@@ -40,11 +42,15 @@ class Settings(BaseSettings):
             container="mp3",
             audio=AudioOptions(codec="mp3", channels="mono", bitrate="128k"),
             video=None,
+            for_audio=True,
+            for_video=True,
         ),
         "m4a": OutputProfile(
             container="mp4",
             audio=AudioOptions(codec="aac", channels="mono", bitrate="128k"),
             video=None,
+            for_audio=True,
+            for_video=True,
         ),
         "video:mp4": OutputProfile(
             container="mp4",
@@ -52,6 +58,31 @@ class Settings(BaseSettings):
             video=VideoOptions(
                 codec="libx264", crf=26, preset="faster", width=854, height=480
             ),
+            for_audio=False,
+            for_video=True,
+        ),
+    }
+    REENCODE_PROFILES_DESKTOP: Dict[str, OutputProfile] = {
+        # we only reencode one version for desktop (no need to save bandwidth)
+        # in only loading the audio if video preview is disabled.
+        # transcribee-desktop also currently only supports having one reencoded version per
+        # document. Thus you need to make sure, that there is only one OutputProfile with
+        # for_audio=True and one OutputProfile with for_video=True
+        "m4a": OutputProfile(
+            container="mp4",
+            audio=AudioOptions(codec="aac", channels="mono", bitrate="128k"),
+            video=None,
+            for_audio=True,
+            for_video=False,
+        ),
+        "video:mp4": OutputProfile(
+            container="mp4",
+            audio=AudioOptions(codec="aac", channels="mono", bitrate="128k"),
+            video=VideoOptions(
+                codec="libx264", crf=26, preset="faster", width=854, height=480
+            ),
+            for_audio=False,
+            for_video=True,
         ),
     }
 
