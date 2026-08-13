@@ -14,6 +14,7 @@ import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
 import { listen } from '@tauri-apps/api/event';
 import { useDocumentMetadata } from '../util/use_tauri_event';
 import { MenuBar } from '../menu';
+import { DocumentNotFinishedBanner } from 'transcribee-ui-common/components/transcription_progress';
 
 function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
@@ -173,6 +174,7 @@ export function DocumentPage({
       />
       <TitleSetter documentId={documentId} />
 
+      <DocumentNotFinishedBannerFromId documentId={documentId} />
       <TranscriptionEditor
         editor={editor}
         initialValue={initialValue}
@@ -189,6 +191,11 @@ export function DocumentPage({
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </div>
   );
+}
+
+function DocumentNotFinishedBannerFromId({ documentId }: { documentId: string }) {
+  const tasks = useDocumentMetadata(documentId, ({ tasks }) => tasks, []);
+  return <DocumentNotFinishedBanner tasks={tasks} />;
 }
 
 function TitleSetter({ documentId }: { documentId: string }) {
