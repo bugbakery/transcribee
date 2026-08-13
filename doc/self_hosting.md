@@ -1,4 +1,4 @@
-# Self-Hosting transcribee-web
+# Self-Hosting transcribee-web
 
 In this document you can find information on how to test transcribee locally and how to self-host
 transcribee-web for an organization like a university department or research-group.
@@ -33,7 +33,7 @@ After setting everything up, you can create users for your instance using the tr
 docker compose exec backend transcribee-admin create_user --user username@example.com
 ```
 
-### Add More Workers
+### Add More Workers
 
 For performance reasons, you might want to run more workers (e.g. on more powerful hardware with a gpu).
 These do not need to be on the same network as your server and talk to your transcribee instance via
