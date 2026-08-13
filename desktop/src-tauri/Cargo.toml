@@ -39,7 +39,7 @@ tokio = "1.52.3"
 tokio-tungstenite = "0.29.0"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid = { version = "1.24.0", features = ["v7"] }
-rand = "0.10.2"
+rand = { version = "0.10.2", features = ["thread_rng"] }
 tauri-plugin-store = "2"
 tauri-plugin-os = "2"
 

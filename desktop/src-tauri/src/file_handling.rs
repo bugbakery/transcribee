@@ -10,6 +10,7 @@
 use crate::media_file_serve::MediaFileBase;
 use crate::transcribee_archive::{self, MediaFileSource};
 use anyhow::{anyhow, bail, Result};
+use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::{self};
@@ -238,10 +239,11 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
         let mime = infer::get(&mime_guess_buf)
             .map(|x| x.mime_type())
             .unwrap_or("application/octet-stream");
+        let token = Alphanumeric.sample_string(&mut rand::rng(), 32);
         let media_files = vec![MediaFile {
             content_type: mime.to_string(),
             tags: vec!["browser_compatible".to_string()],
-            url: format!("{id}/media"),
+            url: format!("{id}/media+{token}"),
             source: media_source,
         }];
 
@@ -265,10 +267,11 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
         let mime = infer::get_from_path(&media_file_path)?
             .map(|x| x.mime_type())
             .unwrap_or("application/octet-stream");
+        let token = Alphanumeric.sample_string(&mut rand::rng(), 32);
         let media_files = vec![MediaFile {
             content_type: mime.to_string(),
             tags: vec!["original".to_string()],
-            url: format!("{id}/original"),
+            url: format!("{id}/original+{token}"),
             source: MediaFileSource::Fs {
                 media_path: media_file_path.to_string(),
             },
