@@ -259,16 +259,20 @@ class Worker:
         self.set_duration(task, duration)
 
         has_video = get_video_stream(document_audio) is not None
+        profiles = (
+            settings.REENCODE_PROFILES_DESKTOP
+            if settings.WORKER_TYPE == "desktop"
+            else settings.REENCODE_PROFILES
+        )
         applicable_profiles = {
             profile_name: parameters
-            for profile_name, parameters in settings.REENCODE_PROFILES.items()
-            if has_video or parameters.video is None
+            for profile_name, parameters in profiles.items()
+            if (parameters.for_audio != has_video)
+            or (parameters.for_video == has_video)
         }
         n_profiles = len(applicable_profiles)
 
-        for i, (profile, parameters) in enumerate(
-            reversed(applicable_profiles.items())
-        ):
+        for i, (profile, parameters) in enumerate(applicable_profiles.items()):
             if settings.WORKER_TYPE == "desktop":
                 output_path = Path(task.task_parameters["output_path"])
                 output_path = (
@@ -302,11 +306,6 @@ class Worker:
             await loop.run_in_executor(
                 None, self.add_document_media_file, task, output_path, tags
             )
-
-            if settings.WORKER_TYPE == "desktop":
-                # we only reencode one version for desktop (no need to save bandwidth)
-                # in only loading the audio if video preview is disabled
-                break
 
     async def export(self, task: ExportTask, progress_callback: ProgressCallbackType):
         async with self.api_client.document(task.document.id) as doc:
