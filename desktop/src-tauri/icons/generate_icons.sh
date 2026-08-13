@@ -16,7 +16,7 @@ inkscape icon.svg -w 1024 -h 1024 -o icon_padding.png
 npx png2icons icon_padding.png icon -icns -bc -i
 rm -rf icon_padding.png
 
-# linux
+# linux
 inkscape icon.svg -w 32 -h 32 -o 32x32.png
 inkscape icon.svg -w 64 -h 64 -o 64x64.png
 inkscape icon.svg -w 128 -h 128 -o 128x128.png

@@ -7,8 +7,8 @@ services:
       TRANSCRIBEE_BACKEND_DATABASE_URL: postgresql://transcribee:transcribee@db:5432/transcribee
       REDIS_URL: redis://redis
     ports:
-      # configure your reverse-proxy so that the outside world can reach port 8000 of
-      # this container via https.
+      # configure your reverse-proxy so that the outside world can reach port 8000 of
+      # this container via https.
       - "127.0.0.1:8000:8000"
     depends_on:
       db:

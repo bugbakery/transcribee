@@ -67,8 +67,8 @@ def extract_native_dep_tar(file: Path, target_path: Path):
             raise Exception(f"File has unsupported archive type: {file}")
 
         # we currently support layouts types of archives:
-        # * ones that contain a single binary file (we place this in bin/) and
-        # * ones that contain a single toplevel folder that contains a lib/ and bin/ folder
+        # * ones that contain a single binary file (we place this in bin/) and
+        # * ones that contain a single toplevel folder that contains a lib/ and bin/ folder
         #   from these take the lib/ and bin/ folders.
         # other file layouts are unsupported at the moment.
         children = list(Path(tmp).iterdir())
