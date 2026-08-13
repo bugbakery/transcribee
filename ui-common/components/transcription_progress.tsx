@@ -88,35 +88,42 @@ export function calculateTranscriptionProgress(tasks: Task[]) {
 export function TranscriptionProgressIndicator({
   tasks,
   waitingForDownload,
+  size = 21,
+  className,
+  ...props
 }: {
   tasks: Task[];
   waitingForDownload?: boolean;
-}) {
+  size?: number;
+} & Partial<ComponentProps<typeof Tooltip>>) {
   if (waitingForDownload) {
     return (
       <Tooltip
+        {...props}
         placement={'right'}
         fallbackPlacements={['bottom', 'top']}
         tooltipText={<span>waiting for model download</span>}
-        className="ml-2"
+        className={clsx('ml-2', className)}
       >
-        <FaRegClock className="text-neutral-400 shrink-0" size={21} />
+        <FaRegClock className="text-neutral-400 shrink-0" size={size} />
       </Tooltip>
     );
   } else if (tasks.some((t) => t.state == 'ABORTED' || t.state == 'FAILED')) {
     return (
       <Tooltip
+        {...props}
         placement={'right'}
         fallbackPlacements={['bottom', 'top']}
         tooltipText={<span>Automatic transcription did not complete!</span>}
-        className="ml-2"
+        className={clsx('ml-2', className)}
       >
-        <IoIosCloseCircle className="text-red-600 shrink-0" size={21} />
+        <IoIosCloseCircle className="text-red-600 shrink-0" size={size} />
       </Tooltip>
     );
-  } else if (tasks.every((t) => t.state == 'NEW')) {
+  } else if (tasks.every((t) => t.task_type == 'REENCODE' && t.state == 'NEW')) {
     return (
       <Tooltip
+        {...props}
         placement={'right'}
         fallbackPlacements={['bottom', 'top']}
         tooltipText={
@@ -125,15 +132,16 @@ export function TranscriptionProgressIndicator({
             (not started yet)
           </span>
         }
-        className="ml-2"
+        className={clsx('ml-2', className)}
       >
-        <FaRegClock className="text-neutral-400 shrink-0" size={21} />
+        <FaRegClock className="text-neutral-400 shrink-0" size={size} />
       </Tooltip>
     );
   } else {
     const transcriptionProgress = calculateTranscriptionProgress(tasks);
     return (
       <Tooltip
+        {...props}
         placement={'right'}
         fallbackPlacements={['bottom', 'top']}
         tooltipText={
@@ -141,14 +149,68 @@ export function TranscriptionProgressIndicator({
             ? `transcription done`
             : `transcription ${(transcriptionProgress * 100).toFixed(0)}%`
         }
-        className="ml-2 tabular-nums"
+        className={clsx('ml-2 tabular-nums', className)}
       >
         <ProgressPie
           progress={transcriptionProgress}
           lineWidth={0.25}
-          className="w-[21px] shrink-0"
+          className="shrink-0"
+          style={{ width: size }}
         />
       </Tooltip>
     );
   }
+}
+
+export function DocumentNotFinishedBanner({ tasks }: { tasks: Task[] }) {
+  const hasUnfinishedSpeakerIdentification = tasks.some(
+    (t) => (t.task_type == 'IDENTIFY_SPEAKERS' && t.state == 'NEW') || t.state == 'ASSIGNED',
+  );
+  const transcriptionProgress = calculateTranscriptionProgress(tasks);
+
+  let message;
+  if (tasks.every((t) => t.state == 'COMPLETED')) {
+    return;
+  } else if (tasks.some((t) => t.state == 'ABORTED')) {
+    message = (
+      <p>
+        The automatic transcription of this document was aborted. This happens if transcribee is
+        closed while transcription jobs are running. You can still use and edit this document, but
+        you might want to delete this document and start anew.
+      </p>
+    );
+  } else if (tasks.some((t) => t.state == 'FAILED')) {
+    message = (
+      <p>
+        The automatic transcription of this document failed. You can still use and edit this
+        document, but you might want to delete this document and start anew.
+      </p>
+    );
+  } else {
+    message = (
+      <>
+        <p>
+          The automatic transcription for this document is not complete yet (
+          {(transcriptionProgress * 100).toFixed(0)}%). You can start to correct and edit the parts
+          of the transcript that are already processed.
+        </p>
+
+        {hasUnfinishedSpeakerIdentification && (
+          <p className="pt-2">
+            Speaker identification happens when automatic transcription is finished. All speaker
+            assignments that you make before the automatic speaker identification is run will be
+            overwritten.
+          </p>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <div className="p-6 rounded-lg mt-6 mb-20 max-w-4xl mx-auto flex gap-6 justify-center items-center bg-orange-100">
+      <TranscriptionProgressIndicator tasks={tasks} size={100} disableTooltip />
+
+      <div className="h-fit">{message}</div>
+    </div>
+  );
 }
