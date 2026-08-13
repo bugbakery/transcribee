@@ -12,8 +12,7 @@ import { TranscriptionEditor } from 'transcribee-ui-common/editor/transcription_
 import { PlayerBar } from 'transcribee-ui-common/editor/player';
 import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
 import { listen } from '@tauri-apps/api/event';
-import { useTauriState } from '../util/use_tauri_event';
-import { Document as DocumentOverview } from './home';
+import { useDocumentMetadata } from '../util/use_tauri_event';
 import { MenuBar } from '../menu';
 
 function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?] {
@@ -172,6 +171,7 @@ export function DocumentPage({
           },
         ]}
       />
+      <TitleSetter documentId={documentId} />
 
       <TranscriptionEditor
         editor={editor}
@@ -191,6 +191,20 @@ export function DocumentPage({
   );
 }
 
+function TitleSetter({ documentId }: { documentId: string }) {
+  const title = useDocumentMetadata(
+    documentId,
+    (document) => {
+      const changed_mark = document.has_unsaved_changes ? '*' : '';
+      return changed_mark + document.display_name;
+    },
+    '',
+  );
+
+  window.document.title = title;
+  return <></>;
+}
+
 function PlayerBarWithMedia({
   documentId,
   editor,
@@ -198,29 +212,14 @@ function PlayerBarWithMedia({
   documentId: string;
   editor: Editor | undefined;
 }) {
-  const document = useTauriState<DocumentOverview>(
-    async () => await invoke('get_document', { id: documentId }),
-    `document_changed:${documentId}`,
-    {
-      id: '<unknown>',
-      display_name: '',
-      media_files: [],
-      has_unsaved_changes: false,
-      tasks: [],
-    },
-  );
-
-  useEffect(() => {
-    const changed_mark = document.has_unsaved_changes ? '*' : '';
-    window.document.title = changed_mark + document.display_name;
-  }, [document]);
+  const mediaFiles = useDocumentMetadata(documentId, ({ media_files }) => media_files, []);
 
   if (editor) {
     return (
       <PlayerBar
         documentId={documentId}
         editor={editor}
-        mediaFiles={document.media_files.map((m) => ({
+        mediaFiles={mediaFiles.map((m) => ({
           ...m,
           url: m.url,
         }))}
