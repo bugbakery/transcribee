@@ -2,6 +2,7 @@
   "name": "transcribee-frontend",
   "version": "0.1.0",
   "scripts": {
+    "prepare": "npm --prefix ../ui-common/ ci",
     "dev": "vite",
     "build": "npm-run-all --continue-on-error build:*",
     "build:licenses": "node scripts/generate_licenses.mjs public/LICENSES.md",

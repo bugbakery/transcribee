@@ -16,7 +16,6 @@ pids=()
 uv --directory backend sync --dev & pids+=($!)
 uv --directory worker sync --dev & pids+=($!)
 npm --prefix frontend/ install & pids+=($!)
-npm --prefix ui-common/ install & pids+=($!)
 
 # Wait until all install commands are finished
 error=false
