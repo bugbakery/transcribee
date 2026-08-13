@@ -8,12 +8,14 @@ export function Tooltip({
   tooltipText,
   placement = 'bottom',
   fallbackPlacements = ['bottom', 'top'],
+  disableTooltip,
   ...props
 }: {
   children?: React.ReactNode;
   tooltipText: React.ReactNode;
   placement?: Placement;
   fallbackPlacements?: Placement[];
+  disableTooltip?: boolean;
 } & ComponentProps<'div'>) {
   const arrowRef = useRef(null);
   const {
@@ -63,7 +65,7 @@ export function Tooltip({
   return (
     <div {...props} ref={refs.setReference}>
       {children}
-      {show.prolonged && tooltipText ? (
+      {show.prolonged && !disableTooltip && tooltipText ? (
         <div
           className={clsx(
             'px-3 py-1.5',
