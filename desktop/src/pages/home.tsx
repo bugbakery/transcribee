@@ -9,7 +9,7 @@ import {
   TranscriptionProgressIndicator,
 } from 'transcribee-ui-common/components/transcription_progress';
 import { invoke } from '@tauri-apps/api/core';
-import { useTauriState } from '../util/use_tauri_event';
+import { DocumentMetadata, useDocumentsMetadata, WorkerTask } from '../util/use_tauri_event';
 import { IoClose } from 'react-icons/io5';
 import { Menu, MenuItem } from '@tauri-apps/api/menu';
 import { ask, message } from '@tauri-apps/plugin-dialog';
@@ -17,46 +17,8 @@ import { getAllWindows } from '@tauri-apps/api/window';
 import { MenuBar } from '../menu';
 import { Tooltip } from 'transcribee-ui-common/components/tooltip';
 
-type MediaFile = {
-  content_type: string;
-  tags: string[];
-  url: string;
-};
-export type Document = {
-  id: string;
-  display_name: string;
-  save_path?: string;
-  media_files: MediaFile[];
-  has_unsaved_changes: boolean;
-  tasks: WorkerTask[];
-};
-
-type WorkerTask = {
-  id: string;
-  task_type: 'IDENTIFY_SPEAKERS' | 'TRANSCRIBE' | 'REENCODE';
-  state: 'NEW' | 'ASSIGNED' | 'COMPLETED' | 'FAILED' | 'ABORTED';
-  current_attempt: WorkerTaskAttempt | WorkerTaskAttemptDownloading | null;
-};
-
-type WorkerTaskAttempt = {
-  progress: number;
-  step: string;
-  timestamp: number;
-  extra_data: null;
-};
-type WorkerTaskAttemptDownloading = {
-  progress: 0.0;
-  step: 'TaskType.TRANSCRIBE:downloading_model';
-  timestamp: number;
-  extra_data: { download_model_loaded: number; download_model_total: number };
-};
-
 export function HomePage() {
-  const documents = useTauriState<Document[]>(
-    async () => await invoke('get_documents'),
-    'documents_changed',
-    [],
-  );
+  const documents = useDocumentsMetadata((documents) => documents, []);
 
   const transcriptionQueueDocuments = documents.filter((doc) => !doc.save_path);
   const recentDocuments = documents.filter((doc) => doc.save_path);
@@ -108,7 +70,7 @@ export function HomePage() {
   );
 }
 
-function TranscriptionQueue({ documents }: { documents: Document[] }) {
+function TranscriptionQueue({ documents }: { documents: DocumentMetadata[] }) {
   documents.sort(
     (a, b) => calculateTranscriptionProgress(a.tasks) - calculateTranscriptionProgress(b.tasks),
   );
@@ -235,7 +197,7 @@ function ModelDownloadProgress({
   );
 }
 
-function RecentDocuments({ documents }: { documents: Document[] }) {
+function RecentDocuments({ documents }: { documents: DocumentMetadata[] }) {
   return (
     <div className="w-full max-w-[500px] px-4 rounded-md">
       <h2 className="font-semibold text-center mb-2">Recent Documents</h2>
