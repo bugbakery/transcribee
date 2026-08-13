@@ -27,11 +27,10 @@ use uuid::Uuid;
 pub struct MediaFileBase(pub String);
 
 pub fn init() -> TauriPlugin<Wry> {
-    let builder = Builder::new("media-file-serve");
-    let builder = if cfg!(target_os = "linux") {
-        // due to an upstream bug in webgkitgtk (https://bugs.webkit.org/show_bug.cgi?id=146351)
-        // loading media from custom protocols does not work. Thus, just spawn an ordinary http server.
-        builder.setup(move |app, _| {
+    // due to an upstream bug in webgkitgtk (https://bugs.webkit.org/show_bug.cgi?id=146351)
+    // loading media from custom protocols does not work. Thus, just spawn an ordinary http server.
+    Builder::new("media-file-serve")
+        .setup(move |app, _| {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
                 let listener =
@@ -72,28 +71,7 @@ pub fn init() -> TauriPlugin<Wry> {
 
             Ok(())
         })
-    } else {
-        builder
-            .register_asynchronous_uri_scheme_protocol("media", move |ctx, request, responder| {
-                match get_media_file_response(ctx.app_handle(), request) {
-                    Ok(http_response) => responder.respond(http_response),
-                    Err(e) => responder.respond(
-                        ResponseBuilder::new()
-                            .status(StatusCode::INTERNAL_SERVER_ERROR)
-                            .header(CONTENT_TYPE, "text/plain")
-                            .header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                            .body(e.to_string().as_bytes().to_vec())
-                            .unwrap(),
-                    ),
-                }
-            })
-            .setup(|app, _| {
-                app.manage(MediaFileBase("media://localhost".to_string()));
-                Ok(())
-            })
-    };
-
-    builder.build()
+        .build()
 }
 
 fn get_media_file_response<R>(
