@@ -178,36 +178,38 @@ export function DocumentNotFinishedBanner({
   } else if (tasks.some((t) => t.state == 'ABORTED')) {
     message = (
       <p>
-        The automatic transcription of this document was aborted. This happens if transcribee is
-        closed while transcription jobs are running. You can still use and edit this document, but
-        you might want to delete this document and start anew.
+        The automatic transcription of this document was aborted. This happens when transcribee is
+        quit while transcription jobs are running. You can still use and edit this document, but you
+        might want to delete it and start anew.
       </p>
     );
   } else if (tasks.some((t) => t.state == 'FAILED')) {
     message = (
       <p>
         The automatic transcription of this document failed. You can still use and edit this
-        document, but you might want to delete this document and start anew.
+        document, but you might want to delete it and start anew.
       </p>
     );
   } else if (tasks.some((t) => t.task_type == 'TRANSCRIBE' && t.state == 'NEW')) {
     message = (
       <p>
-        This document is currently in the queue. Automatic transcription will start once the the
-        documents before it in the queue are done processing.
+        The automatic transcription for this document is currently queued. It will start when the
+        preceding documents are done processing.
       </p>
     );
   } else {
     message = (
       <>
         <p>
-          The automatic transcription for this document is not complete yet (
-          {(transcriptionProgress * 100).toFixed(0)}%). You can start to correct and edit the parts
-          of the transcript that are already processed.
+          The automatic transcription for this document is in progress (
+          {(transcriptionProgress * 100).toFixed(0)}%).
+        </p>
+        <p>
+          You can already start to correct and edit the parts of the transcript that are processed.
         </p>
 
         {hasUnfinishedSpeakerIdentification && (
-          <p className="pt-2">
+          <p className="pt-3">
             Speaker identification happens when automatic transcription is finished. All speaker
             assignments that you make before the automatic speaker identification is run will be
             overwritten.
@@ -221,11 +223,11 @@ export function DocumentNotFinishedBanner({
     <div
       {...props}
       className={clsx(
-        'p-6 rounded-lg mt-6 mb-20 max-w-4xl mx-auto flex gap-6 justify-center items-center bg-orange-100',
+        'p-6 rounded-lg mb-10 max-w-4xl mx-auto flex gap-6 justify-center items-center bg-orange-50/50 dark:bg-orange-200/20 border border-orange-200 dark:border-orange-200/50',
         className,
       )}
     >
-      <TranscriptionProgressIndicator tasks={tasks} size={100} disableTooltip />
+      <TranscriptionProgressIndicator tasks={tasks} size={60} disableTooltip />
 
       <div className="h-fit">{message}</div>
     </div>
