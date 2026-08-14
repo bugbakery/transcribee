@@ -215,7 +215,7 @@ export function DocumentPage({
         </TopBarPart>
       </TopBar>
 
-      <DocumentNotFinishedBannerAutoRefresh documentId={documentId} className="mt-12" />
+      <DocumentNotFinishedBannerAutoRefresh documentId={documentId} className="mt-6" />
       <TranscriptionEditor
         editor={editor}
         initialValue={initialValue}
