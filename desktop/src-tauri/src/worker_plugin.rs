@@ -223,8 +223,8 @@ pub fn install_worker_adapter_documents_store_sync<R: Runtime>(
                         .lock()
                         .await
                         .tasks
-                        .values()
-                        .filter_map(|task| {
+                        .iter()
+                        .filter_map(|(_, task)| {
                             if task.document.id == document_uuid {
                                 Some(task.clone())
                             } else {
