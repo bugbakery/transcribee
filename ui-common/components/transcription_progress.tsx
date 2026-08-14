@@ -162,7 +162,11 @@ export function TranscriptionProgressIndicator({
   }
 }
 
-export function DocumentNotFinishedBanner({ tasks }: { tasks: Task[] }) {
+export function DocumentNotFinishedBanner({
+  tasks,
+  className,
+  ...props
+}: { tasks: Task[] } & ComponentProps<'div'>) {
   const hasUnfinishedSpeakerIdentification = tasks.some(
     (t) => (t.task_type == 'IDENTIFY_SPEAKERS' && t.state == 'NEW') || t.state == 'ASSIGNED',
   );
@@ -207,7 +211,13 @@ export function DocumentNotFinishedBanner({ tasks }: { tasks: Task[] }) {
   }
 
   return (
-    <div className="p-6 rounded-lg mt-6 mb-20 max-w-4xl mx-auto flex gap-6 justify-center items-center bg-orange-100">
+    <div
+      {...props}
+      className={clsx(
+        'p-6 rounded-lg mt-6 mb-20 max-w-4xl mx-auto flex gap-6 justify-center items-center bg-orange-100',
+        className,
+      )}
+    >
       <TranscriptionProgressIndicator tasks={tasks} size={100} disableTooltip />
 
       <div className="h-fit">{message}</div>

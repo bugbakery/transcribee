@@ -15,7 +15,7 @@ import {
   useGetDocumentTasks,
 } from '../api/document';
 import { TbFileExport, TbShare3 } from 'react-icons/tb';
-import { Suspense, lazy, useState, useCallback } from 'react';
+import { Suspense, lazy, useState, useCallback, ComponentProps } from 'react';
 import { useDebugMode } from 'transcribee-ui-common/utils/debug_mode';
 import { useAutomergeWebsocketEditor } from '../components/automerge_websocket_editor';
 import { showModal } from 'transcribee-ui-common/components/modal';
@@ -30,7 +30,10 @@ import { PlayerBar } from 'transcribee-ui-common/editor/player';
 import { minutesInMs } from 'transcribee-ui-common/utils/duration_in_ms';
 import { Editor } from 'slate';
 import { useEvent } from 'transcribee-ui-common/utils/use_event';
-import { TranscriptionProgressIndicator } from 'transcribee-ui-common/components/transcription_progress';
+import {
+  DocumentNotFinishedBanner,
+  TranscriptionProgressIndicator,
+} from 'transcribee-ui-common/components/transcription_progress';
 
 const LazyDebugPanel = lazy(() =>
   import('transcribee-ui-common/editor/debug_panel').then((module) => ({
@@ -212,6 +215,7 @@ export function DocumentPage({
         </TopBarPart>
       </TopBar>
 
+      <DocumentNotFinishedBannerAutoRefresh documentId={documentId} className="mt-12" />
       <TranscriptionEditor
         editor={editor}
         initialValue={initialValue}
@@ -227,6 +231,16 @@ export function DocumentPage({
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </AppContainer>
   );
+}
+
+export function DocumentNotFinishedBannerAutoRefresh({
+  documentId,
+  ...props
+}: { documentId: string } & Partial<ComponentProps<typeof DocumentNotFinishedBanner>>) {
+  const { data } = useGetDocumentTasks({ document_id: documentId }, { refreshInterval: 1 });
+  if (data) {
+    return <DocumentNotFinishedBanner {...props} tasks={data} />;
+  }
 }
 
 export function TranscriptionProgressIndicatorAutoRefresh({ documentId }: { documentId: string }) {
