@@ -152,7 +152,8 @@ impl<T: Clone> ListenersContainer<T> {
 
 #[derive(Default, Clone, Debug)]
 pub struct TasksContainer {
-    pub tasks: HashMap<Uuid, Task>,
+    // this is not a HashMap because we want to preserve insertion order (the tasks are a queue)
+    pub tasks: Vec<(Uuid, Task)>,
 }
 
 #[derive(Debug)]
@@ -170,17 +171,24 @@ impl IntoResponse for TaskNotFoundError {
 }
 
 impl TasksContainer {
-    pub fn get(&self, uuid: &Uuid) -> Option<&Task> {
-        self.tasks.get(uuid)
+    pub fn get(&self, id: &Uuid) -> Option<&Task> {
+        self.tasks
+            .iter()
+            .find_map(|(uuid, task)| if uuid == id { Some(task) } else { None })
+    }
+    fn get_mut(&mut self, id: &Uuid) -> Option<&mut Task> {
+        self.tasks
+            .iter_mut()
+            .find_map(|(uuid, task)| if uuid == id { Some(task) } else { None })
     }
 
     pub fn add_task(&mut self, task: Task) -> Task {
-        self.tasks.insert(task.id, task.clone());
+        self.tasks.push((task.id, task.clone()));
         task
     }
 
     pub fn complete_task(&mut self, id: Uuid) -> Result<(), TaskNotFoundError> {
-        match self.tasks.get_mut(&id) {
+        match self.get_mut(&id) {
             Some(task) => {
                 task.state = TaskState::Completed;
                 task.current_attempt = None;
@@ -191,14 +199,17 @@ impl TasksContainer {
     }
 
     pub fn remove_task(&mut self, id: Uuid) -> Result<(), TaskNotFoundError> {
-        match self.tasks.remove(&id) {
-            Some(_) => Ok(()),
+        match self.tasks.iter().position(|(uuid, _)| *uuid == id) {
+            Some(position) => {
+                self.tasks.remove(position);
+                Ok(())
+            }
             None => Err(TaskNotFoundError),
         }
     }
 
     pub fn fail_task(&mut self, id: Uuid) -> Result<(), TaskNotFoundError> {
-        match self.tasks.get_mut(&id) {
+        match self.get_mut(&id) {
             Some(task) => {
                 task.state = TaskState::Failed;
                 Ok(())
@@ -212,7 +223,7 @@ impl TasksContainer {
         task_id: Uuid,
         attempt: TaskAttempt,
     ) -> Result<(), TaskNotFoundError> {
-        match self.tasks.get_mut(&task_id) {
+        match self.get_mut(&task_id) {
             Some(task) => {
                 task.current_attempt = Some(attempt);
                 Ok(())
@@ -224,11 +235,16 @@ impl TasksContainer {
     fn get_ready_task<'a>(&'a mut self, task_types: &[TaskType]) -> Option<&'a mut Task> {
         let uncompleted_tasks: Vec<Uuid> = self
             .tasks
-            .values()
-            .filter(|t| t.state != TaskState::Completed)
-            .map(|x| x.id)
+            .iter()
+            .filter_map(|(id, t)| {
+                if t.state != TaskState::Completed {
+                    Some(*id)
+                } else {
+                    None
+                }
+            })
             .collect();
-        'task_loop: for task in self.tasks.values_mut() {
+        'task_loop: for (_id, task) in &mut self.tasks {
             if !task_types.contains(&task.task_type) {
                 continue;
             }
