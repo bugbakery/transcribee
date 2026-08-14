@@ -12,7 +12,15 @@ import { SpeakerDropdown } from './speaker_dropdown';
 import { SeekToEvent, Paragraph } from './types';
 import { startTimeToClassName } from './player';
 import { clsx } from 'clsx';
-import React, { ComponentProps, useContext, useCallback, memo, useState, JSX } from 'react';
+import React, {
+  ComponentProps,
+  useContext,
+  useCallback,
+  memo,
+  useState,
+  JSX,
+  useEffect,
+} from 'react';
 import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';
@@ -41,29 +49,15 @@ export function formattedTime(sec: number | undefined): string {
   return `${minutes}:${seconds}`;
 }
 
-export const LoadingContext = React.createContext<[boolean, (next: boolean) => void]>([
-  false,
-  (_x) => {
-    /* this is just a placeholder */
-  },
-]);
-
 function ParagraphElement({ element, children, attributes }: RenderElementProps): JSX.Element {
   const readOnly = useReadOnly();
   const startAtom = element.children[0];
   const speakerColors = useContext(SpeakerColorsContext);
-  const [loading, setLoading] = useContext(LoadingContext);
-
-  if (loading) {
-    setTimeout(() => {
-      setLoading(false);
-    }, 0);
-  }
 
   // This is a rather bad hack but saves A LOT of resources.
   const { ref, inView } = useInView({
     fallbackInView: true,
-    initialInView: !loading,
+    initialInView: false,
   });
 
   const speakerChanged = useSlateSelector((editor) => {
@@ -232,7 +226,7 @@ export function TranscriptionEditor({
   initialValue?: Paragraph[];
 } & ComponentProps<'div'>) {
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
-  const loadingState = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const renderLeaf = useCallback(
     (props: RenderLeafProps) => {
@@ -251,9 +245,15 @@ export function TranscriptionEditor({
     [systemPrefersDark],
   );
 
+  useEffect(() => {
+    if (loading && initialValue) {
+      setLoading(false);
+    }
+  }, [loading, initialValue]);
+
   return (
     <div {...props}>
-      {loadingState[0] && (
+      {loading && (
         <>
           <div
             className={clsx(
@@ -279,39 +279,37 @@ export function TranscriptionEditor({
           }}
         >
           <SpeakerColorsProvider>
-            <LoadingContext.Provider value={loadingState}>
-              <ErrorBoundary editor={editor}>
-                <Editable
-                  renderElement={ParagraphElement}
-                  renderLeaf={renderLeaf}
-                  readOnly={readOnly}
-                  onClick={(e: React.MouseEvent) => {
-                    const { selection } = editor;
+            <ErrorBoundary editor={editor}>
+              <Editable
+                renderElement={ParagraphElement}
+                renderLeaf={renderLeaf}
+                readOnly={readOnly}
+                onClick={(e: React.MouseEvent) => {
+                  const { selection } = editor;
 
-                    // fire a 'seek to' event when selection is changed by clicking outside of a text node
-                    // e.g. by clicking at the blank space on the right of a paragraph
-                    if (
-                      selection &&
-                      Range.isCollapsed(selection) &&
-                      e.target instanceof HTMLElement &&
-                      e.target.isContentEditable
-                    ) {
-                      const [leaf] = editor.leaf(selection.anchor);
-                      window.dispatchEvent(new SeekToEvent(leaf.start));
+                  // fire a 'seek to' event when selection is changed by clicking outside of a text node
+                  // e.g. by clicking at the blank space on the right of a paragraph
+                  if (
+                    selection &&
+                    Range.isCollapsed(selection) &&
+                    e.target instanceof HTMLElement &&
+                    e.target.isContentEditable
+                  ) {
+                    const [leaf] = editor.leaf(selection.anchor);
+                    window.dispatchEvent(new SeekToEvent(leaf.start));
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (disableUndoRedoHotkeys) {
+                    if (e.key == 'z' && (e.metaKey || e.ctrlKey)) {
+                      return true; // tell slate we handle the event ourselfs
                     }
-                  }}
-                  onKeyDown={(e) => {
-                    if (disableUndoRedoHotkeys) {
-                      if (e.key == 'z' && (e.metaKey || e.ctrlKey)) {
-                        return true; // tell slate we handle the event ourselfs
-                      }
-                    }
-                  }}
-                  className={clsx('2xl:-ml-20')}
-                />
-              </ErrorBoundary>
-              {children}
-            </LoadingContext.Provider>
+                  }
+                }}
+                className={clsx('2xl:-ml-20')}
+              />
+            </ErrorBoundary>
+            {children}
           </SpeakerColorsProvider>
         </Slate>
       )}
