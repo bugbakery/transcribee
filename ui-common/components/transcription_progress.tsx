@@ -120,7 +120,7 @@ export function TranscriptionProgressIndicator({
         <IoIosCloseCircle className="text-red-600 shrink-0" size={size} />
       </Tooltip>
     );
-  } else if (tasks.every((t) => t.task_type == 'REENCODE' && t.state == 'NEW')) {
+  } else if (tasks.some((t) => t.task_type == 'TRANSCRIBE' && t.state == 'NEW')) {
     return (
       <Tooltip
         {...props}
@@ -188,6 +188,13 @@ export function DocumentNotFinishedBanner({
       <p>
         The automatic transcription of this document failed. You can still use and edit this
         document, but you might want to delete this document and start anew.
+      </p>
+    );
+  } else if (tasks.some((t) => t.task_type == 'TRANSCRIBE' && t.state == 'NEW')) {
+    message = (
+      <p>
+        This document is currently in the queue. Automatic transcription will start once the the
+        documents before it in the queue are done processing.
       </p>
     );
   } else {
