@@ -178,7 +178,7 @@ export function DocumentPage({
       <TranscriptionEditor
         editor={editor}
         initialValue={initialValue}
-        className={'grow flex flex-col'}
+        className={'grow flex flex-col pb-20'}
         readOnly={false}
         disableUndoRedoHotkeys // handled by the menu
       >
