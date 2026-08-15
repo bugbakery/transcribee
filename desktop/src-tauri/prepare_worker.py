@@ -8,6 +8,8 @@ if __name__ == "__main__":
     platform = os.environ["CARGO_CFG_TARGET_OS"]
     if platform == "macos":
         platform = "darwin"
+    elif platform == "windows":
+        platform = "win"
 
     arch = os.environ["CARGO_CFG_TARGET_ARCH"]
     target = f"{platform}-{arch}"
