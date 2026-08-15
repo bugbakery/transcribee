@@ -123,6 +123,27 @@ jobs:
           path: desktop/src-tauri/target/${{matrix.target}}/release/bundle/dmg/*.dmg
           archive: false
 
+  build-desktop-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Install npm dependencies
+        run: |
+          npm --prefix=ui-common ci
+          npm --prefix=desktop ci
+
+      - name: Build app
+        run: npm --prefix=desktop run tauri build -- --bundles msi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: desktop/src-tauri/target/release/bundle/msi/*.msi
+          archive: false
+
   upload-release:
     needs:
       - metadata
@@ -130,12 +151,14 @@ jobs:
       - push-docker-backend
       - push-docker-worker
       - build-desktop-macos
+      - build-desktop-windows
     runs-on: ubuntu-latest
     env:
       FILES_TO_UPLOAD: |
         worker-*.tar.xz
         manifest.json
         transcribee-desktop_*.dmg
+        transcribee-desktop_*.msi
     steps:
       - uses: actions/download-artifact@v8
         with:
