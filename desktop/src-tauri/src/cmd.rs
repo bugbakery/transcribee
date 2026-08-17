@@ -36,6 +36,8 @@ pub fn install_cmds(builder: Builder<Wry>) -> Builder<Wry> {
         save_document_as_dialog,
         open_document_window,
         show_new_transcript_dialog,
+        show_main_window,
+        set_available_menu_items,
         toggle_devtools,
     ])
 }

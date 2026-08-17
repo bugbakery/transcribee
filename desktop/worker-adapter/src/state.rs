@@ -113,9 +113,10 @@ pub struct Task {
     pub task_parameters: TaskParameters,
 }
 
+type Listener<T> = Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>>;
 #[derive(Clone)]
 pub struct ListenersContainer<T> {
-    pub listeners: Vec<Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>>>,
+    pub listeners: Vec<Listener<T>>,
 }
 impl<T> Default for ListenersContainer<T> {
     fn default() -> Self {
@@ -129,13 +130,13 @@ impl<T: Clone> ListenersContainer<T> {
     pub fn add_listener(
         &mut self,
         listener: impl FnMut(Uuid, T) + Send + Sync + 'static,
-    ) -> Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>> {
+    ) -> Listener<T> {
         let listener = Arc::new(Mutex::new(listener));
         self.listeners.push(listener.clone());
         listener
     }
 
-    pub fn remove_listener(&mut self, listener: Arc<Mutex<dyn FnMut(Uuid, T) + Send + Sync>>) {
+    pub fn remove_listener(&mut self, listener: Listener<T>) {
         self.listeners.retain(|l| !Arc::ptr_eq(l, &listener));
     }
 
