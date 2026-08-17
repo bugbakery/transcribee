@@ -55,10 +55,11 @@ async fn worker_ws_auth(
     }
 }
 
+type DocumentGetter = Box<dyn Fn(Uuid) -> Vec<u8> + Send>;
 #[derive(Clone, Default)]
 pub struct WorkerAdapter {
     token: String,
-    pub document_getter: Arc<Mutex<Option<Box<dyn Fn(Uuid) -> Vec<u8> + Send>>>>,
+    pub document_getter: Arc<Mutex<Option<DocumentGetter>>>,
     pub tasks: Arc<Mutex<TasksContainer>>,
     pub automerge_listeners: Arc<Mutex<ListenersContainer<Vec<u8>>>>,
     pub progress_listeners: Arc<Mutex<ListenersContainer<()>>>,
