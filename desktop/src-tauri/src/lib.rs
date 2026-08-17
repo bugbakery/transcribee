@@ -62,8 +62,8 @@ pub fn run() {
 
     let builder = install_cmds(builder)
         .plugin(menu::init())
-        .plugin(file_handling::init())
         .plugin(media_file_serve::init())
+        .plugin(file_handling::init()) // this depends on media_file_serve (because it needs MediaFileBase)
         .plugin(worker_plugin::init());
 
     let builder = builder.setup(|app| {
