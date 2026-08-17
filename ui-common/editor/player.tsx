@@ -18,7 +18,7 @@ import { IconType } from 'react-icons';
 import { BiVideo, BiVideoOff } from 'react-icons/bi';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
-const SKIP_BUTTON_SEC = 2;
+const SKIP_BUTTON_SEC = 1;
 const SKIP_SHORTCUT_SEC = 3;
 
 let lastTabPressTs = 0;
@@ -124,10 +124,23 @@ export function PlayerBar({
     }
   };
 
+  const playbackRateRestore = useRef<NodeJS.Timeout>(null);
   useEvent<KeyboardEvent>('keydown', (e) => {
     if (e.key == 'Tab') {
       // double tap to skip
       if (e.timeStamp - lastTabPressTs < DOUBLE_TAP_THRESHOLD_MS) {
+        if (e.altKey) {
+          setPlaybackRate((old) => {
+            const newSpeed = old == 1.0 ? 0.7 : 1.0;
+            if (playbackRateRestore.current) {
+              clearTimeout(playbackRateRestore.current);
+            }
+            playbackRateRestore.current = setTimeout(() => {
+              setPlaybackRate(old);
+            }, SKIP_SHORTCUT_SEC * 1000 * newSpeed);
+            return newSpeed;
+          });
+        }
         if (e.shiftKey) {
           audio.seekRelative(SKIP_SHORTCUT_SEC);
         } else {
