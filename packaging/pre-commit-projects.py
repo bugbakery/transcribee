@@ -34,7 +34,8 @@ PROJECT_FILE_TYPES = {
         "checks": {
             "fmt": "cargo fmt",
             "clippy": (
-                "cargo clippy --all-features --fix --allow-dirty --allow-staged -- -D warnings"
+                "cargo clippy --all-features --fix --allow-dirty --allow-staged "
+                "&& cargo clippy --all-features -- -D warnings"
             ),
             "test": "cargo test --all-features",
         },
