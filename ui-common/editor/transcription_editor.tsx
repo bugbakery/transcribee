@@ -21,7 +21,7 @@ import React, {
   JSX,
   useEffect,
 } from 'react';
-import { SpeakerColorsContext, SpeakerColorsProvider } from './speaker_colors';
+import { SpeakerColorsContext } from './speaker_colors';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useSpeakerName } from '../utils/document';
 import { LoadingBee } from '../components/loading_spinner/loading_bee';
@@ -216,7 +216,6 @@ export function TranscriptionEditor({
   editor,
   readOnly,
   initialValue,
-  children,
   disableUndoRedoHotkeys,
   ...props
 }: {
@@ -278,39 +277,36 @@ export function TranscriptionEditor({
             }
           }}
         >
-          <SpeakerColorsProvider>
-            <ErrorBoundary editor={editor}>
-              <Editable
-                renderElement={ParagraphElement}
-                renderLeaf={renderLeaf}
-                readOnly={readOnly}
-                onClick={(e: React.MouseEvent) => {
-                  const { selection } = editor;
+          <ErrorBoundary editor={editor}>
+            <Editable
+              renderElement={ParagraphElement}
+              renderLeaf={renderLeaf}
+              readOnly={readOnly}
+              onClick={(e: React.MouseEvent) => {
+                const { selection } = editor;
 
-                  // fire a 'seek to' event when selection is changed by clicking outside of a text node
-                  // e.g. by clicking at the blank space on the right of a paragraph
-                  if (
-                    selection &&
-                    Range.isCollapsed(selection) &&
-                    e.target instanceof HTMLElement &&
-                    e.target.isContentEditable
-                  ) {
-                    const [leaf] = editor.leaf(selection.anchor);
-                    window.dispatchEvent(new SeekToEvent(leaf.start));
+                // fire a 'seek to' event when selection is changed by clicking outside of a text node
+                // e.g. by clicking at the blank space on the right of a paragraph
+                if (
+                  selection &&
+                  Range.isCollapsed(selection) &&
+                  e.target instanceof HTMLElement &&
+                  e.target.isContentEditable
+                ) {
+                  const [leaf] = editor.leaf(selection.anchor);
+                  window.dispatchEvent(new SeekToEvent(leaf.start));
+                }
+              }}
+              onKeyDown={(e) => {
+                if (disableUndoRedoHotkeys) {
+                  if (e.key == 'z' && (e.metaKey || e.ctrlKey)) {
+                    return true; // tell slate we handle the event ourselfs
                   }
-                }}
-                onKeyDown={(e) => {
-                  if (disableUndoRedoHotkeys) {
-                    if (e.key == 'z' && (e.metaKey || e.ctrlKey)) {
-                      return true; // tell slate we handle the event ourselfs
-                    }
-                  }
-                }}
-                className={clsx('2xl:-ml-20')}
-              />
-            </ErrorBoundary>
-            {children}
-          </SpeakerColorsProvider>
+                }
+              }}
+              className={clsx('2xl:-ml-20')}
+            />
+          </ErrorBoundary>
         </Slate>
       )}
     </div>

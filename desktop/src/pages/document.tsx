@@ -15,6 +15,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useDocumentMetadata } from '../util/use_tauri_event';
 import { MenuBar } from '../menu';
 import { DocumentNotFinishedBanner } from 'transcribee-ui-common/components/transcription_progress';
+import { SpeakerColorsProvider } from 'transcribee-ui-common/editor/speaker_colors';
 
 function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
@@ -111,7 +112,7 @@ export function DocumentPage({
   const [editor, initialValue] = useAutomergeLocalFileEditor(documentId);
 
   return (
-    <div className="max-w-screen-xl p-6 mx-auto flex flex-col border-box">
+    <div className="flex flex-col border-box h-screen">
       <MenuBar
         menus={[
           {
@@ -174,19 +175,27 @@ export function DocumentPage({
       />
       <TitleSetter documentId={documentId} />
 
-      <DocumentNotFinishedBannerFromId documentId={documentId} />
-      <TranscriptionEditor
-        editor={editor}
-        initialValue={initialValue}
-        className={'grow flex flex-col pb-20'}
-        readOnly={false}
-        disableUndoRedoHotkeys // handled by the menu
-      >
-        <PlayerBarWithMedia documentId={documentId} editor={editor} />
-      </TranscriptionEditor>
+      {editor && (
+        <SpeakerColorsProvider editor={editor}>
+          <div className="p-6 overflow-y-scroll overscroll-contain h-screen">
+            <div className="max-w-screen-xl mx-auto flex flex-col border-box h-screen">
+              {/* this container exists to limit overscroll on macos to only the contained elements */}
+              <DocumentNotFinishedBannerFromId documentId={documentId} />
+              <TranscriptionEditor
+                editor={editor}
+                initialValue={initialValue}
+                className={'grow flex flex-col pb-20'}
+                readOnly={false}
+                disableUndoRedoHotkeys // handled by the menu
+              />
+              {/* Spacer to prevent video preview from hiding text */}
+              <div id="video-bottom-spacer" />
+            </div>
+          </div>
 
-      {/* Spacer to prevent video preview from hiding text */}
-      <div id="video-bottom-spacer" />
+          <PlayerBarWithMedia documentId={documentId} editor={editor} />
+        </SpeakerColorsProvider>
+      )}
 
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </div>
