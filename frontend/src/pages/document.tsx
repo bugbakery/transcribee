@@ -1,7 +1,6 @@
 import { RouteComponentProps, useLocation } from 'wouter';
 import { IoIosArrowBack } from 'react-icons/io';
 import { MeButton, TopBar, TopBarPart, TopBarTitle } from '../components/top_bar';
-import { AppContainer } from '../components/app_container';
 import {
   IconButton,
   PrimaryButton,
@@ -34,6 +33,8 @@ import {
   DocumentNotFinishedBanner,
   TranscriptionProgressIndicator,
 } from 'transcribee-ui-common/components/transcription_progress';
+import { SpeakerColorsProvider } from 'transcribee-ui-common/editor/speaker_colors';
+import { Footer } from '../components/footer';
 
 const LazyDebugPanel = lazy(() =>
   import('transcribee-ui-common/editor/debug_panel').then((module) => ({
@@ -155,81 +156,90 @@ export function DocumentPage({
   });
 
   return (
-    <AppContainer className="relative min-h-screen flex flex-col" versionClassName="mb-16">
+    <div className="h-screen flex flex-col">
       <Helmet>
         <title>{data?.name}</title>
       </Helmet>
-      <TopBar className="!items-start z-40">
-        <TopBarPart
-          className={
-            isLoggedIn ? 'sticky left-4 -ml-12 mr-10 !items-start grow basis-0 min-w-0' : ''
-          }
-        >
-          {isLoggedIn && (
-            <IconButton
-              icon={IoIosArrowBack}
-              label="back to document gallery"
-              onClick={() => navigate('/')}
-            />
-          )}
-          {data?.has_full_access ? (
-            <DocumentTitle
-              name={data?.name}
-              onChange={(newTitle: string) => {
-                mutate({ ...data, name: newTitle }, { revalidate: false });
-                updateDocument({ document_id: documentId, name: newTitle })
-                  .catch((e) => {
-                    console.error(e);
-                    mutate(data);
-                  }) // reset to old name
-                  .then(() => mutate());
-              }}
-            />
-          ) : (
-            <TopBarTitle className="inline-block">{data?.name}</TopBarTitle>
-          )}
-        </TopBarPart>
-        <TopBarPart>
-          {data?.has_full_access && (
-            <IconButton
-              icon={TbShare3}
-              label={'share...'}
-              onClick={() => {
-                showModal(<ShareModal documentId={documentId} onClose={() => showModal(null)} />);
-              }}
-            />
-          )}
-          {editor && (
-            <IconButton
-              icon={TbFileExport}
-              label={'export...'}
-              onClick={() => {
-                showModal(
-                  <ExportModal editor={editor} onClose={() => showModal(null)} document={data} />,
-                );
-              }}
-            />
-          )}
-          <TranscriptionProgressIndicatorAutoRefresh documentId={documentId} />
-          {isLoggedIn && <MeButton />}
-        </TopBarPart>
-      </TopBar>
+      <div className="max-w-screen-xl w-full p-6 mx-auto">
+        <TopBar className="!items-start z-40">
+          <TopBarPart
+            className={
+              isLoggedIn ? 'sticky left-4 -ml-12 mr-10 !items-start grow basis-0 min-w-0' : ''
+            }
+          >
+            {isLoggedIn && (
+              <IconButton
+                icon={IoIosArrowBack}
+                label="back to document gallery"
+                onClick={() => navigate('/')}
+              />
+            )}
+            {data?.has_full_access ? (
+              <DocumentTitle
+                name={data?.name}
+                onChange={(newTitle: string) => {
+                  mutate({ ...data, name: newTitle }, { revalidate: false });
+                  updateDocument({ document_id: documentId, name: newTitle })
+                    .catch((e) => {
+                      console.error(e);
+                      mutate(data);
+                    }) // reset to old name
+                    .then(() => mutate());
+                }}
+              />
+            ) : (
+              <TopBarTitle className="inline-block">{data?.name}</TopBarTitle>
+            )}
+          </TopBarPart>
+          <TopBarPart>
+            {data?.has_full_access && (
+              <IconButton
+                icon={TbShare3}
+                label={'share...'}
+                onClick={() => {
+                  showModal(<ShareModal documentId={documentId} onClose={() => showModal(null)} />);
+                }}
+              />
+            )}
+            {editor && (
+              <IconButton
+                icon={TbFileExport}
+                label={'export...'}
+                onClick={() => {
+                  showModal(
+                    <ExportModal editor={editor} onClose={() => showModal(null)} document={data} />,
+                  );
+                }}
+              />
+            )}
+            <TranscriptionProgressIndicatorAutoRefresh documentId={documentId} />
+            {isLoggedIn && <MeButton />}
+          </TopBarPart>
+        </TopBar>
+      </div>
 
-      <DocumentNotFinishedBannerAutoRefresh documentId={documentId} className="mt-6" />
-      <TranscriptionEditor
-        editor={editor}
-        initialValue={initialValue}
-        className={'grow flex flex-col'}
-        readOnly={!data || !data.can_write}
-      >
-        <PlayerBarAutoMediaFiles documentId={documentId} editor={editor} />
-      </TranscriptionEditor>
-
-      {/* Spacer to prevent video preview from hiding text */}
-      <div id="video-bottom-spacer" />
+      {editor && (
+        <SpeakerColorsProvider editor={editor}>
+          <div className="overflow-y-scroll overscroll-contain h-screen">
+            <div className="max-w-screen-xl p-6 mx-auto flex flex-col">
+              <DocumentNotFinishedBannerAutoRefresh documentId={documentId} className="mt-6" />
+              <TranscriptionEditor
+                editor={editor}
+                initialValue={initialValue}
+                className={'grow flex flex-col'}
+                readOnly={!data || !data.can_write}
+              />
+              {/* Spacer to prevent video preview from hiding text */}
+              <div id="video-bottom-spacer" />
+              <Footer className="my-16" />
+            </div>
+          </div>
+        </SpeakerColorsProvider>
+      )}
+      <PlayerBarAutoMediaFiles documentId={documentId} editor={editor} />
 
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
-    </AppContainer>
+    </div>
   );
 }
 
