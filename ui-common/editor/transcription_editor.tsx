@@ -75,7 +75,12 @@ function ParagraphElement({ element, children, attributes }: RenderElementProps)
       {/* start time */}
       <div
         className={clsx(`text-slate-500 dark:text-neutral-400 tabular-nums`, 'md:mr-4')}
-        onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
+        onClick={(e) => {
+          if (e.altKey) {
+            return;
+          }
+          window.dispatchEvent(new SeekToEvent(startAtom.start));
+        }}
       >
         {formattedTime(startAtom.start)}
       </div>
@@ -198,7 +203,10 @@ const Leaf = memo(
       <span
         {...attributes}
         className={classes.join(' ')}
-        onClick={() => {
+        onClick={(e) => {
+          if (e.altKey) {
+            return;
+          }
           // this event is handeled in player.tsx to set the time when someone clicks a word
           window.dispatchEvent(new SeekToEvent(start));
         }}
@@ -285,6 +293,10 @@ export function TranscriptionEditor({
                 renderLeaf={renderLeaf}
                 readOnly={readOnly}
                 onClick={(e: React.MouseEvent) => {
+                  if (e.altKey) {
+                    return;
+                  }
+
                   const { selection } = editor;
 
                   // fire a 'seek to' event when selection is changed by clicking outside of a text node
