@@ -9,6 +9,7 @@ import traceback
 import urllib.parse
 from multiprocessing import Process
 from pathlib import Path
+from sys import platform
 
 import requests.exceptions
 from transcribee_proto.api import TaskType
@@ -133,10 +134,11 @@ async def run(args):
         logging.info("Shutdown canceled")
 
     loop = asyncio.get_running_loop()
-    # stop the worker gracefully on SIGTERM
-    loop.add_signal_handler(signal.SIGTERM, shutdown)
-    # allow to cancel shutdown via SIGUSR1
-    loop.add_signal_handler(signal.SIGUSR1, cancel_shutdown)
+    if platform != "win32":
+        # stop the worker gracefully on SIGTERM
+        loop.add_signal_handler(signal.SIGTERM, shutdown)
+        # # allow to cancel shutdown via SIGUSR1
+        loop.add_signal_handler(signal.SIGUSR1, cancel_shutdown)
 
     if args.task_types is None:
         task_types = [
