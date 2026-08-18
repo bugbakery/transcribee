@@ -313,13 +313,13 @@ pub async fn open_document_window(app: AppHandle, id: Uuid) -> CmdResult<()> {
         .unwrap_or(false);
     let document = app.get_document(id)?;
 
+    create_or_focus_document_window(&app, &document, fullscreen).await?;
     if let Some(focused_window) = focused_window {
         if focused_window.label() == "main" {
             focused_window.close().unwrap();
         }
     }
 
-    create_or_focus_document_window(&app, &document, fullscreen).await?;
     Ok(())
 }
 
