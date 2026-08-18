@@ -40,30 +40,31 @@ def test_calculate_new_dimensions():
     assert calculate_new_dimensions((1080, 1920), (854, 480)) == (480, 854)
 
 
-def test_reencode_audio():
+def test_reencode_audio(tmp_path: Path):
     logging.basicConfig()
     av.logging.set_level(av.logging.TRACE)
     logging.getLogger().setLevel(5)
 
     reencode(
         fate_suite("mkv/test7_cut.mkv"),
-        "/tmp/test.mp3",
+        str(tmp_path / "test.mp3"),
         output_params=settings.REENCODE_PROFILES["mp3"],
     )
 
     reencode(
         fate_suite("mkv/test7_cut.mkv"),
-        "/tmp/test.mp4",
+        str(tmp_path / "test.mp4"),
         output_params=settings.REENCODE_PROFILES["m4a"],
     )
 
 
-def test_reencode_video():
+def test_reencode_video(tmp_path: Path):
     logging.basicConfig()
     av.logging.set_level(av.logging.TRACE)
     logging.getLogger().setLevel(5)
+
     reencode(
         fate_suite("mkv/test7_cut.mkv"),
-        "/tmp/test.mp4",
+        str(tmp_path / "test.mp4"),
         output_params=settings.REENCODE_PROFILES["video:mp4"],
     )
