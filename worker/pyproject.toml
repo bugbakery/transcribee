@@ -59,6 +59,7 @@ override-dependencies = [
   "soundfile==0.11.0"
 ]
 config-settings = { editable_mode = "compat" }
+cache-keys = [{ file = "pyproject.toml" }, { file = "**/*.py" }] # add python files to cache key, otherwise uv will cache too agressively
 
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }
