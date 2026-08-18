@@ -1,4 +1,5 @@
 use std::{
+    env,
     fs::{create_dir_all, remove_dir_all},
     process::Command,
 };
@@ -12,7 +13,7 @@ fn main() {
     // in dev mode we simply start the worker from ../../worker with uv while in production
     // we use the bundled worker. We still need to create an empty worker/ dir in dev to make
     // the tauri build process happy.
-    if is_dev() {
+    if is_dev() || env::var_os("DONT_BUNDLE_WORKER").is_some() {
         let _ = remove_dir_all("worker");
         create_dir_all("worker").expect("could not create worker/ dir");
     } else {

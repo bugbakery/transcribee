@@ -144,6 +144,55 @@ jobs:
           path: desktop/src-tauri/target/release/bundle/msi/*.msi
           archive: false
 
+  build-desktop-linux:
+    strategy:
+      matrix:
+        target: [x86_64, aarch64]
+    runs-on: ubuntu-22.04${{ case(matrix.target == 'aarch64', '-arm', '') }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: astral-sh/setup-uv@v8.1.0
+
+      - name: install ubuntu dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Install npm dependencies
+        run: |
+          npm --prefix=ui-common ci
+          npm --prefix=desktop ci
+
+      # Bundling with AppImage is a bit broken for our usecase (we cannot just include the worker)
+      # because linuxdeploy (which is called by tauri) tries to find all the shared libraries
+      # for the already self-contained python installation, which are not present on the system.
+      # Thus we first build an AppImage without the worker, extract it, copy the worker in and
+      # pack it again.
+
+      - name: Build worker
+        run: uv run --python 3.12 ./worker/packaging/build_worker_bundle.py linux-${{ matrix.target }}
+
+      - name: Build app without worker
+        run: DONT_BUNDLE_WORKER=1 npm --prefix=desktop run tauri build -- --bundles appimage --verbose
+
+      - name: Integrate Worker into AppImage
+        run: |
+          cd desktop/src-tauri/target/release/bundle/appimage
+          APPIMAGE=$(find . -name '*.AppImage' -type f | head -1)
+          "$APPIMAGE" --appimage-extract
+          # add worker into extracted tree
+          mkdir -p ./squashfs-root/usr/lib/transcribee-desktop/worker/
+          tar -xf ../../../../../../worker/packaging/build/worker-*.tar -C ./squashfs-root/usr/lib/transcribee-desktop/worker/
+          # reassemble appimage with appimagetool
+          curl -fsSL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$(uname -m).AppImage" -o appimagetool
+          chmod +x appimagetool
+          ./appimagetool squashfs-root/ "$APPIMAGE"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+          archive: false
+
   upload-release:
     needs:
       - metadata
@@ -152,6 +201,7 @@ jobs:
       - push-docker-worker
       - build-desktop-macos
       - build-desktop-windows
+      - build-desktop-linux
     runs-on: ubuntu-latest
     env:
       FILES_TO_UPLOAD: |
