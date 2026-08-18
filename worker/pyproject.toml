@@ -26,6 +26,7 @@ dependencies = [
     "pyicu-wheels~=2.15",
     "pydantic-settings>=2.7",
     "decent-whisper @ git+https://github.com/bugbakery/decent-whisper.git@b56e13f",
+    "poethepoet>=0.48.0",
 ]
 
 requires-python = "~=3.12.0"
