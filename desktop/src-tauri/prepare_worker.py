@@ -31,6 +31,6 @@ if __name__ == "__main__":
 
     print("extracting worker...")
     with tarfile.open(worker_tar) as tar:
-        tar.extractall(worker_target_dir, filter="data")
+        tar.extractall(worker_target_dir, filter="tar")
 
     worker_platform_file.touch()
