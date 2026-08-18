@@ -46,6 +46,12 @@ fn setup_worker<R: Runtime>(
 
     let app = app.clone();
 
+    let models_directory = app
+        .path()
+        .resolve("models", BaseDirectory::AppData)?
+        .to_string_lossy()
+        .to_string();
+
     tauri::async_runtime::spawn(async move {
         let shell = app.shell();
 
@@ -79,7 +85,11 @@ fn setup_worker<R: Runtime>(
                     &token,
                 ])
             };
-            let (mut events, _) = builder.env("WORKER_TYPE", "desktop").spawn().unwrap();
+            let (mut events, _) = builder
+                .env("WORKER_TYPE", "desktop")
+                .env("MODELS_DIR", models_directory.clone())
+                .spawn()
+                .unwrap();
 
             let mut stderr = Vec::new();
             let mut stdout = Vec::new();
