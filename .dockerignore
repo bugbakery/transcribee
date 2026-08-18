@@ -8,6 +8,5 @@ node_modules
 /backend/db
 /backend/storage
 /worker/packaging/build
-/worker/packaging/.native-deps-dl
 /frontend/dist/
 /frontend/testData
