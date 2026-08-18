@@ -20,7 +20,7 @@ dependencies = [
     "websockets~=16.0",
     "scikit-learn~=1.2",
     "watchfiles~=0.19",
-    "speechbrain~=0.5",
+    "speechbrain~=1.1",
     "ffmpeg-python~=0.2",
     "transcribee-proto",
     "pyicu-wheels~=2.15",

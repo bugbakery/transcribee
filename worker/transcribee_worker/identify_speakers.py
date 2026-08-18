@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from spectralcluster import refinement, spectral_clusterer
-from speechbrain.pretrained import EncoderClassifier
+from speechbrain.inference import EncoderClassifier
 from transcribee_proto.document import Document
 from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import alist, async_task
