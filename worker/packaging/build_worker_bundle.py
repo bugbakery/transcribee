@@ -3,12 +3,9 @@
 
 import argparse
 import hashlib
-import json
 import shutil
 import tarfile
 import tempfile
-import urllib.request
-import zipfile
 from io import BytesIO
 from os import environ
 from pathlib import Path
@@ -22,97 +19,6 @@ PLATFORMS = [
     "linux-x86_64",
     "win-x86_64",
 ]
-
-
-def dl(url, file: Path):
-    r = urllib.request.Request(url, headers={"User-Agent": ""})
-    response = urllib.request.urlopen(r).read()
-    file.write_bytes(response)
-
-
-# merge the contents of the src folder into the dst folder
-def merge_into(src: Path, dst: Path):
-    if src.is_dir():
-        subdir = dst / src.name
-        subdir.mkdir(exist_ok=True)
-        for child in src.iterdir():
-            merge_into(child, subdir)
-    else:
-        src.rename(dst / src.name)
-
-
-def extract_native_dep_tar(file: Path, target_path: Path):
-    print(f"-> extracting {file}")
-    with tempfile.TemporaryDirectory() as tmp:
-        if zipfile.is_zipfile(file):
-            zf = zipfile.ZipFile(file)
-            zf.extractall(tmp)
-        elif tarfile.is_tarfile(file):
-            tf = tarfile.open(file)
-
-            # handle macos still having a case insensitive fs in 2026
-            # (python ships some file in lowercase and a symlink in upper case)
-            def filter(member: tarfile.TarInfo, path: str, /) -> tarfile.TarInfo | None:
-                member = tarfile.data_filter(member, path)
-                if member is None:
-                    return None
-                if "share/terminfo/" in member.name:
-                    # we dont care so much about these and extracting them does not work under macos
-                    # because it has a case insensitive fs and terminfo ships some symlinks that
-                    # point to themselves when case is ignored
-                    return None
-                return member
-
-            tf.extractall(tmp, filter=filter)
-        else:
-            raise Exception(f"File has unsupported archive type: {file}")
-
-        # we currently support layouts types of archives:
-        # * ones that contain a single binary file (we place this in bin/) and
-        # * ones that contain a single toplevel folder that contains a lib/ and bin/ folder
-        #   from these take the lib/ and bin/ folders.
-        # other file layouts are unsupported at the moment.
-        children = list(Path(tmp).iterdir())
-        if len(children) == 1 and children[0].is_file():
-            bin = target_path / "bin"
-            bin.mkdir(exist_ok=True)
-            children[0].chmod(0o755)
-            children[0].rename(bin / children[0].name)
-        elif len(children) == 1 and children[0].is_dir():
-            root = children[0]
-            for child in root.iterdir():
-                if child.name not in ["bin", "lib"]:
-                    continue
-                merge_into(child, target_path)
-        else:
-            raise Exception(
-                "Unsupported archive layout.Expecting either one toplevel file or one toplevel dir."
-            )
-
-
-def download_native_deps(native_deps_json: Path, platform: str, target: Path):
-    deps = json.loads(native_deps_json.read_text())
-
-    dl_folder = Path(__file__).parent / ".native-deps-dl"
-    dl_folder.mkdir(exist_ok=True)
-
-    rmtree(target, ignore_errors=True)
-    target.mkdir()
-
-    for dep, sources in deps.items():
-        urls = sources[platform]
-        if isinstance(urls, str):
-            urls = [urls]
-
-        for url in urls:
-            dl_path = dl_folder / f"{dep}-{platform}-{Path(url).name}"
-
-            if not dl_path.exists():
-                print(f"-> Downloading {dep} for {platform} from {url}...")
-                dl(url, dl_path)
-
-            extract_native_dep_tar(dl_path, target)
-    return target
 
 
 def download_python(folder: Path, platform: str, target: Path):
@@ -264,12 +170,6 @@ if __name__ == "__main__":
             download_python(worker_dir, platform, python_folder)
             install_venv(python_folder, venv_folder)
 
-            native_deps_folder = Path(tempdir) / "native_deps"
-            rmtree(native_deps_folder, ignore_errors=True)
-            download_native_deps(
-                Path(__file__).parent / "native_deps.json", platform, native_deps_folder
-            )
-
             archive_path.unlink(missing_ok=True)
             with tarfile.open(archive_path, "w") as archive:
                 info = tarfile.TarInfo(".platform")
@@ -283,8 +183,6 @@ if __name__ == "__main__":
                 )
                 print("-> packing python")
                 archive.add(python_folder, "python")
-                print("-> packing native deps")
-                archive.add(native_deps_folder, "")
             if not force_rebuild:
                 source_hash_file.write_text(current_src_digest)
 
