@@ -36,8 +36,12 @@ def download_python(folder: Path, platform: str, target: Path):
             python_version = pv_file.readline().strip()
         print(f"-> using python version {python_version}")
 
-        python_target = f"cpython-{python_version}-" + platform_map[platform]
+        env = {
+            **environ,
+            "UV_PYTHON_DOWNLOADS": "automatic",  # force enable downloads
+        }
 
+        python_target = f"cpython-{python_version}-" + platform_map[platform]
         cmd = [
             "uv",
             "python",
@@ -49,7 +53,7 @@ def download_python(folder: Path, platform: str, target: Path):
             python_target,
         ]
         print("-> running", " ".join(cmd))
-        check_call(cmd, cwd=folder)
+        check_call(cmd, cwd=folder, env=env)
 
         # The following lines are more thought-out than you might think. UV behaves a bit weird
         # here. It won't create links for version aliases when downloading python for windows on
