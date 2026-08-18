@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from spectralcluster import refinement, spectral_clusterer
-from speechbrain.inference import EncoderClassifier
+from speechbrain.inference import EncoderClassifier, LocalStrategy
 from transcribee_proto.document import Document
 from transcribee_worker.types import ProgressCallbackType
 from transcribee_worker.util import alist, async_task
@@ -76,6 +76,8 @@ async def identify_speakers(
         ]
 
         classifier = EncoderClassifier.from_hparams(
+            # default symlink strategy is no good on windows
+            local_strategy=LocalStrategy.COPY_SKIP_CACHE,
             source="speechbrain/spkrec-ecapa-voxceleb",
             savedir=settings.MODELS_DIR / "speechbrain-spkrec-ecapa-voxceleb",
         )
