@@ -72,6 +72,7 @@
             pkgs.rustc
             pkgs.cargo
             pkgs.clippy
+            pkgs.clang # for use as a rust linker
 
             # Our database
             pkgs.postgresql_18
@@ -114,6 +115,8 @@
                   source ${pkgs.nixgl.nixGLIntel}/bin/nixGLIntel
               }
               _doit
+              export RUSTFLAGS="-Clink-arg=-fuse-ld=${pkgs.mold}/bin/mold";
+              export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:$XDG_DATA_DIRS"
             '';
         };
       }
