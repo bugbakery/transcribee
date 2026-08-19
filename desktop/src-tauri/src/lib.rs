@@ -1,11 +1,12 @@
-use crate::cmd::install_cmds;
 use crate::window::create_or_focus_main_window;
+use crate::{before_exit::BeforeExitState, cmd::install_cmds};
 use colored::Color;
 use log::Level;
-use tauri::RunEvent;
+use tauri::{Manager, RunEvent};
 use tauri_plugin_log::fern;
 use tauri_plugin_window_state::StateFlags;
 
+mod before_exit;
 mod cmd;
 mod cmd_error;
 mod file_handling;
@@ -64,6 +65,7 @@ pub fn run() {
         .plugin(menu::init())
         .plugin(media_file_serve::init())
         .plugin(file_handling::init()) // this depends on media_file_serve (because it needs MediaFileBase)
+        .plugin(before_exit::init())
         .plugin(worker_plugin::init());
 
     let builder = builder.setup(|app| {
@@ -79,6 +81,8 @@ pub fn run() {
         .run(|#[allow(unused_variables)] app, event| match event {
             RunEvent::Exit => {
                 log::info!("Exit");
+                let before_exit_state = app.state::<BeforeExitState>();
+                tauri::async_runtime::block_on(before_exit_state.handle_exit());
             }
             RunEvent::ExitRequested { api, code, .. } => {
                 log::info!("Exit requested with code {:?}", code);
