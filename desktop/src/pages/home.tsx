@@ -11,7 +11,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { DocumentMetadata, useDocumentsMetadata, WorkerTask } from '../util/use_tauri_event';
 import { IoClose } from 'react-icons/io5';
-import { Menu, MenuItem } from '@tauri-apps/api/menu';
+import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { getAllWindows } from '@tauri-apps/api/window';
 import { MenuBar } from '../menu';
@@ -111,6 +111,15 @@ function TranscriptionQueue({ documents }: { documents: DocumentMetadata[] }) {
                   const menu = await Menu.new({
                     items: [
                       await MenuItem.new({
+                        text: 'Open Document',
+                        action() {
+                          invoke('open_document_window', { id: doc.id });
+                        },
+                      }),
+                      await PredefinedMenuItem.new({
+                        item: 'Separator',
+                      }),
+                      await MenuItem.new({
                         text: contextMenuDeleteText,
                         async action() {
                           if (await isDocumentOpen(doc.id)) {
@@ -127,12 +136,6 @@ function TranscriptionQueue({ documents }: { documents: DocumentMetadata[] }) {
                           if (answer) {
                             invoke('forget_document', { id: doc.id });
                           }
-                        },
-                      }),
-                      await MenuItem.new({
-                        text: 'Open Document',
-                        action() {
-                          invoke('open_document_window', { id: doc.id });
                         },
                       }),
                     ],
