@@ -210,40 +210,37 @@ function RecentDocuments({ documents }: { documents: DocumentMetadata[] }) {
         {documents.map((doc) => (
           <li
             key={doc.id}
-            className="px-3 py-1.5 text-sm flex items-center even:bg-neutral-100 dark:even:bg-neutral-800 rounded-md justify-between group hover:underline"
+            className="px-3 py-1.5 text-sm flex items-center even:bg-neutral-100 dark:even:bg-neutral-800 rounded-md justify-between group hover:underline cursor-pointer"
+            onClick={() => {
+              invoke('open_document_window', { id: doc.id });
+            }}
+            onContextMenu={async (e) => {
+              e.preventDefault();
+              const menu = await Menu.new({
+                items: [
+                  await MenuItem.new({
+                    text: 'Open Document',
+                    action() {
+                      invoke('open_document_window', { id: doc.id });
+                    },
+                  }),
+                  await PredefinedMenuItem.new({
+                    item: 'Separator',
+                  }),
+                  await MenuItem.new({
+                    text: `Reveal in ${fileExplorerName()}`,
+                    async action() {
+                      if (doc.save_path) {
+                        revealItemInDir(doc.save_path);
+                      }
+                    },
+                  }),
+                ],
+              });
+              await menu.popup();
+            }}
           >
-            <div
-              title={doc.save_path}
-              onClick={() => {
-                invoke('open_document_window', { id: doc.id });
-              }}
-              onContextMenu={async (e) => {
-                e.preventDefault();
-                const menu = await Menu.new({
-                  items: [
-                    await MenuItem.new({
-                      text: 'Open Document',
-                      action() {
-                        invoke('open_document_window', { id: doc.id });
-                      },
-                    }),
-                    await PredefinedMenuItem.new({
-                      item: 'Separator',
-                    }),
-                    await MenuItem.new({
-                      text: `Reveal in ${fileExplorerName()}`,
-                      async action() {
-                        if (doc.save_path) {
-                          revealItemInDir(doc.save_path);
-                        }
-                      },
-                    }),
-                  ],
-                });
-                await menu.popup();
-              }}
-              className="truncate cursor-pointer"
-            >
+            <div title={doc.save_path} className="truncate">
               {doc.display_name}
             </div>
             <IconButton
@@ -251,7 +248,9 @@ function RecentDocuments({ documents }: { documents: DocumentMetadata[] }) {
               label={'Remove Document from Recent List'}
               discreet
               className="hidden group-hover:block text-neutral-600 dark:text-neutral-400"
-              onClick={async () => {
+              onClick={async (e) => {
+                e.stopPropagation(); // prevent opening document
+
                 if (await isDocumentOpen(doc.id)) {
                   await message(
                     'Document cannot be removed from recent documents while it is opened. Please close the document window first!',
