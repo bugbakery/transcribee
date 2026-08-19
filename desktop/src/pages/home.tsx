@@ -13,9 +13,11 @@ import { DocumentMetadata, useDocumentsMetadata, WorkerTask } from '../util/use_
 import { IoClose } from 'react-icons/io5';
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { ask, message } from '@tauri-apps/plugin-dialog';
+import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { getAllWindows } from '@tauri-apps/api/window';
 import { MenuBar } from '../menu';
 import { Tooltip } from 'transcribee-ui-common/components/tooltip';
+import { fileExplorerName } from '../utils/texts';
 
 export function HomePage() {
   const documents = useDocumentsMetadata((documents) => documents, []);
@@ -214,6 +216,31 @@ function RecentDocuments({ documents }: { documents: DocumentMetadata[] }) {
               title={doc.save_path}
               onClick={() => {
                 invoke('open_document_window', { id: doc.id });
+              }}
+              onContextMenu={async (e) => {
+                e.preventDefault();
+                const menu = await Menu.new({
+                  items: [
+                    await MenuItem.new({
+                      text: 'Open Document',
+                      action() {
+                        invoke('open_document_window', { id: doc.id });
+                      },
+                    }),
+                    await PredefinedMenuItem.new({
+                      item: 'Separator',
+                    }),
+                    await MenuItem.new({
+                      text: `Reveal in ${fileExplorerName()}`,
+                      async action() {
+                        if (doc.save_path) {
+                          revealItemInDir(doc.save_path);
+                        }
+                      },
+                    }),
+                  ],
+                });
+                await menu.popup();
               }}
               className="truncate cursor-pointer"
             >
