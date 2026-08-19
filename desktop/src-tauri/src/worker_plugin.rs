@@ -1,6 +1,8 @@
+use crate::before_exit::BeforeExitState;
 use crate::file_handling::{DocumentsStoreExt, MediaFile};
 use crate::transcribee_archive;
 use anyhow::Result;
+use kill_tree::blocking::kill_tree;
 use log::{error, info, log, warn, Level};
 use rand::{distr::Alphanumeric, RngExt};
 use serde_json::json;
@@ -85,11 +87,23 @@ fn setup_worker<R: Runtime>(
                     &token,
                 ])
             };
-            let (mut events, _) = builder
+            let (mut events, child) = builder
                 .env("WORKER_TYPE", "desktop")
                 .env("MODELS_DIR", models_directory.clone())
                 .spawn()
                 .unwrap();
+
+            let before_exit_state = app.state::<BeforeExitState>();
+            let exit_listener = before_exit_state
+                .before_exit(Box::new(move || {
+                    info!("Killing worker process before exiting...");
+                    // Without explicit killing the worker keeps running on windows.
+                    // Also normal child.kill() is not enough (at least when uv is used).
+                    if let Err(e) = kill_tree(child.pid()) {
+                        error!("Could not kill worker process: {e:?}");
+                    }
+                }))
+                .await;
 
             let mut stderr = Vec::new();
             let mut stdout = Vec::new();
@@ -139,6 +153,10 @@ fn setup_worker<R: Runtime>(
                     output_buffer(buf, Level::Info, false);
                 }
             }
+
+            before_exit_state
+                .unregister_before_exit(exit_listener)
+                .await;
 
             sleep(Duration::from_secs(5)).await;
         }
