@@ -199,11 +199,6 @@ pub async fn open_document_via_file_picker(app: AppHandle) -> CmdResult<()> {
     if let Some(file) = file {
         let fullscreen = parent.is_fullscreen().unwrap_or(false);
         let document = app.open_document(&file.to_string())?;
-
-        if parent.label() == "main" {
-            parent.close().unwrap();
-        }
-
         create_or_focus_document_window(&app, &document, fullscreen).await?;
     }
 
@@ -312,13 +307,7 @@ pub async fn open_document_window(app: AppHandle, id: Uuid) -> CmdResult<()> {
         .and_then(|w| w.is_fullscreen().ok())
         .unwrap_or(false);
     let document = app.get_document(id)?;
-
     create_or_focus_document_window(&app, &document, fullscreen).await?;
-    if let Some(focused_window) = focused_window {
-        if focused_window.label() == "main" {
-            focused_window.close().unwrap();
-        }
-    }
 
     Ok(())
 }
