@@ -1,8 +1,14 @@
-use crate::window::create_or_focus_main_window;
+use std::ffi::OsStr;
+use std::path::PathBuf;
+
+use crate::file_handling::DocumentsStoreExt;
+use crate::window::{create_or_focus_document_window, create_or_focus_main_window};
 use crate::{before_exit::BeforeExitState, cmd::install_cmds};
 use colored::Color;
-use log::Level;
-use tauri::{Manager, RunEvent};
+use log::{error, warn, Level};
+use tauri::async_runtime::block_on;
+use tauri::{AppHandle, Manager, RunEvent};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_log::fern;
 use tauri_plugin_window_state::StateFlags;
 
@@ -69,9 +75,36 @@ pub fn run() {
         .plugin(worker_plugin::init());
 
     let builder = builder.setup(|app| {
-        tauri::async_runtime::block_on(async {
-            create_or_focus_main_window(app.handle()).await.unwrap();
-        });
+        block_on(create_or_focus_main_window(app.handle())).unwrap();
+
+        if cfg!(any(windows, target_os = "linux")) {
+            let mut files = Vec::new();
+
+            for maybe_file in std::env::args().skip(1) {
+                // skip flag args
+                if maybe_file.starts_with('-') {
+                    continue;
+                }
+
+                if let Ok(url) = tauri::Url::parse(&maybe_file) {
+                    // handle `file://` urls and ignore other schemes
+                    if let Ok(path) = url.to_file_path() {
+                        files.push(path);
+                    } else {
+                        warn!(
+                            "Skipping file argument with unknown scheme {:?}",
+                            url.scheme()
+                        );
+                    }
+                } else {
+                    // non-urls should be plain file paths
+                    files.push(PathBuf::from(maybe_file))
+                }
+            }
+
+            handle_file_associations(app.handle(), files);
+        }
+
         Ok(())
     });
 
@@ -82,7 +115,7 @@ pub fn run() {
             RunEvent::Exit => {
                 log::info!("Exit");
                 let before_exit_state = app.state::<BeforeExitState>();
-                tauri::async_runtime::block_on(before_exit_state.handle_exit());
+                block_on(before_exit_state.handle_exit());
             }
             RunEvent::ExitRequested { api, code, .. } => {
                 log::info!("Exit requested with code {:?}", code);
@@ -99,11 +132,42 @@ pub fn run() {
                 has_visible_windows,
                 ..
             } if !has_visible_windows => {
-                tauri::async_runtime::block_on(async {
-                    // click on macOS dock opens main window again
-                    create_or_focus_main_window(app).await.unwrap();
-                });
+                // click on macOS dock opens main window again
+                block_on(create_or_focus_main_window(app)).unwrap();
+            }
+            #[cfg(target_os = "macos")]
+            RunEvent::Opened { urls } => {
+                let transcribee_files = urls
+                    .iter()
+                    .filter_map(|url| url.to_file_path().ok())
+                    .collect();
+
+                handle_file_associations(app.app_handle(), transcribee_files);
             }
             _ => {}
         });
+}
+
+fn handle_file_associations(app: &AppHandle, files: Vec<PathBuf>) {
+    let transcribee_files = files
+        .iter()
+        .filter(|f| f.extension() == Some(OsStr::new("transcribee")));
+
+    for file in transcribee_files {
+        let file = file.to_string_lossy();
+        let doc = match app.open_document(&file) {
+            Ok(doc) => doc,
+            Err(e) => {
+                error!("Failed to open associated file {file:?}: {e:?}");
+                app.dialog()
+                    .message(format!("Could not open file: {file}"))
+                    .show(|_ok| {});
+                continue;
+            }
+        };
+
+        if let Err(e) = block_on(create_or_focus_document_window(app, &doc, false)) {
+            error!("Failed to create document window: {e:?}");
+        }
+    }
 }
