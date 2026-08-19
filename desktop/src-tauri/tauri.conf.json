@@ -24,6 +24,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["worker"]
+    "resources": ["worker"],
+    "fileAssociations": [
+      {
+        "name": "Transcribee Document",
+        "ext": ["transcribee"],
+        "rank": "Owner"
+      }
+    ]
   }
 }
