@@ -21,7 +21,7 @@ use crate::{
 
 /// Non-global menu items which will be enabled when a window specifies that they should be enabled.
 /// Handlers are implemented in JS code.
-static WINDOW_SPECIFIC_MENU_ITEMS: &[&str] = &["save", "save_as", "undo", "redo"];
+static WINDOW_SPECIFIC_MENU_ITEMS: &[&str] = &["save", "save_as", "export", "undo", "redo"];
 
 #[derive(Debug, Default)]
 pub struct MenuState {
@@ -81,6 +81,11 @@ fn setup_macos_menu(app: &AppHandle) -> std::result::Result<(), Box<dyn std::err
         .item(
             &MenuItemBuilder::with_id("save_as", "Save As...")
                 .accelerator("Cmd+Shift+S")
+                .build(app)
+                .unwrap(),
+        )
+        .item(
+            &MenuItemBuilder::with_id("export", "Export...")
                 .build(app)
                 .unwrap(),
         )

@@ -13,11 +13,13 @@ export type ExportProps = {
   editor: Editor;
   onClose: () => void;
   document?: ApiDocument;
+  downloadFn: (fileName: string, mimeType: string, data: Uint8Array<ArrayBuffer> | string) => void;
 };
 
 export type ExportType = {
   name: string;
   component: (props: ExportProps) => JSX.Element;
+  needsDocument: boolean;
 };
 
 export type CanExportResult = {
@@ -29,14 +31,17 @@ const exportTypes: ExportType[] = [
   {
     name: 'Subtitles',
     component: WebVttExportBody,
+    needsDocument: false,
   },
   {
     name: 'Plaintext',
     component: PlaintextExportBody,
+    needsDocument: false,
   },
   {
     name: 'Transcribee Archive',
     component: TranscribeeExportBody,
+    needsDocument: true,
   },
 ];
 
@@ -44,11 +49,13 @@ export function ExportModal({
   onClose,
   editor,
   document,
+  downloadFn,
   ...props
 }: {
   onClose: () => void;
   editor: Editor;
   document?: ApiDocument;
+  downloadFn: (fileName: string, mimeType: string, data: Uint8Array<ArrayBuffer> | string) => void;
 } & Omit<ComponentProps<typeof Modal>, 'label'>) {
   const [exportType, setExportType] = useState(exportTypes[0]);
   const ExportBodyComponent = exportType.component;
@@ -64,27 +71,37 @@ export function ExportModal({
             setExportType(exportTypes[parseInt(e.target.value)]);
           }}
         >
-          {exportTypes.map((et, i) => (
-            <option key={i} value={i}>
-              {et.name}
-            </option>
-          ))}
+          {exportTypes
+            .filter((x) => !x.needsDocument || document)
+            .map((et, i) => (
+              <option key={i} value={i}>
+                {et.name}
+              </option>
+            ))}
         </Select>
       )}
-      <FormControl label={'Name'} className="mt-2">
-        <Input
-          autoFocus
-          value={outputNameBase}
-          onChange={(e) => {
-            setOutputNameBase(e.target.value);
-          }}
-        />
-      </FormControl>
+
+      {
+        // if document is not supplied, we run on desktop. There we dont display the name control as
+        // we display a file chooser afterwards.
+        document && (
+          <FormControl label={'Name'} className="mt-2">
+            <Input
+              autoFocus
+              value={outputNameBase}
+              onChange={(e) => {
+                setOutputNameBase(e.target.value);
+              }}
+            />
+          </FormControl>
+        )
+      }
       <ExportBodyComponent
         outputNameBase={outputNameBase}
         editor={editor}
         onClose={onClose}
         document={document}
+        downloadFn={downloadFn}
       />
     </Modal>
   );

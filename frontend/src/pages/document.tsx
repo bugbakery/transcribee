@@ -7,6 +7,7 @@ import {
   SecondaryButton,
 } from 'transcribee-ui-common/components/button';
 import { TranscriptionEditor } from 'transcribee-ui-common/editor/transcription_editor';
+import { downloadDataAsFile } from '../components/download_data_as_file';
 import {
   updateDocument,
   useGetDocument,
@@ -207,7 +208,12 @@ export function DocumentPage({
                 label={'export...'}
                 onClick={() => {
                   showModal(
-                    <ExportModal editor={editor} onClose={() => showModal(null)} document={data} />,
+                    <ExportModal
+                      editor={editor}
+                      onClose={() => showModal(null)}
+                      document={data}
+                      downloadFn={downloadDataAsFile}
+                    />,
                   );
                 }}
               />
