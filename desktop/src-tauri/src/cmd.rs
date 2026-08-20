@@ -34,6 +34,7 @@ pub fn install_cmds(builder: Builder<Wry>) -> Builder<Wry> {
         open_document_via_file_picker,
         save_document,
         save_document_as_dialog,
+        export_file_chooser_dialog,
         open_document_window,
         show_new_transcript_dialog,
         show_main_window,
@@ -271,6 +272,56 @@ pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResu
         doc.has_unsaved_changes = false;
         doc
     })?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn export_file_chooser_dialog(
+    app_handle: AppHandle,
+    request: tauri::ipc::Request<'_>,
+) -> CmdResult<()> {
+    let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
+        return Err(anyhow!("request body to append_automerge_change must be raw").into());
+    };
+    let Some(id) = request.headers().get("id") else {
+        return Err(anyhow!("missing id for export_file_chooser_dialog").into());
+    };
+    let uuid = Uuid::from_str(id.to_str()?)?;
+    let document = app_handle.get_document(uuid)?;
+
+    let Some(desired_filename) = request.headers().get("filename") else {
+        return Err(anyhow!("missing filename for export_file_chooser_dialog").into());
+    };
+    let desired_filename = desired_filename.to_str()?;
+    let ext = desired_filename
+        .rsplit_once(".")
+        .map(|(_basename, suffix)| suffix.to_string())
+        .unwrap_or(desired_filename.to_string());
+
+    let focused_window =
+        focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
+    let (tx, rx) = oneshot::channel();
+    let default_filename = document
+        .display_name()
+        .rsplit_once(".")
+        .map(|(basename, _suffix)| basename.to_string())
+        .unwrap_or(document.display_name());
+
+    tauri::async_runtime::spawn(async move {
+        focused_window
+            .dialog()
+            .file()
+            .add_filter(format!("{ext} File"), &[&ext])
+            .set_file_name(default_filename)
+            .save_file(|f| {
+                tx.send(f).unwrap();
+            });
+    });
+    let Some(save_path) = rx.await.unwrap() else {
+        return Ok(());
+    };
+
+    fs::write(save_path.as_path().unwrap(), data)?;
     Ok(())
 }
 

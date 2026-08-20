@@ -2,12 +2,11 @@ import { useState } from 'react';
 import * as Automerge from '@automerge/automerge';
 
 import { Checkbox } from '../../components/form';
-import { downloadTextAsFile } from '../../utils/download_text_as_file';
 import { ExportProps } from '.';
 import { PrimaryButton, SecondaryButton } from '../../components/button';
 import { generatePlaintext } from '../../utils/export/plaintext';
 
-export function PlaintextExportBody({ onClose, outputNameBase, editor }: ExportProps) {
+export function PlaintextExportBody({ onClose, outputNameBase, editor, downloadFn }: ExportProps) {
   const [includeSpeakerNames, setIncludeSpeakerNames] = useState(true);
   const [includeTimestamps, setIncludeTimestamps] = useState(true);
 
@@ -36,7 +35,7 @@ export function PlaintextExportBody({ onClose, outputNameBase, editor }: ExportP
               includeSpeakerNames,
               includeTimestamps,
             );
-            downloadTextAsFile(`${outputNameBase}.txt`, `text/plain`, plaintext);
+            downloadFn(`${outputNameBase}.txt`, `text/plain`, plaintext);
             onClose();
           }}
         >

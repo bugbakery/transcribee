@@ -4,7 +4,6 @@ import * as Automerge from '@automerge/automerge';
 import { Checkbox, FormControl, Input, Select } from '../../components/form';
 import { canGenerateVtt, generateWebVtt } from '../../utils/export/webvtt';
 import { SubtitleFormat } from '@audapolis/webvtt-writer';
-import { downloadTextAsFile } from '../../utils/download_text_as_file';
 import { pushToPodlove, checkIsPodloveExportPossible } from '../../utils/export_to_podlove';
 import { ExportProps } from '.';
 import { PrimaryButton, SecondaryButton, IconButton } from '../../components/button';
@@ -12,7 +11,7 @@ import { BsEye, BsEyeSlash } from 'react-icons/bs';
 
 type ExportFormat = SubtitleFormat | 'podlove';
 
-export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProps) {
+export function WebVttExportBody({ onClose, outputNameBase, editor, downloadFn }: ExportProps) {
   const [includeSpeakerNames, setIncludeSpeakerNames] = useState(true);
   const [includeWordTimings, setIncludeWordTimings] = useState(false);
   const [limitLineLength, setLimitLineLength] = useState(false);
@@ -179,11 +178,7 @@ export function WebVttExportBody({ onClose, outputNameBase, editor }: ExportProp
               maxLineLength,
             );
             if (format === 'vtt' || format === 'srt') {
-              downloadTextAsFile(
-                `${outputNameBase}.${format}`,
-                `text/${format}`,
-                vtt.toString(format),
-              );
+              downloadFn(`${outputNameBase}.${format}`, `text/${format}`, vtt.toString(format));
             } else {
               pushToPodlove(
                 podloveEpisodeId,

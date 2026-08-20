@@ -2,13 +2,18 @@ import { useMemo, useState } from 'react';
 import * as Automerge from '@automerge/automerge';
 
 import { Checkbox } from '../../components/form';
-import { downloadBinaryAsFile } from '../../utils/download_text_as_file';
 import { ExportProps } from '.';
 import { LoadingSpinnerButton, SecondaryButton } from '../../components/button';
 import { splitAndSortMediaFiles } from '../player';
 import { concatArrays, formatTarHeader } from '../../utils/tar';
 
-export function TranscribeeExportBody({ onClose, outputNameBase, editor, document }: ExportProps) {
+export function TranscribeeExportBody({
+  onClose,
+  outputNameBase,
+  editor,
+  document,
+  downloadFn,
+}: ExportProps) {
   const [loading, setLoading] = useState(false);
   const [includeOriginalMediaFile, setIncludeOriginalMediaFile] = useState(false);
 
@@ -63,7 +68,7 @@ export function TranscribeeExportBody({ onClose, outputNameBase, editor, documen
                 doc,
               );
 
-              downloadBinaryAsFile(
+              downloadFn(
                 `${outputNameBase}.transcribee`,
                 `application/octet-stream`,
                 tarFile as Uint8Array<ArrayBuffer>,

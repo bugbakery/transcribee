@@ -16,6 +16,8 @@ import { useDocumentMetadata } from '../util/use_tauri_event';
 import { MenuBar } from '../menu';
 import { DocumentNotFinishedBanner } from 'transcribee-ui-common/components/transcription_progress';
 import { SpeakerColorsProvider } from 'transcribee-ui-common/editor/speaker_colors';
+import { showModal } from 'transcribee-ui-common/components/modal';
+import { ExportModal } from 'transcribee-ui-common/editor/export/index';
 
 function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
@@ -146,6 +148,41 @@ export function DocumentPage({
                 macOsMenuItemId: 'save_as',
                 action: () => {
                   invoke('save_document_as_dialog', { id: documentId });
+                },
+              },
+              {
+                text: 'Export…',
+                macOsMenuItemId: 'export',
+                action: () => {
+                  if (!editor) {
+                    console.error('export failed, editor is null');
+                    return;
+                  }
+                  showModal(
+                    <ExportModal
+                      onClose={() => showModal(null)}
+                      editor={editor}
+                      downloadFn={async (
+                        fileName: string,
+                        _mimeType: string,
+                        data: Uint8Array<ArrayBuffer> | string,
+                      ) => {
+                        let encoded: Uint8Array;
+                        if (typeof data == 'string') {
+                          encoded = new TextEncoder().encode(data);
+                        } else {
+                          encoded = data;
+                        }
+
+                        await invoke('export_file_chooser_dialog', encoded, {
+                          headers: {
+                            id: documentId,
+                            filename: fileName,
+                          },
+                        });
+                      }}
+                    />,
+                  );
                 },
               },
             ],

@@ -10,11 +10,15 @@ function downloadURL(data: string, fileName: string) {
   a.remove();
 }
 
-export function downloadBinaryAsFile(
+export function downloadDataAsFile(
   fileName: string,
   mimeType: string,
-  data: Uint8Array<ArrayBuffer>,
+  data: Uint8Array<ArrayBuffer> | string,
 ) {
+  if (typeof data == 'string') {
+    data = new TextEncoder().encode(data);
+  }
+
   const blob = new Blob([data], {
     type: mimeType,
   });
@@ -23,8 +27,4 @@ export function downloadBinaryAsFile(
   downloadURL(url, fileName);
 
   setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-}
-
-export function downloadTextAsFile(fileName: string, mimeType: string, text: string) {
-  downloadURL('data:' + mimeType + ';charset=utf-8,' + encodeURIComponent(text), fileName);
 }
