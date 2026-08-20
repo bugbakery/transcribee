@@ -44,28 +44,42 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(tauri_plugin_log::log::LevelFilter::Info)
-                .format(|callback: fern::FormatCallback, message, record| {
-                    let mut color = match record.metadata().target() {
-                        "worker" => Some(Color::Blue),
-                        _ => None,
-                    };
-                    if record.metadata().level() == Level::Error {
-                        color = Some(Color::Red);
-                    }
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: None,
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
+                ])
+                .format(
+                    |callback: fern::FormatCallback, message: &std::fmt::Arguments<'_>, record| {
+                        let mut color = match record.metadata().target() {
+                            "worker" => Some(Color::Blue),
+                            _ => None,
+                        };
+                        if record.metadata().level() == Level::Error {
+                            color = Some(Color::Red);
+                        }
 
-                    let color_code = if let Some(color) = color {
-                        color.to_fg_str()
-                    } else {
-                        "0".into()
-                    };
+                        let color_code = if let Some(color) = color {
+                            color.to_fg_str()
+                        } else {
+                            "0".into()
+                        };
 
-                    callback.finish(format_args!(
-                        "{color_line}{target: <8}| {message}\x1B[0m",
-                        color_line = format_args!("\x1B[{}m", color_code),
-                        target = record.target(),
-                        message = message,
-                    ))
-                })
+                        let mut target = record.target();
+                        if target == "webview:global code" {
+                            target = "webview"
+                        }
+
+                        callback.finish(format_args!(
+                            "{color_line}{target: <8}| {message}\x1B[0m",
+                            color_line = format_args!("\x1B[{}m", color_code),
+                            target = target,
+                            message = message,
+                        ))
+                    },
+                )
                 .build(),
         )
         .plugin(tauri_plugin_shell::init())
