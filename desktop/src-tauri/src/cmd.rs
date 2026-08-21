@@ -19,7 +19,6 @@ use tauri::{
     Window,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
-use tokio::sync::oneshot;
 use uuid::Uuid;
 use worker_adapter::{state::TranscribeTaskParameters, WorkerAdapter};
 
@@ -183,20 +182,12 @@ pub async fn open_document_via_file_picker(app: AppHandle) -> CmdResult<()> {
         _ => create_or_focus_main_window(&app).await.unwrap(),
     };
 
-    let (tx, rx) = oneshot::channel();
+    let file = parent
+        .dialog()
+        .file()
+        .add_filter("Transcribee Archive", &["transcribee"])
+        .blocking_pick_file();
 
-    let parent_clone = parent.clone();
-    tauri::async_runtime::spawn(async move {
-        parent_clone
-            .dialog()
-            .file()
-            .add_filter("Transcribee Archive", &["transcribee"])
-            .pick_file(|f| {
-                tx.send(f).unwrap();
-            });
-    });
-
-    let file = rx.await?;
     if let Some(file) = file {
         let fullscreen = parent.is_fullscreen().unwrap_or(false);
         let document = app.open_document(&file.to_string())?;
@@ -237,23 +228,21 @@ pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResu
 
     let focused_window =
         focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
-    let (tx, rx) = oneshot::channel();
+
     let default_filename = document
         .display_name()
         .rsplit_once(".")
         .map(|(basename, _suffix)| basename.to_string())
         .unwrap_or(document.display_name());
-    tauri::async_runtime::spawn(async move {
-        focused_window
-            .dialog()
-            .file()
-            .add_filter("Transcribee Archive", &["transcribee"])
-            .set_file_name(default_filename)
-            .save_file(|f| {
-                tx.send(f).unwrap();
-            });
-    });
-    let Some(save_path) = rx.await? else {
+
+    let save_path = focused_window
+        .dialog()
+        .file()
+        .add_filter("Transcribee Archive", &["transcribee"])
+        .set_file_name(default_filename)
+        .blocking_save_file();
+
+    let Some(save_path) = save_path else {
         return Ok(());
     };
 
@@ -300,24 +289,19 @@ pub async fn export_file_chooser_dialog(
 
     let focused_window =
         focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
-    let (tx, rx) = oneshot::channel();
     let default_filename = document
         .display_name()
         .rsplit_once(".")
         .map(|(basename, _suffix)| basename.to_string())
         .unwrap_or(document.display_name());
 
-    tauri::async_runtime::spawn(async move {
-        focused_window
-            .dialog()
-            .file()
-            .add_filter(format!("{ext} File"), &[&ext])
-            .set_file_name(default_filename)
-            .save_file(|f| {
-                tx.send(f).unwrap();
-            });
-    });
-    let Some(save_path) = rx.await.unwrap() else {
+    let Some(save_path) = focused_window
+        .dialog()
+        .file()
+        .add_filter(format!("{ext} File"), &[&ext])
+        .set_file_name(default_filename)
+        .blocking_save_file()
+    else {
         return Ok(());
     };
 
