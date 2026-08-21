@@ -18,12 +18,59 @@ import { getAllWindows } from '@tauri-apps/api/window';
 import { MenuBar } from '../menu';
 import { Tooltip } from 'transcribee-ui-common/components/tooltip';
 import { fileExplorerName } from '../utils/texts';
+import { useEffect, useState } from 'react';
+import { DoubleWidthModal, showModal } from 'transcribee-ui-common/components/modal';
 
 export function HomePage() {
   const documents = useDocumentsMetadata((documents) => documents, []);
 
   const transcriptionQueueDocuments = documents.filter((doc) => !doc.save_path);
   const recentDocuments = documents.filter((doc) => doc.save_path);
+
+  useEffect(() => {
+    showModal(
+      <DoubleWidthModal
+        onClose={() => showModal(null)}
+        label="Welcome to the First Alpha Version of Transcribee-Desktop"
+      >
+        <p className="pb-2">Hey,</p>
+        <p className="pb-2">
+          you are holding the very first alpha release of transcribee-desktop in your hands, a piece
+          of software that we spend a lot of time developing and are very excited to share. Its
+          still quite early, but we hope that transcribee can already be useful to you.
+        </p>
+        <p className="pb-2">
+          Yet, please don&apos;t expect that everything works perfectly. This app cannot update
+          automatically yet, so please check regularly if there is a new release. There are some
+          things we know don&apos;t work well yet, and we are actively working on improving them.
+          These include: the automatic transcription sometimes producing transcripts with
+          unnescessary linebreaks, speaker identification, copy&paste in the transcript editor, and
+          occasional hiccups on windows.
+        </p>
+        <p className="py-2">
+          We are very interested in hearing about your experience and expectations with
+          transcribee-desktop. We are happy to read from you via email at <MailLink /> and are
+          actively looking for people to interview and to cooperate to find out more specifically
+          what our users want. If you are interested in shaping in which direction we develop
+          transcribee, please write us! If you have concrete problems (and a github account at
+          hand), you can of course also{' '}
+          <a
+            className="underline"
+            href="https://github.com/bugbakery/transcribee/issues"
+            target="_blank"
+            rel="noreferrer"
+          >
+            open an issue in our issue tracker
+          </a>
+          .
+        </p>
+
+        <div className="flex flex-col mt-2">
+          <PrimaryButton onClick={() => showModal(null)}>Ok</PrimaryButton>
+        </div>
+      </DoubleWidthModal>,
+    );
+  }, []);
 
   return (
     <div className="min-h-full flex">
@@ -69,6 +116,24 @@ export function HomePage() {
         {recentDocuments.length > 0 && <RecentDocuments documents={recentDocuments} />}
       </div>
     </div>
+  );
+}
+
+export function MailLink() {
+  const address = 'ten.eebircsnart@tcatnoc';
+  const [addressState, setAdress] = useState(null as null | string);
+  useEffect(() => {
+    setTimeout(() => {
+      setAdress(address.split('').reverse().join(''));
+    }, 100);
+  }, []);
+
+  return addressState ? (
+    <a className="underline" href={`mailto:${addressState}`} target="_blank" rel="noreferrer">
+      {addressState}
+    </a>
+  ) : (
+    <span>xxxxxxx@xxxxxxxxxxx.xxx (Loading...)</span>
   );
 }
 
