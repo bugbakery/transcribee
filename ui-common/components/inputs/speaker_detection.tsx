@@ -35,10 +35,10 @@ function RadioElement<T extends string>({
       <label
         htmlFor={id}
         className={clsx(
-          'block bg-transparent py-2 text-center flex-grow basis-1',
+          'block py-2 text-center flex-grow basis-1',
           'border-black dark:border-white border-2',
           'first-of-type:rounded-l first-of-type:border-r-0 last-of-type:rounded-r last-of-type:border-l-0',
-          checked && 'bg-gray-300 dark:bg-gray-700',
+          (checked && 'bg-gray-300 dark:bg-gray-700') || 'bg-transparent',
         )}
       >
         {label}
