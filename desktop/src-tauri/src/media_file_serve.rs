@@ -14,14 +14,13 @@ use http::{
 };
 use log::info;
 use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener},
     str::FromStr,
 };
 use tauri::{
     plugin::{Builder, TauriPlugin},
     AppHandle, Manager, Wry,
 };
-use tokio::net::TcpListener;
 use uuid::Uuid;
 
 pub struct MediaFileBase(pub String);
@@ -31,20 +30,20 @@ pub fn init() -> TauriPlugin<Wry> {
     // loading media from custom protocols does not work. Thus, just spawn an ordinary http server.
     Builder::new("media-file-serve")
         .setup(move |app, _| {
+            let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 0))?;
+            listener.set_nonblocking(true)?;
+
+            app.manage(MediaFileBase(format!(
+                "http://{}",
+                listener.local_addr().unwrap()
+            )));
+
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
-                let listener =
-                    TcpListener::bind(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 0)).await?;
-
                 info!(
-                    "starting fallback media server on http://{}",
+                    "starting media server on http://{}",
                     listener.local_addr().unwrap()
                 );
-
-                app.manage(MediaFileBase(format!(
-                    "http://{}",
-                    listener.local_addr().unwrap()
-                )));
 
                 #[axum::debug_handler]
                 async fn get_response(State(app): State<AppHandle>, request: Request) -> Response {
@@ -63,12 +62,11 @@ pub fn init() -> TauriPlugin<Wry> {
                     .route("/{*path}", get(get_response))
                     .with_state(app);
                 axum::serve(
-                    listener,
+                    tokio::net::TcpListener::from_std(listener)?,
                     router.into_make_service_with_connect_info::<SocketAddr>(),
                 )
                 .await
             });
-
             Ok(())
         })
         .build()
