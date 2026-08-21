@@ -2,4 +2,9 @@
 
 set -e
 cd "$(dirname "$(realpath -- "$0")")"
+
+# these are set by the appimage launcher and break the python distribution we bring ourselves
+unset PYTHONPATH
+unset PYTHONHOME
+
 python/bin/python -m transcribee_worker.run $*
