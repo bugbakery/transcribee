@@ -52,6 +52,7 @@ export function Modal({
   label,
   transitionClassName,
   dialogClassName = 'w-96 max-w-full',
+  className,
   ...props
 }: {
   onClose: () => void;
@@ -69,7 +70,7 @@ export function Modal({
   return (
     <div
       {...props}
-      className={clsx('relative z-50')}
+      className={clsx(className, 'relative z-50')}
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
@@ -106,6 +107,6 @@ export function Modal({
   );
 }
 
-export function DoubleWidthModal(props: Omit<ComponentProps<typeof Modal>, 'dialogClassName'>) {
-  return <Modal {...props} dialogClassName="w-very-large-dialog w-max-full" />;
+export function DoubleWidthModal({dialogClassName, ...props}: ComponentProps<typeof Modal>) {
+  return <Modal {...props} dialogClassName={clsx(dialogClassName, "w-very-large-dialog w-max-full")} />;
 }
