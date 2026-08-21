@@ -69,7 +69,7 @@ jobs:
     with:
       image_name: ${{ github.repository }}
       version_tag: ${{ needs.metadata.outputs.release_type != 'dev' && needs.metadata.outputs.version }}
-      raw_tag: ${{ needs.metadata.outputs.release_type == 'dev' && needs.metadata.outputs.version }}
+      raw_tag: ${{ needs.metadata.outputs.release_type == 'dev' && needs.metadata.outputs.version || '' }}
       dockerfile: ./packaging/docker/Dockerfile
       push: true
       cache_mode: max
@@ -80,7 +80,7 @@ jobs:
     with:
       image_name: ${{ github.repository }}-worker
       version_tag: ${{ needs.metadata.outputs.release_type != 'dev' && needs.metadata.outputs.version }}
-      raw_tag: ${{ needs.metadata.outputs.release_type == 'dev' && needs.metadata.outputs.version }}
+      raw_tag: ${{ needs.metadata.outputs.release_type == 'dev' && needs.metadata.outputs.version || '' }}
       dockerfile: ./packaging/docker/worker.Dockerfile
       push: true
       cache_mode: off # cache is really slow for this file
