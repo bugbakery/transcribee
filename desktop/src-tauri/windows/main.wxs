@@ -345,6 +345,19 @@
 
         {{/if}}
 
+        <!-- our (transcrbiee) snippet to execute vc redistributable -->
+        <Property Id="INSTALLED_VC_REDIST_VERSION">
+            <RegistrySearch Id="VcRedistVersionSystemx64" Root="HKLM" Key="SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\X64" Name="Installed" Type="raw" />
+            <RegistrySearch Id="VcRedistVersionUser" Root="HKCU" Key="SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\X64" Name="Installed" Type="raw" />
+            <!-- No support for 32 bit at the moment -->
+        </Property>
+        <CustomAction Id='DownloadAndInvokeVcRedistInstaller' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden try [\{] [\[]Net.ServicePointManager[\]]::SecurityProtocol = [\[]Net.SecurityProtocolType[\]]::Tls12 [\}] catch [\{][\}]; Invoke-WebRequest -Uri "https://aka.ms/vc14/vc_redist.x64.exe" -OutFile "$env:TEMP\vc_redist.x64.exe" ; Start-Process -FilePath "$env:TEMP\vc_redist.x64.exe" -ArgumentList (&apos;/install&apos;) -Wait' Return='check'/>
+        <InstallExecuteSequence>
+            <Custom Action='DownloadAndInvokeVcRedistInstaller' Before='InstallFinalize'>
+                <![CDATA[NOT(REMOVE OR INSTALLED_VC_REDIST_VERSION)]]>
+            </Custom>
+        </InstallExecuteSequence>
+
         {{#if enable_elevated_update_task}}
         <!-- Install an elevated update task within Windows Task Scheduler -->
         <CustomAction
