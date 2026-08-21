@@ -85,6 +85,11 @@ fn setup_worker<R: Runtime>(
                     &format!("http://{}:{}", local_addr.ip(), local_addr.port()),
                     "--token",
                     &token,
+                    "--task-types",
+                    &task_types
+                        .iter()
+                        .map(TaskType::as_worker_arg)
+                        .collect::<String>(),
                 ])
             };
             let (mut events, child) = builder
