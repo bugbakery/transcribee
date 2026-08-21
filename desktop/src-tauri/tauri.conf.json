@@ -24,7 +24,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["worker"],
+    "resources": [
+      "worker"
+    ],
     "fileAssociations": [
       {
         "name": "Transcribee Document",
@@ -39,6 +41,11 @@
     },
     "macOS": {
       "signingIdentity": "-"
+    },
+    "windows": {
+      "wix": {
+        "template": "windows/main.wxs"
+      }
     }
   }
 }
