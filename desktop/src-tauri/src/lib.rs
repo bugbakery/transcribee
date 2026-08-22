@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
+use crate::confirm_close::confirm_close_dialog;
 use crate::file_handling::DocumentsStoreExt;
 use crate::window::{create_or_focus_document_window, create_or_focus_main_window};
 use crate::{before_exit::BeforeExitState, cmd::install_cmds};
@@ -15,6 +16,7 @@ use tauri_plugin_window_state::StateFlags;
 mod before_exit;
 mod cmd;
 mod cmd_error;
+mod confirm_close;
 mod file_handling;
 mod http_partial_content;
 mod media_file_serve;
@@ -74,39 +76,51 @@ pub fn run() {
         .plugin(before_exit::init())
         .plugin(worker_plugin::init());
 
-    let builder = builder.setup(|app| {
-        block_on(create_or_focus_main_window(app.handle())).unwrap();
+    let builder = builder
+        .setup(|app| {
+            block_on(create_or_focus_main_window(app.handle())).unwrap();
 
-        if cfg!(any(windows, target_os = "linux")) {
-            let mut files = Vec::new();
+            if cfg!(any(windows, target_os = "linux")) {
+                let mut files = Vec::new();
 
-            for maybe_file in std::env::args().skip(1) {
-                // skip flag args
-                if maybe_file.starts_with('-') {
-                    continue;
-                }
-
-                if let Ok(url) = tauri::Url::parse(&maybe_file) {
-                    // handle `file://` urls and ignore other schemes
-                    if let Ok(path) = url.to_file_path() {
-                        files.push(path);
-                    } else {
-                        warn!(
-                            "Skipping file argument with unknown scheme {:?}",
-                            url.scheme()
-                        );
+                for maybe_file in std::env::args().skip(1) {
+                    // skip flag args
+                    if maybe_file.starts_with('-') {
+                        continue;
                     }
-                } else {
-                    // non-urls should be plain file paths
-                    files.push(PathBuf::from(maybe_file))
+
+                    if let Ok(url) = tauri::Url::parse(&maybe_file) {
+                        // handle `file://` urls and ignore other schemes
+                        if let Ok(path) = url.to_file_path() {
+                            files.push(path);
+                        } else {
+                            warn!(
+                                "Skipping file argument with unknown scheme {:?}",
+                                url.scheme()
+                            );
+                        }
+                    } else {
+                        // non-urls should be plain file paths
+                        files.push(PathBuf::from(maybe_file))
+                    }
                 }
+
+                handle_file_associations(app.handle(), files);
             }
 
-            handle_file_associations(app.handle(), files);
-        }
-
-        Ok(())
-    });
+            Ok(())
+        })
+        .on_window_event(|window, event| if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            let app_handle = window.app_handle().clone();
+            if app_handle.webview_windows().len() == 1 && cfg!(not(target_os = "macos")) {
+                let close = tauri::async_runtime::block_on(async move {
+                    confirm_close_dialog(app_handle).await
+                });
+                if !close {
+                    api.prevent_close();
+                }
+            }
+        });
 
     builder
         .build(tauri::generate_context!())
