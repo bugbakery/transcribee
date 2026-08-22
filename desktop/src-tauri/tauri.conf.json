@@ -45,6 +45,9 @@
     "windows": {
       "wix": {
         "template": "windows/main.wxs"
+      },
+      "nsis": {
+        "installerHooks": "./windows/install_vc_redist.nsh"
       }
     }
   }
