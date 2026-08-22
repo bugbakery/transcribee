@@ -39,6 +39,11 @@
     },
     "macOS": {
       "signingIdentity": "-"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/install_vc_redist.nsh"
+      }
     }
   }
 }

@@ -136,12 +136,12 @@ jobs:
           npm --prefix=desktop ci
 
       - name: Build app
-        run: npm --prefix=desktop run tauri build -- --bundles msi
+        run: npm --prefix=desktop run tauri build -- --bundles nsis
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          path: desktop/src-tauri/target/release/bundle/msi/*.msi
+          path: desktop/src-tauri/target/release/bundle/nsis/*.exe
           archive: false
 
   build-desktop-linux:
