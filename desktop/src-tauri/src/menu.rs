@@ -12,7 +12,10 @@ use tauri::{
 };
 
 use crate::{
-    cmd::{open_document_via_file_picker, toggle_devtools},
+    cmd::{
+        open_document_via_file_picker, reveal_data_directory, reveal_logs_directory,
+        toggle_devtools,
+    },
     cmd_error::CmdResult,
     confirm_close::confirm_close_dialog,
     window::{create_or_focus_main_window, focused_window},
@@ -117,6 +120,8 @@ fn setup_macos_menu(app: &AppHandle) -> std::result::Result<(), Box<dyn std::err
 
     let help_menu = SubmenuBuilder::new(app, "Help")
         .text("developer_tools", "Toggle Developer Tools")
+        .text("logs_dir", "Show Internal Logs Directory")
+        .text("data_dir", "Show Internal Data Directory")
         .build()
         .unwrap();
 
@@ -153,6 +158,12 @@ fn setup_macos_menu(app: &AppHandle) -> std::result::Result<(), Box<dyn std::err
             }
             "developer_tools" => {
                 toggle_devtools(app);
+            }
+            "logs_dir" => {
+                reveal_logs_directory(app)?;
+            }
+            "data_dir" => {
+                reveal_data_directory(app)?;
             }
             event => {
                 // some events are handled by the frontend
