@@ -162,15 +162,16 @@ fn handle_args(app: &AppHandle, args: Vec<String>) {
                 continue;
             }
 
-            if let Ok(url) = tauri::Url::parse(&maybe_file) {
+            if maybe_file.starts_with("file://") {
                 // handle `file://` urls and ignore other schemes
-                if let Ok(path) = url.to_file_path() {
-                    files.push(path);
+                if let Ok(url) = tauri::Url::parse(&maybe_file) {
+                    if let Ok(path) = url.to_file_path() {
+                        files.push(path);
+                    } else {
+                        warn!("url.to_file_path() was not Ok() for url {:?}", url.scheme());
+                    }
                 } else {
-                    warn!(
-                        "Skipping file argument with unknown scheme {:?}",
-                        url.scheme()
-                    );
+                    warn!("url parsing failed for url {:?}", maybe_file);
                 }
             } else {
                 // non-urls should be plain file paths
