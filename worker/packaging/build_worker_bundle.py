@@ -65,6 +65,9 @@ def download_python(folder: Path, platform: str, target: Path):
         # works here because we download to a clean directory and all folders living here should be
         # the same installation we just downloaded.
         python_dir = next(Path(tempdir).glob("cpython-*"))
+        if platform == "win-x86_64":
+            # uv produces a broken symlink into the nirvana that we have to clean up
+            (python_dir / "python").unlink()
         shutil.move(python_dir.resolve(), target)
 
         return target

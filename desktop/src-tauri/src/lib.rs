@@ -1,12 +1,14 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
+use std::time::SystemTime;
 
+use crate::confirm_close::confirm_close_dialog;
 use crate::file_handling::DocumentsStoreExt;
 use crate::window::{create_or_focus_document_window, create_or_focus_main_window};
 use crate::{before_exit::BeforeExitState, cmd::install_cmds};
 use colored::Color;
-use log::{error, warn, Level};
-use tauri::async_runtime::block_on;
+use log::{error, info, warn, Level};
+use tauri::async_runtime::{block_on, spawn};
 use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_log::fern;
@@ -15,6 +17,7 @@ use tauri_plugin_window_state::StateFlags;
 mod before_exit;
 mod cmd;
 mod cmd_error;
+mod confirm_close;
 mod file_handling;
 mod http_partial_content;
 mod media_file_serve;
@@ -28,6 +31,9 @@ mod worker_plugin;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            handle_args(app, args);
+        }))
         .plugin(tauri_plugin_os::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
@@ -39,28 +45,61 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(tauri_plugin_log::log::LevelFilter::Info)
-                .format(|callback: fern::FormatCallback, message, record| {
-                    let mut color = match record.metadata().target() {
-                        "worker" => Some(Color::Blue),
-                        _ => None,
-                    };
-                    if record.metadata().level() == Level::Error {
-                        color = Some(Color::Red);
-                    }
-
-                    let color_code = if let Some(color) = color {
-                        color.to_fg_str()
-                    } else {
-                        "0".into()
-                    };
-
-                    callback.finish(format_args!(
-                        "{color_line}{target: <8}| {message}\x1B[0m",
-                        color_line = format_args!("\x1B[{}m", color_code),
-                        target = record.target(),
-                        message = message,
-                    ))
-                })
+                .clear_format()
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(50))
+                .file_open_strategy(tauri_plugin_log::FileOpenStrategy::Rotate)
+                .max_file_size(1_000_000)
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout).format(
+                        |callback: fern::FormatCallback,
+                         message: &std::fmt::Arguments<'_>,
+                         record| {
+                            let mut color = match record.metadata().target() {
+                                "worker" => Some(Color::Blue),
+                                _ => None,
+                            };
+                            if record.metadata().level() == Level::Error {
+                                color = Some(Color::Red);
+                            }
+                            let color_code = if let Some(color) = color {
+                                color.to_fg_str()
+                            } else {
+                                "0".into()
+                            };
+                            let mut target = record.target();
+                            if target == "webview:global code" {
+                                target = "webview"
+                            }
+                            callback.finish(format_args!(
+                                "{color_line}{target: <8}| {message}\x1B[0m",
+                                color_line = format_args!("\x1B[{}m", color_code),
+                                target = target,
+                                message = message,
+                            ))
+                        },
+                    ),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: None,
+                    })
+                    .format(|out, message, record| {
+                        out.finish(format_args!(
+                            "[{time} {level} {target: <8}] {message}",
+                            time = humantime::format_rfc3339_seconds(SystemTime::now()),
+                            level = record.level(),
+                            target = record.target(),
+                            message = message
+                        ))
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview).format(
+                        |out, message, record| {
+                            out.finish(format_args!(
+                                "[{target}] {message}",
+                                target = record.target(),
+                                message = message
+                            ))
+                        },
+                    ),
+                ])
                 .build(),
         )
         .plugin(tauri_plugin_shell::init())
@@ -74,39 +113,22 @@ pub fn run() {
         .plugin(before_exit::init())
         .plugin(worker_plugin::init());
 
-    let builder = builder.setup(|app| {
-        block_on(create_or_focus_main_window(app.handle())).unwrap();
-
-        if cfg!(any(windows, target_os = "linux")) {
-            let mut files = Vec::new();
-
-            for maybe_file in std::env::args().skip(1) {
-                // skip flag args
-                if maybe_file.starts_with('-') {
-                    continue;
-                }
-
-                if let Ok(url) = tauri::Url::parse(&maybe_file) {
-                    // handle `file://` urls and ignore other schemes
-                    if let Ok(path) = url.to_file_path() {
-                        files.push(path);
-                    } else {
-                        warn!(
-                            "Skipping file argument with unknown scheme {:?}",
-                            url.scheme()
-                        );
+    let builder = builder
+        .setup(|app| {
+            handle_args(app.handle(), std::env::args().collect());
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app_handle = window.app_handle().clone();
+                if app_handle.webview_windows().len() == 1 && cfg!(not(target_os = "macos")) {
+                    let close = block_on(async move { confirm_close_dialog(app_handle).await });
+                    if !close {
+                        api.prevent_close();
                     }
-                } else {
-                    // non-urls should be plain file paths
-                    files.push(PathBuf::from(maybe_file))
                 }
             }
-
-            handle_file_associations(app.handle(), files);
-        }
-
-        Ok(())
-    });
+        });
 
     builder
         .build(tauri::generate_context!())
@@ -133,7 +155,8 @@ pub fn run() {
                 ..
             } if !has_visible_windows => {
                 // click on macOS dock opens main window again
-                block_on(create_or_focus_main_window(app)).unwrap();
+                let app = app.clone();
+                spawn(async move { create_or_focus_main_window(&app).await });
             }
             #[cfg(target_os = "macos")]
             RunEvent::Opened { urls } => {
@@ -146,6 +169,46 @@ pub fn run() {
             }
             _ => {}
         });
+}
+
+fn handle_args(app: &AppHandle, args: Vec<String>) {
+    info!("transcribee called with arguments: {args:?}");
+    let files = if cfg!(any(windows, target_os = "linux")) {
+        let mut files = Vec::new();
+        for maybe_file in args.iter().skip(1) {
+            // skip flag args
+            if maybe_file.starts_with('-') {
+                continue;
+            }
+
+            if maybe_file.starts_with("file://") {
+                // handle `file://` urls and ignore other schemes
+                if let Ok(url) = tauri::Url::parse(maybe_file) {
+                    if let Ok(path) = url.to_file_path() {
+                        files.push(path);
+                    } else {
+                        warn!("url.to_file_path() was not Ok() for url {:?}", url.scheme());
+                    }
+                } else {
+                    warn!("url parsing failed for url {:?}", maybe_file);
+                }
+            } else {
+                // non-urls should be plain file paths
+                files.push(PathBuf::from(maybe_file))
+            }
+        }
+        files
+    } else {
+        vec![]
+    };
+    if files.is_empty() {
+        info!("create_or_focus_main_window (no files passed)");
+        let app: AppHandle = app.clone();
+        spawn(async move { create_or_focus_main_window(&app).await });
+    } else {
+        info!("opening files: {files:?}");
+        handle_file_associations(app, files);
+    }
 }
 
 fn handle_file_associations(app: &AppHandle, files: Vec<PathBuf>) {
@@ -166,8 +229,7 @@ fn handle_file_associations(app: &AppHandle, files: Vec<PathBuf>) {
             }
         };
 
-        if let Err(e) = block_on(create_or_focus_document_window(app, &doc, false)) {
-            error!("Failed to create document window: {e:?}");
-        }
+        let app: AppHandle = app.clone();
+        spawn(async move { create_or_focus_document_window(&app, &doc, false).await });
     }
 }

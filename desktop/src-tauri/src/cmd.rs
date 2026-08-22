@@ -19,6 +19,7 @@ use tauri::{
     Window,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use tauri_plugin_opener::reveal_item_in_dir;
 use uuid::Uuid;
 use worker_adapter::{state::TranscribeTaskParameters, WorkerAdapter};
 
@@ -39,6 +40,8 @@ pub fn install_cmds(builder: Builder<Wry>) -> Builder<Wry> {
         show_main_window,
         set_available_menu_items,
         toggle_devtools,
+        reveal_logs_directory,
+        reveal_data_directory,
     ])
 }
 
@@ -409,4 +412,21 @@ pub fn toggle_devtools(app: AppHandle) {
             focused_window.open_devtools();
         }
     }
+}
+
+#[tauri::command]
+pub fn reveal_logs_directory(app: AppHandle) -> CmdResult<()> {
+    let path = app
+        .path()
+        .resolve("transcribee-desktop.log", BaseDirectory::AppLog)?;
+    reveal_item_in_dir(path)?;
+    Ok(())
+}
+#[tauri::command]
+pub fn reveal_data_directory(app: AppHandle) -> CmdResult<()> {
+    let path = app
+        .path()
+        .resolve("documents.json", BaseDirectory::AppData)?;
+    reveal_item_in_dir(path)?;
+    Ok(())
 }

@@ -11,6 +11,7 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { DocumentMetadata, useDocumentsMetadata, WorkerTask } from '../util/use_tauri_event';
 import { IoClose } from 'react-icons/io5';
+import { VscDebug } from 'react-icons/vsc';
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
@@ -30,6 +31,7 @@ export function HomePage() {
   useEffect(() => {
     showModal(
       <DoubleWidthModal
+        dialogClassName="m-4"
         onClose={() => showModal(null)}
         label="Welcome to the First Alpha Version of Transcribee-Desktop"
       >
@@ -115,6 +117,31 @@ export function HomePage() {
 
         {recentDocuments.length > 0 && <RecentDocuments documents={recentDocuments} />}
       </div>
+
+      <IconButton
+        className="fixed bottom-3 right-3"
+        icon={VscDebug}
+        label={'Debug Options'}
+        onClick={async () => {
+          const menu = await Menu.new({
+            items: [
+              await MenuItem.new({
+                text: 'Toggle Developer Tools',
+                action: () => invoke('toggle_devtools'),
+              }),
+              await MenuItem.new({
+                text: 'Show Internal Logs Directory',
+                action: () => invoke('reveal_logs_directory'),
+              }),
+              await MenuItem.new({
+                text: 'Show Internal Data Directory',
+                action: () => invoke('reveal_data_directory'),
+              }),
+            ],
+          });
+          await menu.popup();
+        }}
+      />
     </div>
   );
 }
