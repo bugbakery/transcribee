@@ -30,7 +30,7 @@ export function HomePage() {
   useEffect(() => {
     showModal(
       <DoubleWidthModal
-        dialogClassName='m-4'
+        dialogClassName="m-4"
         onClose={() => showModal(null)}
         label="Welcome to the First Alpha Version of Transcribee-Desktop"
       >
