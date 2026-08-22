@@ -107,6 +107,8 @@ export function Modal({
   );
 }
 
-export function DoubleWidthModal({dialogClassName, ...props}: ComponentProps<typeof Modal>) {
-  return <Modal {...props} dialogClassName={clsx(dialogClassName, "w-very-large-dialog w-max-full")} />;
+export function DoubleWidthModal({ dialogClassName, ...props }: ComponentProps<typeof Modal>) {
+  return (
+    <Modal {...props} dialogClassName={clsx(dialogClassName, 'w-very-large-dialog w-max-full')} />
+  );
 }
