@@ -3,11 +3,11 @@
 
 import argparse
 import hashlib
+import os
 import shutil
 import tarfile
 import tempfile
 from io import BytesIO
-from os import environ
 from pathlib import Path
 from shutil import rmtree
 from subprocess import check_call, check_output
@@ -37,7 +37,7 @@ def download_python(folder: Path, platform: str, target: Path):
         print(f"-> using python version {python_version}")
 
         env = {
-            **environ,
+            **os.environ,
             "UV_PYTHON_DOWNLOADS": "automatic",  # force enable downloads
         }
 
@@ -65,6 +65,9 @@ def download_python(folder: Path, platform: str, target: Path):
         # works here because we download to a clean directory and all folders living here should be
         # the same installation we just downloaded.
         python_dir = next(Path(tempdir).glob("cpython-*"))
+        if platform == "win-x86_64" and os.name != "nt":
+            # uv produces a broken symlink into the nirvana that we have to clean up
+            (python_dir / "python").unlink()
         shutil.move(python_dir.resolve(), target)
 
         return target
@@ -92,7 +95,7 @@ def install_venv(python_folder: Path, venv_folder):
 def prepare_venv(folder: Path, platform: str, target: Path):
     rmtree(str(target), ignore_errors=True)
     env = {
-        **environ,
+        **os.environ,
         "MACOSX_DEPLOYMENT_TARGET": "15.0",
         "UV_NO_EDITABLE": "1",
         "UV_NO_DEV": "1",
