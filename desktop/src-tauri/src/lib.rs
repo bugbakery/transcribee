@@ -30,6 +30,9 @@ mod worker_plugin;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            handle_args(app, args);
+        }))
         .plugin(tauri_plugin_os::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
@@ -78,36 +81,7 @@ pub fn run() {
 
     let builder = builder
         .setup(|app| {
-            block_on(create_or_focus_main_window(app.handle())).unwrap();
-
-            if cfg!(any(windows, target_os = "linux")) {
-                let mut files = Vec::new();
-
-                for maybe_file in std::env::args().skip(1) {
-                    // skip flag args
-                    if maybe_file.starts_with('-') {
-                        continue;
-                    }
-
-                    if let Ok(url) = tauri::Url::parse(&maybe_file) {
-                        // handle `file://` urls and ignore other schemes
-                        if let Ok(path) = url.to_file_path() {
-                            files.push(path);
-                        } else {
-                            warn!(
-                                "Skipping file argument with unknown scheme {:?}",
-                                url.scheme()
-                            );
-                        }
-                    } else {
-                        // non-urls should be plain file paths
-                        files.push(PathBuf::from(maybe_file))
-                    }
-                }
-
-                handle_file_associations(app.handle(), files);
-            }
-
+            handle_args(app.handle(), std::env::args().collect());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -162,6 +136,43 @@ pub fn run() {
             }
             _ => {}
         });
+}
+
+fn handle_args(app: &AppHandle, args: Vec<String>) {
+    let files = if cfg!(any(windows, target_os = "linux")) {
+        let mut files = Vec::new();
+        for maybe_file in args.iter().skip(1) {
+            dbg!(maybe_file);
+            // skip flag args
+            if maybe_file.starts_with('-') {
+                continue;
+            }
+
+            if let Ok(url) = tauri::Url::parse(&maybe_file) {
+                // handle `file://` urls and ignore other schemes
+                if let Ok(path) = url.to_file_path() {
+                    files.push(path);
+                } else {
+                    warn!(
+                        "Skipping file argument with unknown scheme {:?}",
+                        url.scheme()
+                    );
+                }
+            } else {
+                // non-urls should be plain file paths
+                files.push(PathBuf::from(maybe_file))
+            }
+        }
+        files
+    } else {
+        vec![]
+    };
+    dbg!(&files);
+    if files.is_empty() {
+        block_on(create_or_focus_main_window(app)).unwrap();
+    } else {
+        handle_file_associations(app, files);
+    }
 }
 
 fn handle_file_associations(app: &AppHandle, files: Vec<PathBuf>) {
