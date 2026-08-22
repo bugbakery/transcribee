@@ -110,14 +110,16 @@ pub fn run() {
 
             Ok(())
         })
-        .on_window_event(|window, event| if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-            let app_handle = window.app_handle().clone();
-            if app_handle.webview_windows().len() == 1 && cfg!(not(target_os = "macos")) {
-                let close = tauri::async_runtime::block_on(async move {
-                    confirm_close_dialog(app_handle).await
-                });
-                if !close {
-                    api.prevent_close();
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let app_handle = window.app_handle().clone();
+                if app_handle.webview_windows().len() == 1 && cfg!(not(target_os = "macos")) {
+                    let close = tauri::async_runtime::block_on(async move {
+                        confirm_close_dialog(app_handle).await
+                    });
+                    if !close {
+                        api.prevent_close();
+                    }
                 }
             }
         });
