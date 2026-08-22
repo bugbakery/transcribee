@@ -7,8 +7,8 @@ use crate::file_handling::DocumentsStoreExt;
 use crate::window::{create_or_focus_document_window, create_or_focus_main_window};
 use crate::{before_exit::BeforeExitState, cmd::install_cmds};
 use colored::Color;
-use log::{error, warn, Level};
-use tauri::async_runtime::block_on;
+use log::{error, info, warn, Level};
+use tauri::async_runtime::{block_on, spawn};
 use tauri::{AppHandle, Manager, RunEvent};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_log::fern;
@@ -122,9 +122,7 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let app_handle = window.app_handle().clone();
                 if app_handle.webview_windows().len() == 1 && cfg!(not(target_os = "macos")) {
-                    let close = tauri::async_runtime::block_on(async move {
-                        confirm_close_dialog(app_handle).await
-                    });
+                    let close = block_on(async move { confirm_close_dialog(app_handle).await });
                     if !close {
                         api.prevent_close();
                     }
@@ -157,7 +155,8 @@ pub fn run() {
                 ..
             } if !has_visible_windows => {
                 // click on macOS dock opens main window again
-                block_on(create_or_focus_main_window(app)).unwrap();
+                let app = app.clone();
+                spawn(async move { create_or_focus_main_window(&app).await });
             }
             #[cfg(target_os = "macos")]
             RunEvent::Opened { urls } => {
@@ -173,10 +172,10 @@ pub fn run() {
 }
 
 fn handle_args(app: &AppHandle, args: Vec<String>) {
+    info!("transcribee called with arguments: {args:?}");
     let files = if cfg!(any(windows, target_os = "linux")) {
         let mut files = Vec::new();
         for maybe_file in args.iter().skip(1) {
-            dbg!(maybe_file);
             // skip flag args
             if maybe_file.starts_with('-') {
                 continue;
@@ -202,10 +201,12 @@ fn handle_args(app: &AppHandle, args: Vec<String>) {
     } else {
         vec![]
     };
-    dbg!(&files);
     if files.is_empty() {
-        block_on(create_or_focus_main_window(app)).unwrap();
+        info!("create_or_focus_main_window (no files passed)");
+        let app: AppHandle = app.clone();
+        spawn(async move { create_or_focus_main_window(&app).await });
     } else {
+        info!("opening files: {files:?}");
         handle_file_associations(app, files);
     }
 }
@@ -228,8 +229,7 @@ fn handle_file_associations(app: &AppHandle, files: Vec<PathBuf>) {
             }
         };
 
-        if let Err(e) = block_on(create_or_focus_document_window(app, &doc, false)) {
-            error!("Failed to create document window: {e:?}");
-        }
+        let app: AppHandle = app.clone();
+        spawn(async move { create_or_focus_document_window(&app, &doc, false).await });
     }
 }
