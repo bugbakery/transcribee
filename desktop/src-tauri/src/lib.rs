@@ -1,5 +1,6 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use crate::confirm_close::confirm_close_dialog;
 use crate::file_handling::DocumentsStoreExt;
@@ -44,42 +45,61 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(tauri_plugin_log::log::LevelFilter::Info)
+                .clear_format()
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(50))
+                .file_open_strategy(tauri_plugin_log::FileOpenStrategy::Rotate)
+                .max_file_size(1_000_000)
                 .targets([
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout).format(
+                        |callback: fern::FormatCallback,
+                         message: &std::fmt::Arguments<'_>,
+                         record| {
+                            let mut color = match record.metadata().target() {
+                                "worker" => Some(Color::Blue),
+                                _ => None,
+                            };
+                            if record.metadata().level() == Level::Error {
+                                color = Some(Color::Red);
+                            }
+                            let color_code = if let Some(color) = color {
+                                color.to_fg_str()
+                            } else {
+                                "0".into()
+                            };
+                            let mut target = record.target();
+                            if target == "webview:global code" {
+                                target = "webview"
+                            }
+                            callback.finish(format_args!(
+                                "{color_line}{target: <8}| {message}\x1B[0m",
+                                color_line = format_args!("\x1B[{}m", color_code),
+                                target = target,
+                                message = message,
+                            ))
+                        },
+                    ),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
                         file_name: None,
-                    }),
-                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
-                ])
-                .format(
-                    |callback: fern::FormatCallback, message: &std::fmt::Arguments<'_>, record| {
-                        let mut color = match record.metadata().target() {
-                            "worker" => Some(Color::Blue),
-                            _ => None,
-                        };
-                        if record.metadata().level() == Level::Error {
-                            color = Some(Color::Red);
-                        }
-
-                        let color_code = if let Some(color) = color {
-                            color.to_fg_str()
-                        } else {
-                            "0".into()
-                        };
-
-                        let mut target = record.target();
-                        if target == "webview:global code" {
-                            target = "webview"
-                        }
-
-                        callback.finish(format_args!(
-                            "{color_line}{target: <8}| {message}\x1B[0m",
-                            color_line = format_args!("\x1B[{}m", color_code),
-                            target = target,
-                            message = message,
+                    })
+                    .format(|out, message, record| {
+                        out.finish(format_args!(
+                            "[{time} {level} {target: <8}] {message}",
+                            time = humantime::format_rfc3339_seconds(SystemTime::now()),
+                            level = record.level(),
+                            target = record.target(),
+                            message = message
                         ))
-                    },
-                )
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview).format(
+                        |out, message, record| {
+                            out.finish(format_args!(
+                                "[{target}] {message}",
+                                target = record.target(),
+                                message = message
+                            ))
+                        },
+                    ),
+                ])
                 .build(),
         )
         .plugin(tauri_plugin_shell::init())
@@ -164,7 +184,7 @@ fn handle_args(app: &AppHandle, args: Vec<String>) {
 
             if maybe_file.starts_with("file://") {
                 // handle `file://` urls and ignore other schemes
-                if let Ok(url) = tauri::Url::parse(&maybe_file) {
+                if let Ok(url) = tauri::Url::parse(maybe_file) {
                     if let Ok(path) = url.to_file_path() {
                         files.push(path);
                     } else {

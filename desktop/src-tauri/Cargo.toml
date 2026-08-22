@@ -43,6 +43,7 @@ rand = { version = "0.10.2", features = ["thread_rng"] }
 tauri-plugin-store = "2"
 tauri-plugin-os = "2"
 kill_tree = "0.2.4"
+humantime = "2.4.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
