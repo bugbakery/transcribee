@@ -229,11 +229,17 @@ pub async fn save_document_as_dialog(app_handle: AppHandle, id: Uuid) -> CmdResu
     let focused_window =
         focused_window(&app_handle).ok_or(anyhow!("could not get focused window"))?;
 
+    let basename = document
+        .display_name()
+        .rsplit_once(".")
+        .map(|(basename, _suffix)| basename.to_string())
+        .unwrap_or(document.display_name());
+
     let save_path = focused_window
         .dialog()
         .file()
         .add_filter("Transcribee Archive", &["transcribee"])
-        .set_file_name(document.display_name())
+        .set_file_name(format!("{basename}.transcribee"))
         .blocking_save_file();
 
     let Some(save_path) = save_path else {
