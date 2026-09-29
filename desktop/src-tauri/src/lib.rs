@@ -30,7 +30,7 @@ mod worker_plugin;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             handle_args(app, args);
         }))
@@ -105,6 +105,14 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build());
+
+    // enable webdriver server for debug builds for e2e tests
+    #[cfg(debug_assertions)]
+    {
+        builder = builder
+            .plugin(tauri_plugin_wdio::init())
+            .plugin(tauri_plugin_wdio_webdriver::init());
+    }
 
     let builder = install_cmds(builder)
         .plugin(menu::init())
