@@ -6,6 +6,7 @@ mod model_downloader;
 mod stream_processing;
 mod whisper;
 mod vad;
+mod util;
 
 #[tokio::main]
 async fn main() -> Result<()> {
