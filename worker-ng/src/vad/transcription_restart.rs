@@ -77,7 +77,7 @@ fn choose_next_silence(
             off_from_target as f32 * 3.0 * 60.0
         );
     }
-    best.map(|(idx, score)| idx)
+    best.map(|(idx, _score)| idx)
 }
 
 fn calculate_silence_runs(vad_samples: &[f32]) -> Vec<Range<usize>> {
@@ -99,7 +99,8 @@ fn calculate_silence_runs(vad_samples: &[f32]) -> Vec<Range<usize>> {
 
 #[cfg(test)]
 mod test {
-    use crate::{audio_reader::AudioReader, silero_vad::SileroVadModel};
+    use crate::{audio_reader::AudioReader};
+    use super::super::silero::SileroVadModel;
 
     use super::*;
 

@@ -2,12 +2,10 @@ use anyhow::Result;
 use clap::{Arg, Command};
 
 mod audio_reader;
-mod earshot_vad;
 mod model_downloader;
-mod silero_vad;
 mod stream_processing;
-mod transcription_restart;
 mod whisper;
+mod vad;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -17,6 +15,5 @@ async fn main() -> Result<()> {
     let f = m.get_one::<String>("in_file").unwrap();
 
     println!("{f:?}");
-
     Ok(())
 }
