@@ -10,7 +10,7 @@ pub const WHISPER_V3_LARGE_TOKENIZER_JSON: RemoteModel = RemoteModel {
     size: 2480617,
 };
 
-const LANGUAGES: [(&'static str, &'static str); 100] = [
+const LANGUAGES: [(&str, &str); 100] = [
     ("en", "english"),
     ("zh", "chinese"),
     ("de", "german"),
@@ -171,13 +171,7 @@ impl Tokenizer {
         self.tokenizer
             .encode_fast(text, true)
             .map_err(|e| anyhow!("{e}"))
-            .map(|encoding| {
-                encoding
-                    .get_ids()
-                    .into_iter()
-                    .map(|id| *id as i64)
-                    .collect()
-            })
+            .map(|encoding| encoding.get_ids().iter().map(|id| *id as i64).collect())
     }
     pub fn decode(&self, ids: &[i64]) -> Result<String> {
         let ids_u32: Vec<_> = ids.iter().map(|v| *v as u32).collect();

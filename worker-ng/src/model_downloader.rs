@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use futures::stream::StreamExt;
 use std::{fs, io::Write, path::PathBuf};
 
-pub const MODELS_BASE_PATH: &'static str = "./target/";
+pub const MODELS_BASE_PATH: &str = "./target/";
 
 pub struct RemoteModel {
     pub url: &'static str,

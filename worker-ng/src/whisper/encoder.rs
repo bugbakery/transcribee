@@ -59,7 +59,8 @@ impl WhisperEncoderOrt {
             .hop_size(160)
             .window(stft_rs::WindowType::Hann)
             .reconstruction_mode(stft_rs::ReconstructionMode::Wola)
-            .build().unwrap();
+            .build()
+            .unwrap();
         let stft = BatchStftF32::new(stft_config);
 
         let mel_config = MelConfigF32 {

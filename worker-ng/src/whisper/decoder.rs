@@ -7,7 +7,7 @@ use ort::{
     session::{Session, builder::GraphOptimizationLevel},
     value::{Tensor, Value},
 };
-use std::{collections::HashMap, default, time::Instant};
+use std::{collections::HashMap, time::Instant};
 
 pub const WHISPER_V3_LARGE_DECODER: RemoteModel = RemoteModel {
     url: "https://huggingface.co/onnx-community/whisper-large-v3-turbo/resolve/main/onnx/decoder_model_merged_fp16.onnx",
@@ -101,7 +101,7 @@ impl WhisperDecoderOrt {
         Ok(result)
     }
 
-    pub async fn transcribe(&mut self, lang: &str) -> Result<()> {
+    pub async fn transcribe(&mut self, _lang: &str) -> Result<()> {
         let encoded = self.encoder.get(0..self.encoder.len().min(16_000 * 30))?;
 
         let kv_cache = &mut KvCache::default();
@@ -143,19 +143,16 @@ impl WhisperDecoderOrt {
     }
 }
 
+#[derive(Default)]
 pub enum KvCache {
+    #[default]
     Empty,
     Full(HashMap<String, Value>),
-}
-impl Default for KvCache {
-    fn default() -> Self {
-        Self::Empty
-    }
 }
 impl KvCache {
     pub fn add_self_to_ort_inputs(
         &self,
-        decoder_seq_len: usize,
+        _decoder_seq_len: usize,
         ort_inputs: &mut Vec<(
             std::borrow::Cow<'_, str>,
             ort::session::SessionInputValue<'_>,
@@ -176,7 +173,9 @@ impl KvCache {
                     ] {
                         ort_inputs.push((
                             format!("past_key_values.{i}.{name}").into(),
-                            Tensor::from_array(([0, 20, 0, 64], vec![0.0f32; 0])).unwrap().into(),
+                            Tensor::from_array(([0, 20, 0, 64], vec![0.0f32; 0]))
+                                .unwrap()
+                                .into(),
                         ));
                     }
                 }
@@ -203,12 +202,7 @@ impl KvCache {
         };
         for (name, v) in outputs.iter() {
             if let Some(name) = name.strip_prefix("present.") {
-                let new_len = v
-                    .shape()
-                    .into_iter()
-                    .cloned()
-                    .reduce(|acc, e| acc * e)
-                    .unwrap();
+                let new_len = v.shape().iter().cloned().reduce(|acc, e| acc * e).unwrap();
                 if new_len != 0 {
                     // the encoder kv entries are only produced in the first run
                     map.insert(name.to_string(), v.clone());
@@ -220,7 +214,7 @@ impl KvCache {
     fn zero_tensor(shape: &[usize]) -> Tensor<f32> {
         Tensor::from_array((
             shape,
-            vec![0.0; shape.into_iter().cloned().reduce(|acc, e| acc * e).unwrap()],
+            vec![0.0; shape.iter().cloned().reduce(|acc, e| acc * e).unwrap()],
         ))
         .unwrap()
     }
@@ -244,8 +238,7 @@ mod test {
 
     #[tokio::test]
     async fn test_transcribe() {
-        let ar = AudioReader::new("../worker/tests/data/sample.mp3")
-            .unwrap();
+        let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
         let encoder = WhisperEncoderOrt::new(ar).await.unwrap();
         let mut decoder = WhisperDecoderOrt::new(encoder).await.unwrap();
         let langs = decoder.transcribe("en").await.unwrap();

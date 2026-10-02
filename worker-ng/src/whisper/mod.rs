@@ -1,3 +1,3 @@
-mod encoder;
 mod decoder;
+mod encoder;
 mod tokenizer;

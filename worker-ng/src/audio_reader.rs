@@ -15,7 +15,7 @@ impl AudioReader {
             .channels(ez_ffmpeg::frame_export::Channels::Mono)
             .sample_rate(OUTPUT_SR)
             .collect_samples()?;
-        return Ok(Self { samples });
+        Ok(Self { samples })
     }
 
     pub fn get(&self, range: Range<usize>) -> Result<&[f32]> {

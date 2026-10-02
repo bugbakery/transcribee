@@ -1,4 +1,7 @@
-use std::{fs::File, io::{Read, Write}};
+use std::{
+    fs::File,
+    io::{Read, Write},
+};
 
 use anyhow::Result;
 use ndarray::{ArrayBase, ArrayD, Dimension, OwnedRepr};
@@ -19,20 +22,27 @@ pub fn read_ndarray_from_file(path: &str, shape: &[usize]) -> Result<ArrayD<f32>
     Ok(ndarray)
 }
 
-pub fn write_ndarray_to_file(path: &str, arr: &ArrayBase<OwnedRepr<f32>, impl Dimension>) -> Result<()> {
+pub fn write_ndarray_to_file(
+    path: &str,
+    arr: &ArrayBase<OwnedRepr<f32>, impl Dimension>,
+) -> Result<()> {
     let buf: Vec<u8> = arr.iter().flat_map(|x| x.to_le_bytes()).collect();
     let mut f = File::create(path)?;
     f.write_all(&buf)?;
     Ok(())
 }
 
-pub fn meanclose(a: ArrayBase<OwnedRepr<f32>, impl Dimension>, b: ArrayBase<OwnedRepr<f32>, impl Dimension>, max_delta: f32) -> bool {
+pub fn meanclose(
+    a: ArrayBase<OwnedRepr<f32>, impl Dimension>,
+    b: ArrayBase<OwnedRepr<f32>, impl Dimension>,
+    max_delta: f32,
+) -> bool {
     assert_eq!(a.shape(), b.shape());
 
     let mut max = 0.0;
     let mut sum = 0.0;
     let mut count = 0;
-    for ((ia, a), (ib, b)) in a.indexed_iter().zip(b.indexed_iter()) {
+    for ((_ia, a), (_ib, b)) in a.indexed_iter().zip(b.indexed_iter()) {
         let diff = (a - b).abs();
         if diff > max {
             max = diff;

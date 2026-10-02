@@ -20,7 +20,7 @@ impl EarshotVadModel {
             let start_sample = i * Self::chunk_size;
             let end_sample = start_sample + Self::chunk_size;
             let samples = src.get(start_sample..end_sample)?;
-            let score = detector.predict_f32(&samples);
+            let score = detector.predict_f32(samples);
             output.push(score);
         }
 

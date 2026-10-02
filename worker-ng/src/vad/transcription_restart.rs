@@ -99,8 +99,8 @@ fn calculate_silence_runs(vad_samples: &[f32]) -> Vec<Range<usize>> {
 
 #[cfg(test)]
 mod test {
-    use crate::{audio_reader::AudioReader};
     use super::super::silero::SileroVadModel;
+    use crate::audio_reader::AudioReader;
 
     use super::*;
 

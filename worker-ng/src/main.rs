@@ -4,9 +4,9 @@ use clap::{Arg, Command};
 mod audio_reader;
 mod model_downloader;
 mod stream_processing;
-mod whisper;
-mod vad;
 mod util;
+mod vad;
+mod whisper;
 
 #[tokio::main]
 async fn main() -> Result<()> {
