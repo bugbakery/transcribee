@@ -94,6 +94,9 @@ pub struct IdentifySpeakersTaskParameters {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ReencodeTaskParameters {
     pub output_path: String,
+    pub profiles: Vec<String>,
+    pub audio_for_video: bool,
+    pub generate_waveform: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -24,8 +24,13 @@ const SKIP_SHORTCUT_SEC = 3;
 let lastTabPressTs = 0;
 
 export function splitAndSortMediaFiles(mediaFiles: MediaFile[]) {
-  const videoFiles = mediaFiles.filter((media) => media.tags.includes('video'));
-  const audioFiles = mediaFiles.filter((media) => !media.tags.includes('video'));
+  const videoFiles = mediaFiles.filter(
+    (media) => !media.tags.includes('waveform') && media.tags.includes('video'),
+  );
+  const audioFiles = mediaFiles.filter(
+    (media) => !media.tags.includes('waveform') && !media.tags.includes('video'),
+  );
+  const waveformFiles = mediaFiles.filter((media) => media.tags.includes('waveform'));
 
   const mapFile = (media: (typeof mediaFiles)[0]) => {
     return {
@@ -42,6 +47,7 @@ export function splitAndSortMediaFiles(mediaFiles: MediaFile[]) {
     videoSources: sortMediaFiles(mappedVideoFiles),
     audioSources: sortMediaFiles(mappedAudioFiles),
     hasVideo: videoFiles.length > 0,
+    waveformSource: waveformFiles[0],
   };
 }
 

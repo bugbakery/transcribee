@@ -90,7 +90,7 @@ fn get_media_file_response<R>(
     let media = document
         .media_files
         .into_iter()
-        .find(|m| m.url == path)
+        .find(|m| m.url == *suffix)
         .ok_or(anyhow!(
             "media file {suffix} not found in document {document_id}"
         ))?;
