@@ -218,7 +218,7 @@ fn handle_file_associations(app: &AppHandle, files: Vec<PathBuf>) {
 
     for file in transcribee_files {
         let file = file.to_string_lossy();
-        let doc = match app.open_document(&file) {
+        let doc = match app.load_document(&file) {
             Ok(doc) => doc,
             Err(e) => {
                 error!("Failed to open associated file {file:?}: {e:?}");
