@@ -53,8 +53,6 @@ impl WhisperEncoderOrt {
 
         let mut samples = self.src.get(range)?.to_vec();
         samples.resize(chunk_len, 0.0);
-        let samples_max = *samples.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
-        dbg!(samples_max);
 
         let stft_config = StftConfigF32::builder()
             .fft_size(400)
@@ -77,12 +75,6 @@ impl WhisperEncoderOrt {
         let spectrum = stft.process(&samples);
         let mel_spec = mel_proc.process(&spectrum);
 
-        let mel_max = *mel_spec.data
-            .iter()
-            .max_by(|a, b| a.total_cmp(b))
-            .unwrap();
-        dbg!(mel_max);
-
         let mut result = Array3::<f32>::default((1, 128, 3000));
         for (bin, mut row) in result.axis_iter_mut(Axis(1)).enumerate() {
             for (frame, col) in row.iter_mut().enumerate() {
@@ -93,7 +85,6 @@ impl WhisperEncoderOrt {
         }
 
         let max_log = *result.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
-        dbg!(max_log);
         result.map_inplace(|x| *x = (x.max(max_log - 8.0) + 4.0) / 4.0);
 
         Ok(result)
@@ -140,7 +131,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn test_benchmark() {
+    async fn benchmark_encoder() {
         let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
         let mut encoder = WhisperEncoderOrt::new(ar).await.unwrap();
         let mut perf_one = None;

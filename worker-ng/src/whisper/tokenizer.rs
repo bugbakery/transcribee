@@ -179,9 +179,10 @@ impl Tokenizer {
                     .collect()
             })
     }
-    pub fn decode(&self, ids: &[u32]) -> Result<String> {
+    pub fn decode(&self, ids: &[i64]) -> Result<String> {
+        let ids_u32: Vec<_> = ids.iter().map(|v| *v as u32).collect();
         self.tokenizer
-            .decode(ids, false)
+            .decode(&ids_u32, false)
             .map_err(|e| anyhow!("{e}"))
     }
 
