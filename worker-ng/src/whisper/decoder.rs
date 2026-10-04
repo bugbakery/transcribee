@@ -2,43 +2,22 @@ use super::encoder::WhisperEncoderOrt;
 use crate::{model_downloader::RemoteModel, whisper::tokenizer::Tokenizer};
 use anyhow::{Context, Result};
 use compute::functions::softmax;
-use ndarray::{Array2, Array3, ArrayD, s};
+use ndarray::{Array2, Array3, ArrayD};
 use ort::{
-    memory::{AllocationDevice, Allocator, AllocatorType, MemoryInfo, MemoryType},
     session::{Session, builder::GraphOptimizationLevel},
-    value::{DynTensor, Tensor, TensorElementType, Value},
+    value::{Tensor, Value},
 };
 use std::{collections::HashMap, time::Instant};
 
-// pub const WHISPER_V3_LARGE_DECODER: RemoteModel = RemoteModel {
-//     url: "https://huggingface.co/onnx-community/whisper-large-v3-turbo/resolve/main/onnx/decoder_model_merged_fp16.onnx",
-//     name: "whisper-large-v3-turbo-decoder.onnx",
-//     size: 344227339,
-// };
-
-// with attention weights for alignment
 pub const WHISPER_V3_LARGE_DECODER: RemoteModel = RemoteModel {
-    url: "https://huggingface.co/musetric/whisper-large-v3-turbo-onnx/resolve/main/decoder_model_merged_fp16.onnx",
+    url: "https://huggingface.co/onnx-community/whisper-large-v3-turbo/resolve/main/onnx/decoder_model_merged_fp16.onnx",
     name: "whisper-large-v3-turbo-decoder.onnx",
-    size: 317745737,
+    size: 344227339,
 };
-
-// with attention weights for alignment
-pub const WHISPER_V3_LARGE_DECODER_PREFILL: RemoteModel = RemoteModel {
-    url: "https://huggingface.co/musetric/whisper-large-v3-turbo-onnx/resolve/main/cross_kv_fp16.onnx",
-    name: "whisper-large-v3-turbo-decoder-cross-prefill.onnx",
-    size: 26228595,
-};
-
-// notes:
-// the whisper decoder would benefit from a mechanism for paged attention with prefix sharing
-// (for beamsearch) and a mechanism for sharing the encoder output. This would lower memory usage
-// quite severely and make more batching viable.
 
 pub struct WhisperDecoderOrt {
     encoder: WhisperEncoderOrt,
     model: Session,
-    decoder_prefill: Session,
     tokenizer: Tokenizer,
 }
 
@@ -50,26 +29,13 @@ impl WhisperDecoderOrt {
         let model = Session::builder()?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
-            //.with_execution_providers([ep::WebGPU::default().build()])
-            //.unwrap()
             .commit_from_file(model_path)?;
-
-        let decoder_prefill_path = WHISPER_V3_LARGE_DECODER_PREFILL
-            .ensure_downloaded(|_done, _total| {})
-            .await?;
-        let decoder_prefill = Session::builder()?
-            .with_optimization_level(GraphOptimizationLevel::Level3)
-            .unwrap()
-            //.with_execution_providers([ep::WebGPU::default().build()])
-            //.unwrap()
-            .commit_from_file(decoder_prefill_path)?;
         let tokenizer = Tokenizer::new().await?;
 
         Ok(Self {
             encoder,
             tokenizer,
             model,
-            decoder_prefill,
         })
     }
 
@@ -79,8 +45,9 @@ impl WhisperDecoderOrt {
         input_ids: Array2<i64>,
         kv_cache: &mut KvCache,
     ) -> Result<ArrayD<f32>> {
-        let start: Instant = Instant::now();
+        let start = Instant::now();
 
+        let input_seq_len = input_ids.shape()[1];
         let encoded_seq_len = encoded.shape()[1];
         assert_eq!(encoded_seq_len, 1500);
 
@@ -88,17 +55,7 @@ impl WhisperDecoderOrt {
             "input_ids" => Tensor::from_array(input_ids)?,
             "encoder_hidden_states" => Tensor::from_array(encoded)?,
         ];
-
-        let allocator = Allocator::new(
-            &self.model,
-            MemoryInfo::new(
-                AllocationDevice::CPU,
-                0,
-                AllocatorType::Device,
-                MemoryType::Default,
-            )?,
-        )?;
-        kv_cache.add_self_to_ort_inputs(&allocator, &mut inputs)?;
+        kv_cache.add_self_to_ort_inputs(input_seq_len, &mut inputs)?;
 
         let outputs: ort::session::SessionOutputs<'_> = self
             .model
@@ -113,7 +70,7 @@ impl WhisperDecoderOrt {
         kv_cache.update_from_session_outputs(outputs);
 
         let duration = start.elapsed();
-        println!("forward pass of decoder took {}", duration.as_secs_f32());
+        println!("forward pass of decoder took {}s", duration.as_secs_f32());
         Ok(logits)
     }
 
@@ -147,80 +104,39 @@ impl WhisperDecoderOrt {
     pub async fn transcribe(&mut self, _lang: &str) -> Result<()> {
         let encoded = self.encoder.get(0..self.encoder.len().min(16_000 * 30))?;
 
-        let mut base = 0.0;
-        for i in 0..7 {
-            let batch_size = 2_usize.pow(i);
-            let mut encoded_shape = encoded.shape().to_vec();
-            encoded_shape[0] = batch_size;
-            let encoded_shape: [usize; 3] = encoded_shape.try_into().unwrap();
-            let mut encoded_batched = Array3::zeros(encoded_shape);
-            for b in 0..batch_size {
-                for (x, y) in encoded_batched
-                    .slice_mut(s![b, .., ..])
-                    .iter_mut()
-                    .zip(encoded.iter())
-                {
-                    *x = *y;
-                }
+        let kv_cache = &mut KvCache::default();
+        let mut sequence = vec![];
+        // sequence.push(self.tokenizer.startofprev());
+        // sequence.append(&mut self.tokenizer.encode(" transcribee.")?);
+        sequence.append(&mut self.tokenizer.sot_sequence("en")?);
+        loop {
+            let input_ids = if matches!(kv_cache, KvCache::Empty) {
+                Array2::<i64>::from_shape_vec((1, sequence.len()), sequence.clone())?
+            } else {
+                Array2::from_shape_vec((1, 1), vec![*sequence.last().unwrap()])?
+            };
+
+            let logits = self.run_onnx_model(encoded.clone(), input_ids, kv_cache)?;
+
+            let batch = logits.outer_iter().next().unwrap();
+            let greedy_decoded: Vec<_> = batch
+                .outer_iter()
+                .map(|logits| {
+                    logits
+                        .iter()
+                        .enumerate()
+                        .max_by(|(_, x), (_, y)| x.total_cmp(y))
+                        .unwrap()
+                        .0 as i64
+                })
+                .collect();
+            let best = *greedy_decoded.last().unwrap();
+            sequence.push(best);
+            let sequence_decoded = self.tokenizer.decode(&sequence)?;
+            println!("seq: {sequence_decoded}");
+            if best == self.tokenizer.endoftext() {
+                break;
             }
-
-            let kv_cache = &mut KvCache::default();
-
-            let start: Instant = Instant::now();
-            let outputs: ort::session::SessionOutputs<'_> = self
-                .decoder_prefill
-                .run(ort::inputs![
-                    "encoder_hidden_states" => Tensor::from_array(encoded_batched.clone())?,
-                ])
-                .context("running the decoder onnx model failed")?;
-            kv_cache.update_from_session_outputs(outputs);
-            println!("computed cross attn kv cache in {:?}s", start.elapsed());
-
-            let start = Instant::now();
-            let mut sequence = vec![];
-            // sequence.push(self.tokenizer.startofprev());
-            // sequence.append(&mut self.tokenizer.encode(" transcribee.")?);
-            sequence.append(&mut self.tokenizer.sot_sequence("en")?);
-            for t in &sequence[..sequence.len() - 1] {
-                let input_ids = Array2::from_shape_vec((batch_size, 1), vec![*t; batch_size])?;
-                self.run_onnx_model(encoded_batched.clone(), input_ids, kv_cache)?;
-            }
-            loop {
-                let input_ids = Array2::from_shape_vec(
-                    (batch_size, 1),
-                    vec![*sequence.last().unwrap(); batch_size],
-                )?;
-                let logits = self.run_onnx_model(encoded_batched.clone(), input_ids, kv_cache)?;
-
-                let batch = logits.outer_iter().next().unwrap();
-                let greedy_decoded: Vec<_> = batch
-                    .outer_iter()
-                    .map(|logits| {
-                        logits
-                            .iter()
-                            .enumerate()
-                            .max_by(|(_, x), (_, y)| x.total_cmp(y))
-                            .unwrap()
-                            .0 as i64
-                    })
-                    .collect();
-                let best = *greedy_decoded.last().unwrap();
-                sequence.push(best);
-                let sequence_decoded = self.tokenizer.decode(&sequence)?;
-                println!("seq: {sequence_decoded}");
-                if best == self.tokenizer.endoftext() {
-                    break;
-                }
-            }
-
-            let duration = start.elapsed();
-            if batch_size == 1 {
-                base = duration.as_secs_f64();
-            }
-            println!(
-                "batch={batch_size} speedup={}",
-                base / (duration.as_secs_f64() / batch_size as f64)
-            )
         }
 
         Ok(())
@@ -228,46 +144,68 @@ impl WhisperDecoderOrt {
 }
 
 #[derive(Default)]
-pub struct KvCache(HashMap<String, Value>);
+pub enum KvCache {
+    #[default]
+    Empty,
+    Full(HashMap<String, Value>),
+}
 impl KvCache {
     pub fn add_self_to_ort_inputs(
         &self,
-        allocator: &Allocator,
+        _decoder_seq_len: usize,
         ort_inputs: &mut Vec<(
             std::borrow::Cow<'_, str>,
             ort::session::SessionInputValue<'_>,
         )>,
     ) -> Result<()> {
-        for i in 0..4 {
-            for name in ["decoder.key", "decoder.value"] {
-                if self.0.contains_key(&format!("{i}.{name}")) {
-                    continue;
-                }
+        match self {
+            KvCache::Empty => {
                 ort_inputs.push((
-                    format!("past_key_values.{i}.{name}").into(),
-                    DynTensor::new(allocator, TensorElementType::Float16, [0usize, 20, 0, 64])
-                        .unwrap()
-                        .into(),
+                    "use_cache_branch".into(),
+                    Tensor::from_array(([1], vec![false]))?.into(),
                 ));
+                for i in 0..4 {
+                    for name in [
+                        "decoder.key",
+                        "decoder.value",
+                        "encoder.key",
+                        "encoder.value",
+                    ] {
+                        ort_inputs.push((
+                            format!("past_key_values.{i}.{name}").into(),
+                            Tensor::from_array(([0, 20, 0, 64], vec![0.0f32; 0]))
+                                .unwrap()
+                                .into(),
+                        ));
+                    }
+                }
+            }
+            KvCache::Full(enties) => {
+                ort_inputs.push((
+                    "use_cache_branch".into(),
+                    Tensor::from_array(([1], vec![true]))?.into(),
+                ));
+                for (k, v) in enties.iter() {
+                    ort_inputs.push((format!("past_key_values.{k}").into(), v.clone().into()));
+                }
             }
         }
-
-        let mut bytes = 0;
-        for (k, v) in self.0.iter() {
-            bytes += v.shape().iter().cloned().reduce(|acc, e| acc * e).unwrap() * 4;
-            ort_inputs.push((format!("past_key_values.{k}").into(), v.clone().into()));
-        }
-        println!("kv cache bytes: {}", bytes as f32 / 1000. / 1000.);
         Ok(())
     }
 
     pub fn update_from_session_outputs(&mut self, outputs: ort::session::SessionOutputs<'_>) {
+        if matches!(self, KvCache::Empty) {
+            *self = KvCache::Full(HashMap::new());
+        }
+        let KvCache::Full(map) = self else {
+            unreachable!()
+        };
         for (name, v) in outputs.iter() {
             if let Some(name) = name.strip_prefix("present.") {
                 let new_len = v.shape().iter().cloned().reduce(|acc, e| acc * e).unwrap();
                 if new_len != 0 {
                     // the encoder kv entries are only produced in the first run
-                    self.0.insert(name.to_string(), v.clone());
+                    map.insert(name.to_string(), v.clone());
                 }
             }
         }
