@@ -1,6 +1,8 @@
 use anyhow::Result;
 use clap::{Arg, Command};
 
+use crate::{audio_reader::AudioReader, whisper::decoder_loop::Whisper};
+
 mod audio_reader;
 mod model_downloader;
 mod stream_processing;
@@ -15,6 +17,10 @@ async fn main() -> Result<()> {
         .get_matches();
     let f = m.get_one::<String>("in_file").unwrap();
 
-    println!("{f:?}");
+    let ar = AudioReader::new(f).unwrap();
+    let mut whisper = Whisper::new(ar).await.unwrap();
+
+    dbg!(whisper.transcribe_chunk().await.unwrap());
+
     Ok(())
 }

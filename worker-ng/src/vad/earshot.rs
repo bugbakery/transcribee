@@ -9,22 +9,22 @@ pub struct EarshotVadModel {
 }
 
 impl EarshotVadModel {
-    const chunk_size: usize = 256; // ~16ms at 16khz sample rate
+    const CHUNK_SIZE: usize = 256; // ~16ms at 16khz sample rate
 
     pub async fn new(src: AudioReader) -> Result<Self> {
         // TODO: we are currently doing all the computation here, this is maybe not the best idea
 
         let mut detector = earshot::Detector::default();
-        let mut output = Vec::with_capacity(src.len() / Self::chunk_size);
-        for i in 0..(src.len() / Self::chunk_size) {
-            let start_sample = i * Self::chunk_size;
-            let end_sample = start_sample + Self::chunk_size;
+        let mut output = Vec::with_capacity(src.len() / Self::CHUNK_SIZE);
+        for i in 0..(src.len() / Self::CHUNK_SIZE) {
+            let start_sample = i * Self::CHUNK_SIZE;
+            let end_sample = start_sample + Self::CHUNK_SIZE;
             let samples = src.get(start_sample..end_sample)?;
             let score = detector.predict_f32(samples);
             output.push(score);
         }
 
-        let sample_rate = src.sample_rate() / Self::chunk_size as f32;
+        let sample_rate = src.sample_rate() / Self::CHUNK_SIZE as f32;
         Ok(Self {
             output,
             sample_rate,
