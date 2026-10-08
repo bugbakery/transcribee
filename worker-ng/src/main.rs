@@ -18,9 +18,9 @@ async fn main() -> Result<()> {
     let f = m.get_one::<String>("in_file").unwrap();
 
     let ar = AudioReader::new(f).unwrap();
-    let mut whisper = Whisper::new(ar).await.unwrap();
+    let mut whisper = Whisper::new().await.unwrap();
 
-    dbg!(whisper.transcribe_chunk().await.unwrap());
+    dbg!(whisper.transcribe(&ar, &mut |_| {}).await.unwrap());
 
     Ok(())
 }

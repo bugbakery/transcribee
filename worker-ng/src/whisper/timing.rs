@@ -136,7 +136,6 @@ impl AlignmentData {
     fn dtw(x: Array2<f32>) -> Vec<(usize, usize)> {
         let tokens = x.shape()[0];
         let frames = x.shape()[1];
-        dbg!(tokens, frames);
         let mut cost = Array2::from_elem((tokens + 1, frames + 1), f32::INFINITY);
         let mut trace = Array2::from_elem((tokens + 1, frames + 1), -1i8);
 

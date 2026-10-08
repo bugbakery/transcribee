@@ -12,6 +12,7 @@ use ort::{
     session::{Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor},
 };
+use std::hash::Hash;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 pub const WHISPER_V3_LARGE_DECODER: RemoteModel = RemoteModel {
@@ -43,7 +44,7 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
 
     async fn register_sequence(&mut self, tokens: &[i64]) -> WhisperDecoderOrtSequenceHandle {
         WhisperDecoderOrtSequenceHandle {
-            tokens: tokens.to_vec(),
+            tokens: tokens.iter().map(|token| (1.0, *token)).collect(),
             kv_cache_key: UniqueKey::new(),
             alignment_data: AlignmentData::default(),
         }
@@ -54,33 +55,41 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
     async fn append_token_to_sequence(
         &mut self,
         seq: &WhisperDecoderOrtSequenceHandle,
+        conf: f32,
         token: i64,
     ) -> WhisperDecoderOrtSequenceHandle {
         let mut to_return = seq.clone();
-        to_return.tokens.push(token);
+        to_return.tokens.push((conf, token));
         to_return
+    }
+
+    fn seq_conf(&self, seq: &WhisperDecoderOrtSequenceHandle) -> f64 {
+        seq.tokens
+            .iter()
+            .map(|(conf, _)| *conf as f64)
+            .reduce(|acc, x| acc * x)
+            .unwrap_or(1.0)
     }
 
     async fn token_sequence_to_atoms(
         &self,
         seq: &WhisperDecoderOrtSequenceHandle,
-        audio_length_encoder_frames: usize,
+        audio_chunk: &WhisperDecoderOrtAudioChunkHandle,
     ) -> Result<Vec<Atom>> {
-        let alignment = seq
-            .alignment_data
-            .calculate_alignment(audio_length_encoder_frames)?;
+        let audio_chunk_len = audio_chunk.data.shape()[0];
+        let alignment = seq.alignment_data.calculate_alignment(audio_chunk_len)?;
         let mut to_return = Vec::new();
 
         let mut start = 0.0;
-        for (end_timestamp, token) in alignment.iter().zip(&seq.tokens) {
+        for (end_timestamp, &(conf, token)) in alignment.iter().zip(&seq.tokens) {
             let end = *end_timestamp as f32 / 1500.0 * 30.0;
             // TODO: deal with conf and timestamp conf
             to_return.push(Atom {
-                conf: 1.0,
+                conf,
                 conf_ts: 1.0,
                 start,
                 end,
-                text: self.tokenizer.decode(&[*token])?,
+                text: self.tokenizer.decode(&[token])?,
             });
             start = end;
         }
@@ -105,6 +114,7 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
             .map(|(audio, seq)| (audio.kv_cache_key.clone(), seq.kv_cache_key.clone()))
             .collect();
         let cache_hit = cache_keys == self.kv_cache_key;
+        dbg!(cache_hit);
 
         let mut ort_inputs: Vec<(
             std::borrow::Cow<'_, str>,
@@ -211,13 +221,15 @@ impl WhisperDecoderOrt {
         let batch_size = sequences.len();
         let mut sequences = sequences.peekable();
         let sequence_len = sequences.peek().unwrap().tokens.len();
-        let mut input_ids = vec![];
+        let mut input_ids: Vec<i64> = vec![];
         for seq in sequences {
             assert_eq!(sequence_len, seq.tokens.len());
             if only_last_token {
-                input_ids.push(*seq.tokens.last().unwrap());
+                input_ids.push(seq.tokens.last().unwrap().1);
             } else {
-                input_ids.extend_from_slice(&seq.tokens);
+                for &(_, token) in &seq.tokens {
+                    input_ids.push(token);
+                }
             }
         }
         let sequence_len = if only_last_token { 1 } else { sequence_len };
@@ -233,10 +245,21 @@ pub struct WhisperDecoderOrtAudioChunkHandle {
 
 #[derive(Clone, Debug)]
 pub struct WhisperDecoderOrtSequenceHandle {
-    tokens: Vec<i64>,
+    tokens: Vec<(f32, i64)>, // (probability, token)
     kv_cache_key: UniqueKey,
     alignment_data: AlignmentData,
 }
+impl Hash for WhisperDecoderOrtSequenceHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.kv_cache_key.hash(state);
+    }
+}
+impl PartialEq for WhisperDecoderOrtSequenceHandle {
+    fn eq(&self, other: &Self) -> bool {
+        self.kv_cache_key == other.kv_cache_key
+    }
+}
+impl Eq for WhisperDecoderOrtSequenceHandle {}
 
 #[derive(Clone)]
 pub struct UniqueKey(Arc<()>);
@@ -256,6 +279,11 @@ impl Debug for UniqueKey {
             "KVCacheKey({:X})",
             self.0.as_ref() as *const _ as usize
         ))
+    }
+}
+impl Hash for UniqueKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (self.0.as_ref() as *const _ as usize).hash(state);
     }
 }
 

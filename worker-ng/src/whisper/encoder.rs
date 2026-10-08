@@ -1,15 +1,10 @@
-use crate::{audio_reader::AudioReader, model_downloader::RemoteModel};
+use crate::model_downloader::RemoteModel;
 use anyhow::Result;
 use ndarray::{Array2, Array3, Axis};
 use ort::{
     ep,
     session::{Session, builder::GraphOptimizationLevel},
     value::Value,
-};
-use std::{
-    hint::black_box,
-    ops::Range,
-    time::{self, Duration},
 };
 use stft_rs::{
     BatchStftF32, StftConfigF32,
@@ -24,13 +19,12 @@ pub const WHISPER_V3_LARGE_ENCODER: RemoteModel = RemoteModel {
 
 pub struct WhisperEncoderOrt {
     model: Session,
-    src: AudioReader,
 }
 impl WhisperEncoderOrt {
     const SAMPLE_RATE: usize = 16_000;
     const CHUNK_LEN_S: usize = 30;
 
-    pub async fn new(src: AudioReader) -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         let model_path = WHISPER_V3_LARGE_ENCODER
             .ensure_downloaded(|_done, _total| {})
             .await?;
@@ -43,15 +37,12 @@ impl WhisperEncoderOrt {
             .unwrap()
             .commit_from_file(model_path)?;
 
-        Ok(Self { model, src })
+        Ok(Self { model })
     }
 
-    pub fn get_mel(&self, range: Range<usize>) -> Result<Array3<f32>> {
-        let range_len: usize = range.end - range.start;
+    pub fn get_mel(mut samples: Vec<f32>) -> Result<Array3<f32>> {
         let chunk_len = Self::SAMPLE_RATE * Self::CHUNK_LEN_S; // TODO: can we save compute when we process shorter chunks?
-        assert!(range_len <= chunk_len);
-
-        let mut samples = self.src.get(range)?.to_vec();
+        assert!(samples.len() <= chunk_len);
         samples.resize(chunk_len, 0.0);
 
         let stft_config = StftConfigF32::builder()
@@ -92,11 +83,11 @@ impl WhisperEncoderOrt {
     }
 
     /// runs the encoder for the _input_ range specified here
-    pub fn get(&mut self, range: Range<usize>) -> Result<Array2<f32>> {
+    pub fn encode(&mut self, samples: Vec<f32>) -> Result<Array2<f32>> {
         // the large encoder processes 30s chunks that might be padded
         // input shape of the large encoder is [batch_size,128,3000]
         // output shape of the large encoder is [batch_size,1500,1280]
-        let input = self.get_mel(range)?;
+        let input = Self::get_mel(samples)?;
         let outputs: ort::session::SessionOutputs<'_> =
             self.model.run([Value::from_array(input)?.into()])?;
         let (_, output) = outputs["last_hidden_state"].try_extract_tensor::<f32>()?;
@@ -104,56 +95,22 @@ impl WhisperEncoderOrt {
 
         Ok(output_arr)
     }
-
-    pub fn benchmark(&mut self, batch_size: usize) -> Result<Duration> {
-        let start = time::Instant::now();
-        let inputs = Array3::<f32>::zeros((batch_size, 128, 3000));
-        let outputs: ort::session::SessionOutputs<'_> =
-            self.model.run([Value::from_array(inputs)?.into()])?;
-        let output = *outputs["last_hidden_state"]
-            .try_extract_tensor::<f32>()
-            .unwrap()
-            .1
-            .first()
-            .unwrap();
-        black_box(output);
-        Ok(start.elapsed())
-    }
-
-    pub fn len(&self) -> usize {
-        self.src.len()
-    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::util::{meanclose, read_ndarray_from_file, write_ndarray_to_file};
-
     use super::*;
-
-    #[tokio::test]
-    async fn benchmark_encoder() {
-        let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
-        let mut encoder = WhisperEncoderOrt::new(ar).await.unwrap();
-        let mut perf_one = None;
-        for i in 1..3 {
-            let duration = encoder.benchmark(i).unwrap();
-            if perf_one.is_none() {
-                perf_one = Some(duration);
-            }
-            println!(
-                "batch_size={i} duration={duration:?} speed={}",
-                perf_one.unwrap().as_secs_f32() / (duration.as_secs_f32() / i as f32)
-            )
-        }
-    }
+    use crate::{
+        audio_reader::AudioReader,
+        util::{meanclose, read_ndarray_from_file, write_ndarray_to_file},
+    };
 
     #[tokio::test]
     async fn test_encoder() {
         let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
         let len = ar.len();
-        let mut encoder = WhisperEncoderOrt::new(ar).await.unwrap();
-        let result = encoder.get(0..len).unwrap();
+        let mut encoder = WhisperEncoderOrt::new().await.unwrap();
+        let result = encoder.encode(ar.get(0..len).unwrap().to_vec()).unwrap();
         dbg!(result.shape());
         write_ndarray_to_file("target/rs_encoded.f32", &result).unwrap();
         let reference = read_ndarray_from_file("target/encoded.f32", result.shape()).unwrap();
@@ -164,8 +121,7 @@ mod test {
     async fn test_mel() {
         let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
         let len = ar.len();
-        let encoder = WhisperEncoderOrt::new(ar).await.unwrap();
-        let result = encoder.get_mel(0..len).unwrap();
+        let result = WhisperEncoderOrt::get_mel(ar.get(0..len).unwrap().to_vec()).unwrap();
         write_ndarray_to_file("target/rs_mel.f32", &result).unwrap();
         let reference = read_ndarray_from_file("target/mel.f32", result.shape()).unwrap();
         assert!(meanclose(result, reference, 0.01))
