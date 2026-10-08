@@ -265,7 +265,7 @@ class Worker:
         waveform /= max(abs(np.max(waveform)), abs(np.min(waveform)))
 
         # convert float to int16
-        waveform *= 2**16 / 2
+        waveform *= 2**16 / 2 - 1
         waveform = waveform.astype(np.int16)
 
         # we implement BBC's audiowaveform data file format.
