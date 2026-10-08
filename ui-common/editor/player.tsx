@@ -62,7 +62,7 @@ export function PlayerBar({
   onShowVideo?: (show: boolean) => void;
   mediaFiles: MediaFile[];
 }) {
-  const { videoSources, audioSources, hasVideo } = useMemo(
+  const { videoSources, audioSources, hasVideo, waveformSource } = useMemo(
     () => splitAndSortMediaFiles(mediaFiles),
     [mediaFiles],
   );
@@ -214,6 +214,7 @@ export function PlayerBar({
             onSeek={onSeek}
             editor={editor}
           />
+          <WaveformViewer source={waveformSource} time={audio.playtime} />
         </div>
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
@@ -226,6 +227,173 @@ export function PlayerBar({
         )}
       </div>
     </>
+  );
+}
+
+class WaveformReader {
+  version: number;
+  resolution: number;
+  sampleRate: number;
+  samplesPerPixel: number;
+  length: number;
+  channels: number;
+  data: Int8Array | Int16Array;
+
+  constructor(buffer: ArrayBuffer) {
+    const dv = new DataView(buffer);
+    this.version = dv.getInt32(0, true);
+    const flags = dv.getUint32(4, true);
+    this.resolution = flags & 0x1 ? 8 : 16;
+    this.sampleRate = dv.getInt32(8, true);
+    this.samplesPerPixel = dv.getInt32(12, true);
+    this.length = dv.getUint32(16, true);
+    if (this.version >= 2) {
+      this.channels = dv.getInt32(20, true);
+    } else {
+      this.channels = 1;
+    }
+
+    const self = this;
+    const readData = function* (dv: DataView, length: number) {
+      let offset = 24;
+      while (offset + 2 < length * self.channels * 4) {
+        yield dv.getInt16(offset, true);
+        offset += 2;
+      }
+    };
+
+    if (this.resolution == 8) {
+      this.data = new Int8Array(buffer.slice(24));
+    } else if (this.resolution == 16) {
+      this.data = new Int16Array(readData(dv, this.length));
+    } else {
+      throw new Error(`Invalid waveform resolution: ${this.resolution}`);
+    }
+  }
+}
+
+function renderWaveform(reader: WaveformReader) {
+  const offscreenCanvas = new OffscreenCanvas(reader.length, 100);
+  const ctx = offscreenCanvas.getContext('2d')!;
+
+  console.time('render_waveform');
+  ctx.clearRect(0, 0, 1000, 1000);
+
+  const zoom = 1;
+  let min = 0;
+  ctx.lineWidth = 1;
+
+  const maxVal = 2 ** (reader.resolution - 1);
+  ctx.beginPath();
+  reader.data.forEach((sample, i) => {
+    sample = sample / maxVal;
+    if (i % 2 == 0) {
+      min = sample;
+    } else {
+      ctx.moveTo((i / 2) * zoom, 50 - min * 50);
+      ctx.lineTo((i / 2) * zoom, 50 - sample * 50);
+    }
+  });
+  ctx.closePath();
+  ctx.stroke();
+
+  console.timeEnd('render_waveform');
+
+  return offscreenCanvas;
+}
+function WaveformViewer({ source, time }: { source: MediaFile | null; time: number }) {
+  async function getData(media: MediaFile) {
+    const res = await fetch(media.url);
+    const buffer = await res.arrayBuffer();
+    return new WaveformReader(buffer);
+  }
+
+  const [reader, setReader] = useState<WaveformReader>(null);
+  useEffect(() => {
+    if (!source) return;
+    getData(source).then((reader) => {
+      setReader(reader);
+    });
+  }, [source]);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const waveform = useMemo(() => {
+    if (!reader) return;
+    return renderWaveform(reader);
+  }, [reader]);
+
+  const [pos, setPos] = useState<number>(0);
+
+  useEffect(() => {
+    console.time('render_waveform2');
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx || !reader) return;
+
+    const update = () => {
+      const zoom = 1;
+
+      const waveformOffset = ((-pos * reader.sampleRate) / reader.samplesPerPixel) * zoom;
+
+      ctx.clearRect(0, 0, 1000, 1000);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(waveform, waveformOffset, 0, waveform.width * zoom, waveform.height);
+
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(((time * reader.sampleRate) / reader.samplesPerPixel) * zoom + waveformOffset, 0);
+      ctx.lineTo(
+        ((time * reader.sampleRate) / reader.samplesPerPixel) * zoom + waveformOffset,
+        100,
+      );
+      ctx.closePath();
+      ctx.stroke();
+    };
+
+    update();
+  }, [reader, time, pos]);
+
+  const [dragging, setDragging] = useState(false);
+
+  const onDrag = useCallback(
+    (e: MouseEvent | React.MouseEvent) => {
+      // if (!ref.current || !duration) return;
+
+      // const time = timeFromPosition(ref.current, e.pageX, duration);
+      // setTmpTime(time);
+      setPos((x) => x - (e.movementX / reader.sampleRate) * reader.samplesPerPixel);
+    },
+    [dragging],
+  );
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    // globally listen to mouse move events to allow dragging outside of the bar
+    window.addEventListener('mousemove', onDrag);
+
+    const onMouseUp = () => {
+      setDragging(false);
+    };
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [dragging]);
+
+  return (
+    <canvas
+      onMouseDown={() => {
+        setDragging(true);
+      }}
+      ref={canvasRef}
+      width="1000"
+      height="100"
+      className="bg-gray-100"
+    />
   );
 }
 
