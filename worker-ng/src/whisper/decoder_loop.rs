@@ -106,13 +106,20 @@ impl Whisper {
         _on_new_bar: &mut dyn FnMut(WhisperBar),
     ) -> Result<()> {
         let audio_frames = ar.len().min(16_000 * 30);
+        let audio_len_s = audio_frames as f32 / 16_000.0;
         let samples = ar.get(0..audio_frames)?;
+        let start = Instant::now();
         let encoded = self.encoder.encode(samples.to_vec())?;
         let handles = self
             .decoder
             .register_encoded_audio_chunks([encoded].into_iter())
             .await?;
         self.transcribe_chunks(&handles).await?;
+        let duration = start.elapsed().as_secs_f32();
+        println!(
+            "transcription of the first {audio_len_s:.2}s took {duration:.2}s ({:.2}x realtime)",
+            audio_len_s / duration
+        );
         Ok(())
     }
 
@@ -180,16 +187,16 @@ impl Whisper {
                         next_beam.push(seq);
                     }
                 }
-                println!("\n");
+                println!();
                 next_batch.push((chunk.clone(), next_beam));
             }
             batch = next_batch;
-            println!("loop iteration: {:?}", start.elapsed());
+            println!("loop iteration: {:?}\n", start.elapsed());
         }
 
-        let mut to_return = Vec::new();
-        for (chunk, seqs) in chunks.iter().zip(finished) {
-            let best = seqs
+        let to_return = Vec::new();
+        for (_chunk, seqs) in chunks.iter().zip(finished) {
+            let _best = seqs
                 .iter()
                 .max_by(|seq_a, seq_b| {
                     self.decoder

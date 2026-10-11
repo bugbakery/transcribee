@@ -4,18 +4,14 @@ use crate::whisper::{
 };
 use anyhow::{Context, Result};
 use half::f16;
-use ndarray::{Array1, Array2, Array3, Array4, s};
+use ndarray::{Array1, Array2, Array3, s};
 use ort::{
     MINOR_VERSION, ep,
     memory::{AllocationDevice, MemoryInfo},
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
 };
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 use std::{hash::Hash, time::Instant};
 
 pub const ALIGNMENT_HEADS: [(usize, usize); 6] =
@@ -25,7 +21,7 @@ pub struct WhisperDecoderOrt {
     model: Session,
     cross_kv_prefill_model: Session,
 
-    cross_kv_cache: Value<DynValueTypeMarker>,
+    cross_kv: HashMap<String, Value<DynValueTypeMarker>>,
     registered_audio_chunks: HashMap<UniqueKey, (Array2<f32>, usize)>,
 
     kv_cache: KvCache,
@@ -56,8 +52,7 @@ impl WhisperDecoderOrt {
             model,
             cross_kv_prefill_model,
             kv_cache: KvCache::default(),
-            cross_kv_cache: Tensor::from_array(Array4::<f32>::zeros((0, 8, 1280, 1280)))?
-                .into_dyn(),
+            cross_kv: HashMap::new(),
             registered_audio_chunks: HashMap::new(),
         })
     }
@@ -105,7 +100,6 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
         for data in chunks {
             encoder_hidden_states.slice_mut(s![i, .., ..]).assign(&data);
             let handle = WhisperDecoderOrtAudioChunkHandle {
-                on_destroy: Arc::new(Mutex::new(Some(Box::new(|_| {})))),
                 kv_cache_key: UniqueKey::new(),
             };
             self.registered_audio_chunks
@@ -123,17 +117,28 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
             AllocationDevice::WEBGPU_BUFFER,
             0,
             ort::memory::AllocatorType::Device,
-            ort::memory::MemoryType::CPUOutput,
+            ort::memory::MemoryType::Default,
         )?;
-        binding.bind_output_to_device("cross_kv_cache", &memory_info)?;
+        let output_names: Vec<String> = self
+            .cross_kv_prefill_model
+            .outputs()
+            .iter()
+            .map(|o| o.name().to_string())
+            .collect();
+        for output in &output_names {
+            binding.bind_output_to_device(output, &memory_info)?;
+        }
 
         let mut outputs = self
             .cross_kv_prefill_model
             .run_binding(&binding)
             .context("running the cross_kv_prefill_model onnx model failed")?;
 
-        self.cross_kv_cache = outputs.remove("cross_kv_cache").unwrap();
-        dbg!(self.cross_kv_cache.shape());
+        self.cross_kv = output_names
+            .iter()
+            .map(|output| (output.clone(), outputs.remove(output).unwrap()))
+            .collect();
+
         println!("register_encoded_audio_chunks took {:?}", start.elapsed());
         Ok(new_handles)
     }
@@ -178,6 +183,7 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
             WhisperDecoderOrtSequenceHandle,
         )],
     ) -> Result<Vec<(WhisperDecoderOrtSequenceHandle, TokenProbs)>> {
+        let start_forward_fn: Instant = Instant::now();
         let batch_size = inputs.len();
 
         let mut cross_kv_cache_indices = Array1::<i64>::zeros(inputs.len());
@@ -193,12 +199,14 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
             "input_ids",
             &self.sequences_as_tensor(inputs.iter().map(|(_, seq)| seq), !is_prefill)?,
         )?;
-        binding.bind_input("cross_kv_cache", &self.cross_kv_cache)?;
+        for (name, value) in &self.cross_kv {
+            binding.bind_input(name, value)?;
+        }
         binding.bind_input(
             "cross_kv_cache_indices",
             &Tensor::from_array(cross_kv_cache_indices)?,
         )?;
-        binding.bind_output_to_device("logits", &self.model.allocator().memory_info())?;
+        binding.bind_output_to_device("logits", self.model.allocator().memory_info())?;
 
         if is_prefill {
             for i in 0..4 {
@@ -212,7 +220,7 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
                     )?;
                     binding.bind_output_to_device(
                         format!("present.{name}"),
-                        &self.model.allocator().memory_info(),
+                        self.model.allocator().memory_info(),
                     )?;
                 }
             }
@@ -230,15 +238,15 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
                 .map(|(_, seq)| seq.kv_cache_key.clone())
                 .collect();
             self.kv_cache
-                .add_self_to_ort_binding(&mut binding, &self.model, seq_unique_keyes)?;
+                .add_self_to_ort_binding(&mut binding, seq_unique_keyes)?;
         }
 
-        let start = Instant::now();
+        let start_forward: Instant = Instant::now();
         let mut outputs: ort::session::SessionOutputs<'_> = self
             .model
             .run_binding(&binding)
             .context("running the decoder onnx model failed")?;
-        println!("forward pass: {:?}", start.elapsed());
+        println!("forward pass: {:?}", start_forward.elapsed());
 
         let logits = outputs["logits"].try_extract_array::<f32>().unwrap();
         let seq_len = logits.shape()[1];
@@ -268,6 +276,7 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
         self.kv_cache
             .update_from_session_outputs(&mut outputs, seq_keys, lengths);
 
+        println!("forward fn: {:?}", start_forward_fn.elapsed());
         Ok(result)
     }
 }
@@ -275,7 +284,6 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
 // TODO: this is a memory leak atm. Think about it and sprinkle some weakref
 #[derive(Clone)]
 pub struct WhisperDecoderOrtAudioChunkHandle {
-    on_destroy: Arc<Mutex<Option<Box<dyn FnMut(UniqueKey)>>>>,
     kv_cache_key: UniqueKey,
 }
 
@@ -343,7 +351,6 @@ impl KvCache {
     pub fn add_self_to_ort_binding(
         &self,
         binding: &mut IoBinding,
-        model: &Session,
         handles: Vec<UniqueKey>,
     ) -> Result<()> {
         let memory_info = MemoryInfo::new(
@@ -365,12 +372,12 @@ impl KvCache {
     }
 
     fn get_input_map(&self, handles: &[UniqueKey]) -> impl Iterator<Item = i64> {
-        return handles.iter().map(|handle| {
+        handles.iter().map(|handle| {
             self.handles
                 .iter()
                 .position(|candidate| candidate == handle)
                 .unwrap() as i64
-        });
+        })
     }
 
     pub fn update_from_session_outputs(
