@@ -86,7 +86,7 @@ pub struct Whisper {
 }
 impl Whisper {
     // idea: make the beam_width only wider if we are unsure about the next token. otherwise greedy is fine
-    const BEAM_WIDTH: usize = 2;
+    const BEAM_WIDTH: usize = 5;
 
     pub async fn new() -> Result<Self> {
         let encoder = WhisperEncoderOrt::new().await?;
@@ -132,7 +132,6 @@ impl Whisper {
             chunks.iter().map(|_| Vec::new()).collect();
         loop {
             let start = Instant::now();
-            dbg!(&batch[0].1.len());
             let mut decoder_input = Vec::new();
             for (chunk, beam) in &batch {
                 for seq in beam {

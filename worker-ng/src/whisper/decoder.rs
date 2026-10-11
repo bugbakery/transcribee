@@ -6,9 +6,10 @@ use anyhow::{Context, Result};
 use half::f16;
 use ndarray::{Array1, Array2, Array3, Array4, s};
 use ort::{
-    ep,
-    session::{Session, builder::GraphOptimizationLevel},
-    value::{DynValueTypeMarker, Tensor, TensorElementType, Value},
+    MINOR_VERSION, ep,
+    memory::{AllocationDevice, MemoryInfo},
+    session::{IoBinding, Session, builder::GraphOptimizationLevel},
+    value::{DynValueTypeMarker, Tensor, Value},
 };
 use std::{
     collections::HashMap,
@@ -27,8 +28,62 @@ pub struct WhisperDecoderOrt {
     cross_kv_cache: Value<DynValueTypeMarker>,
     registered_audio_chunks: HashMap<UniqueKey, (Array2<f32>, usize)>,
 
-    kv_cache_key: Vec<(UniqueKey, UniqueKey)>,
     kv_cache: KvCache,
+}
+impl WhisperDecoderOrt {
+    pub async fn new() -> Result<Self> {
+        let model = Session::builder()?
+            .with_optimization_level(GraphOptimizationLevel::Level3)
+            .unwrap()
+            .with_execution_providers([ep::WebGPU::default().build()])
+            .unwrap()
+            .with_profiling("onnxruntime.profile")
+            .unwrap()
+            .commit_from_file("src/whisper/whisper_large_v3_turbo_decoder.onnx")?;
+
+        let cross_kv_prefill_model = Session::builder()?
+            .with_optimization_level(GraphOptimizationLevel::Level3)
+            .unwrap()
+            .with_execution_providers([ep::WebGPU::default().build()])
+            .unwrap()
+            .commit_from_file(
+                "src/whisper/whisper_large_v3_turbo_decoder_cross_kv_cache_prefill.onnx",
+            )?;
+
+        dbg!(MINOR_VERSION);
+
+        Ok(Self {
+            model,
+            cross_kv_prefill_model,
+            kv_cache: KvCache::default(),
+            cross_kv_cache: Tensor::from_array(Array4::<f32>::zeros((0, 8, 1280, 1280)))?
+                .into_dyn(),
+            registered_audio_chunks: HashMap::new(),
+        })
+    }
+
+    fn sequences_as_tensor<'a>(
+        &self,
+        sequences: impl ExactSizeIterator<Item = &'a WhisperDecoderOrtSequenceHandle>,
+        only_last_token: bool,
+    ) -> Result<Tensor<i64>> {
+        let batch_size = sequences.len();
+        let mut sequences = sequences.peekable();
+        let sequence_len = sequences.peek().unwrap().tokens.len();
+        let mut input_ids: Vec<i64> = vec![];
+        for seq in sequences {
+            assert_eq!(sequence_len, seq.tokens.len());
+            if only_last_token {
+                input_ids.push(seq.tokens.last().unwrap().1);
+            } else {
+                for &(_, token) in &seq.tokens {
+                    input_ids.push(token);
+                }
+            }
+        }
+        let sequence_len = if only_last_token { 1 } else { sequence_len };
+        Ok(Tensor::from_array(([batch_size, sequence_len], input_ids))?)
+    }
 }
 impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtSequenceHandle>
     for WhisperDecoderOrt
@@ -64,10 +119,13 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
             "encoder_hidden_states",
             &Tensor::from_array(encoder_hidden_states)?,
         )?;
-        binding.bind_output_to_device(
-            "cross_kv_cache",
-            &self.cross_kv_prefill_model.allocator().memory_info(),
+        let memory_info = MemoryInfo::new(
+            AllocationDevice::WEBGPU_BUFFER,
+            0,
+            ort::memory::AllocatorType::Device,
+            ort::memory::MemoryType::CPUOutput,
         )?;
+        binding.bind_output_to_device("cross_kv_cache", &memory_info)?;
 
         let mut outputs = self
             .cross_kv_prefill_model
@@ -122,56 +180,63 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
     ) -> Result<Vec<(WhisperDecoderOrtSequenceHandle, TokenProbs)>> {
         let batch_size = inputs.len();
 
-        // add existing kv_cache to model
-        // currently we just do this if the current invocation requires exactly the stuff in the cache
-        // TODO: add reshaping here so that we can also deal with partial hits
-        let cache_keys: Vec<_> = inputs
-            .iter()
-            .map(|(audio, seq)| (audio.kv_cache_key.clone(), seq.kv_cache_key.clone()))
-            .collect();
-        let cache_hit = cache_keys == self.kv_cache_key;
-        dbg!(cache_hit);
-
         let mut cross_kv_cache_indices = Array1::<i64>::zeros(inputs.len());
         for i in 0..inputs.len() {
             let (_, idx) = self.registered_audio_chunks[&inputs[i].0.kv_cache_key];
             cross_kv_cache_indices[i] = idx as i64;
         }
 
-        dbg!(self.kv_cache.len());
-        let mut ort_inputs: Vec<(
-            std::borrow::Cow<'_, str>,
-            ort::session::SessionInputValue<'_>,
-        )> = ort::inputs![
-            "input_ids" => self.sequences_as_tensor(inputs.iter().map(|(_, seq)| seq), cache_hit)?,
-            "cross_kv_cache" => &self.cross_kv_cache,
-            "cross_kv_cache_indices" => Tensor::from_array(cross_kv_cache_indices)?,
-            "self_kv_cache_indices" => Tensor::from_array(Array1::from_iter(0..(batch_size as i64)))?,
-            "self_kv_cache_lengths" => Tensor::from_array(Array1::from_iter((0..batch_size).map(|i| if cache_hit { self.kv_cache.len() as i64 } else {0})))?,
-        ];
+        let is_prefill = self.kv_cache.len() == 0;
 
-        if cache_hit {
-            self.kv_cache.add_self_to_ort_inputs(&mut ort_inputs)?;
-        } else {
+        let mut binding = self.model.create_binding()?;
+        binding.bind_input(
+            "input_ids",
+            &self.sequences_as_tensor(inputs.iter().map(|(_, seq)| seq), !is_prefill)?,
+        )?;
+        binding.bind_input("cross_kv_cache", &self.cross_kv_cache)?;
+        binding.bind_input(
+            "cross_kv_cache_indices",
+            &Tensor::from_array(cross_kv_cache_indices)?,
+        )?;
+        binding.bind_output_to_device("logits", &self.model.allocator().memory_info())?;
+
+        if is_prefill {
             for i in 0..4 {
                 for name in [
-                    format!("past.block.{i}.attn.key"),
-                    format!("past.block.{i}.attn.value"),
+                    format!("block.{i}.attn.key"),
+                    format!("block.{i}.attn.value"),
                 ] {
-                    ort_inputs.push((
-                        name.into(),
-                        Tensor::<f16>::new(self.model.allocator(), [0usize, 20, 0, 64])
-                            .unwrap()
-                            .into(),
-                    ));
+                    binding.bind_input(
+                        format!("past.{name}"),
+                        &Tensor::<f16>::new(self.model.allocator(), [0usize, 20, 0, 64])?,
+                    )?;
+                    binding.bind_output_to_device(
+                        format!("present.{name}"),
+                        &self.model.allocator().memory_info(),
+                    )?;
                 }
             }
+            binding.bind_input(
+                "self_kv_cache_lengths",
+                &Tensor::from_array(Array1::from_vec(vec![0i64]))?,
+            )?;
+            binding.bind_input(
+                "self_kv_cache_indices",
+                &Tensor::from_array(Array1::from_vec(vec![0i64]))?,
+            )?;
+        } else {
+            let seq_unique_keyes: Vec<UniqueKey> = inputs
+                .iter()
+                .map(|(_, seq)| seq.kv_cache_key.clone())
+                .collect();
+            self.kv_cache
+                .add_self_to_ort_binding(&mut binding, &self.model, seq_unique_keyes)?;
         }
 
         let start = Instant::now();
-        let outputs: ort::session::SessionOutputs<'_> = self
+        let mut outputs: ort::session::SessionOutputs<'_> = self
             .model
-            .run(ort_inputs)
+            .run_binding(&binding)
             .context("running the decoder onnx model failed")?;
         println!("forward pass: {:?}", start.elapsed());
 
@@ -192,65 +257,18 @@ impl WhisperDecoderBackend<WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtS
         }
 
         // manage kv cache
-        self.kv_cache.update_from_session_outputs(&outputs);
-        self.kv_cache_key = cache_keys
+        let seq_keys: Vec<UniqueKey> = result
             .iter()
-            .enumerate()
-            .map(|(i, (audio_key, _))| (audio_key.clone(), result[i].0.kv_cache_key.clone()))
+            .map(|(handle, _)| handle.kv_cache_key.clone())
             .collect();
+        let lengths: Vec<i64> = result
+            .iter()
+            .map(|(handle, _)| handle.tokens.len() as i64)
+            .collect();
+        self.kv_cache
+            .update_from_session_outputs(&mut outputs, seq_keys, lengths);
 
         Ok(result)
-    }
-}
-impl WhisperDecoderOrt {
-    pub async fn new() -> Result<Self> {
-        let model = Session::builder()?
-            .with_optimization_level(GraphOptimizationLevel::Level3)
-            .unwrap()
-            .with_execution_providers([ep::WebGPU::default().build()])
-            .unwrap()
-            .commit_from_file("src/whisper/whisper_large_v3_turbo_decoder.onnx")?;
-        let cross_kv_prefill_model = Session::builder()?
-            .with_optimization_level(GraphOptimizationLevel::Level3)
-            .unwrap()
-            .with_execution_providers([ep::WebGPU::default().build()])
-            .unwrap()
-            .commit_from_file(
-                "src/whisper/whisper_large_v3_turbo_decoder_cross_kv_cache_prefill.onnx",
-            )?;
-
-        Ok(Self {
-            model,
-            cross_kv_prefill_model,
-            kv_cache: KvCache::default(),
-            kv_cache_key: Vec::new(),
-            cross_kv_cache: Tensor::from_array(Array4::<f32>::zeros((0, 8, 1280, 1280)))?
-                .into_dyn(),
-            registered_audio_chunks: HashMap::new(),
-        })
-    }
-
-    fn sequences_as_tensor<'a>(
-        &self,
-        sequences: impl ExactSizeIterator<Item = &'a WhisperDecoderOrtSequenceHandle>,
-        only_last_token: bool,
-    ) -> Result<Tensor<i64>> {
-        let batch_size = sequences.len();
-        let mut sequences = sequences.peekable();
-        let sequence_len = sequences.peek().unwrap().tokens.len();
-        let mut input_ids: Vec<i64> = vec![];
-        for seq in sequences {
-            assert_eq!(sequence_len, seq.tokens.len());
-            if only_last_token {
-                input_ids.push(seq.tokens.last().unwrap().1);
-            } else {
-                for &(_, token) in &seq.tokens {
-                    input_ids.push(token);
-                }
-            }
-        }
-        let sequence_len = if only_last_token { 1 } else { sequence_len };
-        Ok(Tensor::from_array(([batch_size, sequence_len], input_ids))?)
     }
 }
 
@@ -306,40 +324,69 @@ impl Hash for UniqueKey {
     }
 }
 
+/// Our KV caching mechanism. Our model can do a gather on the first axis (batches) for the KV cache
+/// to efficiently support beam search (sharing audio and duplicating/moving past self KV cache entries).
 #[derive(Default)]
 pub struct KvCache {
-    data: HashMap<String, ort::value::Value<DynValueTypeMarker>>,
+    /// the tensors that make up this kv cache. Dims [batch, ... (dont care)]
+    tensors: HashMap<String, ort::value::Value<DynValueTypeMarker>>,
+    /// map of index in the first (batch) dimension to handle
+    handles: Vec<UniqueKey>,
+    // the length of the kv cache entries
+    lengths: Vec<i64>,
 }
 impl KvCache {
     pub fn len(&self) -> usize {
-        for elem in self.data.values() {
-            return elem.shape()[2] as usize;
-        }
-        0
+        self.handles.len()
     }
 
-    pub fn add_self_to_ort_inputs(
+    pub fn add_self_to_ort_binding(
         &self,
-        ort_inputs: &mut Vec<(
-            std::borrow::Cow<'_, str>,
-            ort::session::SessionInputValue<'_>,
-        )>,
+        binding: &mut IoBinding,
+        model: &Session,
+        handles: Vec<UniqueKey>,
     ) -> Result<()> {
-        for (k, v) in self.data.iter() {
-            ort_inputs.push((format!("past.{k}").into(), v.clone().into()));
+        let memory_info = MemoryInfo::new(
+            AllocationDevice::WEBGPU_BUFFER,
+            0,
+            ort::memory::AllocatorType::Device,
+            ort::memory::MemoryType::CPUOutput,
+        )?;
+        for (k, v) in self.tensors.iter() {
+            binding.bind_input(format!("past.{k}"), v)?;
+            binding.bind_output_to_device(format!("present.{k}"), &memory_info)?;
         }
+        let input_map = Array1::from_iter(self.get_input_map(&handles));
+        binding.bind_input("self_kv_cache_indices", &Tensor::from_array(input_map)?)?;
+        let cache_lengths = Array1::from_vec(self.lengths.clone());
+        binding.bind_input("self_kv_cache_lengths", &Tensor::from_array(cache_lengths)?)?;
+
         Ok(())
     }
 
-    pub fn update_from_session_outputs(&mut self, outputs: &ort::session::SessionOutputs<'_>) {
-        for (name, v) in outputs.iter() {
-            if let Some(name) = name.strip_prefix("present.") {
-                let new_len = v.shape().iter().cloned().reduce(|acc, e| acc * e).unwrap();
-                if new_len != 0 {
-                    // the encoder kv entries are only produced in the first run
-                    self.data.insert(name.to_string(), v.clone());
-                }
+    fn get_input_map(&self, handles: &[UniqueKey]) -> impl Iterator<Item = i64> {
+        return handles.iter().map(|handle| {
+            self.handles
+                .iter()
+                .position(|candidate| candidate == handle)
+                .unwrap() as i64
+        });
+    }
+
+    pub fn update_from_session_outputs(
+        &mut self,
+        outputs: &mut ort::session::SessionOutputs<'_>,
+        handles: Vec<UniqueKey>,
+        lengths: Vec<i64>,
+    ) {
+        let names: Vec<&str> = outputs.keys().collect();
+        for name in names {
+            if let Some(stripped) = name.strip_prefix("present.") {
+                self.tensors
+                    .insert(stripped.to_string(), outputs.remove(name).unwrap());
             }
         }
+        self.handles = handles;
+        self.lengths = lengths;
     }
 }
