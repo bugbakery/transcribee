@@ -4,6 +4,8 @@
 //! and feeding audio chunks to the backend. The interface between it and the backend is the
 //! WhisperDecoderBackend trait.
 
+use std::time::Instant;
+
 use crate::{
     audio_reader::AudioReader,
     whisper::{
@@ -24,7 +26,10 @@ pub trait WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> {
     /// The `AudioChunkHandle` is backend specific and holds the gpu buffer as well as the cross
     /// attention KV cache.
     /// chunk usually has the shape [1500,1280]
-    async fn register_encoded_audio_chunk(&mut self, chunk: Array2<f32>) -> AudioChunkHandle;
+    async fn register_encoded_audio_chunks(
+        &mut self,
+        chunks: impl ExactSizeIterator<Item = Array2<f32>>,
+    ) -> Result<Vec<AudioChunkHandle>>;
 
     /// Registers a new sequence with the backend.
     /// The `SequenceHandle` is backend specific and holds the buffer of the sequence as well as
@@ -42,13 +47,7 @@ pub trait WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> {
     /// returns the product of the confidence of all tokens in this sequence
     fn seq_conf(&self, seq: &SequenceHandle) -> f64;
 
-    /// convert a SequenceHandle to Atoms.
-    /// This executes word alignment. The audio_chunk is needed to determine the length.
-    async fn token_sequence_to_atoms(
-        &self,
-        seq: &SequenceHandle,
-        audio_chunk: &AudioChunkHandle,
-    ) -> Result<Vec<Atom>>;
+    fn get_tokens(&self, seq: &SequenceHandle) -> Result<Vec<(f32, i64)>>;
 
     // Run a single forward pass of the decoder.
     async fn forward(
@@ -87,7 +86,7 @@ pub struct Whisper {
 }
 impl Whisper {
     // idea: make the beam_width only wider if we are unsure about the next token. otherwise greedy is fine
-    const BEAM_WIDTH: usize = 5;
+    const BEAM_WIDTH: usize = 2;
 
     pub async fn new() -> Result<Self> {
         let encoder = WhisperEncoderOrt::new().await?;
@@ -109,8 +108,11 @@ impl Whisper {
         let audio_frames = ar.len().min(16_000 * 30);
         let samples = ar.get(0..audio_frames)?;
         let encoded = self.encoder.encode(samples.to_vec())?;
-        let handle = self.decoder.register_encoded_audio_chunk(encoded).await;
-        self.transcribe_chunks(&[handle]).await?;
+        let handles = self
+            .decoder
+            .register_encoded_audio_chunks([encoded].into_iter())
+            .await?;
+        self.transcribe_chunks(&handles).await?;
         Ok(())
     }
 
@@ -118,6 +120,7 @@ impl Whisper {
         &mut self,
         chunks: &[WhisperDecoderOrtAudioChunkHandle],
     ) -> Result<Vec<Vec<Atom>>> {
+        let start = Instant::now();
         let mut batch = Vec::new();
         for chunk in chunks {
             let sot_sequence = self.tokenizer.sot_sequence("en")?;
@@ -128,6 +131,7 @@ impl Whisper {
         let mut finished: Vec<Vec<WhisperDecoderOrtSequenceHandle>> =
             chunks.iter().map(|_| Vec::new()).collect();
         loop {
+            let start = Instant::now();
             dbg!(&batch[0].1.len());
             let mut decoder_input = Vec::new();
             for (chunk, beam) in &batch {
@@ -162,12 +166,16 @@ impl Whisper {
                         .decoder
                         .append_token_to_sequence(seq, conf as f32, token as i64)
                         .await;
-                    println!(
-                        "{}",
-                        atoms_to_text(&self.decoder.token_sequence_to_atoms(&seq, chunk).await?)
-                    );
+                    let tokens: Vec<i64> = self
+                        .decoder
+                        .get_tokens(&seq)?
+                        .iter()
+                        .map(|(_prob, t)| *t)
+                        .collect();
+                    println!("{}", self.tokenizer.decode(&tokens)?);
 
                     if token as i64 == self.tokenizer.endoftext() {
+                        println!("tokens: {}", self.decoder.get_tokens(&seq)?.len());
                         finished[batch_idx].push(seq);
                     } else {
                         next_beam.push(seq);
@@ -177,6 +185,7 @@ impl Whisper {
                 next_batch.push((chunk.clone(), next_beam));
             }
             batch = next_batch;
+            println!("loop iteration: {:?}", start.elapsed());
         }
 
         let mut to_return = Vec::new();
@@ -189,9 +198,10 @@ impl Whisper {
                         .total_cmp(&self.decoder.seq_conf(seq_b))
                 })
                 .unwrap();
-            let atoms = self.decoder.token_sequence_to_atoms(best, chunk).await?;
-            to_return.push(atoms);
+            //let atoms = self.decoder.token_sequence_to_atoms(best, chunk).await?;
+            //to_return.push(atoms);
         }
+        println!("transcribe_chunks took {:?}", start.elapsed());
         Ok(to_return)
     }
 }
