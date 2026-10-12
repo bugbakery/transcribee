@@ -9,62 +9,16 @@ use std::time::Instant;
 use crate::{
     audio_reader::AudioReader,
     whisper::{
-        decoder::{
-            WhisperDecoderOrt, WhisperDecoderOrtAudioChunkHandle, WhisperDecoderOrtSequenceHandle,
-        },
-        encoder::WhisperEncoderOrt,
+        decoder::{AlignmentData, TokenSequence, WhisperDecoderBackend},
+        decoder_onnx::{AudioChunkHandle, SequenceHandle, WhisperDecoderOrt},
+        encoder_onnx::WhisperEncoderOrt,
+        math::softmax,
         tokenizer::Tokenizer,
     },
 };
 use anyhow::Result;
-use compute::functions::softmax;
-use ndarray::Array2;
-
-pub trait WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> {
-    /// Registers a new audio chunk with the backend.
-    /// This method is here to potentially do gpu upload.
-    /// The `AudioChunkHandle` is backend specific and holds the gpu buffer as well as the cross
-    /// attention KV cache.
-    /// chunk usually has the shape [1500,1280]
-    async fn register_encoded_audio_chunks(
-        &mut self,
-        chunks: impl ExactSizeIterator<Item = Array2<f32>>,
-    ) -> Result<Vec<AudioChunkHandle>>;
-
-    /// Registers a new sequence with the backend.
-    /// The `SequenceHandle` is backend specific and holds the buffer of the sequence as well as
-    /// the self attention KV cache of this sequence.
-    async fn register_sequence(&mut self, tokens: &[i64]) -> SequenceHandle;
-
-    /// appends a token to the given sequence
-    async fn append_token_to_sequence(
-        &mut self,
-        seq: &SequenceHandle,
-        conf: f32,
-        token: i64,
-    ) -> SequenceHandle;
-
-    /// returns the product of the confidence of all tokens in this sequence
-    fn seq_conf(&self, seq: &SequenceHandle) -> f64;
-
-    fn get_tokens(&self, seq: &SequenceHandle) -> Result<Vec<(f32, i64)>>;
-
-    // Run a single forward pass of the decoder.
-    async fn forward(
-        &mut self,
-        inputs: &[(AudioChunkHandle, SequenceHandle)],
-    ) -> Result<Vec<(SequenceHandle, TokenProbs)>>;
-}
-
-pub struct TokenProbs {
-    pub logits: Vec<f32>,
-}
-impl TokenProbs {
-    pub fn probs(&self) -> Vec<f64> {
-        let logits_f64: Vec<f64> = self.logits.iter().map(|x| *x as f64).collect();
-        softmax(&logits_f64)
-    }
-}
+use log::{debug, info};
+use ndarray::{Array2, Axis, s};
 
 pub struct WhisperBar {
     atoms: Vec<Atom>,
@@ -87,11 +41,14 @@ pub struct Whisper {
 impl Whisper {
     // idea: make the beam_width only wider if we are unsure about the next token. otherwise greedy is fine
     const BEAM_WIDTH: usize = 5;
+    const MAX_LEN: usize = 448;
 
     pub async fn new() -> Result<Self> {
+        let start = Instant::now();
         let encoder = WhisperEncoderOrt::new().await?;
         let decoder = WhisperDecoderOrt::new().await?;
         let tokenizer = Tokenizer::new().await?;
+        info!("Model loading took {:?}", start.elapsed());
 
         Ok(Self {
             encoder,
@@ -100,10 +57,10 @@ impl Whisper {
         })
     }
 
-    pub async fn transcribe(
+    pub fn transcribe(
         &mut self,
         ar: &AudioReader,
-        _on_new_bar: &mut dyn FnMut(WhisperBar),
+        on_new_bar: &mut dyn FnMut(WhisperBar),
     ) -> Result<()> {
         let audio_frames = ar.len().min(16_000 * 30);
         let audio_len_s = audio_frames as f32 / 16_000.0;
@@ -112,103 +69,109 @@ impl Whisper {
         let encoded = self.encoder.encode(samples.to_vec())?;
         let handles = self
             .decoder
-            .register_encoded_audio_chunks([encoded].into_iter())
-            .await?;
-        self.transcribe_chunks(&handles).await?;
+            .register_encoded_audio_chunks([encoded].into_iter())?;
+        let sot_sequence = self.tokenizer.sot_sequence("en")?;
+
+        self.transcribe_chunks(&[(handles[0].clone(), sot_sequence)])?;
         let duration = start.elapsed().as_secs_f32();
-        println!(
+        info!(
             "transcription of the first {audio_len_s:.2}s took {duration:.2}s ({:.2}x realtime)",
             audio_len_s / duration
         );
         Ok(())
     }
 
-    pub async fn transcribe_chunks(
+    /// This function transcribes one chunk of audio with beam search and decides on one concrete
+    /// beam. It does not yet do timing reconstruction but only returns the data for that.
+    ///
+    /// `x` contains AudioChunks and Prompts.
+    pub fn transcribe_chunks(
         &mut self,
-        chunks: &[WhisperDecoderOrtAudioChunkHandle],
-    ) -> Result<Vec<Vec<Atom>>> {
+        x: &[(AudioChunkHandle, Vec<i64>)],
+    ) -> Result<Vec<(TokenSequence, AlignmentData)>> {
         let start = Instant::now();
         let mut batch = Vec::new();
-        for chunk in chunks {
-            let sot_sequence = self.tokenizer.sot_sequence("en")?;
-            let start_seq = self.decoder.register_sequence(&sot_sequence).await;
+        for (chunk, prompt) in x {
+            let start_seq = self.decoder.register_sequence(&prompt);
             batch.push((chunk.clone(), vec![start_seq]));
         }
 
-        let mut finished: Vec<Vec<WhisperDecoderOrtSequenceHandle>> =
-            chunks.iter().map(|_| Vec::new()).collect();
+        let mut finished: Vec<Option<(TokenSequence, AlignmentData)>> = vec![None; x.len()];
         loop {
-            let start = Instant::now();
-            let mut decoder_input = Vec::new();
-            for (chunk, beam) in &batch {
-                for seq in beam {
-                    decoder_input.push((chunk.clone(), seq.clone()));
-                }
-            }
+            let loop_start = Instant::now();
+            let decoder_input: Vec<_> = batch
+                .iter()
+                .flat_map(|(chunk, beam)| beam.iter().map(|seq| (chunk.clone(), seq.clone())))
+                .collect();
             if decoder_input.is_empty() {
                 break;
             }
-            let result = self.decoder.forward(&decoder_input).await?;
+            let result = self.decoder.forward(&decoder_input)?;
+            let last_axis = Axis(result.shape().len() - 1);
+            let token_probs: Array2<f32> = softmax(result.into_dyn(), last_axis)
+                .into_dimensionality()
+                .unwrap();
 
             let mut next_batch = Vec::new();
             let mut result_idx = 0;
             for (batch_idx, (chunk, beam)) in batch.iter().enumerate() {
                 // inside this for loop happens beam search
                 let mut next_beam = Vec::new();
-                let mut best: TopNVec<(&WhisperDecoderOrtSequenceHandle, usize, f64)> =
-                    TopNVec::new(Self::BEAM_WIDTH - finished[batch_idx].len());
-                for _ in beam.iter() {
-                    let (seq, token_probs) = &result[result_idx];
+                let mut best: TopNVec<(&SequenceHandle, usize, f32)> =
+                    TopNVec::new(Self::BEAM_WIDTH);
+                for seq in beam.iter() {
+                    let token_probs = token_probs.slice(s![result_idx, ..]);
                     result_idx += 1;
-                    let seq_base_prob = self.decoder.seq_conf(seq);
-                    for (token, prob) in token_probs.probs().into_iter().enumerate() {
-                        let total_prob = seq_base_prob * prob;
-                        best.insert(total_prob, (seq, token, prob));
+
+                    let seq_base_logprob = Self::logprob_of_seq(&self.decoder.get_tokens(seq)?);
+                    for (token, &prob) in token_probs.iter().enumerate() {
+                        let total_logprob = seq_base_logprob + prob.ln();
+                        best.insert(total_logprob, (seq, token, prob));
                     }
                 }
 
                 for &(seq, token, conf) in best.iter() {
                     let seq = self
                         .decoder
-                        .append_token_to_sequence(seq, conf as f32, token as i64)
-                        .await;
-                    let tokens: Vec<i64> = self
-                        .decoder
-                        .get_tokens(&seq)?
-                        .iter()
-                        .map(|(_prob, t)| *t)
-                        .collect();
-                    println!("{}", self.tokenizer.decode(&tokens)?);
+                        .append_token_to_sequence(seq, token as i64, conf)?;
+                    let tokens = self.decoder.get_tokens(&seq)?;
 
-                    if token as i64 == self.tokenizer.endoftext() {
-                        println!("tokens: {}", self.decoder.get_tokens(&seq)?.len());
-                        finished[batch_idx].push(seq);
-                    } else {
-                        next_beam.push(seq);
+                    let only_tokens: Vec<_> = tokens.iter().map(|(t, _)| *t).collect();
+                    debug!(
+                        "{} {}",
+                        self.tokenizer.decode(&only_tokens)?,
+                        Self::logprob_of_seq(&tokens)
+                    );
+
+                    let is_better_than_finished = match &finished[batch_idx] {
+                        Some((finished, _)) => {
+                            Self::logprob_of_seq(&tokens) > Self::logprob_of_seq(&finished)
+                        }
+                        None => true,
+                    };
+                    if is_better_than_finished {
+                        if token as i64 == self.tokenizer.endoftext()
+                            || tokens.len() >= Self::MAX_LEN
+                        {
+                            let alignment_data = self.decoder.get_alignment_data(&seq)?;
+                            finished[batch_idx] = Some((tokens, alignment_data));
+                        } else {
+                            next_beam.push(seq);
+                        }
                     }
                 }
-                println!();
                 next_batch.push((chunk.clone(), next_beam));
             }
             batch = next_batch;
-            println!("loop iteration: {:?}\n", start.elapsed());
+            debug!("loop iteration: {:?}\n", loop_start.elapsed());
         }
 
-        let to_return = Vec::new();
-        for (_chunk, seqs) in chunks.iter().zip(finished) {
-            let _best = seqs
-                .iter()
-                .max_by(|seq_a, seq_b| {
-                    self.decoder
-                        .seq_conf(seq_a)
-                        .total_cmp(&self.decoder.seq_conf(seq_b))
-                })
-                .unwrap();
-            //let atoms = self.decoder.token_sequence_to_atoms(best, chunk).await?;
-            //to_return.push(atoms);
-        }
-        println!("transcribe_chunks took {:?}", start.elapsed());
-        Ok(to_return)
+        info!("decoder took {:?}", start.elapsed());
+        Ok(finished.into_iter().map(|x| x.unwrap()).collect())
+    }
+
+    fn logprob_of_seq(x: &TokenSequence) -> f32 {
+        x.iter().map(|(_, c)| c.ln()).sum()
     }
 }
 
@@ -216,19 +179,19 @@ impl Whisper {
 #[derive(Debug)]
 pub struct TopNVec<T> {
     pub n: usize,
-    pub min: f64,
-    pub data: Vec<(f64, T)>,
+    pub min: f32,
+    pub data: Vec<(f32, T)>,
 }
 impl<T> TopNVec<T> {
     fn new(n: usize) -> Self {
         Self {
             n,
-            min: f64::INFINITY,
+            min: f32::INFINITY,
             data: Vec::new(),
         }
     }
 
-    fn insert(&mut self, score: f64, value: T) {
+    fn insert(&mut self, score: f32, value: T) {
         if self.data.len() < self.n {
             self.data.push((score, value));
             self.min = self.min.min(score);
