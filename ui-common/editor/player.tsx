@@ -16,6 +16,7 @@ import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
 import { BiVideo, BiVideoOff } from 'react-icons/bi';
+import { WaveformRenderer } from './waveform_renderer';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -214,7 +215,7 @@ export function PlayerBar({
             onSeek={onSeek}
             editor={editor}
           />
-          <WaveformViewer source={waveformSource} time={audio.playtime} />
+          <WaveformViewer source={waveformSource} />
         </div>
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
@@ -232,18 +233,23 @@ export function PlayerBar({
 
 class WaveformReader {
   version: number;
-  resolution: number;
+  bytesPerSample: number;
   sampleRate: number;
   samplesPerPixel: number;
   length: number;
   channels: number;
-  data: Int8Array | Int16Array;
+  buffer: ArrayBuffer;
 
   constructor(buffer: ArrayBuffer) {
+    this.buffer = buffer;
     const dv = new DataView(buffer);
+
+    // we use BBC's audiowaveform data file format.
+    // see: https://codeberg.org/chrisn/audiowaveform/src/commit/c043aed7bd78224543e238e37c38fd833fc50815/doc/DataFormat.md
+
     this.version = dv.getInt32(0, true);
     const flags = dv.getUint32(4, true);
-    this.resolution = flags & 0x1 ? 8 : 16;
+    this.bytesPerSample = flags & 0x1 ? 1 : 2;
     this.sampleRate = dv.getInt32(8, true);
     this.samplesPerPixel = dv.getInt32(12, true);
     this.length = dv.getUint32(16, true);
@@ -252,117 +258,78 @@ class WaveformReader {
     } else {
       this.channels = 1;
     }
+  }
 
-    const self = this;
-    const readData = function* (dv: DataView, length: number) {
-      let offset = 24;
-      while (offset + 2 < length * self.channels * 4) {
-        yield dv.getInt16(offset, true);
-        offset += 2;
-      }
-    };
+  getDataIter() {
+    const dv = new DataView(this.buffer, 24);
+    const channels = this.channels;
+    const length = this.length;
 
-    if (this.resolution == 8) {
-      this.data = new Int8Array(buffer.slice(24));
-    } else if (this.resolution == 16) {
-      this.data = new Int16Array(readData(dv, this.length));
+    if (this.bytesPerSample == 2) {
+      return (function* () {
+        for (let i = 0; i < length / channels; i++) {
+          yield dv.getInt16((i * channels * 2 + 0) * 2, true);
+          yield dv.getInt16((i * channels * 2 + 1) * 2, true);
+        }
+      })();
+    } else if (this.bytesPerSample == 1) {
+      return (function* () {
+        for (let i = 0; i < length / channels; i++) {
+          yield dv.getInt8(i * channels * 2 + 0);
+          yield dv.getInt8(i * channels * 2 + 1);
+        }
+      })();
     } else {
-      throw new Error(`Invalid waveform resolution: ${this.resolution}`);
+      throw new Error(`Invalid state: bytesPerSample = ${this.bytesPerSample}`);
     }
   }
 }
 
-function renderWaveform(reader: WaveformReader) {
-  const offscreenCanvas = new OffscreenCanvas(reader.length, 100);
-  const ctx = offscreenCanvas.getContext('2d')!;
+function WaveformViewer({ source }: { source: MediaFile | null }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pos, setPos] = useState<number>(0);
+  const [reader, setReader] = useState<WaveformReader | null>(null);
+  const [dragging, setDragging] = useState(false);
 
-  console.time('render_waveform');
-  ctx.clearRect(0, 0, 1000, 1000);
-
-  const zoom = 1;
-  let min = 0;
-  ctx.lineWidth = 1;
-
-  const maxVal = 2 ** (reader.resolution - 1);
-  ctx.beginPath();
-  reader.data.forEach((sample, i) => {
-    sample = sample / maxVal;
-    if (i % 2 == 0) {
-      min = sample;
-    } else {
-      ctx.moveTo((i / 2) * zoom, 50 - min * 50);
-      ctx.lineTo((i / 2) * zoom, 50 - sample * 50);
-    }
-  });
-  ctx.closePath();
-  ctx.stroke();
-
-  console.timeEnd('render_waveform');
-
-  return offscreenCanvas;
-}
-function WaveformViewer({ source, time }: { source: MediaFile | null; time: number }) {
-  async function getData(media: MediaFile) {
-    const res = await fetch(media.url);
-    const buffer = await res.arrayBuffer();
-    return new WaveformReader(buffer);
-  }
-
-  const [reader, setReader] = useState<WaveformReader>(null);
   useEffect(() => {
     if (!source) return;
+
+    const getData = async (media: MediaFile) => {
+      const res = await fetch(media.url);
+      const buffer = await res.arrayBuffer();
+      return new WaveformReader(buffer);
+    };
+
     getData(source).then((reader) => {
       setReader(reader);
     });
   }, [source]);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const renderer = useMemo(() => {
+    if (!canvasRef.current) return;
 
-  const waveform = useMemo(() => {
-    if (!reader) return;
-    return renderWaveform(reader);
-  }, [reader]);
+    const ctx = canvasRef.current.getContext('webgl2');
+    if (!ctx) {
+      console.error('Could not create webgl context.');
+      return;
+    }
 
-  const [pos, setPos] = useState<number>(0);
+    return new WaveformRenderer(ctx);
+  }, [canvasRef.current]);
 
   useEffect(() => {
-    console.time('render_waveform2');
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx || !reader) return;
+    if (!renderer || !reader) return;
+    renderer.setData(reader.getDataIter());
+  }, [renderer, reader]);
 
-    const update = () => {
-      const zoom = 1;
-
-      const waveformOffset = ((-pos * reader.sampleRate) / reader.samplesPerPixel) * zoom;
-
-      ctx.clearRect(0, 0, 1000, 1000);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(waveform, waveformOffset, 0, waveform.width * zoom, waveform.height);
-
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(((time * reader.sampleRate) / reader.samplesPerPixel) * zoom + waveformOffset, 0);
-      ctx.lineTo(
-        ((time * reader.sampleRate) / reader.samplesPerPixel) * zoom + waveformOffset,
-        100,
-      );
-      ctx.closePath();
-      ctx.stroke();
-    };
-
-    update();
-  }, [reader, time, pos]);
-
-  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    if (!renderer) return;
+    renderer.draw(pos);
+  }, [reader, renderer, pos]);
 
   const onDrag = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
-      // if (!ref.current || !duration) return;
-
-      // const time = timeFromPosition(ref.current, e.pageX, duration);
-      // setTmpTime(time);
-      setPos((x) => x - (e.movementX / reader.sampleRate) * reader.samplesPerPixel);
+      setPos((x) => x - e.movementX);
     },
     [dragging],
   );
@@ -370,7 +337,7 @@ function WaveformViewer({ source, time }: { source: MediaFile | null; time: numb
   useEffect(() => {
     if (!dragging) return;
 
-    // globally listen to mouse move events to allow dragging outside of the bar
+    // globally listen to mouse move events to allow dragging outside of the canvas
     window.addEventListener('mousemove', onDrag);
 
     const onMouseUp = () => {
@@ -382,7 +349,39 @@ function WaveformViewer({ source, time }: { source: MediaFile | null; time: numb
       window.removeEventListener('mousemove', onDrag);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [dragging]);
+  }, [dragging, onDrag]);
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+
+    const listener = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let deltaMultiplier = 1;
+      switch (e.deltaMode) {
+        case 0: // pixel mode
+          deltaMultiplier = 1;
+          break;
+        case 1: // "line" mode
+          deltaMultiplier = 20;
+          break;
+        case 2: // "page" mode
+          deltaMultiplier = 500;
+          break;
+        default:
+          console.warn(`Unknown deltaMode received: ${e.deltaMode}`);
+      }
+      setPos((x) => x + e.deltaX * deltaMultiplier);
+    };
+
+    c.addEventListener('wheel', listener, { passive: false });
+
+    return () => {
+      c.removeEventListener('wheel', listener);
+    };
+  }, [canvasRef.current]);
 
   return (
     <canvas
@@ -392,7 +391,6 @@ function WaveformViewer({ source, time }: { source: MediaFile | null; time: numb
       ref={canvasRef}
       width="1000"
       height="100"
-      className="bg-gray-100"
     />
   );
 }
