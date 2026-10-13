@@ -100,7 +100,7 @@ export function HomePage() {
               invoke('show_new_transcript_dialog');
             }}
           >
-            Transcribe Audio
+            New Transcription
           </PrimaryButton>
           <SecondaryButton
             className="grow basis-1"
