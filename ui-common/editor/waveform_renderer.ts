@@ -8,6 +8,7 @@ export class WaveformRenderer {
   uniformLocations: Record<string, WebGLUniformLocation>;
   pos: number = 0;
   color: RgbColor = [0, 0, 0];
+  scale: number = 1.0;
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -106,6 +107,10 @@ export class WaveformRenderer {
     this.color = color;
   }
 
+  setScale(scale: number) {
+    this.scale = scale;
+  }
+
   draw() {
     if (!this.tex) {
       return;
@@ -122,7 +127,7 @@ export class WaveformRenderer {
     this.gl.uniform1f(this.uniformLocations.waveform_height, this.gl.canvas.height);
     this.gl.uniform1f(this.uniformLocations.waveform_center, this.gl.canvas.height / 2);
     this.gl.uniform3f(this.uniformLocations.waveform_color, ...this.color);
-    this.gl.uniform1f(this.uniformLocations.scale, 2);
+    this.gl.uniform1f(this.uniformLocations.scale, this.scale);
 
     this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertices.length);
     this.gl.flush();
