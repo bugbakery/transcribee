@@ -14,8 +14,8 @@ use ort::{
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
 };
-use std::collections::HashMap;
 use std::time::Instant;
+use std::{collections::HashMap, sync::Arc};
 
 pub type AudioChunkHandle = Handle;
 #[derive(Clone)]
@@ -37,7 +37,12 @@ impl WhisperDecoderOrt {
             .unwrap()
             .with_execution_providers([ep::WebGPU::default().build()])
             .unwrap()
-            .commit_from_file("src/whisper/whisper_large_v3_turbo_decoder.onnx")?;
+            .with_config_entry(
+                "session.model_external_initializers_file_folder_path",
+                "./src/whisper",
+            )
+            .unwrap()
+            .commit_from_memory(include_bytes!("whisper_large_v3_turbo_decoder.onnx"))?;
 
         Ok(Self {
             model,
@@ -95,7 +100,7 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
     fn get_alignment_data(&self, seq: &SequenceHandle) -> Result<Array3<f32>> {
         let raw = self
             .kv_cache
-            .get_entry_alignment_data(&seq.last_handle.as_ref().unwrap())
+            .get_entry_alignment_data(seq.last_handle.as_ref().unwrap())
             .context("The sequence prodived to get_alignment_data() is not found in the KV cache (was not last passed to forward())")?;
         let heads = raw[0].shape()[0];
         let tokens = raw.iter().map(|x| x.shape()[1]).sum();
@@ -124,7 +129,12 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
         self.cross_kv
             .add_self_to_binding(&mut binding, inputs.iter().map(|(a, _)| a))?;
 
-        let is_prefill = self.kv_cache.num_entries() == 0;
+        let is_prefill = inputs.iter().any(|(_, seq)| {
+            seq.last_handle
+                .as_ref()
+                .and_then(|last_handle| self.kv_cache.get_entry_len(last_handle))
+                .is_none()
+        });
         if is_prefill {
             KvCache::add_prefill_to_ort_bindings(&mut binding)?;
 
@@ -178,11 +188,17 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
 
         let mut new_kv_meta = Vec::new();
         for (b, (_, seq)) in inputs.iter().enumerate() {
-            let mut alignment_data = self
-                .kv_cache
-                .take_entry_alignment_data(&seq.handle)
-                .unwrap_or_default();
-            alignment_data.push(alignment_heads.slice(s![b, .., .., ..]).to_owned());
+            let mut alignment_data = if is_prefill {
+                vec![]
+            } else {
+                self.kv_cache
+                    .get_entry_alignment_data(seq.last_handle.as_ref().unwrap())
+                    .unwrap()
+                    .clone()
+            };
+            alignment_data.push(Arc::new(
+                alignment_heads.slice(s![b, .., .., ..]).to_owned(),
+            ));
             let len = seq.tokens.len();
             new_kv_meta.push((seq.handle.clone(), len, alignment_data));
         }
@@ -207,9 +223,14 @@ impl CrossKV {
             .unwrap()
             .with_execution_providers([ep::WebGPU::default().build()])
             .unwrap()
-            .commit_from_file(
-                "src/whisper/whisper_large_v3_turbo_decoder_cross_kv_cache_prefill.onnx",
-            )?;
+            .with_config_entry(
+                "session.model_external_initializers_file_folder_path",
+                "./src/whisper",
+            )
+            .unwrap()
+            .commit_from_memory(include_bytes!(
+                "whisper_large_v3_turbo_decoder_cross_kv_cache_prefill.onnx"
+            ))?;
 
         let tensors = HashMap::new();
         let registered_audio_chunks = Vec::new();
@@ -301,7 +322,7 @@ impl CrossKV {
     }
 }
 
-type AlignmentData = Vec<Array3<f32>>; // alignment_heads, tokens, encoder_frames
+type AlignmentData = Vec<Arc<Array3<f32>>>; // alignment_heads, tokens, encoder_frames
 
 /// Our KV caching mechanism. Our model can do a gather on the first axis (batches) for the KV cache
 /// to efficiently support beam search (sharing audio and duplicating/moving past self KV cache entries).
@@ -326,13 +347,19 @@ impl KvCache {
         self.get_row(handle).map(|row| row.1)
     }
     pub fn get_entry_alignment_data(&self, handle: &Handle) -> Option<&AlignmentData> {
-        self.get_row(handle).map(|row| &row.2)
+        self.get_row(handle).map(|row| row.2.as_ref())
     }
-    pub fn take_entry_alignment_data(&mut self, handle: &Handle) -> Option<AlignmentData> {
-        self.handles
-            .iter_mut()
-            .find(|x| &x.0 == handle)
-            .map(|x| x.2.drain(..).collect())
+
+    fn get_input_map<'a>(
+        &self,
+        last_handles: impl Iterator<Item = &'a Handle>,
+    ) -> impl Iterator<Item = i64> {
+        last_handles.map(|handle| {
+            self.handles
+                .iter()
+                .position(|row| &row.0 == handle)
+                .unwrap() as i64
+        })
     }
 
     pub fn add_prefill_to_ort_bindings(binding: &mut IoBinding) -> Result<()> {
@@ -388,18 +415,6 @@ impl KvCache {
         binding.bind_input("self_kv_cache_lengths", &Tensor::from_array(cache_lengths)?)?;
 
         Ok(())
-    }
-
-    fn get_input_map<'a>(
-        &self,
-        last_handles: impl Iterator<Item = &'a Handle>,
-    ) -> impl Iterator<Item = i64> {
-        last_handles.map(|handle| {
-            self.handles
-                .iter()
-                .position(|row| &row.0 == handle)
-                .unwrap() as i64
-        })
     }
 
     pub fn update_from_session_outputs(

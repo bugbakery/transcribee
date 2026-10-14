@@ -42,7 +42,7 @@ pub fn calculate_alignment(
 fn median_filter<const WIDTH: usize>(x: ArrayD<f32>) -> ArrayD<f32> {
     let rank = x.shape().len();
     let mut filtered = ArrayD::<f32>::zeros(x.shape());
-    let last_axis = Axis(rank);
+    let last_axis = Axis(rank - 1);
     for (src, mut target) in x
         .lanes(last_axis)
         .into_iter()

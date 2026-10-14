@@ -1,6 +1,5 @@
 use std::time::Instant;
 
-use crate::model_downloader::RemoteModel;
 use anyhow::Result;
 use log::info;
 use ndarray::{Array2, Array3, Axis};
@@ -14,12 +13,6 @@ use stft_rs::{
     mel::{BatchMelSpectrogramF32, MelConfigF32},
 };
 
-pub const WHISPER_V3_LARGE_ENCODER: RemoteModel = RemoteModel {
-    url: "https://huggingface.co/onnx-community/whisper-large-v3-turbo/resolve/main/onnx/encoder_model_int8.onnx",
-    name: "whisper-large-v3-turbo-encoder.onnx",
-    size: 1274342603,
-};
-
 pub struct WhisperEncoderOrt {
     model: Session,
 }
@@ -28,19 +21,17 @@ impl WhisperEncoderOrt {
     const CHUNK_LEN_S: usize = 30;
 
     pub async fn new() -> Result<Self> {
-        let model_path = WHISPER_V3_LARGE_ENCODER
-            .ensure_downloaded(|_done, _total| {})
-            .await?;
         let model = Session::builder()?
-            // we cannot use concurrent WebGPU EPs currently due to an upstream bug (fix landed; waiting for release)
-            // https://github.com/microsoft/onnxruntime/issues/31627
             .with_execution_providers([ep::WebGPU::default().build()])
             .unwrap()
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
-            .with_profiling("onnxruntime.profile")
+            .with_config_entry(
+                "session.model_external_initializers_file_folder_path",
+                "./src/whisper",
+            )
             .unwrap()
-            .commit_from_file(model_path)?;
+            .commit_from_memory(include_bytes!("whisper_large_v3_turbo_encoder.onnx"))?;
 
         Ok(Self { model })
     }
@@ -92,8 +83,8 @@ impl WhisperEncoderOrt {
         // the large encoder processes 30s chunks that might be padded
         // input shape of the large encoder is [batch_size,128,3000]
         // output shape of the large encoder is [batch_size,1500,1280]
-        let start = Instant::now();
         let input = Self::get_mel(samples)?;
+        let start = Instant::now();
         let outputs: ort::session::SessionOutputs<'_> =
             self.model.run([Value::from_array(input)?.into()])?;
         let (_, output) = outputs["last_hidden_state"].try_extract_tensor::<f32>()?;

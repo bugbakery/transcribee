@@ -22,7 +22,10 @@ async fn main() -> Result<()> {
     let ar = AudioReader::new(f)?;
     let mut whisper = Whisper::new().await?;
 
-    whisper.transcribe(&ar, &mut |_| {})?;
+    whisper.transcribe(&ar, &mut |bar| {
+        let text: String = bar.atoms.iter().map(|atom| &atom.text as &str).collect();
+        println!("{text}")
+    })?;
 
     Ok(())
 }

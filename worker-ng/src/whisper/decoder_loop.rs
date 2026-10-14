@@ -13,6 +13,7 @@ use crate::{
         decoder_onnx::{AudioChunkHandle, SequenceHandle, WhisperDecoderOrt},
         encoder_onnx::WhisperEncoderOrt,
         math::softmax,
+        timing::calculate_alignment,
         tokenizer::Tokenizer,
     },
 };
@@ -21,7 +22,7 @@ use log::{debug, info};
 use ndarray::{Array2, Axis, s};
 
 pub struct WhisperBar {
-    atoms: Vec<Atom>,
+    pub atoms: Vec<Atom>,
 }
 
 #[derive(Debug)]
@@ -62,18 +63,60 @@ impl Whisper {
         ar: &AudioReader,
         on_new_bar: &mut dyn FnMut(WhisperBar),
     ) -> Result<()> {
-        let audio_frames = ar.len().min(16_000 * 30);
-        let audio_len_s = audio_frames as f32 / 16_000.0;
-        let samples = ar.get(0..audio_frames)?;
-        let start = Instant::now();
-        let encoded = self.encoder.encode(samples.to_vec())?;
-        let handles = self
-            .decoder
-            .register_encoded_audio_chunks([encoded].into_iter())?;
-        let sot_sequence = self.tokenizer.sot_sequence("en")?;
+        let start_time = Instant::now();
 
-        self.transcribe_chunks(&[(handles[0].clone(), sot_sequence)])?;
-        let duration = start.elapsed().as_secs_f32();
+        let mut chunk_start = 0.0;
+        let audio_frames = ar.len();
+
+        let mut last_tokens: Option<Vec<(i64, f32)>> = None;
+        loop {
+            let start_frames = (chunk_start * 16_000.) as usize;
+            let desired_end_frames = start_frames + (16_000 * 30);
+            let actual_end_frames = desired_end_frames.min(audio_frames);
+            let chunk_len = actual_end_frames - start_frames;
+            let chunk_len_s = chunk_len as f32 / 16_000.;
+
+            let samples = ar.get(start_frames..actual_end_frames)?;
+            let encoded = self.encoder.encode(samples.to_vec())?;
+            let handles = self
+                .decoder
+                .register_encoded_audio_chunks([encoded].into_iter())?;
+
+            let mut sot_sequence = vec![];
+            if let Some(last_tokens) = last_tokens {
+                sot_sequence.push(self.tokenizer.startofprev());
+                for i in 0..20 {
+                    sot_sequence.push(last_tokens[i + last_tokens.len() - 2 - 20].0);
+                }
+            }
+            sot_sequence.extend_from_slice(&self.tokenizer.sot_sequence("en")?);
+            println!("{}", self.tokenizer.decode(&sot_sequence)?);
+
+            let transcribed = self.transcribe_chunks(&[(handles[0].clone(), sot_sequence)])?;
+            let (seq, alignment_data) = transcribed.first().unwrap();
+            last_tokens = Some(seq.clone());
+            let alignment =
+                calculate_alignment(alignment_data.clone(), (chunk_len_s / 30. * 1500.) as usize)?;
+            let atoms = seq
+                .iter()
+                .zip(alignment.iter().zip(alignment.iter().skip(1)))
+                .map(|(&(token, conf), (start, end))| Atom {
+                    conf,
+                    conf_ts: 1.0,
+                    start: *start as f32 / 1500.,
+                    end: *end as f32 / 1500.,
+                    text: self.tokenizer.decode(&[token]).unwrap(),
+                })
+                .collect();
+            on_new_bar(WhisperBar { atoms });
+            chunk_start += alignment[alignment.len() - 2] as f32 / 1500. * 30.;
+            if chunk_len < 16_000 * 30 {
+                break;
+            }
+        }
+
+        let audio_len_s = audio_frames as f32 / 16_000.0;
+        let duration = start_time.elapsed().as_secs_f32();
         info!(
             "transcription of the first {audio_len_s:.2}s took {duration:.2}s ({:.2}x realtime)",
             audio_len_s / duration
@@ -92,7 +135,7 @@ impl Whisper {
         let start = Instant::now();
         let mut batch = Vec::new();
         for (chunk, prompt) in x {
-            let start_seq = self.decoder.register_sequence(&prompt);
+            let start_seq = self.decoder.register_sequence(prompt);
             batch.push((chunk.clone(), vec![start_seq]));
         }
 
@@ -145,7 +188,7 @@ impl Whisper {
 
                     let is_better_than_finished = match &finished[batch_idx] {
                         Some((finished, _)) => {
-                            Self::logprob_of_seq(&tokens) > Self::logprob_of_seq(&finished)
+                            Self::logprob_of_seq(&tokens) > Self::logprob_of_seq(finished)
                         }
                         None => true,
                     };
