@@ -267,12 +267,16 @@ function WaveformViewer({ source }: { source: MediaFile | null }) {
     return new WaveformRenderer(ctx);
   }, [canvasRef.current]);
 
-  useResizeObserver(canvasRef.current, (rect) => {
-    if (!canvasRef.current) return;
-    canvasRef.current.width = rect.width;
-    canvasRef.current.height = rect.height;
-    if (renderer) renderer.draw();
-  });
+  useResizeObserver(
+    canvasRef.current,
+    (rect) => {
+      if (!canvasRef.current) return;
+      canvasRef.current.width = rect.width;
+      canvasRef.current.height = rect.height;
+      if (renderer) renderer.draw();
+    },
+    [canvasRef.current, renderer],
+  );
 
   useEffect(() => {
     if (!renderer || !reader) return;

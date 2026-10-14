@@ -1,16 +1,18 @@
-import { useMemo, useLayoutEffect } from 'react';
+import { useMemo, useLayoutEffect, useCallback } from 'react';
 
 export function useResizeObserver(
   target: Element | undefined | null,
   callback: (rect: DOMRect) => void,
+  deps: unknown[],
 ) {
+  const memoizedCallback = useCallback(callback, deps);
   const observer = useMemo(
     () =>
       new ResizeObserver(async (entries) => {
         const rect = entries[0].target.getBoundingClientRect();
-        callback(rect);
+        memoizedCallback(rect);
       }),
-    [callback],
+    [memoizedCallback],
   );
 
   useLayoutEffect(() => {
