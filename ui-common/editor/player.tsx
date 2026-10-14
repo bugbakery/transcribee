@@ -271,11 +271,11 @@ function WaveformViewer({ source }: { source: MediaFile | null }) {
     canvasRef.current,
     (rect) => {
       if (!canvasRef.current) return;
-      canvasRef.current.width = rect.width;
-      canvasRef.current.height = rect.height;
+      canvasRef.current.width = rect.width * window.devicePixelRatio;
+      canvasRef.current.height = rect.height * window.devicePixelRatio;
       if (renderer) renderer.draw();
     },
-    [canvasRef.current, renderer],
+    [canvasRef.current, renderer, window.devicePixelRatio],
   );
 
   useEffect(() => {
@@ -286,9 +286,10 @@ function WaveformViewer({ source }: { source: MediaFile | null }) {
   useEffect(() => {
     if (!renderer) return;
     renderer.setColor(systemPrefersDark ? [1, 1, 1] : [0.2, 0.2, 0.2]);
-    renderer.setPos(pos);
+    renderer.setPos(pos * window.devicePixelRatio);
+    renderer.setScale(1.0 / window.devicePixelRatio);
     renderer.draw();
-  }, [reader, renderer, pos]);
+  }, [reader, renderer, pos, window.devicePixelRatio]);
 
   const onDrag = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
