@@ -1,9 +1,13 @@
+type RgbColor = [number, number, number];
+
 export class WaveformRenderer {
   gl: WebGL2RenderingContext;
   tex: WebGLTexture | undefined;
   vertices: number[][];
   program: WebGLProgram;
   uniformLocations: Record<string, WebGLUniformLocation>;
+  pos: number = 0;
+  color: RgbColor = [0, 0, 0];
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -84,8 +88,6 @@ export class WaveformRenderer {
     this.gl.enableVertexAttribArray(vertexPosition);
     this.gl.vertexAttribPointer(vertexPosition, 2, this.gl.FLOAT, false, 0, 0);
 
-    // TODO: handle resizing
-    // this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
     this.uniformLocations = {
       texture: this.getUniformLocation('texture'),
       translate_x: this.getUniformLocation('translate_x'),
@@ -96,10 +98,19 @@ export class WaveformRenderer {
     };
   }
 
-  draw(pos: number, color: [number, number, number]) {
+  setPos(pos: number) {
+    this.pos = pos;
+  }
+
+  setColor(color: RgbColor) {
+    this.color = color;
+  }
+
+  draw() {
     if (!this.tex) {
       return;
     }
+    this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
 
     this.gl.useProgram(this.program);
 
@@ -107,10 +118,10 @@ export class WaveformRenderer {
     this.gl.uniform1i(this.uniformLocations.texture, 0);
     this.useTexture(this.tex);
 
-    this.gl.uniform1i(this.uniformLocations.translate_x, pos);
-    this.gl.uniform1f(this.uniformLocations.waveform_height, 100.0);
-    this.gl.uniform1f(this.uniformLocations.waveform_center, 50.0);
-    this.gl.uniform3f(this.uniformLocations.waveform_color, ...color);
+    this.gl.uniform1i(this.uniformLocations.translate_x, this.pos);
+    this.gl.uniform1f(this.uniformLocations.waveform_height, this.gl.canvas.height);
+    this.gl.uniform1f(this.uniformLocations.waveform_center, this.gl.canvas.height / 2);
+    this.gl.uniform3f(this.uniformLocations.waveform_color, ...this.color);
     this.gl.uniform1f(this.uniformLocations.scale, 2);
 
     this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertices.length);

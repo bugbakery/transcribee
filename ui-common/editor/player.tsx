@@ -19,6 +19,7 @@ import { BiVideo, BiVideoOff } from 'react-icons/bi';
 import { WaveformRenderer } from './waveform_renderer';
 import { WaveformReader } from './waveform_reader';
 import { useMediaQuery } from '../utils/use_media_query';
+import { useResizeObserver } from '../utils/use_resize_observer';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -266,6 +267,13 @@ function WaveformViewer({ source }: { source: MediaFile | null }) {
     return new WaveformRenderer(ctx);
   }, [canvasRef.current]);
 
+  useResizeObserver(canvasRef.current, (rect) => {
+    if (!canvasRef.current) return;
+    canvasRef.current.width = rect.width;
+    canvasRef.current.height = rect.height;
+    if (renderer) renderer.draw();
+  });
+
   useEffect(() => {
     if (!renderer || !reader) return;
     renderer.setData(reader.getDataIter());
@@ -273,7 +281,9 @@ function WaveformViewer({ source }: { source: MediaFile | null }) {
 
   useEffect(() => {
     if (!renderer) return;
-    renderer.draw(pos, systemPrefersDark ? [1, 1, 1] : [0.2, 0.2, 0.2]);
+    renderer.setColor(systemPrefersDark ? [1, 1, 1] : [0.2, 0.2, 0.2]);
+    renderer.setPos(pos);
+    renderer.draw();
   }, [reader, renderer, pos]);
 
   const onDrag = useCallback(
@@ -338,8 +348,7 @@ function WaveformViewer({ source }: { source: MediaFile | null }) {
         setDragging(true);
       }}
       ref={canvasRef}
-      width="1000"
-      height="100"
+      className="w-full h-20"
     />
   );
 }
