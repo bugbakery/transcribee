@@ -96,7 +96,7 @@ export class WaveformRenderer {
     };
   }
 
-  draw(pos: number) {
+  draw(pos: number, color: [number, number, number]) {
     if (!this.tex) {
       return;
     }
@@ -110,7 +110,7 @@ export class WaveformRenderer {
     this.gl.uniform1i(this.uniformLocations.translate_x, pos);
     this.gl.uniform1f(this.uniformLocations.waveform_height, 100.0);
     this.gl.uniform1f(this.uniformLocations.waveform_center, 50.0);
-    this.gl.uniform3f(this.uniformLocations.waveform_color, 1.0, 1.0, 1.0);
+    this.gl.uniform3f(this.uniformLocations.waveform_color, ...color);
     this.gl.uniform1f(this.uniformLocations.scale, 2);
 
     this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertices.length);

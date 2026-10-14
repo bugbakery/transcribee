@@ -18,6 +18,7 @@ import { IconType } from 'react-icons';
 import { BiVideo, BiVideoOff } from 'react-icons/bi';
 import { WaveformRenderer } from './waveform_renderer';
 import { WaveformReader } from './waveform_reader';
+import { useMediaQuery } from '../utils/use_media_query';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -237,6 +238,7 @@ function WaveformViewer({ source }: { source: MediaFile | null }) {
   const [pos, setPos] = useState<number>(0);
   const [reader, setReader] = useState<WaveformReader | null>(null);
   const [dragging, setDragging] = useState(false);
+  const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
 
   useEffect(() => {
     if (!source) return;
@@ -271,7 +273,7 @@ function WaveformViewer({ source }: { source: MediaFile | null }) {
 
   useEffect(() => {
     if (!renderer) return;
-    renderer.draw(pos);
+    renderer.draw(pos, systemPrefersDark ? [1, 1, 1] : [0.2, 0.2, 0.2]);
   }, [reader, renderer, pos]);
 
   const onDrag = useCallback(
