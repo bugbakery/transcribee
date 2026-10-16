@@ -3,6 +3,7 @@ export type Text = {
   start?: number;
   end?: number;
   conf?: number;
+  conf_ts?: number;
 };
 
 export type Paragraph = {
