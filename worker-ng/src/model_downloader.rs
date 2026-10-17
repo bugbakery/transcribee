@@ -51,6 +51,16 @@ impl RemoteModel {
         Ok(local_path)
     }
 
+    pub fn ensure_download_or_mock(&self) -> Result<PathBuf> {
+        let local_path = self.local_path();
+        if !local_path.exists() {
+            let file = fs::File::create(&local_path)
+                .with_context(|| format!("Failed to create file '{local_path:?}'"))?;
+            file.set_len(self.size + 1)?; // +1 so that our code downloads on need
+        }
+        Ok(local_path)
+    }
+
     fn local_path(&self) -> PathBuf {
         let base = PathBuf::from(MODELS_BASE_PATH);
         base.join(self.name)

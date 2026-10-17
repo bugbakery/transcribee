@@ -4,22 +4,17 @@
 //! and feeding audio chunks to the backend. The interface between it and the backend is the
 //! WhisperDecoderBackend trait.
 
-use std::time::Instant;
-
-use crate::{
-    audio_reader::AudioReader,
-    whisper::{
-        decoder::{AlignmentData, TokenSequence, WhisperDecoderBackend},
-        decoder_onnx::{AudioChunkHandle, SequenceHandle, WhisperDecoderOrt},
-        encoder_onnx::WhisperEncoderOrt,
-        math::softmax,
-        timing::calculate_alignment,
-        tokenizer::Tokenizer,
-    },
-};
+use super::decoder::{AlignmentData, DynWhisperDecoderBackend, TokenSequence};
+use super::decoder::{AudioChunkHandle, SequenceHandle};
+use super::encoder::{DynWhisperEncoderBackend, compute_mel};
+use super::math::softmax;
+use super::timing::calculate_alignment;
+use super::tokenizer::Tokenizer;
+use crate::audio_reader::AudioReader;
 use anyhow::Result;
 use log::{debug, info};
 use ndarray::{Array2, Axis, s};
+use std::time::Instant;
 
 pub struct WhisperBar {
     pub atoms: Vec<Atom>,
@@ -35,8 +30,8 @@ pub struct Atom {
 }
 
 pub struct Whisper {
-    encoder: WhisperEncoderOrt,
-    decoder: WhisperDecoderOrt,
+    encoder: DynWhisperEncoderBackend,
+    decoder: DynWhisperDecoderBackend,
     tokenizer: Tokenizer,
 }
 impl Whisper {
@@ -44,10 +39,11 @@ impl Whisper {
     const BEAM_WIDTH: usize = 5;
     const MAX_LEN: usize = 448;
 
-    pub async fn new() -> Result<Self> {
+    pub async fn new(
+        encoder: DynWhisperEncoderBackend,
+        decoder: DynWhisperDecoderBackend,
+    ) -> Result<Self> {
         let start = Instant::now();
-        let encoder = WhisperEncoderOrt::new().await?;
-        let decoder = WhisperDecoderOrt::new().await?;
         let tokenizer = Tokenizer::new().await?;
         info!("Model loading took {:?}", start.elapsed());
 
@@ -77,10 +73,9 @@ impl Whisper {
             let chunk_len_s = chunk_len as f32 / 16_000.;
 
             let samples = ar.get(start_frames..actual_end_frames)?;
-            let encoded = self.encoder.encode(samples.to_vec())?;
-            let handles = self
-                .decoder
-                .register_encoded_audio_chunks([encoded].into_iter())?;
+            let mel = compute_mel(samples.to_vec())?;
+            let encoded = self.encoder.encode(mel)?;
+            let handles = self.decoder.register_encoded_audio_chunks(&[encoded])?;
 
             let mut sot_sequence = vec![];
             if let Some(last_tokens) = last_tokens {

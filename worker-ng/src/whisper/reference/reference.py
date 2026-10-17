@@ -1,11 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#   "torch", "openai-whisper", "numpy",
-# ]
-# ///
-
 # this file uses the official whisper python implementation to generate reference intermediate 
 # outputs to compare against in tests and check equivalence of the rust implementation at some
 # points. It is called by the rust testsuite and generates a bunch of files in the target/ directory
@@ -49,4 +41,6 @@ if __name__ == "__main__":
         for j, c in zip(tokenizer.all_language_tokens, tokenizer.all_language_codes)
     ]
     language_probs.sort(key=lambda x: x[1])
-    print(language_probs)
+
+    whisper.transcribe(model, audio, word_timestamps=True)
+    

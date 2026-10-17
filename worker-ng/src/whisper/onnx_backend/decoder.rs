@@ -1,71 +1,83 @@
-//! This file contains an ONNX backed implementation of the decoder backend defined in `decoder.rs`
+//! This file contains an ONNX backed implementation of the decoder backend defined in `../decoder.rs`
 
 use crate::whisper::{
-    decoder::{TokenSequence, WhisperDecoderBackend},
+    decoder::{AudioChunkHandle, SequenceHandle, TokenSequence, WhisperDecoderBackend},
     handle::Handle,
+    onnx_backend::Backend::{self, WebGPU},
 };
 use anyhow::{Context, Result, bail};
 use half::f16;
 use log::{debug, info};
 use ndarray::{Array1, Array2, Array3, s};
 use ort::{
-    ep,
-    memory::{AllocationDevice, Allocator, MemoryInfo},
+    memory::{Allocator, MemoryInfo},
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
 };
 use std::time::Instant;
 use std::{collections::HashMap, sync::Arc};
 
-pub type AudioChunkHandle = Handle;
+pub type OrtAudioChunkHandle = Handle;
 #[derive(Clone)]
-pub struct SequenceHandle {
+pub struct OrtSequenceHandle {
     tokens: TokenSequence,
     handle: Handle,
     last_handle: Option<Handle>,
 }
 
 pub struct WhisperDecoderOrt {
-    cross_kv: CrossKV,
     model: Session,
+    backend: Backend,
+    cross_kv: CrossKV,
     kv_cache: KvCache,
 }
 impl WhisperDecoderOrt {
-    pub async fn new() -> Result<Self> {
+    pub fn new(backend: Backend, model_folder: &str) -> Result<Self> {
+        let onnx_bytes = if matches!(backend, WebGPU) {
+            include_bytes!("whisper_large_v3_turbo_decoder.onnx") as &[u8]
+        } else {
+            include_bytes!("whisper_large_v3_turbo_decoder_non_ms_attn.onnx") as &[u8]
+        };
         let model = Session::builder()?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
-            .with_execution_providers([ep::WebGPU::default().build()])
+            .with_execution_providers([backend.to_ep()])
             .unwrap()
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
-                "./src/whisper",
+                model_folder,
             )
             .unwrap()
-            .commit_from_memory(include_bytes!("whisper_large_v3_turbo_decoder.onnx"))?;
+            .commit_from_memory(onnx_bytes)?;
 
         Ok(Self {
             model,
-            cross_kv: CrossKV::new()?,
+            cross_kv: CrossKV::new(backend, model_folder)?,
             kv_cache: KvCache::default(),
+            backend,
         })
     }
 }
 
-impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderOrt {
+impl WhisperDecoderBackend for WhisperDecoderOrt {
     fn register_encoded_audio_chunks(
         &mut self,
-        chunks: impl ExactSizeIterator<Item = Array2<f32>>,
+        chunks: &[Array2<f32>],
     ) -> Result<Vec<AudioChunkHandle>> {
-        self.cross_kv.register_encoded_audio_chunks(chunks)
+        Ok(self
+            .cross_kv
+            .register_encoded_audio_chunks(chunks)?
+            .into_iter()
+            .map(|handle| AudioChunkHandle::downcast(handle))
+            .collect())
     }
 
     fn register_sequence(&mut self, tokens: &[i64]) -> SequenceHandle {
-        SequenceHandle {
+        SequenceHandle::downcast(OrtSequenceHandle {
             tokens: tokens.iter().map(|token: &i64| (*token, 1.0)).collect(),
             handle: Handle::new(),
             last_handle: None,
-        }
+        })
     }
 
     fn append_token_to_sequence(
@@ -74,6 +86,7 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
         token: i64,
         conf: f32,
     ) -> Result<SequenceHandle> {
+        let seq = seq.upcast::<OrtSequenceHandle>();
         if self
             .kv_cache
             .get_entry_len(&seq.handle)
@@ -86,21 +99,21 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
         }
         let mut tokens = seq.tokens.clone();
         tokens.push((token, conf));
-        Ok(SequenceHandle {
+        Ok(SequenceHandle::downcast(OrtSequenceHandle {
             tokens,
             handle: Handle::new(),
             last_handle: Some(seq.handle.clone()),
-        })
+        }))
     }
 
     fn get_tokens(&self, seq: &SequenceHandle) -> Result<TokenSequence> {
-        Ok(seq.tokens.clone())
+        Ok(seq.upcast::<OrtSequenceHandle>().tokens.clone())
     }
 
     fn get_alignment_data(&self, seq: &SequenceHandle) -> Result<Array3<f32>> {
         let raw = self
             .kv_cache
-            .get_entry_alignment_data(seq.last_handle.as_ref().unwrap())
+            .get_entry_alignment_data(seq.upcast::<OrtSequenceHandle>().last_handle.as_ref().unwrap())
             .context("The sequence prodived to get_alignment_data() is not found in the KV cache (was not last passed to forward())")?;
         let heads = raw[0].shape()[0];
         let tokens = raw.iter().map(|x| x.shape()[1]).sum();
@@ -122,6 +135,16 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
     }
 
     fn forward(&mut self, inputs: &[(AudioChunkHandle, SequenceHandle)]) -> Result<Array2<f32>> {
+        let inputs: Vec<(OrtAudioChunkHandle, OrtSequenceHandle)> = inputs
+            .into_iter()
+            .map(|(a, s)| {
+                (
+                    a.upcast::<OrtAudioChunkHandle>().clone(),
+                    s.upcast::<OrtSequenceHandle>().clone(),
+                )
+            })
+            .collect();
+
         let start_forward_fn: Instant = Instant::now();
         let batch_size = inputs.len();
 
@@ -136,7 +159,7 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
                 .is_none()
         });
         if is_prefill {
-            KvCache::add_prefill_to_ort_bindings(&mut binding)?;
+            KvCache::add_prefill_to_ort_bindings(&mut binding, batch_size)?;
 
             let max_sequence_len = inputs
                 .iter()
@@ -152,7 +175,7 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
             binding.bind_input("input_ids", &Tensor::from_array(input_ids)?)?;
         } else {
             let mut input_ids: Vec<i64> = vec![];
-            for (_, seq) in inputs {
+            for (_, seq) in &inputs {
                 if self.kv_cache.get_entry_len(seq.last_handle.as_ref().unwrap()).context("seq is not known to the kv cache so it cannot participate in a non-prefill batch")? != seq.tokens.len() - 1 {
                     bail!("seq would need more than one token added. this is unsupported in non-prefill batches");
                 }
@@ -166,6 +189,7 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
 
             self.kv_cache.add_self_to_ort_binding(
                 &mut binding,
+                &self.model.allocator().memory_info(),
                 inputs.iter().map(|(_, s)| s.last_handle.as_ref().unwrap()),
             )?;
         }
@@ -209,27 +233,31 @@ impl WhisperDecoderBackend<AudioChunkHandle, SequenceHandle> for WhisperDecoderO
         debug!("forward fn: {:?}", start_forward_fn.elapsed());
         Ok(token_probs)
     }
+
+    fn name(&self) -> String {
+        format!("ONNX Runtime Decoder {}", self.backend)
+    }
 }
 
 pub struct CrossKV {
     model: Session,
     tensors: HashMap<String, Value<DynValueTypeMarker>>,
-    registered_audio_chunks: Vec<AudioChunkHandle>,
+    registered_audio_chunks: Vec<OrtAudioChunkHandle>,
 }
 impl CrossKV {
-    pub fn new() -> Result<Self> {
+    pub fn new(backend: Backend, model_folder: &str) -> Result<Self> {
         let model = Session::builder()?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
-            .with_execution_providers([ep::WebGPU::default().build()])
+            .with_execution_providers([backend.to_ep()])
             .unwrap()
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
-                "./src/whisper",
+                model_folder,
             )
             .unwrap()
             .commit_from_memory(include_bytes!(
-                "whisper_large_v3_turbo_decoder_cross_kv_cache_prefill.onnx"
+                "whisper_large_v3_turbo_decoder_cross_kv_prefill.onnx"
             ))?;
 
         let tensors = HashMap::new();
@@ -244,8 +272,8 @@ impl CrossKV {
 
     fn register_encoded_audio_chunks(
         &mut self,
-        chunks: impl ExactSizeIterator<Item = Array2<f32>>,
-    ) -> Result<Vec<AudioChunkHandle>> {
+        chunks: &[Array2<f32>],
+    ) -> Result<Vec<OrtAudioChunkHandle>> {
         let start = Instant::now();
         let batch_size = self.registered_audio_chunks.len() + chunks.len();
         let mut encoder_hidden_states = Array3::zeros((batch_size, 1500, 1280));
@@ -253,7 +281,7 @@ impl CrossKV {
         self.registered_audio_chunks = Vec::new();
         for data in chunks {
             encoder_hidden_states.slice_mut(s![i, .., ..]).assign(&data);
-            let handle = AudioChunkHandle::new();
+            let handle = OrtAudioChunkHandle::new();
             self.registered_audio_chunks.push(handle);
             i += 1;
         }
@@ -263,12 +291,6 @@ impl CrossKV {
             "encoder_hidden_states",
             &Tensor::from_array(encoder_hidden_states)?,
         )?;
-        let memory_info = MemoryInfo::new(
-            AllocationDevice::WEBGPU_BUFFER,
-            0,
-            ort::memory::AllocatorType::Device,
-            ort::memory::MemoryType::Default,
-        )?;
         let output_names: Vec<String> = self
             .model
             .outputs()
@@ -276,7 +298,7 @@ impl CrossKV {
             .map(|o| o.name().to_string())
             .collect();
         for output in &output_names {
-            binding.bind_output_to_device(output, &memory_info)?;
+            binding.bind_output_to_device(output, self.model.allocator().memory_info())?;
         }
 
         let mut outputs = self
@@ -296,7 +318,7 @@ impl CrossKV {
     fn add_self_to_binding<'a>(
         &self,
         binding: &mut IoBinding,
-        audio_chunks: impl ExactSizeIterator<Item = &'a AudioChunkHandle>,
+        audio_chunks: impl ExactSizeIterator<Item = &'a OrtAudioChunkHandle>,
     ) -> Result<()> {
         for (name, value) in &self.tensors {
             binding.bind_input(name, value)?;
@@ -362,13 +384,8 @@ impl KvCache {
         })
     }
 
-    pub fn add_prefill_to_ort_bindings(binding: &mut IoBinding) -> Result<()> {
-        let memory_info = MemoryInfo::new(
-            AllocationDevice::WEBGPU_BUFFER,
-            0,
-            ort::memory::AllocatorType::Device,
-            ort::memory::MemoryType::Default,
-        )?;
+    pub fn add_prefill_to_ort_bindings(binding: &mut IoBinding, batch_size: usize) -> Result<()> {
+        let memory_info = MemoryInfo::default();
         for i in 0..4 {
             for name in [
                 format!("block.{i}.attn.key"),
@@ -376,18 +393,18 @@ impl KvCache {
             ] {
                 binding.bind_input(
                     format!("past.{name}"),
-                    &Tensor::<f16>::new(&Allocator::default(), [0usize, 20, 0, 64])?,
+                    &Tensor::<f16>::new(&Allocator::default(), [1usize, 20, 0, 64])?,
                 )?;
                 binding.bind_output_to_device(format!("present.{name}"), &memory_info)?;
             }
         }
         binding.bind_input(
             "self_kv_cache_lengths",
-            &Tensor::from_array(Array1::from_vec(vec![0i64]))?,
+            &Tensor::from_array(Array1::from_vec(vec![0i64; batch_size]))?,
         )?;
         binding.bind_input(
             "self_kv_cache_indices",
-            &Tensor::from_array(Array1::from_vec(vec![0i64]))?,
+            &Tensor::from_array(Array1::from_vec(vec![0i64; batch_size]))?,
         )?;
 
         Ok(())
@@ -396,17 +413,12 @@ impl KvCache {
     pub fn add_self_to_ort_binding<'a>(
         &self,
         binding: &mut IoBinding,
+        memory_info: &MemoryInfo,
         last_handles: impl Iterator<Item = &'a Handle>,
     ) -> Result<()> {
-        let memory_info = MemoryInfo::new(
-            AllocationDevice::WEBGPU_BUFFER,
-            0,
-            ort::memory::AllocatorType::Device,
-            ort::memory::MemoryType::CPUOutput,
-        )?;
         for (k, v) in self.tensors.iter() {
             binding.bind_input(format!("past.{k}"), v)?;
-            binding.bind_output_to_device(format!("present.{k}"), &memory_info)?;
+            binding.bind_output_to_device(format!("present.{k}"), memory_info)?;
         }
         let input_map = Array1::from_iter(self.get_input_map(last_handles));
         binding.bind_input("self_kv_cache_indices", &Tensor::from_array(input_map)?)?;
