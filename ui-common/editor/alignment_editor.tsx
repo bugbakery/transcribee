@@ -227,8 +227,12 @@ export function AlignmentEditor({
               style={{
                 left: secsToPixels(p.start) - pos,
                 width: secsToPixels(p.end - p.start),
-                background: `${p.speaker !== null ? speakerColors[p.speaker] : '#888888'}44`,
-                borderColor: `${p.speaker !== null ? speakerColors[p.speaker] : '#888888'}88`,
+                background: `alpha(from ${
+                  p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
+                } / 30%)`,
+                borderColor: `alpha(from ${
+                  p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
+                } / 70%)`,
                 borderWidth: 2,
                 borderRadius: 4,
               }}
