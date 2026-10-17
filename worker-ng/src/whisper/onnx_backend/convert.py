@@ -155,6 +155,7 @@ class OnnxModelBuilder:
                     break
             else:
                 raise Exception("colud not find permutation for array")
+            print(SafetensorsFile.mingle_name(pytorch_name), perm)
 
             entry = self.safetensors_file.get_tensor_info(pytorch_name)
             self.initializers.append(

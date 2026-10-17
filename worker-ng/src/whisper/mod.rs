@@ -4,10 +4,12 @@ pub mod encoder;
 
 mod handle;
 mod math;
-mod reference;
 mod timing;
 mod tokenizer;
 
 mod burn_backend;
 mod mlx_backend;
 mod onnx_backend;
+
+#[cfg(test)]
+mod reference;

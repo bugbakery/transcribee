@@ -3,7 +3,6 @@ use std::time::Instant;
 use anyhow::{Ok, Result};
 use clap::{Arg, Command};
 use indicatif::ProgressBar;
-use mlx_sys::{mlx_metal_start_capture, mlx_metal_stop_capture};
 use ndarray::Array2;
 
 use crate::{

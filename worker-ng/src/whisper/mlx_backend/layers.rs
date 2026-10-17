@@ -117,14 +117,15 @@ impl WeightlessMLXModel {
     }
 
     pub fn residual_attention_block(&mut self, name: &str, x: Array, n_head: usize) -> Array {
-        let dtype = x.dtype();
         let ln = self.layer_norm(&format!("{name}.self_attn_layer_norm"), x.clone());
         let x = x + self.multi_head_attention(&format!("{name}.self_attn"), ln, n_head);
+
         let mlp = self.layer_norm(&format!("{name}.final_layer_norm"), x.clone());
         let mlp = self.linear(&format!("{name}.fc1"), mlp);
         let mlp = Self::gelu(mlp);
         let mlp = self.linear(&format!("{name}.fc2"), mlp);
-        x + mlp
+        let x = x + mlp;
+        x
     }
 
     pub fn linear(&mut self, name: &str, x: Array) -> Array {

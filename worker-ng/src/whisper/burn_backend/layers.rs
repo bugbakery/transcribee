@@ -1,5 +1,6 @@
 use crate::safetensors_reader::SafetensorsFile;
 use burn_tensor::{
+    DType::{F16, F32},
     Device, Tensor, TensorCreationOptions,
     activation::{gelu, softmax},
     module::{attention, conv1d, layer_norm, linear},
@@ -106,11 +107,12 @@ impl WeightlessBurnModel {
 
     pub fn layer_norm(&mut self, name: &str, x: Tensor<3>) -> Tensor<3> {
         layer_norm(
-            x,
-            self.initializer(&format!("{name}.weight")),
-            Some(self.initializer(&format!("{name}.bias"))),
+            x.cast(F32),
+            self.initializer(&format!("{name}.weight")).cast(F32),
+            Some(self.initializer(&format!("{name}.bias")).cast(F32)),
             1e-5,
         )
+        .cast(F16)
     }
 
     pub fn residual_attention_block(

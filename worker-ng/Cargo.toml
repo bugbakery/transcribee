@@ -15,6 +15,8 @@ burn-tensor = { version = "0.22.0", default-features = false, features = [
     "rayon",
     "apple-amx",
     "fusion",
+    "autotune",
+    "tracing",
 ] }
 clap = "4.6.7"
 earshot = "1.2.2"
@@ -40,3 +42,6 @@ reqwest = { version = "0.13.5", features = ["stream"] }
 stft-rs = "0.6.0"
 tokenizers = "0.23.2"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros"] }
+
+[dev-dependencies]
+npyz = "0.9.1"

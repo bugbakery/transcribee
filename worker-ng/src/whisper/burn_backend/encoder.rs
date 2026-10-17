@@ -74,7 +74,7 @@ impl WhisperEncoderBackend for WhisperEncoderBurn {
         info!("encoder took: {:?}", start.elapsed());
 
         let output = output.try_to_vec_as()?;
-        let output_arr = Array2::from_shape_vec([1280, 1500], output)?;
+        let output_arr = Array2::from_shape_vec([1500, 1280], output)?;
 
         Ok(output_arr)
     }

@@ -258,14 +258,3 @@ fn atoms_to_text(atoms: &[Atom]) -> String {
     }
     to_return
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_transcribe() {
-        let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
-        let mut whisper = Whisper::new().await.unwrap();
-    }
-}

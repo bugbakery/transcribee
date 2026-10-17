@@ -37,6 +37,7 @@ impl WhisperEncoderMlx {
         let mut x = x + self
             .model
             .initializer(&format!("{name}.embed_positions.weight"));
+
         for i in 0..32 {
             x = self
                 .model
@@ -65,7 +66,7 @@ impl WhisperEncoderBackend for WhisperEncoderMlx {
         });
         info!("encoder took: {:?}", start.elapsed());
 
-        let output_arr = Array2::from_shape_vec([1280, 1500], output)?;
+        let output_arr = Array2::from_shape_vec([1500, 1280], output)?;
         Ok(output_arr)
     }
 }

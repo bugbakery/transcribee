@@ -69,11 +69,12 @@ impl SafetensorsFile {
         let info = self
             .info(name)
             .with_context(|| format!("no tensor named {name}"))?;
-        let bytes = vec![0u8; info.length as usize];
+        let mut bytes = vec![0u8; info.length as usize];
         let offset = info.offset;
         let dtype = info.dtype.as_burn_dtype();
-        let shape = info.shape.clone();
+        let shape: Vec<i32> = info.shape.iter().map(|x| *x as i32).collect();
         self.file.seek(Start(offset))?;
+        self.file.read_exact(&mut bytes)?;
         Ok(burn_tensor::TensorData::from_bytes_vec(bytes, shape, dtype))
     }
 
@@ -81,11 +82,12 @@ impl SafetensorsFile {
         let info = self
             .info(name)
             .with_context(|| format!("no tensor named {name}"))?;
-        let bytes = vec![0u8; info.length as usize];
+        let mut bytes = vec![0u8; info.length as usize];
         let offset = info.offset;
         let dtype = info.dtype.as_mlx_dtype();
         let shape: Vec<i32> = info.shape.iter().map(|x| *x as i32).collect();
         self.file.seek(Start(offset))?;
+        self.file.read_exact(&mut bytes)?;
         // TODO: is this use after free?
         Ok(unsafe { mlx_rs::Array::from_raw_data(bytes.as_ptr() as *const c_void, &shape, dtype) })
     }

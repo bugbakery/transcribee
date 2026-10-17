@@ -30,11 +30,12 @@ pub fn get_backends(
     #[rustfmt::skip]
     let backends: Vec<(&str, Box<dyn Fn() -> Result<DynWhisperEncoderBackend>>)> = vec![
         b!("MLX GPU", WhisperEncoderMlx::new(mlx_rs::DeviceType::Gpu, "./target/whisper_large_v3_turbo.safetensors")),
-        b!("MLX CPU", WhisperEncoderMlx::new(mlx_rs::DeviceType::Cpu, "./target/whisper_large_v3_turbo.safetensors")),
         b!("Burn Metal", WhisperEncoderBurn::new(burn_tensor::Device::metal(Default::default()), "./target/whisper_large_v3_turbo.safetensors")),
         b!("Burn WebGPU", WhisperEncoderBurn::new(burn_tensor::Device::wgpu(Default::default()), "./target/whisper_large_v3_turbo.safetensors")),
-        b!("Burn flex (CPU)", WhisperEncoderBurn::new(burn_tensor::Device::flex(), "./target/whisper_large_v3_turbo.safetensors")),
         b!("ONNX Runtime WebGPU", WhisperEncoderOrt::new(WebGPU, "./target/")),
+
+        b!("MLX CPU", WhisperEncoderMlx::new(mlx_rs::DeviceType::Cpu, "./target/whisper_large_v3_turbo.safetensors")),
+        b!("Burn flex (CPU)", WhisperEncoderBurn::new(burn_tensor::Device::flex(), "./target/whisper_large_v3_turbo.safetensors")),
         b!("ONNX Runtime CPU", WhisperEncoderOrt::new(CPU, "./target/")),
     ];
     backends
@@ -75,7 +76,7 @@ pub fn compute_mel(mut samples: Vec<f32>) -> Result<Array2<f32>> {
     for (bin, mut row) in result.axis_iter_mut(Axis(1)).enumerate() {
         for (frame, col) in row.iter_mut().enumerate() {
             if frame < mel_spec.num_frames {
-                *col = mel_spec.get(frame, bin).max(1e-10).log10();
+                *col = mel_spec.get(bin, frame).max(1e-10).log10();
             }
         }
     }
@@ -90,29 +91,43 @@ pub fn compute_mel(mut samples: Vec<f32>) -> Result<Array2<f32>> {
 mod test {
     use super::*;
     use crate::{
+        WHISPER_LARGE_V3_TURBO,
         audio_reader::AudioReader,
-        util::{meanclose, read_ndarray_from_file, write_ndarray_to_file},
+        whisper::reference::{
+            assert_similiar_to_reference, get_reference_data, get_reference_folder, is_similiar,
+            write_ndarray_to_file,
+        },
     };
-
-    #[tokio::test]
-    async fn test_encoder() {
-        let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
-        let len = ar.len();
-        let mut encoder = WhisperEncoderOrt::new().await.unwrap();
-        let result = encoder.encode(ar.get(0..len).unwrap().to_vec()).unwrap();
-        dbg!(result.shape());
-        write_ndarray_to_file("target/rs_encoded.f32", &result).unwrap();
-        let reference = read_ndarray_from_file("target/encoded.f32", result.shape()).unwrap();
-        assert!(meanclose(result, reference, 0.1))
-    }
 
     #[tokio::test]
     async fn test_mel() {
         let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
-        let len = ar.len();
-        let result = WhisperEncoderOrt::get_mel(ar.get(0..len).unwrap().to_vec()).unwrap();
-        write_ndarray_to_file("target/rs_mel.f32", &result).unwrap();
-        let reference = read_ndarray_from_file("target/mel.f32", result.shape()).unwrap();
-        assert!(meanclose(result, reference, 0.01))
+        let mel = compute_mel(ar.get(0..ar.len()).unwrap().to_vec()).unwrap();
+        assert_similiar_to_reference("mel.npy", mel.into_dyn(), 0.0002);
+    }
+
+    #[tokio::test]
+    async fn test_backends() {
+        WHISPER_LARGE_V3_TURBO
+            .ensure_downloaded(|_, _| {})
+            .await
+            .unwrap();
+        let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
+        let mel = compute_mel(ar.get(0..ar.len()).unwrap().to_vec()).unwrap();
+        for (name, backend) in get_backends("") {
+            println!("\ntesting backend {name}");
+            let mut backend = backend().unwrap();
+            let encoded = backend.encode(mel.clone()).unwrap();
+            let reference = get_reference_data("encoded.npy");
+            let is_similiar = is_similiar(reference.clone(), encoded.clone().into_dyn(), 0.05);
+            let folder = get_reference_folder();
+            write_ndarray_to_file(
+                &folder.join(format!("encoded_{name}.npy")),
+                encoded.into_dyn(),
+            );
+            if !is_similiar {
+                println!("backend {name} is not similiar to encoder reference\n")
+            }
+        }
     }
 }
