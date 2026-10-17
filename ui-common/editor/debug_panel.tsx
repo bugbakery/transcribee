@@ -21,6 +21,11 @@ export function DebugPanel({ editor }: { editor: Editor }) {
     };
   }, [editor]);
 
+  useEffect(() => {
+    // @ts-expect-error this is only for debugging
+    window.editor = editor;
+  }, [editor]);
+
   return (
     <div className="fixed bottom-0 left-0 right-0 h-96 p-8">
       <div className="w-full h-full p-4 text-sm bg-white dark:bg-black border-black dark:border-neutral-200 border-2 shadow-brutal rounded-lg overflow-auto">
