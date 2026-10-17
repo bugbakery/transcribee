@@ -130,8 +130,6 @@ export class WaveformRenderer {
     this.gl.uniform1f(this.uniformLocations.scale, this.scale);
 
     this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertices.length);
-    this.gl.flush();
-    this.gl.finish();
   }
 
   setData(dataIter: Iterable<number>) {
