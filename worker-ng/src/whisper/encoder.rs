@@ -90,14 +90,8 @@ pub fn compute_mel(mut samples: Vec<f32>) -> Result<Array2<f32>> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        WHISPER_LARGE_V3_TURBO,
-        audio_reader::AudioReader,
-        whisper::reference::{
-            assert_similiar_to_reference, get_reference_data, get_reference_folder, is_similiar,
-            write_ndarray_to_file,
-        },
-    };
+    use crate::audio_reader::AudioReader;
+    use crate::whisper::reference::assert_similiar_to_reference;
 
     #[tokio::test]
     async fn test_mel() {
@@ -106,18 +100,24 @@ mod test {
         assert_similiar_to_reference("mel.npy", mel.into_dyn(), 0.0002);
     }
 
+    #[cfg(feature = "slow-tests")]
     #[tokio::test]
     async fn test_backends() {
-        WHISPER_LARGE_V3_TURBO
+        use crate::whisper::reference::{
+            get_reference_data, get_reference_folder, is_similiar, write_ndarray_to_file,
+        };
+        crate::WHISPER_LARGE_V3_TURBO
             .ensure_downloaded(|_, _| {})
             .await
             .unwrap();
-        let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
-        let mel = compute_mel(ar.get(0..ar.len()).unwrap().to_vec()).unwrap();
+        let mel = get_reference_data("mel.npy");
+        let mut fail = false;
         for (name, backend) in get_backends("") {
             println!("\ntesting backend {name}");
             let mut backend = backend().unwrap();
-            let encoded = backend.encode(mel.clone()).unwrap();
+            let encoded = backend
+                .encode(mel.clone().into_dimensionality().unwrap())
+                .unwrap();
             let reference = get_reference_data("encoded.npy");
             let is_similiar = is_similiar(reference.clone(), encoded.clone().into_dyn(), 0.05);
             let folder = get_reference_folder();
@@ -125,9 +125,13 @@ mod test {
                 &folder.join(format!("encoded_{name}.npy")),
                 encoded.into_dyn(),
             );
-            if !is_similiar {
-                println!("backend {name} is not similiar to encoder reference\n")
+            if is_similiar {
+                println!("-> PASS: backend {name} is similiar to encoder reference\n");
+            } else {
+                println!("-> FAIL: backend {name} is not similiar to encoder reference\n");
+                fail = true;
             }
         }
+        assert!(!fail);
     }
 }

@@ -37,7 +37,7 @@ PROJECT_FILE_TYPES = {
                 "cargo clippy --all-features --fix --allow-dirty --allow-staged "
                 "&& cargo clippy --all-features -- -D warnings"
             ),
-            "test": "cargo test --all-features",
+            "test": "cargo test",
         },
     },
 }
