@@ -16,6 +16,7 @@ import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
 import { BiVideo, BiVideoOff } from 'react-icons/bi';
+import { AlignmentEditor } from './alignment_editor';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -24,8 +25,13 @@ const SKIP_SHORTCUT_SEC = 3;
 let lastTabPressTs = 0;
 
 export function splitAndSortMediaFiles(mediaFiles: MediaFile[]) {
-  const videoFiles = mediaFiles.filter((media) => media.tags.includes('video'));
-  const audioFiles = mediaFiles.filter((media) => !media.tags.includes('video'));
+  const videoFiles = mediaFiles.filter(
+    (media) => !media.tags.includes('waveform') && media.tags.includes('video'),
+  );
+  const audioFiles = mediaFiles.filter(
+    (media) => !media.tags.includes('waveform') && !media.tags.includes('video'),
+  );
+  const waveformFiles = mediaFiles.filter((media) => media.tags.includes('waveform'));
 
   const mapFile = (media: (typeof mediaFiles)[0]) => {
     return {
@@ -42,6 +48,7 @@ export function splitAndSortMediaFiles(mediaFiles: MediaFile[]) {
     videoSources: sortMediaFiles(mappedVideoFiles),
     audioSources: sortMediaFiles(mappedAudioFiles),
     hasVideo: videoFiles.length > 0,
+    waveformSource: waveformFiles[0],
   };
 }
 
@@ -56,7 +63,7 @@ export function PlayerBar({
   onShowVideo?: (show: boolean) => void;
   mediaFiles: MediaFile[];
 }) {
-  const { videoSources, audioSources, hasVideo } = useMemo(
+  const { videoSources, audioSources, hasVideo, waveformSource } = useMemo(
     () => splitAndSortMediaFiles(mediaFiles),
     [mediaFiles],
   );
@@ -171,53 +178,68 @@ export function PlayerBar({
           }
         `}
       />
-
-      <div
-        className={clsx(
-          'fixed bottom-0 inset-x-6 mx-auto z-20',
-          'max-w-screen-xl height-8 my-2',
-          'flex',
-          'p-2',
-          'bg-white dark:bg-neutral-900',
-          'border-black dark:border-neutral-200',
-          'border-2',
-          'shadow-brutal',
-          'shadow-slate-400 dark:shadow-neutral-600',
-          'rounded-lg',
-          'items-center',
-        )}
-      >
-        <IconButton
-          icon={ImBackward2}
-          iconClassName="-translate-x-0.5"
-          label="backwards"
-          {...backwardLongPressProps}
-        />
-        <PlayButton playing={audio.playing} buffering={audio.buffering} onClick={togglePlaying} />
-        <IconButton
-          icon={ImBackward2}
-          iconClassName="translate-x-0.5 rotate-180"
-          label="forwards"
-          {...forwardLongPressProps}
-        />
-
-        <div className="pl-4 flex-grow">
-          <SeekBar
-            time={audio.playtime}
-            duration={audio.duration}
-            onSeek={onSeek}
-            editor={editor}
-          />
+      <div className={clsx('fixed bottom-0 inset-x-6 mx-auto z-20')}>
+        <div
+          className={clsx(
+            'mb-1',
+            'p-2',
+            'bg-white dark:bg-neutral-900',
+            'border-black dark:border-neutral-200',
+            'border-2',
+            'shadow-brutal',
+            'shadow-slate-400 dark:shadow-neutral-600',
+            'rounded-lg',
+          )}
+        >
+          <AlignmentEditor waveformSource={waveformSource} editor={editor} time={audio.playtime} />
         </div>
 
-        <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
-        {hasVideo && (
+        <div
+          className={clsx(
+            'height-8 mb-2',
+            'flex',
+            'p-2',
+            'bg-white dark:bg-neutral-900',
+            'border-black dark:border-neutral-200',
+            'border-2',
+            'shadow-brutal',
+            'shadow-slate-400 dark:shadow-neutral-600',
+            'rounded-lg',
+            'items-center',
+          )}
+        >
           <IconButton
-            icon={reallyShowVideo ? BiVideoOff : BiVideo}
-            label={reallyShowVideo ? 'disable video preview' : 'enable video preview'}
-            onClick={() => setShowVideo(!reallyShowVideo)}
+            icon={ImBackward2}
+            iconClassName="-translate-x-0.5"
+            label="backwards"
+            {...backwardLongPressProps}
           />
-        )}
+          <PlayButton playing={audio.playing} buffering={audio.buffering} onClick={togglePlaying} />
+          <IconButton
+            icon={ImBackward2}
+            iconClassName="translate-x-0.5 rotate-180"
+            label="forwards"
+            {...forwardLongPressProps}
+          />
+
+          <div className="pl-4 flex-grow">
+            <SeekBar
+              time={audio.playtime}
+              duration={audio.duration}
+              onSeek={onSeek}
+              editor={editor}
+            />
+          </div>
+
+          <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
+          {hasVideo && (
+            <IconButton
+              icon={reallyShowVideo ? BiVideoOff : BiVideo}
+              label={reallyShowVideo ? 'disable video preview' : 'enable video preview'}
+              onClick={() => setShowVideo(!reallyShowVideo)}
+            />
+          )}
+        </div>
       </div>
     </>
   );
