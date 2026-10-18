@@ -69,7 +69,8 @@ export function AlignmentEditor({
 }) {
   const [pos, setPos] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const samplesPerPixel = 125;
+  const scale = 0.5;
+  const samplesPerPixel = 125 / scale;
   const speakerColors = useContext(SpeakerColorsContext);
   const [dragHandle, setDragHandle] = useState<DragHandle | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>();
@@ -198,17 +199,28 @@ export function AlignmentEditor({
           // handle temporary adjustments while dragging
           if (dragHandle && mousePos && dragHandle.paragraph.idx == p.idx) {
             dragging = true;
+            const offset = pixelsToSecs(mousePos.x - dragHandle.startX);
             switch (dragHandle.type) {
               case 'paragraphStart':
                 p = {
                   ...p,
-                  start: p.start + pixelsToSecs(mousePos.x - dragHandle.startX),
+                  start: p.start + offset,
+                  children: p.children.map((c) => ({
+                    ...c,
+                    start: c.start + offset,
+                    end: c.end + offset,
+                  })),
                 };
                 break;
               case 'paragraphEnd':
                 p = {
                   ...p,
                   end: p.end + pixelsToSecs(mousePos.x - dragHandle.startX),
+                  children: p.children.map((c) => ({
+                    ...c,
+                    start: c.start + offset,
+                    end: c.end + offset,
+                  })),
                 };
                 break;
               case 'paragraph':
@@ -216,6 +228,11 @@ export function AlignmentEditor({
                   ...p,
                   start: p.start + pixelsToSecs(mousePos.x - dragHandle.startX),
                   end: p.end + pixelsToSecs(mousePos.x - dragHandle.startX),
+                  children: p.children.map((c) => ({
+                    ...c,
+                    start: c.start + offset,
+                    end: c.end + offset,
+                  })),
                 };
                 break;
             }
@@ -226,18 +243,16 @@ export function AlignmentEditor({
               key={p.idx}
               style={{
                 left: secsToPixels(p.start) - pos,
-                width: secsToPixels(p.end - p.start),
+                width: secsToPixels(p.end - p.start) + 4,
                 background: `alpha(from ${
                   p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
                 } / 30%)`,
                 borderColor: `alpha(from ${
                   p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
                 } / 70%)`,
-                borderWidth: 2,
-                borderRadius: 4,
               }}
               className={clsx(
-                'min-h-5 absolute text-xs cursor-move select-none',
+                'min-h-8 absolute text-xs cursor-move select-none border-2 rounded',
                 dragging && 'z-10',
               )}
               onMouseDown={(e) => {
@@ -248,26 +263,37 @@ export function AlignmentEditor({
                 });
               }}
             >
-              <div className="relative">
-                <div className="px-1">{p.children.map((t) => t.text).join('')}</div>
-                <ResizeHandle
-                  type="paragraphStart"
-                  paragraph={p}
-                  dragHandle={dragHandle}
-                  onDragHandleChange={setDragHandle}
-                />
-                <ResizeHandle
-                  type="paragraphEnd"
-                  paragraph={p}
-                  dragHandle={dragHandle}
-                  onDragHandleChange={setDragHandle}
-                />
-              </div>
+              {p.children.map((c) => {
+                return (
+                  <span
+                    style={{
+                      left: secsToPixels((c.start || 0) - p.start),
+                      width: secsToPixels(c.end - c.start),
+                    }}
+                    className="absolute border rounded border-white/40 bg-white/15 px-0.5 top-1 overflow-hidden whitespace-nowrap"
+                  >
+                    {c.text}
+                  </span>
+                );
+              })}
+              <ResizeHandle
+                type="paragraphStart"
+                paragraph={p}
+                dragHandle={dragHandle}
+                onDragHandleChange={setDragHandle}
+              />
+              <ResizeHandle
+                type="paragraphEnd"
+                paragraph={p}
+                dragHandle={dragHandle}
+                onDragHandleChange={setDragHandle}
+              />
+              {/*<div className="px-1">{p.children.map((t) => t.text).join('')}</div>*/}
             </div>
           );
         })}
       </div>
-      <WaveformViewer source={waveformSource} pos={pos} />
+      <WaveformViewer source={waveformSource} pos={pos} scale={scale} />
     </div>
   );
 }
@@ -311,7 +337,15 @@ function ResizeHandle({
   );
 }
 
-function WaveformViewer({ source, pos }: { source: MediaFile | null; pos: number }) {
+function WaveformViewer({
+  source,
+  pos,
+  scale,
+}: {
+  source: MediaFile | null;
+  pos: number;
+  scale: number;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [reader, setReader] = useState<WaveformReader | null>(null);
   const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
@@ -362,9 +396,9 @@ function WaveformViewer({ source, pos }: { source: MediaFile | null; pos: number
     if (!renderer) return;
     renderer.setColor(systemPrefersDark ? [1, 1, 1] : [0.2, 0.2, 0.2]);
     renderer.setPos(pos * window.devicePixelRatio);
-    renderer.setScale(1.0 / window.devicePixelRatio);
+    renderer.setScale(scale / window.devicePixelRatio);
     renderer.draw();
-  }, [reader, renderer, pos, window.devicePixelRatio]);
+  }, [reader, renderer, pos, scale, window.devicePixelRatio]);
 
   return <canvas ref={canvasRef} className="w-full h-14" />;
 }
