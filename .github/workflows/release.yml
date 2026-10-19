@@ -209,6 +209,7 @@ jobs:
         manifest.json
         transcribee-desktop_*.dmg
         transcribee-desktop_*-setup.exe
+        transcribee-desktop_*.AppImage
     steps:
       - uses: actions/download-artifact@v8
         with:
