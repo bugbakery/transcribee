@@ -208,7 +208,7 @@ jobs:
         worker-*.tar.xz
         manifest.json
         transcribee-desktop_*.dmg
-        transcribee-desktop_*.msi
+        transcribee-desktop_*-setup.exe
     steps:
       - uses: actions/download-artifact@v8
         with:
