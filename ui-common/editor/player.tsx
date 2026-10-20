@@ -222,7 +222,11 @@ export function PlayerBar({
             label="backwards"
             {...backwardLongPressProps}
           />
-          <PlayButton playing={audio.playing} buffering={audio.buffering} onClick={() => togglePlaying()} />
+          <PlayButton
+            playing={audio.playing}
+            buffering={audio.buffering}
+            onClick={() => togglePlaying()}
+          />
           <IconButton
             icon={ImBackward2}
             iconClassName="translate-x-0.5 rotate-180"

@@ -150,11 +150,11 @@ export function AlignmentEditor({
   // re-couple on play
   const lastPlaying = useRef(false);
   useEffect(() => {
-    if ((lastPlaying.current == false) && (playing == true)) {
+    if (lastPlaying.current == false && playing == true) {
       setIsDecoupled(false);
     }
     lastPlaying.current = playing;
-  }, [playing, lastPlaying.current])
+  }, [playing, lastPlaying.current]);
 
   // re-couple on large seeks
   const lastTime = useRef(0.0);
@@ -163,8 +163,7 @@ export function AlignmentEditor({
       setIsDecoupled(false);
     }
     lastTime.current = time;
-  }, [time, lastTime.current])
-
+  }, [time, lastTime.current]);
 
   // handle scrolling
   useEffect(() => {
@@ -267,11 +266,14 @@ export function AlignmentEditor({
     },
     [dragHandle, viewportStartSec, px2sec, onSeek, onTogglePlay, playing, isSeeking],
   );
-  const restorePlayingState = useCallback((_e: React.MouseEvent) => {
-    onTogglePlay(preSeekPlayingState.current || false);
-    preSeekPlayingState.current = null;
-    isSeeking.current = false;
-  }, [onTogglePlay, isSeeking]);
+  const restorePlayingState = useCallback(
+    (_e: React.MouseEvent) => {
+      onTogglePlay(preSeekPlayingState.current || false);
+      preSeekPlayingState.current = null;
+      isSeeking.current = false;
+    },
+    [onTogglePlay, isSeeking],
+  );
 
   return (
     <div ref={containerRef}>
