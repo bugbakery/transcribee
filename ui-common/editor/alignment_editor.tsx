@@ -130,22 +130,54 @@ export function AlignmentEditor({
     );
   });
 
+  // logic to seek to a position with animation
+  const seekTarget = useRef<{
+    startPos: number;
+    startTime: number;
+    targetPos: number;
+    targetTime: number;
+  }>(null);
+  const animatedSetViewportStartSec = (targetPos: number) => {
+    if (seekTarget.current != null) return;
+    const startTime = Date.now();
+    const targetTime = startTime + 200;
+    const startPos = viewportStartSec;
+    seekTarget.current = { startPos, startTime, targetPos, targetTime };
+    const update = () => {
+      if (seekTarget.current == null) return;
+      const totalDuration = seekTarget.current.targetTime - seekTarget.current.startTime;
+      const elapsed = Date.now() - seekTarget.current.startTime;
+      const distance = seekTarget.current.targetPos - seekTarget.current.startPos;
+      if (Date.now() < seekTarget.current.targetTime) {
+        setViewportStartSec((elapsed / totalDuration) * distance + seekTarget.current.startPos);
+        requestAnimationFrame(update);
+      } else {
+        setViewportStartSec(seekTarget.current.targetPos);
+        seekTarget.current = null;
+      }
+    };
+    requestAnimationFrame(update);
+  };
+
   // keep the cursor in viewport (generally)
   // the view gets decoupled when one pans manually and it gets coupled again when
   // * the user seeks to a different position manually
   // * the user starts playing
-  const isSeeking = useRef(false); // we also decouple while we seek
   const [isDecoupled, setIsDecoupled] = useState(false);
   useEffect(() => {
-    if (!containerSize || isDecoupled || isSeeking.current) return;
+    if (!containerSize || isDecoupled || !playing || seekTarget.current != null) return;
     const viewportEndSec = viewportStartSec + px2sec(containerSize.width);
     const marginSec = px2sec(containerSize.width) * 0.07;
     if (time > viewportEndSec - marginSec) {
+      if (dragHandle != null) {
+        setIsDecoupled(true);
+        return;
+      }
       setViewportStartSec(time - marginSec);
     } else if (time < viewportStartSec) {
       setViewportStartSec(time - marginSec);
     }
-  }, [time, containerSize, viewportStartSec, px2sec, isDecoupled, isSeeking]);
+  }, [time, containerSize, viewportStartSec, px2sec, isDecoupled, playing, dragHandle]);
 
   // re-couple on play
   const lastPlaying = useRef(false);
@@ -154,16 +186,23 @@ export function AlignmentEditor({
       setIsDecoupled(false);
     }
     lastPlaying.current = playing;
-  }, [playing, lastPlaying.current]);
+  }, [playing]);
 
   // re-couple on large seeks
   const lastTime = useRef(0.0);
   useEffect(() => {
-    if (Math.abs(lastTime.current - time) > 1.0) {
+    if (!containerSize) return;
+    const viewportEndSec = viewportStartSec + px2sec(containerSize.width);
+    const marginSec = px2sec(containerSize.width) * 0.07;
+    if (
+      (time > viewportEndSec || time < viewportStartSec) &&
+      Math.abs(lastTime.current - time) > 1.0
+    ) {
       setIsDecoupled(false);
+      animatedSetViewportStartSec(time - marginSec);
     }
     lastTime.current = time;
-  }, [time, lastTime.current]);
+  }, [time, containerSize, px2sec, viewportStartSec]);
 
   // handle scrolling
   useEffect(() => {
@@ -206,7 +245,7 @@ export function AlignmentEditor({
     return () => {
       c.removeEventListener('wheel', listener);
     };
-  }, [containerRef.current, px2sec, pxPerSec]);
+  }, [px2sec, pxPerSec, sec2px]);
 
   // handle dragging
   useEffect(() => {
@@ -245,7 +284,7 @@ export function AlignmentEditor({
       window.removeEventListener('mousemove', onHandleDrag);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [dragHandle, mousePos, editor]);
+  }, [dragHandle, mousePos, editor, px2sec]);
 
   // handle clicking to seek
   const preSeekPlayingState = useRef<boolean | null>(null);
@@ -254,7 +293,6 @@ export function AlignmentEditor({
       if (dragHandle) return;
 
       if (e.buttons & 1) {
-        isSeeking.current = true;
         if (preSeekPlayingState.current == null) {
           preSeekPlayingState.current = playing;
           onTogglePlay(false);
@@ -264,15 +302,17 @@ export function AlignmentEditor({
         onSeek(clickTime);
       }
     },
-    [dragHandle, viewportStartSec, px2sec, onSeek, onTogglePlay, playing, isSeeking],
+    [dragHandle, viewportStartSec, px2sec, onSeek, onTogglePlay, playing],
   );
   const restorePlayingState = useCallback(
     (_e: React.MouseEvent) => {
-      onTogglePlay(preSeekPlayingState.current || false);
+      if (preSeekPlayingState.current == null) {
+        return;
+      }
+      onTogglePlay(preSeekPlayingState.current);
       preSeekPlayingState.current = null;
-      isSeeking.current = false;
     },
-    [onTogglePlay, isSeeking],
+    [onTogglePlay],
   );
 
   return (
