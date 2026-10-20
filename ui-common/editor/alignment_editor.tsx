@@ -1,5 +1,13 @@
 import { clsx } from 'clsx';
-import { useState, useRef, useCallback, useEffect, useContext, useMemo } from 'react';
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useContext,
+  useMemo,
+  MouseEventHandler,
+} from 'react';
 import { Editor, Transforms } from 'slate';
 import { useDocumentSelector } from '../utils/document';
 import { MediaFile } from './api_document';
@@ -10,6 +18,7 @@ import { useMediaQuery } from '../utils/use_media_query';
 import { useResizeObserver } from '../utils/use_resize_observer';
 import { Paragraph, Text } from './types';
 import { useSize } from '../utils/use_size';
+import { clamp } from '../utils/math';
 
 type DragHandle = {
   type: 'paragraph' | 'paragraphStart' | 'paragraphEnd';
@@ -62,32 +71,39 @@ export function AlignmentEditor({
   waveformSource,
   editor,
   time,
+  onSeek,
+  playing,
+  onSetPlaying: onTogglePlay,
 }: {
   waveformSource: MediaFile | null;
   editor: Editor;
   time: number;
+  onSeek: (t: number) => void;
+  playing: boolean;
+  onSetPlaying: (playing: boolean) => void;
 }) {
-  const [pos, setPos] = useState<number>(0);
+  const [viewportStartSec, setViewportStartSec] = useState<number>(0);
+  const samplesPerSecond = 16_000 / 128;
+  const [pxPerSec, setPxPerSec] = useState(100.0);
+
   const containerRef = useRef<HTMLDivElement>(null);
-  const scale = 0.5;
-  const samplesPerPixel = 125 / scale;
   const speakerColors = useContext(SpeakerColorsContext);
   const [dragHandle, setDragHandle] = useState<DragHandle | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>();
   const containerSize = useSize(containerRef.current);
 
-  const pixelsToSecs = useCallback(
+  const px2sec = useCallback(
     (pixels: number) => {
-      return pixels / samplesPerPixel;
+      return pixels / pxPerSec;
     },
-    [samplesPerPixel],
+    [pxPerSec],
   );
 
-  const secsToPixels = useCallback(
-    (pixels: number) => {
-      return pixels * samplesPerPixel;
+  const sec2px = useCallback(
+    (seconds: number) => {
+      return seconds * pxPerSec;
     },
-    [samplesPerPixel],
+    [pxPerSec],
   );
 
   const paragraphs: ParagraphWithInfos[] = useDocumentSelector(
@@ -109,10 +125,46 @@ export function AlignmentEditor({
   const VISIBILITY_MARGIN = 200;
   const visibleParagraphs = paragraphs.filter((p) => {
     return (
-      p.start < pixelsToSecs(pos + (containerSize?.width || 0) + VISIBILITY_MARGIN) &&
-      p.end > pixelsToSecs(pos) - VISIBILITY_MARGIN
+      p.start < viewportStartSec + px2sec((containerSize?.width || 0) + VISIBILITY_MARGIN) &&
+      p.end > viewportStartSec - px2sec(VISIBILITY_MARGIN)
     );
   });
+
+  // keep the cursor in viewport (generally)
+  // the view gets decoupled when one pans manually and it gets coupled again when
+  // * the user seeks to a different position manually
+  // * the user starts playing
+  const isSeeking = useRef(false); // we also decouple while we seek
+  const [isDecoupled, setIsDecoupled] = useState(false);
+  useEffect(() => {
+    if (!containerSize || isDecoupled || isSeeking.current) return;
+    const viewportEndSec = viewportStartSec + px2sec(containerSize.width);
+    const marginSec = px2sec(containerSize.width) * 0.07;
+    if (time > viewportEndSec - marginSec) {
+      setViewportStartSec(time - marginSec);
+    } else if (time < viewportStartSec) {
+      setViewportStartSec(time - marginSec);
+    }
+  }, [time, containerSize, viewportStartSec, px2sec, isDecoupled, isSeeking]);
+
+  // re-couple on play
+  const lastPlaying = useRef(false);
+  useEffect(() => {
+    if ((lastPlaying.current == false) && (playing == true)) {
+      setIsDecoupled(false);
+    }
+    lastPlaying.current = playing;
+  }, [playing, lastPlaying.current])
+
+  // re-couple on large seeks
+  const lastTime = useRef(0.0);
+  useEffect(() => {
+    if (Math.abs(lastTime.current - time) > 1.0) {
+      setIsDecoupled(false);
+    }
+    lastTime.current = time;
+  }, [time, lastTime.current])
+
 
   // handle scrolling
   useEffect(() => {
@@ -137,7 +189,17 @@ export function AlignmentEditor({
         default:
           console.warn(`Unknown deltaMode received: ${e.deltaMode}`);
       }
-      setPos((x) => x + e.deltaX * deltaMultiplier);
+      setViewportStartSec((x) => x + e.deltaX * px2sec(deltaMultiplier));
+      setIsDecoupled(true);
+      const canvasBoundingRect = c.getBoundingClientRect();
+      if (e.ctrlKey) {
+        const newPxPerSec = clamp(pxPerSec - sec2px(e.deltaY * deltaMultiplier * 0.01), 20, 600);
+        setPxPerSec(newPxPerSec);
+
+        const oldMouseX = (e.clientX - canvasBoundingRect.x) / pxPerSec;
+        const newMouseX = (e.clientX - canvasBoundingRect.x) / newPxPerSec;
+        setViewportStartSec((x) => x + oldMouseX - newMouseX);
+      }
     };
 
     c.addEventListener('wheel', listener, { passive: false });
@@ -145,7 +207,7 @@ export function AlignmentEditor({
     return () => {
       c.removeEventListener('wheel', listener);
     };
-  }, [containerRef.current]);
+  }, [containerRef.current, px2sec, pxPerSec]);
 
   // handle dragging
   useEffect(() => {
@@ -159,7 +221,7 @@ export function AlignmentEditor({
 
     const onMouseUp = () => {
       if (mousePos) {
-        const relativeSecs = pixelsToSecs(mousePos.x - dragHandle.startX);
+        const relativeSecs = px2sec(mousePos.x - dragHandle.startX);
         const p = dragHandle.paragraph;
         const oldLength = p.end - p.start;
 
@@ -186,12 +248,42 @@ export function AlignmentEditor({
     };
   }, [dragHandle, mousePos, editor]);
 
+  // handle clicking to seek
+  const preSeekPlayingState = useRef<boolean | null>(null);
+  const handleSeek = useCallback(
+    (e: React.MouseEvent) => {
+      if (dragHandle) return;
+
+      if (e.buttons & 1) {
+        isSeeking.current = true;
+        if (preSeekPlayingState.current == null) {
+          preSeekPlayingState.current = playing;
+          onTogglePlay(false);
+        }
+        const clickTime =
+          px2sec(e.clientX - e.currentTarget.getBoundingClientRect().x) + viewportStartSec;
+        onSeek(clickTime);
+      }
+    },
+    [dragHandle, viewportStartSec, px2sec, onSeek, onTogglePlay, playing, isSeeking],
+  );
+  const restorePlayingState = useCallback((_e: React.MouseEvent) => {
+    onTogglePlay(preSeekPlayingState.current || false);
+    preSeekPlayingState.current = null;
+    isSeeking.current = false;
+  }, [onTogglePlay, isSeeking]);
+
   return (
     <div ref={containerRef}>
-      <div className="h-[85px] relative overflow-hidden -mb-14">
+      <div
+        className="h-[85px] relative overflow-hidden -mb-14"
+        onMouseDown={handleSeek}
+        onMouseMove={handleSeek}
+        onMouseUp={restorePlayingState}
+      >
         <div
           className="absolute w-[2px] bottom-0 top-[25px] bg-red-500"
-          style={{ left: secsToPixels(time) - pos }}
+          style={{ left: sec2px(time - viewportStartSec) }}
         />
         {visibleParagraphs.map((p) => {
           let dragging = false;
@@ -199,7 +291,7 @@ export function AlignmentEditor({
           // handle temporary adjustments while dragging
           if (dragHandle && mousePos && dragHandle.paragraph.idx == p.idx) {
             dragging = true;
-            const offset = pixelsToSecs(mousePos.x - dragHandle.startX);
+            const offset = px2sec(mousePos.x - dragHandle.startX);
             switch (dragHandle.type) {
               case 'paragraphStart':
                 p = {
@@ -215,7 +307,7 @@ export function AlignmentEditor({
               case 'paragraphEnd':
                 p = {
                   ...p,
-                  end: p.end + pixelsToSecs(mousePos.x - dragHandle.startX),
+                  end: p.end + px2sec(mousePos.x - dragHandle.startX),
                   children: p.children.map((c) => ({
                     ...c,
                     start: c.start + offset,
@@ -226,8 +318,8 @@ export function AlignmentEditor({
               case 'paragraph':
                 p = {
                   ...p,
-                  start: p.start + pixelsToSecs(mousePos.x - dragHandle.startX),
-                  end: p.end + pixelsToSecs(mousePos.x - dragHandle.startX),
+                  start: p.start + px2sec(mousePos.x - dragHandle.startX),
+                  end: p.end + px2sec(mousePos.x - dragHandle.startX),
                   children: p.children.map((c) => ({
                     ...c,
                     start: c.start + offset,
@@ -242,8 +334,8 @@ export function AlignmentEditor({
             <div
               key={p.idx}
               style={{
-                left: secsToPixels(p.start) - pos,
-                width: secsToPixels(p.end - p.start) + 4,
+                left: sec2px(p.start - viewportStartSec),
+                width: sec2px(p.end - p.start) + 4,
                 background: `alpha(from ${
                   p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
                 } / 30%)`,
@@ -256,6 +348,8 @@ export function AlignmentEditor({
                 dragging && 'z-10',
               )}
               onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 setDragHandle({
                   type: 'paragraph',
                   startX: e.clientX,
@@ -263,9 +357,10 @@ export function AlignmentEditor({
                 });
               }}
             >
-              {p.children.map((c) => {
+              {/* {p.children.map((c, i) => {
                 return (
                   <span
+                    key={i}
                     style={{
                       left: secsToPixels((c.start || 0) - p.start),
                       width: secsToPixels(c.end - c.start),
@@ -275,7 +370,8 @@ export function AlignmentEditor({
                     {c.text}
                   </span>
                 );
-              })}
+              })} */}
+              <div className="px-1">{p.children.map((t) => t.text).join('')}</div>
               <ResizeHandle
                 type="paragraphStart"
                 paragraph={p}
@@ -288,12 +384,15 @@ export function AlignmentEditor({
                 dragHandle={dragHandle}
                 onDragHandleChange={setDragHandle}
               />
-              {/*<div className="px-1">{p.children.map((t) => t.text).join('')}</div>*/}
             </div>
           );
         })}
       </div>
-      <WaveformViewer source={waveformSource} pos={pos} scale={scale} />
+      <WaveformViewer
+        source={waveformSource}
+        pos={sec2px(viewportStartSec)}
+        scale={px2sec(samplesPerSecond)}
+      />
     </div>
   );
 }
@@ -341,10 +440,12 @@ function WaveformViewer({
   source,
   pos,
   scale,
+  onClick,
 }: {
   source: MediaFile | null;
   pos: number;
   scale: number;
+  onClick?: MouseEventHandler;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [reader, setReader] = useState<WaveformReader | null>(null);
@@ -400,5 +501,5 @@ function WaveformViewer({
     renderer.draw();
   }, [reader, renderer, pos, scale, window.devicePixelRatio]);
 
-  return <canvas ref={canvasRef} className="w-full h-14" />;
+  return <canvas ref={canvasRef} className="w-full h-14" onClick={onClick} />;
 }

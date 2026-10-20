@@ -123,8 +123,9 @@ export function PlayerBar({
   });
 
   // bind the tab key to play / pause
-  const togglePlaying = () => {
-    if (!audio.playing) {
+  const togglePlaying = (play?: boolean) => {
+    const shouldPlay = play == undefined ? !audio.playing : play;
+    if (shouldPlay) {
       audio.play();
     } else {
       audio.pause();
@@ -191,7 +192,14 @@ export function PlayerBar({
             'rounded-lg',
           )}
         >
-          <AlignmentEditor waveformSource={waveformSource} editor={editor} time={audio.playtime} />
+          <AlignmentEditor
+            waveformSource={waveformSource}
+            editor={editor}
+            time={audio.playtime}
+            onSeek={onSeek}
+            playing={audio.playing}
+            onSetPlaying={togglePlaying}
+          />
         </div>
 
         <div
@@ -214,7 +222,7 @@ export function PlayerBar({
             label="backwards"
             {...backwardLongPressProps}
           />
-          <PlayButton playing={audio.playing} buffering={audio.buffering} onClick={togglePlaying} />
+          <PlayButton playing={audio.playing} buffering={audio.buffering} onClick={() => togglePlaying()} />
           <IconButton
             icon={ImBackward2}
             iconClassName="translate-x-0.5 rotate-180"
