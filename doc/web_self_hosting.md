@@ -1,12 +1,12 @@
-# Self-Hosting transcribee-web
+# Self-Hosting transcribee web
 
 In this document you can find information on how to test transcribee locally and how to self-host
-transcribee-web for an organization like a university department or research-group.
+transcribee web for an organization like a university department or research-group.
 Doing so requires some technical expertise.
 
 ## Just Trying Things Out
 
-If you just want to try out transcribee on your local machine, follow the steps outlined here:
+If you just want to try out transcribee web on your local machine, follow the steps outlined here:
 1. clone this repository to some place on your computer by running
    ```sh
    git clone https://github.com/bugbakery/transcribee && cd transcribee
