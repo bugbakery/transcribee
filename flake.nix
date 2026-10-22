@@ -84,6 +84,11 @@
             pkgs.redis
 
             pkgs.glibcLocales
+
+            # new rust worker
+            pkgs.bzip2
+            pkgs.lame
+            pkgs.libz
           ] ++ pkgs.lib.optionals (!pkgs.stdenv.isDarwin) [
             # required by desktop
             pkgs.libsoup_3
@@ -112,6 +117,10 @@
 
               # use external xcode
               export SDK_ROOT=/Applications/Xcode.app/Contents/Developer
+
+              # macOS 11 is the first macOS that supports arm, thus we target that
+              export CXXFLAGS="-mmacosx-version-min=11.0"
+              export MACOSX_DEPLOYMENT_TARGET=11.0
             ''
             + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               # setup nix mesa on non-nixos env variables
