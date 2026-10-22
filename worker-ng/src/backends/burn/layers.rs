@@ -28,9 +28,7 @@ impl WeightlessBurnModel {
         transposed: bool,
     ) -> Option<Tensor<D>> {
         let info = self.safetensors_file.info(key);
-        if info.is_none() {
-            return None;
-        }
+        info?;
         if !self.initializers.contains_key(key) {
             let data = self.safetensors_file.burn_tensor(key).unwrap();
             let dtype = data.dtype();
@@ -94,8 +92,8 @@ impl WeightlessBurnModel {
             self.diy_attn(q, k, v)
         };
         let x = x.permute([0, 2, 1, 3]).reshape([0, 0, -1]);
-        let x = self.linear(&format!("{name}.out_proj"), x);
-        x
+
+        self.linear(&format!("{name}.out_proj"), x)
     }
 
     pub fn diy_attn(&mut self, q: Tensor<4>, k: Tensor<4>, v: Tensor<4>) -> Tensor<4> {

@@ -1,9 +1,7 @@
 use std::time::Instant;
 
-use crate::{
-    safetensors_reader::SafetensorsFile,
-    whisper::{burn_backend::layers::WeightlessBurnModel, encoder::WhisperEncoderBackend},
-};
+use super::layers::WeightlessBurnModel;
+use crate::{safetensors_reader::SafetensorsFile, whisper::encoder::WhisperEncoderBackend};
 use anyhow::Result;
 use burn_tensor::{
     DType::{F16, F32},
@@ -52,8 +50,8 @@ impl WhisperEncoderBurn {
                 .model
                 .residual_attention_block(&format!("{name}.layers.{i}"), x, 20);
         }
-        let x = self.model.layer_norm(&format!("{name}.layer_norm"), x);
-        return x;
+        
+        self.model.layer_norm(&format!("{name}.layer_norm"), x)
     }
 }
 impl WhisperEncoderBackend for WhisperEncoderBurn {

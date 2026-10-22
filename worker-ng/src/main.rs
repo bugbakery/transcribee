@@ -12,6 +12,7 @@ use crate::{
 };
 
 mod audio_reader;
+mod backends;
 mod model_downloader;
 mod safetensors_reader;
 mod vad;
@@ -38,9 +39,15 @@ async fn main() -> Result<()> {
         )
         .get_matches();
 
-    if let Some(_) = m.subcommand_matches("benchmark") {
-        WHISPER_LARGE_V3_TURBO.ensure_download_or_mock()?;
+    let pb = ProgressBar::new(0);
+    WHISPER_LARGE_V3_TURBO
+        .ensure_downloaded(|done, total| {
+            pb.set_position(done);
+            pb.set_length(total)
+        })
+        .await?;
 
+    if m.subcommand_matches("benchmark").is_some() {
         for (name, backend) in encoder::get_backends("target/") {
             let mut backend = backend().unwrap();
             println!("benchmarking {}...", name);
@@ -50,8 +57,9 @@ async fn main() -> Result<()> {
             });
             println!("-> encode() min={min} mean={mean} max={max}");
         }
-        for mut backend in decoder::get_backends("target/") {
-            println!("benchmarking {}...", backend.name());
+        for (name, backend) in decoder::get_backends("target/") {
+            let mut backend = backend().unwrap();
+            println!("benchmarking {}...", name);
             let mut chunk = None;
             let (min, mean, max) = benchmark(10, || {
                 let dummy_data = Array2::zeros((1500, 1280));
@@ -80,21 +88,13 @@ async fn main() -> Result<()> {
             }
         }
     } else if let Some(matches) = m.subcommand_matches("transcribe") {
-        let pb = ProgressBar::new(0);
-        WHISPER_LARGE_V3_TURBO
-            .ensure_downloaded(|done, total| {
-                pb.set_position(done);
-                pb.set_length(total)
-            })
-            .await?;
-
         let f = matches.get_one::<String>("in_file").unwrap();
 
         let ar = AudioReader::new(f)?;
 
         // todo: store benchmark somewhere and pick the fastest
         let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
-        let decoder = decoder::get_backends("target/").remove(0);
+        let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
         let mut whisper = Whisper::new(encoder, decoder).await?;
 
         whisper.transcribe(&ar, &mut |bar| {

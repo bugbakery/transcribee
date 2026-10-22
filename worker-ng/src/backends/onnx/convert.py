@@ -583,13 +583,13 @@ if __name__ == "__main__":
     )
 
     print("creating decoder model...")
-    create_decoder(OnnxModelBuilder(model, safetensors, use_ms_attn=True)).save(
+    create_decoder(OnnxModelBuilder(model, safetensors, use_ms_attn=False)).save(
         "whisper_large_v3_turbo_decoder"
     )
 
-    print("creating decoder non_ms_attn...")
+    print("creating decoder ms_attn...")
     create_decoder(OnnxModelBuilder(model, safetensors, use_ms_attn=True)).save(
-        "whisper_large_v3_turbo_decoder_non_ms_attn"
+        "whisper_large_v3_turbo_decoder_ms_attn"
     )
 
     print("done :)")

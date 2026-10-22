@@ -1,8 +1,8 @@
-use std::time::Instant;
+use std::{fs::File, time::Instant};
 
 use super::layers::WeightlessMLXModel;
 use crate::{safetensors_reader::SafetensorsFile, whisper::encoder::WhisperEncoderBackend};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::info;
 use mlx_rs::{Array, Device, DeviceType, Dtype::Float16, with_device};
 use ndarray::Array2;
@@ -13,6 +13,11 @@ pub struct WhisperEncoderMlx {
 }
 impl WhisperEncoderMlx {
     pub fn new(device: DeviceType, safetensors_path: &str) -> Result<Self> {
+        let f = File::open("mlx.metallib")?;
+        dbg!(f.metadata()?);
+        mlx_rs::Array::from_slice(&[1.0], &[1])
+            .as_dtype(Float16)
+            .context("mlx is not working :(")?;
         let safetensors_file = SafetensorsFile::new(safetensors_path)?;
         let model = WeightlessMLXModel::new(safetensors_file);
 
@@ -43,8 +48,8 @@ impl WhisperEncoderMlx {
                 .model
                 .residual_attention_block(&format!("{name}.layers.{i}"), x, 20);
         }
-        let x = self.model.layer_norm(&format!("{name}.layer_norm"), x);
-        return x;
+        
+        self.model.layer_norm(&format!("{name}.layer_norm"), x)
     }
 }
 impl WhisperEncoderBackend for WhisperEncoderMlx {

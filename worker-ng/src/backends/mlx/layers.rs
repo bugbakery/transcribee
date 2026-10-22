@@ -17,9 +17,7 @@ impl WeightlessMLXModel {
 
     pub fn maybe_initializer(&mut self, key: &str, transpose: Option<&[i32]>) -> Option<Array> {
         let info = self.safetensors_file.info(key);
-        if info.is_none() {
-            return None;
-        }
+        info?;
         if !self.initializers.contains_key(key) {
             let array = self.safetensors_file.mlx_array(key).unwrap();
             let array = match transpose {
@@ -94,8 +92,8 @@ impl WeightlessMLXModel {
 
         let x = x.transpose_axes(&[0, 2, 1, 3]).unwrap();
         let x = x.reshape(&[x.shape()[0], x.shape()[1], -1]).unwrap();
-        let x = self.linear(&format!("{name}.out_proj"), x);
-        x
+
+        self.linear(&format!("{name}.out_proj"), x)
     }
 
     pub fn diy_attn(&mut self, q: Array, k: Array, v: Array) -> Array {
@@ -124,8 +122,8 @@ impl WeightlessMLXModel {
         let mlp = self.linear(&format!("{name}.fc1"), mlp);
         let mlp = Self::gelu(mlp);
         let mlp = self.linear(&format!("{name}.fc2"), mlp);
-        let x = x + mlp;
-        x
+
+        x + mlp
     }
 
     pub fn linear(&mut self, name: &str, x: Array) -> Array {

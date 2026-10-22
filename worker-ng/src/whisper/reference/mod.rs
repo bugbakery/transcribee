@@ -1,3 +1,4 @@
+use anyhow::Result;
 use ndarray::{ArrayD, ShapeBuilder};
 use npyz::WriterBuilder;
 use std::{
@@ -10,24 +11,37 @@ use std::{
     time::Duration,
 };
 
-pub fn assert_similiar_to_reference(reference_name: &str, x: ArrayD<f32>, max_mean_delta: f32) {
-    let reference = get_reference_data(reference_name);
-    let is_similiar = is_similiar(reference.clone(), x.clone(), max_mean_delta);
-    let folder = get_reference_folder();
-    write_ndarray_to_file(
-        &folder.join(reference_name.replace(".npy", "_ours.npy")),
-        x.clone(),
+pub fn is_similiar_to_reference(
+    reference_name: &str,
+    ours_name: &str,
+    x: ArrayD<f32>,
+    acceptable_max_error: f32,
+) -> bool {
+    let ours_name = reference_name.replace(".npy", &format!("_{ours_name}.npy"));
+    let reference = get_reference_data(reference_name).unwrap();
+    assert_eq!(
+        reference.shape(),
+        x.shape(),
+        "shapes dont match {reference_name}.shape() != {ours_name}.shape()"
     );
-    if !is_similiar {
-        println!("x: {:?}", &x);
-        println!("reference: {:?}", &reference);
-        panic!("x is not similiar to reference {reference_name}")
+    let (mean_error, max_error) = get_mean_and_max_error(reference.clone(), x.clone());
+    let folder = get_reference_folder();
+    write_ndarray_to_file(&folder.join(&ours_name), x.clone());
+    if max_error <= acceptable_max_error {
+        println!(
+            "PASS: {ours_name} is similiar to {reference_name} (mean error: {mean_error}; max_error: {max_error} <= {acceptable_max_error})"
+        );
+        true
+    } else {
+        println!(
+            "FAIL: {ours_name} is not similiar to {reference_name} (mean error: {mean_error} ; max_error: {max_error} > {acceptable_max_error})"
+        );
+        false
     }
 }
 
-pub fn is_similiar(a: ArrayD<f32>, b: ArrayD<f32>, max_mean_delta: f32) -> bool {
+pub fn get_mean_and_max_error(a: ArrayD<f32>, b: ArrayD<f32>) -> (f32, f32) {
     assert_eq!(a.shape(), b.shape());
-
     let mut max = 0.0;
     let mut sum = 0.0;
     let mut count = 0;
@@ -39,13 +53,11 @@ pub fn is_similiar(a: ArrayD<f32>, b: ArrayD<f32>, max_mean_delta: f32) -> bool 
         sum += diff;
         count += 1;
     }
-    println!("-> max  deviation: {max}");
     let mean = sum / count as f32;
-    println!("-> mean deviation: {mean}");
-    mean < max_mean_delta
+    (mean, max)
 }
 
-pub fn get_reference_data(name: &str) -> ArrayD<f32> {
+pub fn get_reference_data(name: &str) -> Result<ArrayD<f32>> {
     let reference_folder = get_reference_folder();
     read_ndarray_from_file(&reference_folder.join(name))
 }
@@ -82,19 +94,19 @@ pub fn get_reference_folder() -> PathBuf {
     }
 }
 
-pub fn read_ndarray_from_file(path: &PathBuf) -> ArrayD<f32> {
-    let mut f = File::open(path).unwrap();
-    let mut buf = Vec::with_capacity(f.metadata().unwrap().len() as usize);
-    f.read_to_end(&mut buf).unwrap();
-    let reader = npyz::NpyFile::new(&buf[..]).unwrap();
+pub fn read_ndarray_from_file(path: &PathBuf) -> Result<ArrayD<f32>> {
+    let mut f = File::open(path)?;
+    let mut buf = Vec::with_capacity(f.metadata()?.len() as usize);
+    f.read_to_end(&mut buf)?;
+    let reader = npyz::NpyFile::new(&buf[..])?;
     let shape = reader.shape().to_vec();
     let order = reader.order();
-    let data = reader.into_vec::<f32>().unwrap();
+    let data = reader.into_vec::<f32>()?;
 
     let shape = shape.into_iter().map(|x| x as usize).collect::<Vec<_>>();
     let true_shape = shape.set_f(order == npyz::Order::Fortran);
 
-    ndarray::ArrayD::from_shape_vec(true_shape, data).unwrap()
+    Ok(ndarray::ArrayD::from_shape_vec(true_shape, data)?)
 }
 
 pub fn write_ndarray_to_file(path: &PathBuf, x: ArrayD<f32>) {

@@ -1,8 +1,9 @@
-use crate::whisper::{encoder::WhisperEncoderBackend, onnx_backend::Backend};
+use crate::whisper::encoder::WhisperEncoderBackend;
 use anyhow::Result;
 use log::info;
 use ndarray::{Array2, Axis};
 use ort::{
+    ep::ExecutionProviderDispatch,
     session::{Session, builder::GraphOptimizationLevel},
     value::Value,
 };
@@ -10,12 +11,12 @@ use std::time::Instant;
 
 pub struct WhisperEncoderOrt {
     model: Session,
-    backend: Backend,
 }
 impl WhisperEncoderOrt {
-    pub fn new(backend: Backend, model_folder: &str) -> Result<Self> {
-        let model = Session::builder()?
-            .with_execution_providers([backend.to_ep()])
+    pub fn new(backend: ExecutionProviderDispatch, model_folder: &str) -> Result<Self> {
+        let env = ort::init().build()?;
+        let model = Session::builder(&env)?
+            .with_execution_providers([backend.clone()])
             .unwrap()
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
@@ -26,7 +27,7 @@ impl WhisperEncoderOrt {
             .unwrap()
             .commit_from_memory(include_bytes!("whisper_large_v3_turbo_encoder.onnx"))?;
 
-        Ok(Self { model, backend })
+        Ok(Self { model })
     }
 }
 impl WhisperEncoderBackend for WhisperEncoderOrt {

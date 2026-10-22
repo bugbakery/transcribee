@@ -1,11 +1,3 @@
-use crate::whisper::{
-    burn_backend::encoder::WhisperEncoderBurn,
-    mlx_backend::encoder::WhisperEncoderMlx,
-    onnx_backend::{
-        Backend::{CPU, WebGPU},
-        encoder::WhisperEncoderOrt,
-    },
-};
 use anyhow::Result;
 use ndarray::{Array2, Axis};
 use stft_rs::{
@@ -19,7 +11,7 @@ const CHUNK_LEN_S: usize = 30;
 pub type DynWhisperEncoderBackend = Box<dyn WhisperEncoderBackend>;
 
 pub fn get_backends(
-    model_folder: &str,
+    _model_folder: &str,
 ) -> Vec<(&str, Box<dyn Fn() -> Result<DynWhisperEncoderBackend>>)> {
     macro_rules! b {
         ($name:expr, $init:expr) => {
@@ -29,14 +21,19 @@ pub fn get_backends(
 
     #[rustfmt::skip]
     let backends: Vec<(&str, Box<dyn Fn() -> Result<DynWhisperEncoderBackend>>)> = vec![
-        b!("MLX GPU", WhisperEncoderMlx::new(mlx_rs::DeviceType::Gpu, "./target/whisper_large_v3_turbo.safetensors")),
-        b!("Burn Metal", WhisperEncoderBurn::new(burn_tensor::Device::metal(Default::default()), "./target/whisper_large_v3_turbo.safetensors")),
-        b!("Burn WebGPU", WhisperEncoderBurn::new(burn_tensor::Device::wgpu(Default::default()), "./target/whisper_large_v3_turbo.safetensors")),
-        b!("ONNX Runtime WebGPU", WhisperEncoderOrt::new(WebGPU, "./target/")),
+        #[cfg(feature = "backend-mlx")]
+        b!("MLX GPU", crate::backends::mlx::whisper_encoder::WhisperEncoderMlx::new(mlx_rs::DeviceType::Gpu, "./target/whisper_large_v3_turbo.safetensors")),
+        #[cfg(feature = "backend-burn")]
+        b!("Burn WebGPU", crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(burn_tensor::Device::wgpu(Default::default()), "./target/whisper_large_v3_turbo.safetensors")),
+        #[cfg(feature = "backend-onnxruntime")]
+        b!("ONNX Runtime WebGPU", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::WebGPU::default().build(), "./target/")),
 
-        b!("MLX CPU", WhisperEncoderMlx::new(mlx_rs::DeviceType::Cpu, "./target/whisper_large_v3_turbo.safetensors")),
-        b!("Burn flex (CPU)", WhisperEncoderBurn::new(burn_tensor::Device::flex(), "./target/whisper_large_v3_turbo.safetensors")),
-        b!("ONNX Runtime CPU", WhisperEncoderOrt::new(CPU, "./target/")),
+        #[cfg(feature = "backend-mlx")]
+        b!("MLX CPU", crate::backends::mlx::whisper_encoder::WhisperEncoderMlx::new(mlx_rs::DeviceType::Cpu, "./target/whisper_large_v3_turbo.safetensors")),
+        #[cfg(feature = "backend-burn")]
+        b!("Burn flex (CPU)", crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(burn_tensor::Device::flex(), "./target/whisper_large_v3_turbo.safetensors")),
+        #[cfg(feature = "backend-onnxruntime")]
+        b!("ONNX Runtime CPU", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::CPU::default().build(), "./target/")),
     ];
     backends
 }
@@ -90,27 +87,29 @@ pub fn compute_mel(mut samples: Vec<f32>) -> Result<Array2<f32>> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::audio_reader::AudioReader;
-    use crate::whisper::reference::assert_similiar_to_reference;
+    use crate::{audio_reader::AudioReader, whisper::reference::is_similiar_to_reference};
 
     #[tokio::test]
     async fn test_mel() {
         let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
         let mel = compute_mel(ar.get(0..ar.len()).unwrap().to_vec()).unwrap();
-        assert_similiar_to_reference("mel.npy", mel.into_dyn(), 0.0002);
+        assert!(is_similiar_to_reference(
+            "mel.npy",
+            "ours",
+            mel.into_dyn(),
+            0.0002
+        ));
     }
 
     #[cfg(feature = "slow-tests")]
     #[tokio::test]
     async fn test_backends() {
-        use crate::whisper::reference::{
-            get_reference_data, get_reference_folder, is_similiar, write_ndarray_to_file,
-        };
+        use crate::whisper::reference::get_reference_data;
         crate::WHISPER_LARGE_V3_TURBO
             .ensure_downloaded(|_, _| {})
             .await
             .unwrap();
-        let mel = get_reference_data("mel.npy");
+        let mel = get_reference_data("mel.npy").unwrap();
         let mut fail = false;
         for (name, backend) in get_backends("") {
             println!("\ntesting backend {name}");
@@ -118,13 +117,8 @@ mod test {
             let encoded = backend
                 .encode(mel.clone().into_dimensionality().unwrap())
                 .unwrap();
-            let reference = get_reference_data("encoded.npy");
-            let is_similiar = is_similiar(reference.clone(), encoded.clone().into_dyn(), 0.05);
-            let folder = get_reference_folder();
-            write_ndarray_to_file(
-                &folder.join(format!("encoded_{name}.npy")),
-                encoded.into_dyn(),
-            );
+            let is_similiar =
+                is_similiar_to_reference("encoded.npy", name, encoded.clone().into_dyn(), 0.05);
             if is_similiar {
                 println!("-> PASS: backend {name} is similiar to encoder reference\n");
             } else {

@@ -65,6 +65,7 @@ impl SafetensorsFile {
         self.tensors.get(name)
     }
 
+    #[cfg(feature = "backend-burn")]
     pub fn burn_tensor(&mut self, name: &str) -> Result<burn_tensor::TensorData> {
         let info = self
             .info(name)
@@ -78,6 +79,7 @@ impl SafetensorsFile {
         Ok(burn_tensor::TensorData::from_bytes_vec(bytes, shape, dtype))
     }
 
+    #[cfg(feature = "backend-mlx")]
     pub fn mlx_array(&mut self, name: &str) -> Result<mlx_rs::Array> {
         let info = self
             .info(name)
@@ -106,11 +108,13 @@ enum TensorDataType {
     F16,
 }
 impl TensorDataType {
+    #[cfg(feature = "backend-burn")]
     fn as_burn_dtype(&self) -> burn_tensor::DType {
         match self {
             TensorDataType::F16 => burn_tensor::DType::F16,
         }
     }
+    #[cfg(feature = "backend-mlx")]
     fn as_mlx_dtype(&self) -> mlx_rs::Dtype {
         match self {
             TensorDataType::F16 => mlx_rs::Dtype::Float16,

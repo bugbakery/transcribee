@@ -3,13 +3,13 @@
 use crate::whisper::{
     decoder::{AudioChunkHandle, SequenceHandle, TokenSequence, WhisperDecoderBackend},
     handle::Handle,
-    onnx_backend::Backend::{self, WebGPU},
 };
 use anyhow::{Context, Result, bail};
 use half::f16;
 use log::{debug, info};
 use ndarray::{Array1, Array2, Array3, s};
 use ort::{
+    ep::ExecutionProviderDispatch,
     memory::{Allocator, MemoryInfo},
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
@@ -27,21 +27,22 @@ pub struct OrtSequenceHandle {
 
 pub struct WhisperDecoderOrt {
     model: Session,
-    backend: Backend,
     cross_kv: CrossKV,
     kv_cache: KvCache,
 }
 impl WhisperDecoderOrt {
-    pub fn new(backend: Backend, model_folder: &str) -> Result<Self> {
-        let onnx_bytes = if matches!(backend, WebGPU) {
+    pub fn new(backend: ExecutionProviderDispatch, model_folder: &str) -> Result<Self> {
+        let onnx_bytes = if dbg!(backend.name()) == "webgpu" && false {
+            println!("ms_attn");
             include_bytes!("whisper_large_v3_turbo_decoder.onnx") as &[u8]
         } else {
             include_bytes!("whisper_large_v3_turbo_decoder_non_ms_attn.onnx") as &[u8]
         };
-        let model = Session::builder()?
+        let env = ort::init().build()?;
+        let model = Session::builder(&env)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
-            .with_execution_providers([backend.to_ep()])
+            .with_execution_providers([backend.clone()])
             .unwrap()
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
@@ -52,9 +53,8 @@ impl WhisperDecoderOrt {
 
         Ok(Self {
             model,
-            cross_kv: CrossKV::new(backend, model_folder)?,
+            cross_kv: CrossKV::new(backend.clone(), model_folder)?,
             kv_cache: KvCache::default(),
-            backend,
         })
     }
 }
@@ -68,7 +68,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
             .cross_kv
             .register_encoded_audio_chunks(chunks)?
             .into_iter()
-            .map(|handle| AudioChunkHandle::downcast(handle))
+            .map(AudioChunkHandle::downcast)
             .collect())
     }
 
@@ -134,9 +134,9 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         Ok(merged)
     }
 
-    fn forward(&mut self, inputs: &[(AudioChunkHandle, SequenceHandle)]) -> Result<Array2<f32>> {
+    fn forward(&mut self, inputs: &[(AudioChunkHandle, SequenceHandle)]) -> Result<Array3<f32>> {
         let inputs: Vec<(OrtAudioChunkHandle, OrtSequenceHandle)> = inputs
-            .into_iter()
+            .iter()
             .map(|(a, s)| {
                 (
                     a.upcast::<OrtAudioChunkHandle>().clone(),
@@ -189,7 +189,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
 
             self.kv_cache.add_self_to_ort_binding(
                 &mut binding,
-                &self.model.allocator().memory_info(),
+                self.model.allocator().memory_info(),
                 inputs.iter().map(|(_, s)| s.last_handle.as_ref().unwrap()),
             )?;
         }
@@ -206,7 +206,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         debug!("decoder forward pass took {:?}", start_forward.elapsed());
 
         let logits = outputs["logits"].try_extract_array::<f32>()?; // [batch_size, seq_len, 51866]
-        let token_probs = logits.slice(s![.., -1, ..]).to_owned();
+        let logits = logits.into_dimensionality().unwrap().into_owned();
 
         let alignment_heads = outputs["alignment_heads"].try_extract_array::<f32>()?; // [batch_size, 6, 1500, 1280]
 
@@ -231,11 +231,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
             .update_from_session_outputs(&mut outputs, new_kv_meta);
 
         debug!("forward fn: {:?}", start_forward_fn.elapsed());
-        Ok(token_probs)
-    }
-
-    fn name(&self) -> String {
-        format!("ONNX Runtime Decoder {}", self.backend)
+        Ok(logits)
     }
 }
 
@@ -245,11 +241,12 @@ pub struct CrossKV {
     registered_audio_chunks: Vec<OrtAudioChunkHandle>,
 }
 impl CrossKV {
-    pub fn new(backend: Backend, model_folder: &str) -> Result<Self> {
-        let model = Session::builder()?
+    pub fn new(backend: ExecutionProviderDispatch, model_folder: &str) -> Result<Self> {
+        let env = ort::init().build()?;
+        let model = Session::builder(&env)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
-            .with_execution_providers([backend.to_ep()])
+            .with_execution_providers([backend.clone()])
             .unwrap()
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
@@ -280,7 +277,7 @@ impl CrossKV {
         let mut i = 0;
         self.registered_audio_chunks = Vec::new();
         for data in chunks {
-            encoder_hidden_states.slice_mut(s![i, .., ..]).assign(&data);
+            encoder_hidden_states.slice_mut(s![i, .., ..]).assign(data);
             let handle = OrtAudioChunkHandle::new();
             self.registered_audio_chunks.push(handle);
             i += 1;
