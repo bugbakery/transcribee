@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{audio_reader::AudioReader, model_downloader::RemoteModel};
+use crate::{audio_reader::AudioReader, backends::onnx::ORT_RUNTIME, model_downloader::RemoteModel};
 use anyhow::Result;
 use ndarray::{Array1, Array2, Array3};
 use ort::{
@@ -25,8 +25,7 @@ impl SileroVadModel {
     pub async fn new(src: AudioReader) -> Result<Self> {
         let model_path = SILERO_VAD.ensure_downloaded(|_done, _total| {}).await?;
 
-        let env = ort::init().build()?;
-        let mut model = Session::builder(&env)?
+        let mut model = Session::builder(&ORT_RUNTIME)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
             .commit_from_file(model_path)?;

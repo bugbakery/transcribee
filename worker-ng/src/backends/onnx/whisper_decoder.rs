@@ -1,5 +1,6 @@
 //! This file contains an ONNX backed implementation of the decoder backend defined in `../decoder.rs`
 
+use super::ORT_RUNTIME;
 use crate::whisper::{
     decoder::{AudioChunkHandle, SequenceHandle, TokenSequence, WhisperDecoderBackend},
     handle::Handle,
@@ -34,12 +35,11 @@ impl WhisperDecoderOrt {
     pub fn new(backend: ExecutionProviderDispatch, model_folder: &str) -> Result<Self> {
         let onnx_bytes = if dbg!(backend.name()) == "webgpu" && false {
             println!("ms_attn");
-            include_bytes!("whisper_large_v3_turbo_decoder.onnx") as &[u8]
+            include_bytes!("../../../target/whisper_large_v3_turbo_decoder_ms_attn.onnx") as &[u8]
         } else {
-            include_bytes!("whisper_large_v3_turbo_decoder_non_ms_attn.onnx") as &[u8]
+            include_bytes!("../../../target/whisper_large_v3_turbo_decoder.onnx") as &[u8]
         };
-        let env = ort::init().build()?;
-        let model = Session::builder(&env)?
+        let model = Session::builder(&ORT_RUNTIME)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
             .with_execution_providers([backend.clone()])
@@ -242,8 +242,7 @@ pub struct CrossKV {
 }
 impl CrossKV {
     pub fn new(backend: ExecutionProviderDispatch, model_folder: &str) -> Result<Self> {
-        let env = ort::init().build()?;
-        let model = Session::builder(&env)?
+        let model = Session::builder(&ORT_RUNTIME)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
             .with_execution_providers([backend.clone()])
@@ -254,7 +253,7 @@ impl CrossKV {
             )
             .unwrap()
             .commit_from_memory(include_bytes!(
-                "whisper_large_v3_turbo_decoder_cross_kv_prefill.onnx"
+                "../../../target/whisper_large_v3_turbo_decoder_cross_kv_prefill.onnx"
             ))?;
 
         let tensors = HashMap::new();

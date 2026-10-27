@@ -7781,7 +7781,6 @@ dependencies = [
  "half",
  "indicatif",
  "json",
- "lazy_static",
  "log",
  "mlx-rs",
  "ndarray 0.17.2",
