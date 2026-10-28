@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from typing import Any, Dict, Literal, Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -85,6 +85,13 @@ class ExportTaskParameters(BaseModel):
     max_line_length: int | None = None
 
 
+class ReencodeTaskParameters(BaseModel):
+    profiles: list[str]
+    audio_for_video: bool
+    generate_waveform: bool = False
+    output_path: str | None = None
+
+
 class TranscribeTask(TaskBase):
     task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
         TaskType.TRANSCRIBE
@@ -96,7 +103,7 @@ class ReencodeTask(TaskBase):
     task_type: Literal[  # pyright: ignore reportIncompatibleVariableOverride
         TaskType.REENCODE
     ] = TaskType.REENCODE
-    task_parameters: Dict[str, Any]
+    task_parameters: ReencodeTaskParameters
 
 
 class ExportTask(TaskBase):

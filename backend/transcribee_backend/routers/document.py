@@ -272,7 +272,11 @@ def create_default_tasks_for_document(
 ):
     reencode_task = Task(
         task_type=TaskType.REENCODE,
-        task_parameters={},
+        task_parameters={
+            "profiles": ["m4a", "mp3", "video:mp4"],
+            "generate_waveform": True,
+            "audio_for_video": True,
+        },
         document_id=document.id,
     )
     session.add(reencode_task)

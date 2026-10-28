@@ -55,7 +55,7 @@ export function useAudio({ sources, playbackRate, videoPreview, documentId }: Us
     playerElement.className = clsx(
       'fixed',
       'right-6',
-      'bottom-24',
+      'bottom-[190px]',
       'bg-black',
       'border-black dark:border-neutral-200',
       'border-2',
