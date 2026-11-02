@@ -4115,9 +4115,9 @@ dependencies = [
 
 [[package]]
 name = "mlx-internal-macros"
-version = "0.32.0"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf724ff93a5ddcf64299f7786844301b147e0e37a7de30a7e1536fd60fb7e9f1"
+checksum = "03087117c40d0031fcc41fd34fe00d4ac60a7de92ba74e65e035853ec5913846"
 dependencies = [
  "darling 0.21.3",
  "itertools 0.14.0",
@@ -4128,9 +4128,9 @@ dependencies = [
 
 [[package]]
 name = "mlx-macros"
-version = "0.32.0"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df160e2aa7cd71a8bf652eeefa9a03117c775327071b68cb7750e1be7d6985e7"
+checksum = "2fe67287891bce0a0ba9c194833235b95788730ff0dbf2e0236f8b143ce07cac"
 dependencies = [
  "darling 0.21.3",
  "proc-macro2",
@@ -4140,9 +4140,9 @@ dependencies = [
 
 [[package]]
 name = "mlx-rs"
-version = "0.32.0"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44774de28d595d6bc0f9ae359e5365321b96eab252698ec0773406c0cf77762b"
+checksum = "e23f739176218435a352833c24e20bbf50674fcb4ce8a03aa2ec73c3005a4163"
 dependencies = [
  "dyn-clone",
  "half",
@@ -4164,9 +4164,9 @@ dependencies = [
 
 [[package]]
 name = "mlx-sys"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1848b6f1686114039e6e0adcf1578911e2e4d7707b9768ad61da074132319e1c"
+checksum = "da965f83ce211b80f9b681d9bbd6fa625fe6bb2e659ba7bc55dd95eea8d3b028"
 dependencies = [
  "bindgen 0.72.1",
  "cc",
