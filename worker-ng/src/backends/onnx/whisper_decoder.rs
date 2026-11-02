@@ -15,8 +15,8 @@ use ort::{
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
 };
-use std::time::Instant;
 use std::{collections::HashMap, sync::Arc};
+use std::{path::Path, time::Instant};
 
 pub type OrtAudioChunkHandle = Handle;
 #[derive(Clone)]
@@ -32,28 +32,24 @@ pub struct WhisperDecoderOrt {
     kv_cache: KvCache,
 }
 impl WhisperDecoderOrt {
-    pub fn new(backend: ExecutionProviderDispatch, model_folder: &str) -> Result<Self> {
-        let onnx_bytes = if dbg!(backend.name()) == "webgpu" && false {
-            println!("ms_attn");
-            include_bytes!("../../../target/whisper_large_v3_turbo_decoder_ms_attn.onnx") as &[u8]
-        } else {
-            include_bytes!("../../../target/whisper_large_v3_turbo_decoder.onnx") as &[u8]
-        };
+    pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
         let model = Session::builder(&ORT_RUNTIME)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
             .with_execution_providers([backend.clone()])
             .unwrap()
-            .with_config_entry(
-                "session.model_external_initializers_file_folder_path",
-                model_folder,
-            )
-            .unwrap()
-            .commit_from_memory(onnx_bytes)?;
+            .commit_from_file(model_path)?;
 
+        let base_path = &model_path
+            .trim_end_matches("_decoder.onnx")
+            .trim_end_matches("_decoder_onnx_attn.onnx")
+            .trim_end_matches("_decoder_ms_attn.onnx");
         Ok(Self {
             model,
-            cross_kv: CrossKV::new(backend.clone(), model_folder)?,
+            cross_kv: CrossKV::new(
+                backend.clone(),
+                &format!("{base_path}_decoder_cross_kv_prefill.onnx"),
+            )?,
             kv_cache: KvCache::default(),
         })
     }
@@ -287,20 +283,13 @@ pub struct CrossKV {
     registered_audio_chunks: Vec<OrtAudioChunkHandle>,
 }
 impl CrossKV {
-    pub fn new(backend: ExecutionProviderDispatch, model_folder: &str) -> Result<Self> {
+    pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
         let model = Session::builder(&ORT_RUNTIME)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
             .with_execution_providers([backend.clone()])
             .unwrap()
-            .with_config_entry(
-                "session.model_external_initializers_file_folder_path",
-                model_folder,
-            )
-            .unwrap()
-            .commit_from_memory(include_bytes!(
-                "../../../target/whisper_large_v3_turbo_decoder_cross_kv_prefill.onnx"
-            ))?;
+            .commit_from_file(model_path)?;
 
         let tensors = HashMap::new();
         let registered_audio_chunks = Vec::new();
