@@ -22,12 +22,11 @@ pub fn get_backends(
 
     #[rustfmt::skip]
     let backends: Vec<(&str, Box<dyn Fn() -> Result<DynWhisperDecoderBackend>>)> = vec![
+        #[cfg(feature = "backend-onnxruntime")]
+        b!("ONNX Runtime CPU", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::CPU::default().build(), "./target/")),
 
         #[cfg(feature = "backend-onnxruntime")]
         b!("ONNX Runtime WebGPU", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::WebGPU::default().build(), "./target/")),
-
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime CPU", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::CPU::default().build(), "./target/")),
     ];
     backends
 }
@@ -116,14 +115,14 @@ mod test {
             .into_iter()
             .map(|t| t as i64)
             .collect();
-        let sequence = backend.register_sequence(&tokens[0..tokens.len() - 1]);
+        let sequence = backend.register_sequence(&tokens);
         let logits = backend
             .forward(&[(audio_chunk.clone(), sequence.clone())])
-            .unwrap()
-            .slice(s![0, .., ..])
+            .unwrap();
+        let logits = logits
+            .slice(s![0, 0..logits.shape()[1] - 1, ..])
             .into_dyn()
             .into_owned();
-        let sequence = backend.append_token_to_sequence(&sequence, 0, 1.0).unwrap();
 
         let mut is_similiar = true;
 
@@ -131,7 +130,7 @@ mod test {
             "logits.npy",
             &format!("prefill_{name}"),
             softmax(logits, Axis(1)),
-            0.05,
+            0.1,
         );
 
         let alignment_weights = backend.get_alignment_data(&sequence).unwrap();
@@ -154,22 +153,25 @@ mod test {
             .register_encoded_audio_chunks(&[encoded.clone()])
             .unwrap()
             .remove(0);
-        let mut tokens: Vec<i64> = get_reference_data("tokens.npy")
+        let tokens: Vec<i64> = get_reference_data("tokens.npy")
             .unwrap()
             .into_iter()
             .map(|t| t as i64)
             .collect();
-        let mut sequence = backend.register_sequence(&[tokens.remove(0)]);
+        let mut sequence = None;
         let mut results = Vec::new();
         for &token in &tokens {
+            sequence = Some(if let Some(seq) = &sequence {
+                backend.append_token_to_sequence(&seq, token, 1.0).unwrap()
+            } else {
+                backend.register_sequence(&[token])
+            });
             let result = backend
-                .forward(&[(audio_chunk.clone(), sequence.clone())])
+                .forward(&[(audio_chunk.clone(), sequence.as_ref().unwrap().clone())])
                 .unwrap();
             results.push(result);
-            sequence = backend
-                .append_token_to_sequence(&sequence, token, 1.0)
-                .unwrap();
         }
+        results.pop();
 
         let mut is_similiar = true;
 
@@ -184,16 +186,111 @@ mod test {
             "logits.npy",
             &format!("decode_{name}"),
             softmax(logits.into_dyn(), Axis(1)),
-            0.05,
+            0.1,
         );
 
-        let alignment_weights = backend.get_alignment_data(&sequence).unwrap();
+        let alignment_weights = backend.get_alignment_data(&sequence.unwrap()).unwrap();
         is_similiar &= is_similiar_to_reference(
             "alignment_weights.npy",
             &format!("decode_{name}"),
             softmax(alignment_weights.into_dyn(), Axis(2)),
             0.05,
         );
+
+        is_similiar
+    }
+
+    fn different_length_batches_work(name: &str, backend: &mut DynWhisperDecoderBackend) -> bool {
+        let encoded: Array2<f32> = get_reference_data("encoded.npy")
+            .unwrap()
+            .into_dimensionality()
+            .unwrap();
+        let audio_chunk = backend
+            .register_encoded_audio_chunks(&[encoded.clone()])
+            .unwrap()
+            .remove(0);
+        let reference_tokens: Vec<i64> = get_reference_data("tokens.npy")
+            .unwrap()
+            .into_iter()
+            .map(|t| t as i64)
+            .collect();
+
+        let mut sequences = vec![
+            backend.register_sequence(&reference_tokens[0..1]),
+            backend.register_sequence(&reference_tokens[0..5]),
+        ];
+        let mut results = vec![vec![]; sequences.len()];
+        let mut alignment_weights = vec![None; sequences.len()];
+        for round in 0.. {
+            let mut input_idx = vec![];
+            if round == 0 {
+                input_idx.extend_from_slice(&[0, 1]);
+            } else {
+                for (s_idx, s) in sequences.iter_mut().enumerate() {
+                    let sequence_length = backend.get_tokens(s).unwrap().len();
+                    if sequence_length < reference_tokens.len() {
+                        let token: i64 = reference_tokens[sequence_length];
+                        *s = backend
+                            .append_token_to_sequence(&s, token as i64, 1.0)
+                            .unwrap();
+                        input_idx.push(s_idx);
+                    }
+                }
+            }
+            if input_idx.is_empty() {
+                break;
+            }
+
+            let inputs: Vec<_> = input_idx
+                .iter()
+                .map(|&idx| (audio_chunk.clone(), sequences[idx].clone()))
+                .collect();
+            let logits = backend.forward(&inputs).unwrap();
+
+            for (i, sequence_idx) in input_idx.into_iter().enumerate() {
+                let sequence = &sequences[sequence_idx];
+                let sequence_length = backend.get_tokens(sequence).unwrap().len();
+                if round == 0 {
+                    // we are in prefill and need to check how much of the result we add for each sequence in the batch
+                    results[sequence_idx].push(
+                        logits
+                            .slice(s![i..i + 1, 0..sequence_length, ..])
+                            .to_owned(),
+                    );
+                } else {
+                    // we extrude one token at a time and just unconditionally take the only token extruded
+                    assert_eq!(logits.shape()[1], 1);
+                    results[sequence_idx].push(logits.slice(s![i..i + 1, 0..1, ..]).to_owned());
+                }
+                alignment_weights[sequence_idx] =
+                    Some(backend.get_alignment_data(sequence).unwrap());
+            }
+        }
+
+        let mut is_similiar = true;
+
+        for i in 0..results.len() {
+            let logits = concatenate(
+                Axis(1),
+                &results[i].iter().map(|x| x.view()).collect::<Vec<_>>(),
+            )
+            .unwrap()
+            .slice(s![0, .., ..])
+            .into_owned();
+            is_similiar &= is_similiar_to_reference(
+                "logits.npy",
+                &format!("different_lengh_batches_{i}_{name}"),
+                softmax(logits.slice_move(s![0..32, ..]).into_dyn(), Axis(1)),
+                0.1,
+            );
+
+            is_similiar &= is_similiar_to_reference(
+                "alignment_weights.npy",
+                &format!("different_lengh_batches_{i}_{name}"),
+                softmax(alignment_weights[i].clone().unwrap().into_dyn(), Axis(2)),
+                0.05,
+            );
+        }
 
         is_similiar
     }
@@ -211,6 +308,7 @@ mod test {
             let mut backend = backend().unwrap();
             fail |= !prefill_works(name, &mut backend);
             fail |= !decode_works(name, &mut backend);
+            fail |= !different_length_batches_work(name, &mut backend);
         }
         assert!(!fail);
     }

@@ -8,7 +8,7 @@ use crate::whisper::{
 use anyhow::{Context, Result, bail};
 use half::f16;
 use log::{debug, info};
-use ndarray::{Array1, Array2, Array3, s};
+use ndarray::{Array1, Array2, Array3, Array4, s};
 use ort::{
     ep::ExecutionProviderDispatch,
     memory::{Allocator, MemoryInfo},
@@ -113,7 +113,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
     fn get_alignment_data(&self, seq: &SequenceHandle) -> Result<Array3<f32>> {
         let raw = self
             .kv_cache
-            .get_entry_alignment_data(seq.upcast::<OrtSequenceHandle>().last_handle.as_ref().unwrap())
+            .get_entry_alignment_data(&seq.upcast::<OrtSequenceHandle>().handle)
             .context("The sequence prodived to get_alignment_data() is not found in the KV cache (was not last passed to forward())")?;
         let heads = raw[0].shape()[0];
         let tokens = raw.iter().map(|x| x.shape()[1]).sum();
@@ -173,6 +173,20 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
                 }
             }
             binding.bind_input("input_ids", &Tensor::from_array(input_ids)?)?;
+
+            // the self_attn mask is added (not multiplied) onto the raw logits before the softmax
+            // thus negative infinity means masked and 0 is the noop
+            let mut self_attn_mask =
+                Array4::<f32>::zeros((batch_size, 1, max_sequence_len, max_sequence_len));
+            for b in 0..batch_size {
+                for i in 0..max_sequence_len {
+                    for j in 0..max_sequence_len {
+                        *self_attn_mask.get_mut((b, 0, i, j)).unwrap() =
+                            if i >= j { 0. } else { f32::NEG_INFINITY };
+                    }
+                }
+            }
+            binding.bind_input("self_attn_mask", &Tensor::from_array(self_attn_mask)?)?;
         } else {
             let mut input_ids: Vec<i64> = vec![];
             for (_, seq) in &inputs {
@@ -192,6 +206,25 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
                 self.model.allocator().memory_info(),
                 inputs.iter().map(|(_, s)| s.last_handle.as_ref().unwrap()),
             )?;
+
+            let max_sequence_len = self.kv_cache.max_sequence_length() + 1;
+            let mut self_attn_mask = Array4::<f32>::zeros((batch_size, 1, 1, max_sequence_len));
+            for b in 0..batch_size {
+                let seq = &inputs[b].1;
+                let seq_valid_mask = self
+                    .kv_cache
+                    .get_entry_validity(seq.last_handle.as_ref().unwrap())
+                    .unwrap();
+                for j in 0..max_sequence_len {
+                    *self_attn_mask.get_mut((b, 0, 0, j)).unwrap() =
+                        if *seq_valid_mask.get(j).unwrap_or(&true) {
+                            0.
+                        } else {
+                            f32::NEG_INFINITY
+                        };
+                }
+            }
+            binding.bind_input("self_attn_mask", &Tensor::from_array(self_attn_mask)?)?;
         }
 
         let output_mem_info = self.model.allocator().memory_info();
@@ -208,7 +241,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         let logits = outputs["logits"].try_extract_array::<f32>()?; // [batch_size, seq_len, 51866]
         let logits = logits.into_dimensionality().unwrap().into_owned();
 
-        let alignment_heads = outputs["alignment_heads"].try_extract_array::<f32>()?; // [batch_size, 6, 1500, 1280]
+        let alignment_heads = outputs["alignment_heads"].try_extract_array::<f32>()?; // [batch_size, 6, seq_len, 1280]
 
         let mut new_kv_meta = Vec::new();
         for (b, (_, seq)) in inputs.iter().enumerate() {
@@ -220,11 +253,24 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
                     .unwrap()
                     .clone()
             };
+            let seq_len = if is_prefill { seq.tokens.len() } else { 1 };
             alignment_data.push(Arc::new(
-                alignment_heads.slice(s![b, .., .., ..]).to_owned(),
+                alignment_heads.slice(s![b, .., 0..seq_len, ..]).to_owned(),
             ));
-            let len = seq.tokens.len();
-            new_kv_meta.push((seq.handle.clone(), len, alignment_data));
+
+            let entry_validity = if is_prefill {
+                (0..logits.shape()[1])
+                    .map(|i| i < seq_len)
+                    .collect::<Vec<bool>>()
+            } else {
+                let mut last = self
+                    .kv_cache
+                    .get_entry_validity(seq.last_handle.as_ref().unwrap())
+                    .unwrap();
+                last.push(true);
+                last
+            };
+            new_kv_meta.push((seq.handle.clone(), entry_validity, alignment_data));
         }
 
         self.kv_cache
@@ -350,19 +396,24 @@ pub struct KvCache {
     tensors: HashMap<String, ort::value::Value<DynValueTypeMarker>>,
 
     /// map of index in the first (batch) dimension to handle
-    /// the second part of the tuple is the valid len of the kv cache entry
+    /// the second part of the tuple is a vec of bool wether a certain position in the cache is valid or garbage
     /// the third part of the tuple is the alignment data associated with the sequence
-    handles: Vec<(Handle, usize, AlignmentData)>,
+    handles: Vec<(Handle, Vec<bool>, AlignmentData)>,
 }
 impl KvCache {
-    pub fn num_entries(&self) -> usize {
-        self.handles.len()
+    pub fn max_sequence_length(&self) -> usize {
+        let tensor = self.tensors.values().next().unwrap();
+        tensor.shape()[1] as usize
     }
-    fn get_row(&self, handle: &Handle) -> Option<&(Handle, usize, AlignmentData)> {
+    fn get_row(&self, handle: &Handle) -> Option<&(Handle, Vec<bool>, AlignmentData)> {
         self.handles.iter().find(|x| &x.0 == handle)
     }
+    pub fn get_entry_validity(&self, handle: &Handle) -> Option<Vec<bool>> {
+        self.get_row(handle).map(|row| row.1.clone())
+    }
     pub fn get_entry_len(&self, handle: &Handle) -> Option<usize> {
-        self.get_row(handle).map(|row| row.1)
+        self.get_entry_validity(handle)
+            .map(|v| v.iter().map(|&x| x as usize).sum())
     }
     pub fn get_entry_alignment_data(&self, handle: &Handle) -> Option<&AlignmentData> {
         self.get_row(handle).map(|row| row.2.as_ref())
@@ -389,7 +440,7 @@ impl KvCache {
             ] {
                 binding.bind_input(
                     format!("past.{name}"),
-                    &Tensor::<f16>::new(&Allocator::default(), [1usize, 20, 0, 64])?,
+                    &Tensor::<f16>::new(&Allocator::default(), [1usize, 0, 1280])?,
                 )?;
                 binding.bind_output_to_device(format!("present.{name}"), &memory_info)?;
             }
@@ -419,7 +470,11 @@ impl KvCache {
         let input_map = Array1::from_iter(self.get_input_map(last_handles));
         binding.bind_input("self_kv_cache_indices", &Tensor::from_array(input_map)?)?;
 
-        let cache_lengths = Array1::from_iter(self.handles.iter().map(|(_, len, _)| *len as i64));
+        let cache_lengths = Array1::from_iter(
+            self.handles
+                .iter()
+                .map(|(handle, _, _)| self.get_entry_len(handle).unwrap() as i64),
+        );
         binding.bind_input("self_kv_cache_lengths", &Tensor::from_array(cache_lengths)?)?;
 
         Ok(())
@@ -428,7 +483,7 @@ impl KvCache {
     pub fn update_from_session_outputs(
         &mut self,
         outputs: &mut ort::session::SessionOutputs<'_>,
-        new: Vec<(Handle, usize, AlignmentData)>,
+        new: Vec<(Handle, Vec<bool>, AlignmentData)>,
     ) {
         let names: Vec<&str> = outputs.keys().collect();
         for name in names {

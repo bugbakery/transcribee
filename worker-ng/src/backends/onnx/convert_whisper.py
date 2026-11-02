@@ -1,7 +1,8 @@
-import itertools
 import json
 import struct
 from dataclasses import dataclass
+from os import chdir
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -16,6 +17,7 @@ from onnx.helper import (
     make_opsetid,
     make_tensor_value_info,
 )
+from onnx.shape_inference import infer_shapes
 from torch import nn
 from whisper.model import Conv1d, LayerNorm, Linear, MultiHeadAttention, ResidualAttentionBlock
 
@@ -81,8 +83,7 @@ class OnnxModelBuilder:
         self,
         model: whisper.Whisper,
         safetensors_file: SafetensorsFile,
-        use_ms_attn=True,
-        use_diy_attn=False,
+        attention_implementation: str = "diy",
     ):
         self.inputs = []
         self.nodes = []
@@ -92,8 +93,7 @@ class OnnxModelBuilder:
 
         self.model = model
         self.safetensors_file = safetensors_file
-        self.use_ms_attn = use_ms_attn
-        self.use_diy_attn = use_diy_attn
+        self.attention_implementation = attention_implementation
 
     def save(self, name: str):
         graph = make_graph(
@@ -106,11 +106,14 @@ class OnnxModelBuilder:
         )
         onnx_model = make_model(graph)
         del onnx_model.opset_import[:]
-        onnx_model.opset_import.append(make_opsetid("", 20 if self.use_ms_attn else 24))
-        if self.use_ms_attn:
+        onnx_model.opset_import.append(
+            make_opsetid("", 24 if self.attention_implementation == "onnx" else 20)
+        )
+        if self.attention_implementation == "ms":
             onnx_model.opset_import.append(make_opsetid("com.microsoft", 1))
         onnx_model.ir_version = find_min_ir_version_for(onnx_model.opset_import[:1])
         check_model(onnx_model)
+        onnx_model = infer_shapes(onnx_model, check_type=True, strict_mode=True, data_prop=True)
         with open(f"{name}.onnx", "wb") as f:
             f.write(onnx_model.SerializeToString())
         return onnx_model
@@ -142,37 +145,18 @@ class OnnxModelBuilder:
             else:
                 raise KeyError(f"could not find initializer pytorch name for {name}")
 
-            # sadly somehow the data is stored in a transposed way in the safetensors file
-            # this finds the right way to transpose it
-            buf = self.safetensors_file.get_tensor_bytes(pytorch_name)
-            ref_np = ref.detach().numpy()
-            for perm in itertools.permutations(list(range(len(ref_np.shape)))):
-                initial_shape = [
-                    ref_np.shape[perm.index(axis)] for axis in range(len(ref_np.shape))
-                ]
-                ours = np.frombuffer(buf, dtype=np.float16).reshape(initial_shape).transpose(perm)
-                if np.allclose(ours, ref_np):
-                    break
-            else:
-                raise Exception("colud not find permutation for array")
-            print(SafetensorsFile.mingle_name(pytorch_name), perm)
-
             entry = self.safetensors_file.get_tensor_info(pytorch_name)
             self.initializers.append(
                 OnnxModelBuilder.make_initializer_with_external_data(
                     name,
                     entry.dtype,
-                    initial_shape,
+                    ref.shape,
                     self.safetensors_file.path,
                     entry.offset,
                     entry.length,
                 )
             )
-
-            if initial_shape != ref_np.shape:
-                return self.node(f"{name}.transpose", "Transpose", [name], perm=perm)
-            else:
-                return name
+            return name
         elif isinstance(ref, np.ndarray):
             self.initializers.append(numpy_helper.from_array(ref, name=name))
             return name
@@ -202,7 +186,8 @@ class OnnxModelBuilder:
         return name
 
     def linear(self, name: str, ref: Linear, x: str, outputs: list = None):
-        weight = self.initializer(f"{name}.weight", ref.weight.T)
+        weight = self.initializer(f"{name}.weight", ref.weight)
+        weight = self.node(f"{name}.transpose_weight", "Transpose", [weight], perm=[1, 0])
         x = self.node(f"{name}.mul", "MatMul", [x, weight], outputs if ref.bias is None else None)
         if ref.bias is None:
             return x
@@ -210,23 +195,18 @@ class OnnxModelBuilder:
             bias = self.initializer(f"{name}.bias", ref.bias)
             return self.node(f"{name}.add", "Add", [x, bias], outputs)
 
-    def diy_multi_head_attention(
+    def diy_sdpa(
         self,
         name: str,
-        ref: MultiHeadAttention,
-        x: str,
-        kv: tuple[str, str] = None,
+        q: str,
+        k: str,
+        v: str,
+        attn_mask: str | None,
+        head_size: int,
+        n_head: int,
     ):
-        q = self.linear(f"{name}.query", ref.query, x)
-        if kv is not None:
-            [k, v] = kv
-        else:
-            k = self.linear(f"{name}.key", ref.key, x)
-            v = self.linear(f"{name}.value", ref.value, x)
-
-        head_size = ref.query.bias.shape[0] // ref.n_head
         reshape_dims = self.initializer(
-            f"{name}.reshape_dims", np.array([0, -1, ref.n_head, head_size])
+            f"{name}.reshape_dims", np.array([0, -1, n_head, head_size])
         )
         q = self.node(f"{name}.reshape_q", "Reshape", [q, reshape_dims])
         q = self.node(f"{name}.transpose_q", "Transpose", [q], perm=[0, 2, 1, 3])
@@ -241,6 +221,8 @@ class OnnxModelBuilder:
         q = self.node(f"{name}.scale_q", "Mul", [q, scale])
 
         qk = self.node(f"{name}.qk_matmul", "MatMul", [q, k], [f"{name}.attention.qk"])
+        if attn_mask is not None:
+            qk = self.node(f"{name}.add_attn_mask", "Add", [qk, attn_mask])
         w = self.node(f"{name}.softmax", "Softmax", [qk])
         wv = self.node(f"{name}.wv_matmul", "MatMul", [w, v])
         wv = self.node(f"{name}.wv_transpose", "Transpose", [wv], perm=[0, 2, 1, 3])
@@ -248,7 +230,67 @@ class OnnxModelBuilder:
         wv = self.node(
             f"{name}.reshape_wv", "Reshape", [wv, wv_reshape_dims], [f"{name}.attention.wv"]
         )
-        return self.linear(f"{name}.out", ref.out, wv)
+        return wv, qk
+
+    def sdpa(
+        self,
+        name: str,
+        q: str,  # (batch_size, q_sequence_length, q_hidden_size)
+        k: str,  # (batch_size, q_sequence_length, q_hidden_size)
+        v: str,  # (batch_size, q_sequence_length, q_hidden_size)
+        attn_mask: str,
+        head_size: int,
+        n_head: int,
+    ):
+        hidden_size = n_head * head_size
+        if self.attention_implementation == "diy":
+            wv, qk = self.diy_sdpa(
+                name,
+                q,
+                k,
+                v,
+                attn_mask,
+                head_size,
+                n_head,
+            )
+        elif self.attention_implementation == "ms":
+            # we dont use the default Attention block from the main ONNX domain here, because it does not have
+            # a WebGPU shader yet. See docs at:
+            #  https://github.com/microsoft/onnxruntime/blob/rel-1.28.0/docs/ContribOperators.md#commicrosoftmultiheadattention
+            wv, _, _, qk = self.node(
+                f"{name}.attention",
+                "MultiHeadAttention",
+                [q, k, v, "", "", attn_mask or ""],
+                [f"{name}.attention.wv", "", "", f"{name}.attention.qk"],
+                num_heads=n_head,
+                domain="com.microsoft",
+                # cache_indirection is pretty cool and what we need for buffer sharing
+                # but unfortunately unsupported on webGPU as far as I (jaro) can tell on 10th Oct. 2026
+            )
+        elif self.attention_implementation == "onnx":
+            wv, _, _, qk = self.node(
+                f"{name}.attention",
+                "Attention",
+                [q, k, v, attn_mask or ""],
+                [f"{name}.attention.wv", "", "", f"{name}.attention.qk"],
+                q_num_heads=n_head,
+                kv_num_heads=n_head,
+                softmax_precision=1,  # FLOAT
+            )
+        else:
+            raise ValueError(f"unknown attention implementation '{self.attention_implementation}'")
+        self.value_info(
+            wv,
+            TensorProto.FLOAT16,
+            ["batch_size", f"{name}.q_sequence_length", hidden_size],
+        )
+        self.value_info(
+            qk,
+            TensorProto.FLOAT16,
+            ["batch_size", n_head, f"{name}.q_sequence_length", f"{name}.total_sequence_length"],
+        )
+
+        return wv, qk
 
     def multi_head_attention(
         self,
@@ -257,115 +299,73 @@ class OnnxModelBuilder:
         x: str,
         kv: tuple[str, str] = None,
         kv_cache=False,
-        causal=True,
+        attn_mask=None,
     ):
-        if not kv_cache and not causal and self.use_diy_attn:
-            return self.diy_multi_head_attention(name, ref, x, kv)
-
+        hidden_size = ref.out.bias.shape[0]
         q = self.linear(f"{name}.query", ref.query, x)
         if kv is not None:
             k, v = kv
-            inputs = inputs_ms = [q, k, v]
         elif kv_cache:
             k = self.linear(f"{name}.key", ref.key, x)
             v = self.linear(f"{name}.value", ref.value, x)
 
+            # we store the kv-cache entries right aligned.
+            # we have to do this after the prefill run but after the simple concat below is enough
+            # to append new tokens.
             past_key = self.input(
                 f"past.{name}.key",
                 TensorProto.FLOAT16,
-                ["self_kv_cache_width", "num_heads", "past_sequence_length", "head_size"],
+                ["self_kv_cache_width", "past_sequence_length", hidden_size],
             )
             past_key = self.node(
                 f"{name}.past_key_gather", "Gather", [past_key, "self_kv_cache_indices"]
             )
-            reshape_dims = self.initializer(
-                f"{name}.append_shape", np.array([0, ref.n_head, -1, 64], dtype=np.int64)
-            )
-            past_key_append = self.node(f"{name}.past_key_append", "Reshape", [k, reshape_dims])
-            past_key = self.node(
-                f"{name}.past_key_concat", "Concat", [past_key, past_key_append], axis=2
+            k = self.node(
+                f"{name}.past_key_concat",
+                "Concat",
+                [past_key, k],
+                [f"present.{name}.key"],
+                axis=1,
             )
             past_value = self.input(
                 f"past.{name}.value",
                 TensorProto.FLOAT16,
-                ["self_kv_cache_width", "num_heads", "past_sequence_length", "head_size"],
+                ["self_kv_cache_width", "past_sequence_length", hidden_size],
             )
             past_value = self.node(
                 f"{name}.past_value_gather", "Gather", [past_value, "self_kv_cache_indices"]
             )
-            past_value_append = self.node(f"{name}.past_value_append", "Reshape", [v, reshape_dims])
-            past_value = self.node(
-                f"{name}.past_value_concat", "Concat", [past_value, past_value_append], axis=2
+            v = self.node(
+                f"{name}.past_value_concat",
+                "Concat",
+                [past_value, v],
+                [f"present.{name}.value"],
+                axis=1,
             )
-
-            inputs_ms = [
-                q,
-                k,
-                v,
-                "",
-                "",
-                "",
-                past_key,
-                past_value,
-                self.self_kv_cache_lengths_maybe_int32,
-            ]
-            inputs = [q, k, v, "", past_key, past_value, self.self_kv_cache_lengths_maybe_int32]
         else:
             k = self.linear(f"{name}.key", ref.key, x)
             v = self.linear(f"{name}.value", ref.value, x)
-            inputs = inputs_ms = [q, k, v]
 
-        if self.use_ms_attn:
-            # we dont use the default Attention block from the main ONNX domain here, because it does not have
-            # a WebGPU shader yet. See docs at:
-            #  https://github.com/microsoft/onnxruntime/blob/rel-1.28.0/docs/ContribOperators.md#commicrosoftmultiheadattention
-            wv, present_key, present_value, qk = self.node(
-                f"{name}.attention",
-                "MultiHeadAttention",
-                inputs_ms,
-                [
-                    f"{name}.attention.wv",
-                    f"present.{name}.key",
-                    f"present.{name}.value",
-                    f"{name}.attention.qk",
-                ],
-                num_heads=ref.n_head,
-                unidirectional=int(causal),
-                domain="com.microsoft",
-                # cache_indirection is pretty cool and what we need for buffer sharing
-                # but unfortunately unsupported on webGPU as far as I (jaro) can tell on 10th Oct. 2026
-            )
-            self.value_info(
-                qk,
-                TensorProto.FLOAT16,
-                ["batch_size", 20, "seq_len", "dims" if kv else "total_seq_len"],
-            )  # this is needed as otherwise the shape inference fails (stupid onnxruntime)
-        else:
-            wv, present_key, present_value, qk = self.node(
-                f"{name}.attention",
-                "Attention",
-                inputs,
-                [
-                    f"{name}.attention.wv",
-                    f"present.{name}.key",
-                    f"present.{name}.value",
-                    f"{name}.attention.qk",
-                ],
-                q_num_heads=ref.n_head,
-                kv_num_heads=ref.n_head,
-                is_causal=int(causal),
-            )
+        wv, qk = self.sdpa(
+            name,
+            q,
+            k,
+            v,
+            attn_mask,
+            head_size=ref.query.bias.shape[0] // ref.n_head,
+            n_head=ref.n_head,
+        )
 
         if kv_cache:
             self.output(
-                present_key,
+                k,
                 TensorProto.FLOAT16,
-                ["batch_size", "num_heads", "sequence_length", "head_size"],
+                ["self_kv_cache_width", "past_sequence_length", hidden_size],
             )
             self.output(
-                present_value,
+                v,
                 TensorProto.FLOAT16,
-                ["batch_size", "num_heads", "sequence_length", "head_size"],
+                ["self_kv_cache_width", "past_sequence_length", hidden_size],
             )
         out = self.linear(f"{name}.out", ref.out, wv)
         return out
@@ -398,7 +398,7 @@ class OnnxModelBuilder:
         x: str,
         cross_kv: tuple[str, str] = None,
         kv_cache=True,
-        self_attn_causal=True,
+        self_attn_mask=None,
     ):
         after_ln = self.layer_norm(f"{name}.attn_ln", ref.attn_ln, x)
         after_attn = self.multi_head_attention(
@@ -407,13 +407,13 @@ class OnnxModelBuilder:
             after_ln,
             None,
             kv_cache,
-            causal=self_attn_causal,
+            self_attn_mask,
         )
         x = self.node(f"{name}.add_attn", "Add", [x, after_attn])
         if ref.cross_attn:
             after_cross_ln = self.layer_norm(f"{name}.cross_attn_ln", ref.cross_attn_ln, x)
             after_cross_attn = self.multi_head_attention(
-                f"{name}.cross_attn", ref.cross_attn, after_cross_ln, cross_kv, causal=False
+                f"{name}.cross_attn", ref.cross_attn, after_cross_ln, cross_kv, attn_mask=None
             )
             x = self.node(f"{name}.add_cross_attn", "Add", [x, after_cross_attn])
         after_mlp_ln = self.layer_norm(f"{name}.mlp_ln", ref.mlp_ln, x)
@@ -447,13 +447,6 @@ def create_decoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
     self_kv_cache_lengths = b.node(
         "self_kv_cache_lengths_gather", "Gather", [self_kv_cache_lengths, indices]
     )
-    if b.use_ms_attn:
-        # for stupid reasons the ms attention wants the kv cache lengths as int32
-        b.self_kv_cache_lengths_maybe_int32 = b.node(
-            "self_kv_cache_lengths_cast", "Cast", [self_kv_cache_lengths], to=TensorProto.INT32
-        )  # [batch_size]
-    else:
-        b.self_kv_cache_lengths_maybe_int32 = self_kv_cache_lengths
 
     token_embedding = b.initializer(
         "token_embedding", b.model.decoder.token_embedding.weight
@@ -496,6 +489,10 @@ def create_decoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
     x = b.node("add_positional_embedding", "Add", [x, positional_embedding])
 
     cross_kv_cache_indices = b.input("cross_kv_cache_indices", TensorProto.INT64, ["batch_size"])
+    self_attn_mask = b.input(
+        "self_attn_mask", TensorProto.FLOAT, ["batch_size", 1, "max_seq_len", "max_seq_len"]
+    )
+    self_attn_mask = b.node("cast_self_attn_mask", "Cast", [self_attn_mask], to=TensorProto.FLOAT16)
 
     for i, block in enumerate(b.model.decoder.blocks):
         cross_k = b.input(
@@ -511,7 +508,7 @@ def create_decoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
             f"block.{i}.cross_kv_cache_gather_v", "Gather", [cross_v, cross_kv_cache_indices]
         )
         x = b.residual_attention_block(
-            f"block.{i}", block, x, [cross_k, cross_v], self_attn_causal=True
+            f"block.{i}", block, x, [cross_k, cross_v], self_attn_mask=self_attn_mask
         )
     x = b.layer_norm("ln", b.model.decoder.ln, x)
     token_embedding_transposed = b.node("transpose_token_embedding", "Transpose", [token_embedding])
@@ -533,7 +530,9 @@ def create_decoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
         "alignment_heads_cast", "Cast", [alignment_heads], ["alignment_heads"], to=TensorProto.FLOAT
     )
     b.output(
-        alignment_heads, TensorProto.FLOAT, ["batch_size", len(alignment_heads_list), 1500, 1280]
+        alignment_heads,
+        TensorProto.FLOAT,
+        ["batch_size", len(alignment_heads_list), "seq_len", 1500],
     )
     return b
 
@@ -558,7 +557,7 @@ def create_encoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
             block,
             x,
             kv_cache=False,
-            self_attn_causal=False,
+            self_attn_mask=None,
         )
 
     x = b.layer_norm("ln_post", b.model.encoder.ln_post, x)
@@ -570,26 +569,40 @@ def create_encoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
 if __name__ == "__main__":
     torch.set_default_dtype(torch.float16)  # make sure the weights dont get converted to f32
     model = whisper.load_model("large-v3-turbo")
+    chdir(Path(__file__).parent.parent.parent.parent / "target")
     safetensors = SafetensorsFile("whisper_large_v3_turbo.safetensors")
 
     print("creating encoder model...")
-    create_encoder(OnnxModelBuilder(model, safetensors, use_diy_attn=True, use_ms_attn=True)).save(
+    create_encoder(OnnxModelBuilder(model, safetensors, attention_implementation="diy")).save(
         "whisper_large_v3_turbo_encoder"
+    )
+    print("creating encoder model ms_attn...")
+    create_encoder(OnnxModelBuilder(model, safetensors, attention_implementation="ms")).save(
+        "whisper_large_v3_turbo_encoder_ms_attn"
+    )
+    print("creating encoder model onnx_attn...")
+    create_encoder(OnnxModelBuilder(model, safetensors, attention_implementation="onnx")).save(
+        "whisper_large_v3_turbo_encoder_onnx_attn"
     )
 
     print("creating decoder kv cache prefill model...")
-    create_cross_kv_prefill_model(OnnxModelBuilder(model, safetensors, use_ms_attn=True)).save(
+    create_cross_kv_prefill_model(OnnxModelBuilder(model, safetensors)).save(
         "whisper_large_v3_turbo_decoder_cross_kv_prefill"
     )
 
     print("creating decoder model...")
-    create_decoder(OnnxModelBuilder(model, safetensors, use_ms_attn=False)).save(
+    create_decoder(OnnxModelBuilder(model, safetensors, attention_implementation="diy")).save(
         "whisper_large_v3_turbo_decoder"
     )
 
     print("creating decoder ms_attn...")
-    create_decoder(OnnxModelBuilder(model, safetensors, use_ms_attn=True)).save(
+    create_decoder(OnnxModelBuilder(model, safetensors, attention_implementation="ms")).save(
         "whisper_large_v3_turbo_decoder_ms_attn"
+    )
+
+    print("creating decoder onnx_attn...")
+    create_decoder(OnnxModelBuilder(model, safetensors, attention_implementation="onnx")).save(
+        "whisper_large_v3_turbo_decoder_onnx_attn"
     )
 
     print("done :)")

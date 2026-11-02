@@ -3,14 +3,18 @@ use crate::whisper::encoder::WhisperEncoderBackend;
 use anyhow::Result;
 use log::info;
 use ndarray::{Array2, Axis};
-use ort::{ep::ExecutionProviderDispatch, session::{Session, builder::GraphOptimizationLevel}, value::Value};
-use std::time::Instant;
+use ort::{
+    ep::ExecutionProviderDispatch,
+    session::{Session, builder::GraphOptimizationLevel},
+    value::Value,
+};
+use std::{path::Path, time::Instant};
 
 pub struct WhisperEncoderOrt {
     model: Session,
 }
 impl WhisperEncoderOrt {
-    pub fn new(backend: ExecutionProviderDispatch, model_folder: &str) -> Result<Self> {
+    pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
         let model = Session::builder(&ORT_RUNTIME)?
             .with_execution_providers([backend.clone()])
             .unwrap()
@@ -18,10 +22,10 @@ impl WhisperEncoderOrt {
             .unwrap()
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
-                model_folder,
+                Path::new(model_path).parent().unwrap().to_str().unwrap(),
             )
             .unwrap()
-            .commit_from_memory(include_bytes!("../../../target/whisper_large_v3_turbo_encoder.onnx"))?;
+            .commit_from_file(model_path)?;
 
         Ok(Self { model })
     }

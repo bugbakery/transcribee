@@ -50,7 +50,6 @@ impl WhisperEncoderBurn {
                 .model
                 .residual_attention_block(&format!("{name}.layers.{i}"), x, 20);
         }
-        
         self.model.layer_norm(&format!("{name}.layer_norm"), x)
     }
 }

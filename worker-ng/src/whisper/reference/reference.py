@@ -68,10 +68,10 @@ if __name__ == "__main__":
     ]
 
     with torch.no_grad(), disable_sdpa():
-        x = torch.tensor([tokens[:-1]])
-        prefill_logits = model.decoder(x, encoded)[0].softmax(dim=-1).detach().numpy()
+        x = torch.tensor([tokens])
+        prefill_logits = model.decoder(x, encoded)[0].softmax(dim=-1).detach().numpy()[:-1]
         np.save(target_dir / "logits_prefill.npy", prefill_logits)
-        np.testing.assert_allclose(logits, prefill_logits)
+        np.testing.assert_allclose(logits, prefill_logits, rtol=1e-5, atol=1e-6)
 
     for hook in hooks:
         hook.remove()

@@ -1,6 +1,8 @@
 use std::ops::Range;
 
-use crate::{audio_reader::AudioReader, backends::onnx::ORT_RUNTIME, model_downloader::RemoteModel};
+use crate::{
+    audio_reader::AudioReader, backends::onnx::ORT_RUNTIME, model_downloader::RemoteModel,
+};
 use anyhow::Result;
 use ndarray::{Array1, Array2, Array3};
 use ort::{
