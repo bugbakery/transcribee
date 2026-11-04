@@ -27,10 +27,6 @@ pub fn get_backends(
         b!("Burn WebGPU", crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(burn_tensor::Device::wgpu(Default::default()), "./target/whisper_large_v3_turbo.safetensors")),
         #[cfg(feature = "backend-onnxruntime")]
         b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_encoder.onnx")),
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime WebGPU ms attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_encoder_ms_attn.onnx")),
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime WebGPU onnx attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_encoder_onnx_attn.onnx")),
 
         #[cfg(feature = "backend-mlx")]
         b!("MLX CPU", crate::backends::mlx::whisper_encoder::WhisperEncoderMlx::new(mlx_rs::DeviceType::Cpu, "./target/whisper_large_v3_turbo.safetensors")),
@@ -38,10 +34,6 @@ pub fn get_backends(
         b!("Burn flex (CPU)", crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(burn_tensor::Device::flex(), "./target/whisper_large_v3_turbo.safetensors")),
         #[cfg(feature = "backend-onnxruntime")]
         b!("ONNX Runtime CPU diy attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_encoder.onnx")),
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime CPU ms attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_encoder_ms_attn.onnx")),
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime CPU onnx attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_encoder_onnx_attn.onnx")),
     ];
     backends
 }
