@@ -24,10 +24,10 @@ pub fn get_backends(
     #[rustfmt::skip]
     let backends: Vec<(&str, Box<dyn Fn() -> Result<DynWhisperDecoderBackend>>)> = vec![
         #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime CPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
+        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
 
         #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
+        b!("ONNX Runtime CPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
     ];
     backends
 }

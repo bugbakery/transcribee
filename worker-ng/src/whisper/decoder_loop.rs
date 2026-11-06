@@ -46,6 +46,7 @@ impl Whisper {
     // idea: make the beam_width only wider if we are unsure about the next token. otherwise greedy is fine
     const BEAM_WIDTH: usize = 5;
     const MAX_LEN: usize = 448;
+    const MAX_CONTEXT_LEN: usize = 20;
 
     pub async fn new(
         encoder: DynWhisperEncoderBackend,
@@ -123,31 +124,61 @@ impl Whisper {
             let encoded = self.encoder.encode(mel)?;
             let handles = self.decoder.register_encoded_audio_chunks(&[encoded])?;
 
-            let mut sot_sequence = vec![];
-            if let Some(last_tokens) = last_tokens {
-                sot_sequence.push(self.tokenizer.startofprev());
-                for i in 0..20 {
-                    sot_sequence.push(last_tokens[i + last_tokens.len() - 2 - 20].0);
-                }
+            let mut prompt = vec![];
+            let context = last_tokens
+                .map(|tokens| {
+                    tokens[tokens.len().saturating_sub(Self::MAX_CONTEXT_LEN)..]
+                        .iter()
+                        .map(|x| x.0)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            if !context.is_empty() {
+                prompt.push(self.tokenizer.startofprev());
+                prompt.extend_from_slice(&context);
             }
-            sot_sequence.extend_from_slice(&self.tokenizer.sot_sequence(language)?);
+            println!("context: '{}'", self.tokenizer.decode(&context)?);
+            prompt.extend_from_slice(&self.tokenizer.sot_sequence(language)?);
+            let prompt_len = prompt.len();
 
-            let chunk = self.transcribe_chunks(&[(handles[0].clone(), vec![sot_sequence])])?;
-            let beams = chunk.first().unwrap();
+            let chunk = self.transcribe_chunks(&[(handles[0].clone(), vec![prompt])])?;
+            let mut beams = chunk.first().unwrap().clone();
+            beams.sort_by(|(a, _), (b, _)| {
+                (Self::logprob_of_seq(b) / b.len() as f32)
+                    .total_cmp(&(Self::logprob_of_seq(a) / a.len() as f32))
+            });
+            for (seq, _) in &beams {
+                let tokens = seq[prompt_len..seq.len() - 1]
+                    .iter()
+                    .map(|(x, _)| *x)
+                    .collect::<Vec<_>>();
+                println!(
+                    "\t {} {}",
+                    self.tokenizer.decode(&tokens)?,
+                    Self::logprob_of_seq(&seq) / seq.len() as f32
+                )
+            }
+
             let (seq, alignment_data) = beams.first().unwrap();
+            let seq = &seq[prompt_len..seq.len() - 1];
+            last_tokens = Some(seq.to_vec());
+
             let alignment_data = concatenate(
                 Axis(1),
-                &alignment_data.iter().map(|x| x.view()).collect::<Vec<_>>(),
+                &alignment_data
+                    .iter()
+                    .skip(1) // skip the prefilled tokens
+                    .map(|x| x.view())
+                    .collect::<Vec<_>>(),
             )
             .unwrap()
             .into_owned();
 
-            last_tokens = Some(seq.clone());
             let alignment =
                 calculate_alignment(alignment_data.clone(), (chunk_len_s / 30. * 1500.) as usize)?;
             let atoms = seq
                 .iter()
-                .zip(alignment.iter().zip(alignment.iter().skip(1)))
+                .zip(alignment.iter().zip(alignment.iter()))
                 .map(|(&(token, conf), (start, end))| Atom {
                     conf,
                     conf_ts: 1.0,
