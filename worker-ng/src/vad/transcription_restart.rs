@@ -28,10 +28,12 @@ pub fn get_restart_points(vad_samples: &[f32], target_len: usize) -> Vec<usize> 
     // TODO: maybe refine the solution to find a globally better optimum (unclear if worth it)
     // TDDO: maybe take into account turn taking here
 
-    split_points
+    let mut split_points: Vec<usize> = split_points
         .iter()
         .map(|idx| silence_runs[*idx].end)
-        .collect()
+        .collect();
+    split_points.insert(0, 0);
+    split_points
 }
 
 // picks the next best silence for splitting according to a metric

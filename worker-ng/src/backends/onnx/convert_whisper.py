@@ -19,7 +19,13 @@ from onnx.helper import (
 )
 from onnx.shape_inference import infer_shapes
 from torch import nn
-from whisper.model import Conv1d, LayerNorm, Linear, MultiHeadAttention, ResidualAttentionBlock
+from whisper.model import (
+    Conv1d,
+    LayerNorm,
+    Linear,
+    MultiHeadAttention,
+    ResidualAttentionBlock,
+)
 
 
 class SafetensorsFile:
@@ -113,7 +119,9 @@ class OnnxModelBuilder:
             onnx_model.opset_import.append(make_opsetid("com.microsoft", 1))
         onnx_model.ir_version = find_min_ir_version_for(onnx_model.opset_import[:1])
         check_model(onnx_model)
-        onnx_model = infer_shapes(onnx_model, check_type=True, strict_mode=True, data_prop=True)
+        onnx_model = infer_shapes(
+            onnx_model, check_type=True, strict_mode=True, data_prop=True
+        )
         with open(f"{name}.onnx", "wb") as f:
             f.write(onnx_model.SerializeToString())
         return onnx_model
@@ -164,7 +172,12 @@ class OnnxModelBuilder:
             raise TypeError(f"ref for initializer {name} is of unknown type")
 
     def node(
-        self, name: str, type: str, inputs: list[str], outputs: list[str] | None = None, **kwargs
+        self,
+        name: str,
+        type: str,
+        inputs: list[str],
+        outputs: list[str] | None = None,
+        **kwargs,
     ):
         if outputs is None:
             outputs = [f"{name}.out"]
@@ -187,8 +200,12 @@ class OnnxModelBuilder:
 
     def linear(self, name: str, ref: Linear, x: str, outputs: list = None):
         weight = self.initializer(f"{name}.weight", ref.weight)
-        weight = self.node(f"{name}.transpose_weight", "Transpose", [weight], perm=[1, 0])
-        x = self.node(f"{name}.mul", "MatMul", [x, weight], outputs if ref.bias is None else None)
+        weight = self.node(
+            f"{name}.transpose_weight", "Transpose", [weight], perm=[1, 0]
+        )
+        x = self.node(
+            f"{name}.mul", "MatMul", [x, weight], outputs if ref.bias is None else None
+        )
         if ref.bias is None:
             return x
         else:
@@ -226,9 +243,14 @@ class OnnxModelBuilder:
         w = self.node(f"{name}.softmax", "Softmax", [qk])
         wv = self.node(f"{name}.wv_matmul", "MatMul", [w, v])
         wv = self.node(f"{name}.wv_transpose", "Transpose", [wv], perm=[0, 2, 1, 3])
-        wv_reshape_dims = self.initializer(f"{name}.wv_reshape_dims", np.array([0, 0, -1]))
+        wv_reshape_dims = self.initializer(
+            f"{name}.wv_reshape_dims", np.array([0, 0, -1])
+        )
         wv = self.node(
-            f"{name}.reshape_wv", "Reshape", [wv, wv_reshape_dims], [f"{name}.attention.wv"]
+            f"{name}.reshape_wv",
+            "Reshape",
+            [wv, wv_reshape_dims],
+            [f"{name}.attention.wv"],
         )
         return wv, qk
 
@@ -278,7 +300,9 @@ class OnnxModelBuilder:
                 softmax_precision=1,  # FLOAT
             )
         else:
-            raise ValueError(f"unknown attention implementation '{self.attention_implementation}'")
+            raise ValueError(
+                f"unknown attention implementation '{self.attention_implementation}'"
+            )
         self.value_info(
             wv,
             TensorProto.FLOAT16,
@@ -287,7 +311,12 @@ class OnnxModelBuilder:
         self.value_info(
             qk,
             TensorProto.FLOAT16,
-            ["batch_size", n_head, f"{name}.q_sequence_length", f"{name}.total_sequence_length"],
+            [
+                "batch_size",
+                n_head,
+                f"{name}.q_sequence_length",
+                f"{name}.total_sequence_length",
+            ],
         )
 
         return wv, qk
@@ -333,7 +362,9 @@ class OnnxModelBuilder:
                 ["self_kv_cache_width", "past_sequence_length", hidden_size],
             )
             past_value = self.node(
-                f"{name}.past_value_gather", "Gather", [past_value, "self_kv_cache_indices"]
+                f"{name}.past_value_gather",
+                "Gather",
+                [past_value, "self_kv_cache_indices"],
             )
             v = self.node(
                 f"{name}.past_value_concat",
@@ -373,7 +404,9 @@ class OnnxModelBuilder:
     def layer_norm(self, name: str, ref: LayerNorm, x: str):
         # whisper does the LayerNorms in fp32 even if all other calculations are fp16
         weight = self.initializer(f"{name}.weight", ref.weight)
-        weight = self.node(f"{name}.weight_cast", "Cast", [weight], to=TensorProto.FLOAT)
+        weight = self.node(
+            f"{name}.weight_cast", "Cast", [weight], to=TensorProto.FLOAT
+        )
         bias = self.initializer(f"{name}.bias", ref.bias)
         bias = self.node(f"{name}.bias_cast", "Cast", [bias], to=TensorProto.FLOAT)
         x = self.node(f"{name}.input_cast", "Cast", [x], to=TensorProto.FLOAT)
@@ -411,9 +444,15 @@ class OnnxModelBuilder:
         )
         x = self.node(f"{name}.add_attn", "Add", [x, after_attn])
         if ref.cross_attn:
-            after_cross_ln = self.layer_norm(f"{name}.cross_attn_ln", ref.cross_attn_ln, x)
+            after_cross_ln = self.layer_norm(
+                f"{name}.cross_attn_ln", ref.cross_attn_ln, x
+            )
             after_cross_attn = self.multi_head_attention(
-                f"{name}.cross_attn", ref.cross_attn, after_cross_ln, cross_kv, attn_mask=None
+                f"{name}.cross_attn",
+                ref.cross_attn,
+                after_cross_ln,
+                cross_kv,
+                attn_mask=None,
             )
             x = self.node(f"{name}.add_cross_attn", "Add", [x, after_cross_attn])
         after_mlp_ln = self.layer_norm(f"{name}.mlp_ln", ref.mlp_ln, x)
@@ -426,10 +465,18 @@ def create_cross_kv_prefill_model(b: OnnxModelBuilder) -> OnnxModelBuilder:
     xa = b.node("xa_cast", "Cast", [xa], to=TensorProto.FLOAT16)
 
     for i, block in enumerate(b.model.decoder.blocks):
-        k = b.linear(f"block.{i}.cross_attn.key", block.cross_attn.key, xa, [f"cross_attn.{i}.key"])
+        k = b.linear(
+            f"block.{i}.cross_attn.key",
+            block.cross_attn.key,
+            xa,
+            [f"cross_attn.{i}.key"],
+        )
         b.output(k, TensorProto.FLOAT16, ["batch_size", 1500, 1280])
         v = b.linear(
-            f"block.{i}.cross_attn.value", block.cross_attn.value, xa, [f"cross_attn.{i}.value"]
+            f"block.{i}.cross_attn.value",
+            block.cross_attn.value,
+            xa,
+            [f"cross_attn.{i}.value"],
         )
         b.output(v, TensorProto.FLOAT16, ["batch_size", 1500, 1280])
     return b
@@ -451,14 +498,20 @@ def create_decoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
     token_embedding = b.initializer(
         "token_embedding", b.model.decoder.token_embedding.weight
     )  # [51866, 1280]
-    x = b.node("embed_tokens", "Gather", [token_embedding, x])  # [batch_size, sequence_len, 1280]
+    x = b.node(
+        "embed_tokens", "Gather", [token_embedding, x]
+    )  # [batch_size, sequence_len, 1280]
 
     positional_embedding = b.initializer(
         "positional_embedding", b.model.decoder.positional_embedding
     )  # [448, 1280]
 
-    delta = b.initializer("positional_embedding_range_delta", np.array([1], dtype=np.int64))
-    start = b.initializer("positional_embedding_range_start", np.array([0], dtype=np.int64))
+    delta = b.initializer(
+        "positional_embedding_range_delta", np.array([1], dtype=np.int64)
+    )
+    start = b.initializer(
+        "positional_embedding_range_start", np.array([0], dtype=np.int64)
+    )
     positional_embedding_ranges = b.node(
         "positional_embedding_range", "Range", [start, seq_len, delta]
     )  # [seq_len]
@@ -476,7 +529,9 @@ def create_decoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
         "self_kv_cache_lengths_unsqueeze_axes", np.array([1], dtype=np.int64)
     )
     lengths = b.node(
-        "self_kv_cache_lengths_unsqueeze", "Unsqueeze", [self_kv_cache_lengths, unsqueeze_axes]
+        "self_kv_cache_lengths_unsqueeze",
+        "Unsqueeze",
+        [self_kv_cache_lengths, unsqueeze_axes],
     )  # [batch_size, 1]
 
     positional_embedding_ranges = b.node(
@@ -484,34 +539,52 @@ def create_decoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
     )  # [batch_size, seq_len]
 
     positional_embedding = b.node(
-        "positional_embedding_gather", "Gather", [positional_embedding, positional_embedding_ranges]
+        "positional_embedding_gather",
+        "Gather",
+        [positional_embedding, positional_embedding_ranges],
     )
     x = b.node("add_positional_embedding", "Add", [x, positional_embedding])
 
-    cross_kv_cache_indices = b.input("cross_kv_cache_indices", TensorProto.INT64, ["batch_size"])
-    self_attn_mask = b.input(
-        "self_attn_mask", TensorProto.FLOAT, ["batch_size", 1, "max_seq_len", "max_seq_len"]
+    cross_kv_cache_indices = b.input(
+        "cross_kv_cache_indices", TensorProto.INT64, ["batch_size"]
     )
-    self_attn_mask = b.node("cast_self_attn_mask", "Cast", [self_attn_mask], to=TensorProto.FLOAT16)
+    self_attn_mask = b.input(
+        "self_attn_mask",
+        TensorProto.FLOAT,
+        ["batch_size", 1, "max_seq_len", "max_seq_len"],
+    )
+    self_attn_mask = b.node(
+        "cast_self_attn_mask", "Cast", [self_attn_mask], to=TensorProto.FLOAT16
+    )
 
     for i, block in enumerate(b.model.decoder.blocks):
         cross_k = b.input(
-            f"cross_attn.{i}.key", TensorProto.FLOAT16, ["cross_kv_cache_size", 1500, 1280]
+            f"cross_attn.{i}.key",
+            TensorProto.FLOAT16,
+            ["cross_kv_cache_size", 1500, 1280],
         )
         cross_k = b.node(
-            f"block.{i}.cross_kv_cache_gather_k", "Gather", [cross_k, cross_kv_cache_indices]
+            f"block.{i}.cross_kv_cache_gather_k",
+            "Gather",
+            [cross_k, cross_kv_cache_indices],
         )
         cross_v = b.input(
-            f"cross_attn.{i}.value", TensorProto.FLOAT16, ["cross_kv_cache_size", 1500, 1280]
+            f"cross_attn.{i}.value",
+            TensorProto.FLOAT16,
+            ["cross_kv_cache_size", 1500, 1280],
         )
         cross_v = b.node(
-            f"block.{i}.cross_kv_cache_gather_v", "Gather", [cross_v, cross_kv_cache_indices]
+            f"block.{i}.cross_kv_cache_gather_v",
+            "Gather",
+            [cross_v, cross_kv_cache_indices],
         )
         x = b.residual_attention_block(
             f"block.{i}", block, x, [cross_k, cross_v], self_attn_mask=self_attn_mask
         )
     x = b.layer_norm("ln", b.model.decoder.ln, x)
-    token_embedding_transposed = b.node("transpose_token_embedding", "Transpose", [token_embedding])
+    token_embedding_transposed = b.node(
+        "transpose_token_embedding", "Transpose", [token_embedding]
+    )
     x = b.node("matmul_final", "MatMul", [x, token_embedding_transposed])
 
     x = b.node("cast_logits", "Cast", [x], ["logits"], to=TensorProto.FLOAT)
@@ -519,15 +592,25 @@ def create_decoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
 
     alignment_heads_list = []
     for i, (block, head) in enumerate(b.model.alignment_heads.indices().numpy().T):
-        block_qk = f"block.{block}.cross_attn.attention.qk"  # [batch_size, 20, seq_len, 1500]
+        block_qk = (
+            f"block.{block}.cross_attn.attention.qk"  # [batch_size, 20, seq_len, 1500]
+        )
         block_idx = b.initializer(
             f"alignment_head_{i}_gather_input", np.array([head], dtype=np.int64)
         )
-        head = b.node(f"alignment_head_{i}_gather", "Gather", [block_qk, block_idx], axis=1)
+        head = b.node(
+            f"alignment_head_{i}_gather", "Gather", [block_qk, block_idx], axis=1
+        )
         alignment_heads_list.append(head)
-    alignment_heads = b.node("alignment_heads_concat", "Concat", alignment_heads_list, axis=1)
     alignment_heads = b.node(
-        "alignment_heads_cast", "Cast", [alignment_heads], ["alignment_heads"], to=TensorProto.FLOAT
+        "alignment_heads_concat", "Concat", alignment_heads_list, axis=1
+    )
+    alignment_heads = b.node(
+        "alignment_heads_cast",
+        "Cast",
+        [alignment_heads],
+        ["alignment_heads"],
+        to=TensorProto.FLOAT,
     )
     b.output(
         alignment_heads,
@@ -542,7 +625,9 @@ def create_encoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
     x = b.node("cast_input", "Cast", [x], to=TensorProto.FLOAT16)
     x = b.conv("conv1", b.model.encoder.conv1, x, pads=[1, 1], kernel_shape=[3])
     x = b.node("gelu_after_conv1", "Gelu", [x])
-    x = b.conv("conv2", b.model.encoder.conv2, x, pads=[1, 1], strides=[2], kernel_shape=[3])
+    x = b.conv(
+        "conv2", b.model.encoder.conv2, x, pads=[1, 1], strides=[2], kernel_shape=[3]
+    )
     x = b.node("gelu_after_conv2", "Gelu", [x])
     x = b.node("transpose", "Transpose", [x], perm=[0, 2, 1])
 
@@ -567,23 +652,25 @@ def create_encoder(b: OnnxModelBuilder) -> OnnxModelBuilder:
 
 
 if __name__ == "__main__":
-    torch.set_default_dtype(torch.float16)  # make sure the weights dont get converted to f32
+    torch.set_default_dtype(
+        torch.float16
+    )  # make sure the weights dont get converted to f32
     model = whisper.load_model("large-v3-turbo")
     chdir(Path(__file__).parent.parent.parent.parent / "target")
     safetensors = SafetensorsFile("whisper_large_v3_turbo.safetensors")
 
     print("creating encoder model...")
-    create_encoder(OnnxModelBuilder(model, safetensors, attention_implementation="diy")).save(
-        "whisper_large_v3_turbo_encoder"
-    )
+    create_encoder(
+        OnnxModelBuilder(model, safetensors, attention_implementation="diy")
+    ).save("whisper_large_v3_turbo_encoder")
     print("creating encoder model ms_attn...")
-    create_encoder(OnnxModelBuilder(model, safetensors, attention_implementation="ms")).save(
-        "whisper_large_v3_turbo_encoder_ms_attn"
-    )
+    create_encoder(
+        OnnxModelBuilder(model, safetensors, attention_implementation="ms")
+    ).save("whisper_large_v3_turbo_encoder_ms_attn")
     print("creating encoder model onnx_attn...")
-    create_encoder(OnnxModelBuilder(model, safetensors, attention_implementation="onnx")).save(
-        "whisper_large_v3_turbo_encoder_onnx_attn"
-    )
+    create_encoder(
+        OnnxModelBuilder(model, safetensors, attention_implementation="onnx")
+    ).save("whisper_large_v3_turbo_encoder_onnx_attn")
 
     print("creating decoder kv cache prefill model...")
     create_cross_kv_prefill_model(OnnxModelBuilder(model, safetensors)).save(
@@ -591,18 +678,18 @@ if __name__ == "__main__":
     )
 
     print("creating decoder model...")
-    create_decoder(OnnxModelBuilder(model, safetensors, attention_implementation="diy")).save(
-        "whisper_large_v3_turbo_decoder"
-    )
+    create_decoder(
+        OnnxModelBuilder(model, safetensors, attention_implementation="diy")
+    ).save("whisper_large_v3_turbo_decoder")
 
     print("creating decoder ms_attn...")
-    create_decoder(OnnxModelBuilder(model, safetensors, attention_implementation="ms")).save(
-        "whisper_large_v3_turbo_decoder_ms_attn"
-    )
+    create_decoder(
+        OnnxModelBuilder(model, safetensors, attention_implementation="ms")
+    ).save("whisper_large_v3_turbo_decoder_ms_attn")
 
     print("creating decoder onnx_attn...")
-    create_decoder(OnnxModelBuilder(model, safetensors, attention_implementation="onnx")).save(
-        "whisper_large_v3_turbo_decoder_onnx_attn"
-    )
+    create_decoder(
+        OnnxModelBuilder(model, safetensors, attention_implementation="onnx")
+    ).save("whisper_large_v3_turbo_decoder_onnx_attn")
 
     print("done :)")

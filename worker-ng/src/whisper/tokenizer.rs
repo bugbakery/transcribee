@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-
 use crate::model_downloader::RemoteModel;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow, bail};
+use ndarray::Array1;
+use std::sync::Mutex;
 use tokenizers::Tokenizer as HfTokenizer;
 
 pub const WHISPER_V3_LARGE_TOKENIZER_JSON: RemoteModel = RemoteModel {
@@ -9,8 +9,9 @@ pub const WHISPER_V3_LARGE_TOKENIZER_JSON: RemoteModel = RemoteModel {
     name: "whisper-large-v3-turbo-tokenizer.json",
     size: 2480617,
 };
+pub const NUM_TOKENS: usize = 51866;
 
-const LANGUAGES: [(&str, &str); 100] = [
+pub const LANGUAGES: [(&str, &str); 100] = [
     ("en", "english"),
     ("zh", "chinese"),
     ("de", "german"),
@@ -125,7 +126,8 @@ macro_rules! expose_static_token {
 
 pub struct Tokenizer {
     tokenizer: HfTokenizer,
-    token_to_language: HashMap<u32, &'static str>,
+    non_speech_tokens_mask: Mutex<Option<Array1<f32>>>,
+    special_tokens_mask: Mutex<Option<Array1<f32>>>,
 }
 impl Tokenizer {
     pub async fn new() -> Result<Self> {
@@ -134,19 +136,10 @@ impl Tokenizer {
             .await?;
 
         let tokenizer = HfTokenizer::from_file(tokenizer_file).unwrap();
-        let token_to_language = LANGUAGES
-            .iter()
-            .map(|(code, _name)| {
-                (
-                    tokenizer.token_to_id(&format!("<|{code}|>")).unwrap(),
-                    *code,
-                )
-            })
-            .collect();
-
         Ok(Self {
             tokenizer,
-            token_to_language,
+            non_speech_tokens_mask: Mutex::new(None),
+            special_tokens_mask: Mutex::new(None),
         })
     }
 
@@ -155,21 +148,11 @@ impl Tokenizer {
     expose_static_token!(notimestamps);
     expose_static_token!(startofprev);
     expose_static_token!(endoftext);
-
-    pub fn decode_language(&self, token: i64) -> Option<&'static str> {
-        self.token_to_language.get(&(token as u32)).cloned()
-    }
-    pub fn encode_language(&self, code: &str) -> Result<i64> {
-        let encoded = self
-            .tokenizer
-            .token_to_id(&format!("<|{code}|>"))
-            .with_context(|| format!("language '{code}' not found"))?;
-        Ok(encoded as i64)
-    }
+    expose_static_token!(nospeech);
 
     pub fn encode(&self, text: &str) -> Result<Vec<i64>> {
         self.tokenizer
-            .encode_fast(text, true)
+            .encode_fast(text, false)
             .map_err(|e| anyhow!("{e}"))
             .map(|encoding| encoding.get_ids().iter().map(|id| *id as i64).collect())
     }
@@ -180,12 +163,66 @@ impl Tokenizer {
             .map_err(|e| anyhow!("{e}"))
     }
 
+    pub fn encode_single(&self, text: &str) -> Result<i64> {
+        let x = self.tokenizer.token_to_id(&text.replace(" ", "Ġ"));
+        if x.is_none() {
+            bail!("expected '{text}' to encode to one token but it encoded to {x:?}")
+        } else {
+            Ok(x.unwrap() as i64)
+        }
+    }
+    pub fn decode_single(&self, id: i64) -> Result<String> {
+        self.decode(&[id])
+    }
+
     pub fn sot_sequence(&self, lang: &str) -> Result<Vec<i64>> {
         Ok(vec![
             self.startoftranscript(),
-            self.encode_language(lang)?,
+            self.encode_single(&format!("<|{lang}|>"))?,
             self.transcribe(),
             self.notimestamps(),
         ])
+    }
+
+    pub fn generate_mask(&self, include_token: impl Fn(i64) -> bool) -> Array1<f32> {
+        Array1::from_iter((0..NUM_TOKENS).map(|t| {
+            if include_token(t as i64) {
+                0.0
+            } else {
+                f32::NEG_INFINITY
+            }
+        }))
+    }
+
+    pub fn special_tokens_mask(&self, allow: &[i64]) -> Array1<f32> {
+        let mut locked = self.special_tokens_mask.lock().unwrap();
+        if locked.is_none() {
+            let mask = self.generate_mask(|t| !self.decode_single(t).unwrap().contains("<|"));
+            locked.replace(mask);
+        }
+        let mut to_return = locked.as_ref().unwrap().clone();
+        for t in allow {
+            to_return[*t as usize] = 0.0;
+        }
+        to_return
+    }
+
+    pub fn non_speech_tokens_mask(&self) -> Array1<f32> {
+        let mut locked = self.non_speech_tokens_mask.lock().unwrap();
+        if locked.is_none() {
+            let supress = "\" # ( ) * + / : ; < = > @ [ \\ ] ^ _ ` { | } ~ 「 」 『 << >> <<< >>> -- --- -( -[ (' (\" (( )) ((( ))) [[ ]] {{ }}";
+
+            let mut mask = self.generate_mask(|t| {
+                let decoded = self.decode_single(t).unwrap();
+                !supress.split(" ").any(|supress| decoded.contains(supress))
+                    || decoded.contains("<|")
+            });
+
+            mask[self.encode_single(" -").unwrap() as usize] = f32::NEG_INFINITY;
+            mask[self.encode_single(" '").unwrap() as usize] = f32::NEG_INFINITY;
+
+            locked.replace(mask);
+        }
+        locked.as_ref().unwrap().clone()
     }
 }

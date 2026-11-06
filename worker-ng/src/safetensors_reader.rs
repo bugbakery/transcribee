@@ -3,7 +3,6 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{Read, Seek, SeekFrom::Start},
-    os::raw::c_void,
     str::FromStr,
 };
 
@@ -61,8 +60,16 @@ impl SafetensorsFile {
         Ok(Self { file, tensors })
     }
 
-    pub fn info(&mut self, name: &str) -> Option<&TensorInfo> {
-        self.tensors.get(name)
+    pub fn info(&self, name: &str) -> Option<TensorInfo> {
+        self.tensors.get(name).cloned()
+    }
+
+    pub fn read_tensor(&mut self, info: &TensorInfo) -> Result<Vec<u8>> {
+        let mut bytes = vec![0u8; info.length as usize];
+        let offset = info.offset;
+        self.file.seek(Start(offset))?;
+        self.file.read_exact(&mut bytes)?;
+        Ok(bytes)
     }
 
     #[cfg(feature = "backend-burn")]
@@ -70,12 +77,9 @@ impl SafetensorsFile {
         let info = self
             .info(name)
             .with_context(|| format!("no tensor named {name}"))?;
-        let mut bytes = vec![0u8; info.length as usize];
-        let offset = info.offset;
         let dtype = info.dtype.as_burn_dtype();
         let shape: Vec<i32> = info.shape.iter().map(|x| *x as i32).collect();
-        self.file.seek(Start(offset))?;
-        self.file.read_exact(&mut bytes)?;
+        let bytes = self.read_tensor(&info)?;
         Ok(burn_tensor::TensorData::from_bytes_vec(bytes, shape, dtype))
     }
 
@@ -84,14 +88,12 @@ impl SafetensorsFile {
         let info = self
             .info(name)
             .with_context(|| format!("no tensor named {name}"))?;
-        let mut bytes = vec![0u8; info.length as usize];
-        let offset = info.offset;
         let dtype = info.dtype.as_mlx_dtype();
         let shape: Vec<i32> = info.shape.iter().map(|x| *x as i32).collect();
-        self.file.seek(Start(offset))?;
-        self.file.read_exact(&mut bytes)?;
-        // TODO: is this use after free?
-        Ok(unsafe { mlx_rs::Array::from_raw_data(bytes.as_ptr() as *const c_void, &shape, dtype) })
+        let bytes = self.read_tensor(&info)?;
+        Ok(unsafe {
+            mlx_rs::Array::from_raw_data(bytes.as_ptr() as *const std::ffi::c_void, &shape, dtype)
+        })
     }
 }
 

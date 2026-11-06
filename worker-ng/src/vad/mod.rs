@@ -1,4 +1,4 @@
-mod earshot;
+pub mod earshot;
 #[cfg(feature = "backend-onnxruntime")]
-mod silero;
-mod transcription_restart;
+pub mod silero;
+pub mod transcription_restart;

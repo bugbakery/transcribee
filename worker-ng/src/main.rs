@@ -2,7 +2,6 @@ use std::time::Instant;
 
 use anyhow::{Ok, Result};
 use clap::{Arg, Command};
-use compile_time_run::run_command_str;
 use indicatif::ProgressBar;
 use ndarray::Array2;
 
@@ -135,10 +134,12 @@ async fn main() -> Result<()> {
         let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
         let mut whisper = Whisper::new(encoder, decoder).await?;
 
-        whisper.transcribe(&ar, &mut |bar| {
-            let text: String = bar.atoms.iter().map(|atom| &atom.text as &str).collect();
-            println!("{text}")
-        })?;
+        whisper
+            .transcribe(&ar, None, &mut |bar| {
+                let text: String = bar.atoms.iter().map(|atom| &atom.text as &str).collect();
+                println!("{text}")
+            })
+            .await?;
     } else if let Some(_matches) = m.subcommand_matches("sysinfo") {
         println!("{}", get_system_string());
     }

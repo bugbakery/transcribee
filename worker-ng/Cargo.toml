@@ -39,6 +39,7 @@ stft-rs = "0.6.0"
 sysinfo = "0.40.1"
 tokenizers = "0.23.2"
 tokio = { version = "1.54.0", features = ["rt-multi-thread", "macros"] }
+npyz = "0.9.1"  # TODO: move to dev
 
 [target.'cfg( target_os = "macos" )'.dependencies]
 burn-tensor = { version = "0.22.0", default-features = false, optional = true, features = [
@@ -48,7 +49,6 @@ burn-tensor = { version = "0.22.0", default-features = false, optional = true, f
 
 
 [dev-dependencies]
-npyz = "0.9.1"
 
 
 [features]

@@ -4,11 +4,12 @@
 //! sensitive part while keeping complexity in check.
 
 use anyhow::Result;
-use ndarray::{Array2, Array3};
+use ndarray::{Array2, Array3, Array4};
 use std::{any::Any, sync::Arc};
 
 pub type TokenSequence = Vec<(i64, f32)>; // token, conf
-pub type AlignmentData = Array3<f32>; // [heads, tokens, encoder_frames]
+pub type TokenLogits = Array3<f32>; // [batch, seq, tokens]
+pub type AlignmentData = Array4<f32>; // [batch, heads, tokens, encoder_frames]
 pub type DynWhisperDecoderBackend = Box<dyn WhisperDecoderBackend>;
 
 pub fn get_backends(
@@ -23,10 +24,10 @@ pub fn get_backends(
     #[rustfmt::skip]
     let backends: Vec<(&str, Box<dyn Fn() -> Result<DynWhisperDecoderBackend>>)> = vec![
         #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
+        b!("ONNX Runtime CPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
 
         #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime CPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
+        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
     ];
     backends
 }
@@ -65,8 +66,8 @@ pub trait WhisperDecoderBackend {
 
     /// Registers a new text sequence with the backend. All tokens passed to this function are assumed to have a confidence of 1.0.
     /// The `SequenceHandle` is backend specific and holds the buffer of the sequence as well as a reference to
-    /// the self attention KV cache and alignment data of this sequence.
-    /// The KV cache and alignment data are only guaranteed to be usable after forward() has been called and will
+    /// the self attention KV cache of this sequence.
+    /// The KV cache is only guaranteed to be usable after forward() has been called and will
     /// be overwritten by the next call to forward()
     fn register_sequence(&mut self, tokens: &[i64]) -> SequenceHandle;
 
@@ -82,14 +83,13 @@ pub trait WhisperDecoderBackend {
     /// Get the token ids and the confidence associated with each token.
     fn get_tokens(&self, seq: &SequenceHandle) -> Result<TokenSequence>;
 
-    /// Get the decoder heads used for alignment calculation with dtw. This only works directly after passing
-    /// a sequence handle to forward() and the next call to forward() may overwrite the result.
-    /// the result has the shape [heads, tokens, encoder_frames]
-    fn get_alignment_data(&self, seq: &SequenceHandle) -> Result<AlignmentData>;
-
     /// Run a single forward pass of the decoder.
     /// Returns the probabilities for the next token with shape [batch_size, new_tokens, 51866]
-    fn forward(&mut self, inputs: &[(AudioChunkHandle, SequenceHandle)]) -> Result<Array3<f32>>;
+    /// and the alignment data with shape [batch, heads, tokens, encoder_frames]
+    fn forward(
+        &mut self,
+        inputs: &[(AudioChunkHandle, SequenceHandle)],
+    ) -> Result<(TokenLogits, AlignmentData)>;
 }
 
 #[cfg(test)]
@@ -116,7 +116,7 @@ mod test {
             .map(|t| t as i64)
             .collect();
         let sequence = backend.register_sequence(&tokens);
-        let logits = backend
+        let (logits, alignment_data) = backend
             .forward(&[(audio_chunk.clone(), sequence.clone())])
             .unwrap();
         let logits = logits
@@ -133,11 +133,13 @@ mod test {
             0.1,
         );
 
-        let alignment_weights = backend.get_alignment_data(&sequence).unwrap();
         is_similiar &= is_similiar_to_reference(
             "alignment_weights.npy",
             &format!("prefill_{name}"),
-            softmax(alignment_weights.into_dyn(), Axis(2)),
+            softmax(
+                alignment_data.slice_move(s![0, .., .., ..]).into_dyn(),
+                Axis(2),
+            ),
             0.05,
         );
 
@@ -159,25 +161,27 @@ mod test {
             .map(|t| t as i64)
             .collect();
         let mut sequence = None;
-        let mut results = Vec::new();
+        let mut logits_vec = Vec::new();
+        let mut alignment_data_vec = Vec::new();
         for &token in &tokens {
             sequence = Some(if let Some(seq) = &sequence {
                 backend.append_token_to_sequence(&seq, token, 1.0).unwrap()
             } else {
                 backend.register_sequence(&[token])
             });
-            let result = backend
+            let (logits, alignment_data) = backend
                 .forward(&[(audio_chunk.clone(), sequence.as_ref().unwrap().clone())])
                 .unwrap();
-            results.push(result);
+            logits_vec.push(logits);
+            alignment_data_vec.push(alignment_data);
         }
-        results.pop();
+        logits_vec.pop();
 
         let mut is_similiar = true;
 
         let logits = concatenate(
             Axis(1),
-            &results.iter().map(|x| x.view()).collect::<Vec<_>>(),
+            &logits_vec.iter().map(|x| x.view()).collect::<Vec<_>>(),
         )
         .unwrap()
         .slice(s![0, .., ..])
@@ -189,11 +193,21 @@ mod test {
             0.1,
         );
 
-        let alignment_weights = backend.get_alignment_data(&sequence.unwrap()).unwrap();
+        let alignment_data = concatenate(
+            Axis(2),
+            &alignment_data_vec
+                .iter()
+                .map(|x| x.view())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap()
+        .slice(s![0, .., .., ..])
+        .into_owned();
+
         is_similiar &= is_similiar_to_reference(
             "alignment_weights.npy",
             &format!("decode_{name}"),
-            softmax(alignment_weights.into_dyn(), Axis(2)),
+            softmax(alignment_data.into_dyn(), Axis(2)),
             0.05,
         );
 
@@ -219,8 +233,8 @@ mod test {
             backend.register_sequence(&reference_tokens[0..1]),
             backend.register_sequence(&reference_tokens[0..5]),
         ];
-        let mut results = vec![vec![]; sequences.len()];
-        let mut alignment_weights = vec![None; sequences.len()];
+        let mut logit_vecs = vec![vec![]; sequences.len()];
+        let mut alignment_vecs = vec![vec![]; sequences.len()];
         for round in 0.. {
             let mut input_idx = vec![];
             if round == 0 {
@@ -245,34 +259,39 @@ mod test {
                 .iter()
                 .map(|&idx| (audio_chunk.clone(), sequences[idx].clone()))
                 .collect();
-            let logits = backend.forward(&inputs).unwrap();
+            let (logits, alignment_data) = backend.forward(&inputs).unwrap();
 
             for (i, sequence_idx) in input_idx.into_iter().enumerate() {
                 let sequence = &sequences[sequence_idx];
                 let sequence_length = backend.get_tokens(sequence).unwrap().len();
                 if round == 0 {
                     // we are in prefill and need to check how much of the result we add for each sequence in the batch
-                    results[sequence_idx].push(
+                    logit_vecs[sequence_idx].push(
                         logits
                             .slice(s![i..i + 1, 0..sequence_length, ..])
+                            .to_owned(),
+                    );
+                    alignment_vecs[sequence_idx].push(
+                        alignment_data
+                            .slice(s![i..i + 1, .., 0..sequence_length, ..])
                             .to_owned(),
                     );
                 } else {
                     // we extrude one token at a time and just unconditionally take the only token extruded
                     assert_eq!(logits.shape()[1], 1);
-                    results[sequence_idx].push(logits.slice(s![i..i + 1, 0..1, ..]).to_owned());
+                    logit_vecs[sequence_idx].push(logits.slice(s![i..i + 1, 0..1, ..]).to_owned());
+                    alignment_vecs[sequence_idx]
+                        .push(alignment_data.slice(s![i..i + 1, .., 0..1, ..]).to_owned());
                 }
-                alignment_weights[sequence_idx] =
-                    Some(backend.get_alignment_data(sequence).unwrap());
             }
         }
 
         let mut is_similiar = true;
 
-        for i in 0..results.len() {
+        for i in 0..logit_vecs.len() {
             let logits = concatenate(
                 Axis(1),
-                &results[i].iter().map(|x| x.view()).collect::<Vec<_>>(),
+                &logit_vecs[i].iter().map(|x| x.view()).collect::<Vec<_>>(),
             )
             .unwrap()
             .slice(s![0, .., ..])
@@ -284,10 +303,20 @@ mod test {
                 0.1,
             );
 
+            let alignment_data = concatenate(
+                Axis(2),
+                &alignment_vecs[i]
+                    .iter()
+                    .map(|x| x.view())
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap()
+            .slice(s![0, .., .., ..])
+            .into_owned();
             is_similiar &= is_similiar_to_reference(
                 "alignment_weights.npy",
                 &format!("different_lengh_batches_{i}_{name}"),
-                softmax(alignment_weights[i].clone().unwrap().into_dyn(), Axis(2)),
+                softmax(alignment_data.into_dyn(), Axis(2)),
                 0.05,
             );
         }

@@ -4,14 +4,14 @@ use crate::audio_reader::AudioReader;
 use anyhow::Result;
 
 pub struct EarshotVadModel {
-    output: Vec<f32>,
+    pub output: Vec<f32>,
     sample_rate: f32,
 }
 
 impl EarshotVadModel {
     const CHUNK_SIZE: usize = 256; // ~16ms at 16khz sample rate
 
-    pub async fn new(src: AudioReader) -> Result<Self> {
+    pub async fn new(src: &AudioReader) -> Result<Self> {
         // TODO: we are currently doing all the computation here, this is maybe not the best idea
 
         let mut detector = earshot::Detector::default();
@@ -51,7 +51,7 @@ mod test {
     #[tokio::test]
     async fn test_smoke() {
         let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
-        let vad = EarshotVadModel::new(ar).await.unwrap();
+        let vad = EarshotVadModel::new(&ar).await.unwrap();
         assert!(
             *vad.get(0..100)
                 .unwrap()
