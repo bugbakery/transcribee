@@ -95,7 +95,7 @@ async fn main() -> Result<()> {
                     let mut seq = seq.clone();
                     let start = Instant::now();
                     for _ in 0..10 {
-                        seq = backend.append_token_to_sequence(&seq, 0, 1.0).unwrap();
+                        //seq = backend.append_token_to_sequence(&seq, 0, 1.0).unwrap();
                         backend
                             .forward(&vec![(chunk.clone(), seq.clone()); batch])
                             .unwrap();

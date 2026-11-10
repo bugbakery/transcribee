@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use ez_ffmpeg::frame_export::SampleExtractor;
-use std::{fmt::format, ops::Range};
+use std::ops::Range;
 
 pub const OUTPUT_SR: u32 = 16_000;
 
@@ -19,7 +19,13 @@ impl AudioReader {
     }
 
     pub fn get(&self, range: Range<usize>) -> Result<&[f32]> {
-        self.samples.get(range).context("out of range")
+        self.samples.get(range.clone()).with_context(|| {
+            format!(
+                "out of range (len is {}, requested range was {:?})",
+                self.len(),
+                range
+            )
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -32,7 +38,7 @@ impl AudioReader {
 }
 
 pub fn format_time(t: f32) -> String {
-    format!("{:.0}:{:02.0}", (t / 60.).floor(), t % 60.0)
+    format!("{:.0}:{:02.03}", (t / 60.).floor(), t % 60.0)
 }
 
 #[cfg(test)]

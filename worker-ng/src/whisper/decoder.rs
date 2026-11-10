@@ -77,11 +77,7 @@ pub trait WhisperDecoderBackend {
         &mut self,
         seq: &SequenceHandle,
         token: i64,
-        conf: f32,
     ) -> Result<SequenceHandle>;
-
-    /// Get the token ids and the confidence associated with each token.
-    fn get_tokens(&self, seq: &SequenceHandle) -> Result<TokenSequence>;
 
     /// Run a single forward pass of the decoder.
     /// Returns the probabilities for the next token with shape [batch_size, new_tokens, 51866]
@@ -165,7 +161,7 @@ mod test {
         let mut alignment_data_vec = Vec::new();
         for &token in &tokens {
             sequence = Some(if let Some(seq) = &sequence {
-                backend.append_token_to_sequence(&seq, token, 1.0).unwrap()
+                backend.append_token_to_sequence(&seq, token).unwrap()
             } else {
                 backend.register_sequence(&[token])
             });
@@ -229,10 +225,11 @@ mod test {
             .map(|t| t as i64)
             .collect();
 
-        let mut sequences = vec![
-            backend.register_sequence(&reference_tokens[0..1]),
-            backend.register_sequence(&reference_tokens[0..5]),
-        ];
+        let start_lengths = vec![1usize, 5];
+        let mut sequences: Vec<_> = start_lengths
+            .iter()
+            .map(|&len| backend.register_sequence(&reference_tokens[0..len]))
+            .collect();
         let mut logit_vecs = vec![vec![]; sequences.len()];
         let mut alignment_vecs = vec![vec![]; sequences.len()];
         for round in 0.. {
@@ -241,12 +238,10 @@ mod test {
                 input_idx.extend_from_slice(&[0, 1]);
             } else {
                 for (s_idx, s) in sequences.iter_mut().enumerate() {
-                    let sequence_length = backend.get_tokens(s).unwrap().len();
+                    let sequence_length = round + start_lengths[s_idx];
                     if sequence_length < reference_tokens.len() {
                         let token: i64 = reference_tokens[sequence_length];
-                        *s = backend
-                            .append_token_to_sequence(&s, token as i64, 1.0)
-                            .unwrap();
+                        *s = backend.append_token_to_sequence(&s, token as i64).unwrap();
                         input_idx.push(s_idx);
                     }
                 }
@@ -263,19 +258,15 @@ mod test {
 
             for (i, sequence_idx) in input_idx.into_iter().enumerate() {
                 let sequence = &sequences[sequence_idx];
-                let sequence_length = backend.get_tokens(sequence).unwrap().len();
                 if round == 0 {
                     // we are in prefill and need to check how much of the result we add for each sequence in the batch
                     logit_vecs[sequence_idx].push(
                         logits
-                            .slice(s![i..i + 1, 0..sequence_length, ..])
+                            .slice(s![i..i + 1, 0..start_lengths[sequence_idx], ..])
                             .to_owned(),
                     );
-                    alignment_vecs[sequence_idx].push(
-                        alignment_data
-                            .slice(s![i..i + 1, .., 0..sequence_length, ..])
-                            .to_owned(),
-                    );
+                    alignment_vecs[sequence_idx]
+                        .push(alignment_data.slice(s![i..i + 1, .., 0..1, ..]).to_owned());
                 } else {
                     // we extrude one token at a time and just unconditionally take the only token extruded
                     assert_eq!(logits.shape()[1], 1);

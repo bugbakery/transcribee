@@ -3,8 +3,7 @@
 use super::ORT_RUNTIME;
 use crate::whisper::{
     decoder::{
-        AlignmentData, AudioChunkHandle, SequenceHandle, TokenLogits, TokenSequence,
-        WhisperDecoderBackend,
+        AlignmentData, AudioChunkHandle, SequenceHandle, TokenLogits, WhisperDecoderBackend,
     },
     handle::Handle,
 };
@@ -24,7 +23,7 @@ use std::time::Instant;
 pub type OrtAudioChunkHandle = Handle;
 #[derive(Clone)]
 pub struct OrtSequenceHandle {
-    tokens: TokenSequence,
+    tokens: Vec<i64>,
     handle: Handle,
     last_handle: Option<Handle>,
 }
@@ -73,7 +72,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
 
     fn register_sequence(&mut self, tokens: &[i64]) -> SequenceHandle {
         SequenceHandle::downcast(OrtSequenceHandle {
-            tokens: tokens.iter().map(|token: &i64| (*token, 1.0)).collect(),
+            tokens: tokens.to_vec(),
             handle: Handle::new(),
             last_handle: None,
         })
@@ -83,7 +82,6 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         &mut self,
         seq: &SequenceHandle,
         token: i64,
-        conf: f32,
     ) -> Result<SequenceHandle> {
         let seq = seq.upcast::<OrtSequenceHandle>();
         if self
@@ -97,16 +95,12 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
             )
         }
         let mut tokens = seq.tokens.clone();
-        tokens.push((token, conf));
+        tokens.push(token);
         Ok(SequenceHandle::downcast(OrtSequenceHandle {
             tokens,
             handle: Handle::new(),
             last_handle: Some(seq.handle.clone()),
         }))
-    }
-
-    fn get_tokens(&self, seq: &SequenceHandle) -> Result<TokenSequence> {
-        Ok(seq.upcast::<OrtSequenceHandle>().tokens.clone())
     }
 
     fn forward(
@@ -146,7 +140,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
                 .unwrap();
             let mut input_ids = Array2::zeros((batch_size, max_sequence_len));
             for (b, (_, seq)) in inputs.iter().enumerate() {
-                for (i, &(token, _)) in seq.tokens.iter().enumerate() {
+                for (i, &token) in seq.tokens.iter().enumerate() {
                     *input_ids.get_mut((b, i)).unwrap() = token;
                 }
             }
@@ -171,7 +165,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
                 if self.kv_cache.get_entry_len(seq.last_handle.as_ref().unwrap()).context("seq is not known to the kv cache so it cannot participate in a non-prefill batch")? != seq.tokens.len() - 1 {
                     bail!("seq would need more than one token added. this is unsupported in non-prefill batches");
                 }
-                let &(token, _) = seq.tokens.last().unwrap();
+                let &token = seq.tokens.last().unwrap();
                 input_ids.push(token);
             }
             binding.bind_input(
