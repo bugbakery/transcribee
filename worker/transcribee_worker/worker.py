@@ -4,11 +4,13 @@ import mimetypes
 import tempfile
 import time
 import traceback
+from math import ceil
 from pathlib import Path
 from typing import Any, Optional
 from uuid import UUID
 
 import automerge
+import numpy as np
 import numpy.typing as npt
 from pydantic import TypeAdapter
 from requests.exceptions import HTTPError
@@ -27,7 +29,7 @@ from transcribee_proto.api import (
 from transcribee_proto.api import Document as ApiDocument
 from transcribee_proto.document import Document as EditorDocument
 from transcribee_worker.api_client import ApiClient
-from transcribee_worker.config import settings
+from transcribee_worker.config import OutputProfile, settings
 from transcribee_worker.identify_speakers import identify_speakers
 from transcribee_worker.reencode import (
     get_duration,
@@ -119,16 +121,16 @@ class Worker:
 
         return TypeAdapter(Optional[AssignedTask]).validate_json(req.text)  # type: ignore
 
-    def _get_tmpfile(self, filename: str) -> Path:
+    def _get_tmpdir(self) -> Path:
         if self.tmpdir is None:
             raise ValueError("`tmpdir` must be set")
-        return self.tmpdir / filename
+        return self.tmpdir
 
     def download_media(self, media_file: RemoteDocumentMedia) -> Path:
         logging.debug(f"loading audio. {media_file=}")
         response = self.api_client.get(media_file.url)
         extension = mimetypes.guess_extension(media_file.content_type)
-        path = self._get_tmpfile(f"doc_audio{extension}")
+        path = self._get_tmpdir() / f"doc_audio{extension}"
         with open(path, "wb") as f:
             f.write(response.content)
         return path
@@ -243,6 +245,51 @@ class Worker:
                     task.task_parameters.number_of_speakers, audio, d, progress_callback
                 )
 
+    def generate_waveform_file(self, audio_path: Path, output_path: Path):
+        chunk_size = 128
+
+        data = load_audio(audio_path)
+
+        # group by chunks
+        data = np.pad(data, chunk_size)
+        data.resize(int(ceil(len(data) / chunk_size)) * chunk_size)
+        data = np.reshape(data, (-1, chunk_size))
+        peaks = len(data)
+
+        # chunks to peaks
+        waveform = np.empty(peaks * 2)
+        waveform[0::2] = np.min(data, axis=1)
+        waveform[1::2] = np.max(data, axis=1)
+
+        # normalize amplitude
+        waveform /= max(abs(np.max(waveform)), abs(np.min(waveform)))
+
+        # convert float to int16
+        waveform *= 2**16 / 2 - 1
+        waveform = waveform.astype(np.int16)
+
+        # we implement BBC's audiowaveform data file format.
+        # see: https://codeberg.org/chrisn/audiowaveform/src/commit/c043aed7bd78224543e238e37c38fd833fc50815/doc/DataFormat.md
+        version = 2
+        flags = 0  # 16-bit resolution
+        sample_rate = 16000
+        samples_per_pixel = chunk_size
+        length = peaks
+        channels = 1
+
+        header = (
+            version.to_bytes(4, signed=True, byteorder="little")
+            + flags.to_bytes(4, signed=False, byteorder="little")
+            + sample_rate.to_bytes(4, signed=True, byteorder="little")
+            + samples_per_pixel.to_bytes(4, signed=True, byteorder="little")
+            + length.to_bytes(4, signed=False, byteorder="little")
+            + channels.to_bytes(4, signed=True, byteorder="little")
+        )
+
+        with output_path.open("wb") as f:
+            f.write(header)
+            f.write(waveform)
+
     async def reencode(
         self, task: ReencodeTask, progress_callback: ProgressCallbackType
     ):
@@ -255,30 +302,43 @@ class Worker:
         duration = get_duration(document_audio)
         self.set_duration(task, duration)
 
-        has_video = get_video_stream(document_audio) is not None
-        profiles = (
-            settings.REENCODE_PROFILES_DESKTOP
-            if settings.WORKER_TYPE == "desktop"
-            else settings.REENCODE_PROFILES
-        )
-        applicable_profiles = {
-            profile_name: parameters
-            for profile_name, parameters in profiles.items()
-            if (parameters.for_audio != has_video)
-            or (parameters.for_video == has_video)
-        }
-        n_profiles = len(applicable_profiles)
+        if settings.WORKER_TYPE == "desktop":
+            assert task.task_parameters.output_path is not None
+            output_dir = Path(task.task_parameters.output_path)
+        else:
+            assert settings.WORKER_TYPE == "web"
+            output_dir = self._get_tmpdir()
 
-        for i, (profile, parameters) in enumerate(applicable_profiles.items()):
-            if settings.WORKER_TYPE == "desktop":
-                output_path = Path(task.task_parameters["output_path"])
-                output_path = (
-                    output_path
-                    / f"{task.document.id}_reencode_{profile.replace(':', '_')}"
-                )
-            else:
-                assert settings.WORKER_TYPE == "web"
-                output_path = self._get_tmpfile(f"reencode_{profile.replace(':', '_')}")
+        if task.task_parameters.generate_waveform:
+            output_path = output_dir / f"{task.document.id}_waveform"
+            self.generate_waveform_file(document_audio, output_path)
+            self.add_document_media_file(task, output_path, ["waveform"])
+
+        has_video = get_video_stream(document_audio) is not None
+        profiles: dict[str, OutputProfile] = {}
+        for profile_name in task.task_parameters.profiles:
+            profile = settings.REENCODE_PROFILES[profile_name]
+            if profile is None:
+                logging.warning(f"Ignoring unknown reencode profile: {profile_name}")
+                continue
+            if (
+                profile.video is None
+                and has_video
+                and not task.task_parameters.audio_for_video
+            ):
+                # only create audio from video files when requested
+                continue
+            if profile.video and not has_video:
+                # never reencode audio to video
+                continue
+            profiles[profile_name] = profile
+
+        n_profiles = len(profiles)
+
+        for i, (profile, parameters) in enumerate(profiles.items()):
+            output_path = (
+                output_dir / f"{task.document.id}_reencode_{profile.replace(':', '_')}"
+            )
 
             def work(_):
                 return reencode(

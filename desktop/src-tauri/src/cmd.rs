@@ -1,6 +1,6 @@
 use crate::{
     cmd_error::CmdResult,
-    file_handling::{Document, DocumentsStoreExt, FrontendDocument},
+    file_handling::{get_media_files_folder, Document, DocumentsStoreExt, FrontendDocument},
     media_file_serve::MediaFileBase,
     menu::{update_macos_menu_items, MenuState},
     transcribee_archive::{self, MediaFileSource},
@@ -157,14 +157,16 @@ pub async fn transcribe_files(
             tasks.push(identify_speakers_task);
         }
 
-        let media_files_folder = app
-            .path()
-            .resolve("media_files", BaseDirectory::AppData)?
-            .to_string_lossy()
-            .to_string();
-        fs::create_dir_all(&media_files_folder)?;
+        let media_files_folder = get_media_files_folder(&app)?;
         let reencode_task = worker_adapter
-            .start_reencode(document.id, f, media_files_folder)
+            .start_reencode(
+                document.id,
+                f,
+                media_files_folder,
+                vec!["video:mp4".into(), "m4a".into()],
+                true,
+                false,
+            )
             .await;
         tasks.push(reencode_task);
 
@@ -193,7 +195,7 @@ pub async fn open_document_via_file_picker(app: AppHandle) -> CmdResult<()> {
 
     if let Some(file) = file {
         let fullscreen = parent.is_fullscreen().unwrap_or(false);
-        let document = app.open_document(&file.to_string())?;
+        let document = app.load_document(&file.to_string())?;
         create_or_focus_document_window(&app, &document, fullscreen).await?;
     }
 

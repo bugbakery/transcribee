@@ -18,6 +18,9 @@ import { DocumentNotFinishedBanner } from 'transcribee-ui-common/components/tran
 import { SpeakerColorsProvider } from 'transcribee-ui-common/editor/speaker_colors';
 import { showModal } from 'transcribee-ui-common/components/modal';
 import { ExportModal } from 'transcribee-ui-common/editor/export/index';
+import { useMediaPlayer } from 'transcribee-ui-common/utils/use_media_player';
+import { MediaPlayer } from 'transcribee-ui-common/utils/media_player';
+import { VideoSpacer } from 'transcribee-ui-common/components/video_spacer';
 
 function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
@@ -112,6 +115,7 @@ export function DocumentPage({
 }: RouteComponentProps<{ '*': string }>) {
   const debugMode = useDebugMode();
   const [editor, initialValue] = useAutomergeLocalFileEditor(documentId);
+  const mediaPlayer = useMediaPlayer();
 
   return (
     <div className="flex flex-col border-box h-screen">
@@ -226,11 +230,11 @@ export function DocumentPage({
                 disableUndoRedoHotkeys // handled by the menu
               />
               {/* Spacer to prevent video preview from hiding text */}
-              <div id="video-bottom-spacer" />
+              <VideoSpacer mediaPlayer={mediaPlayer} />
             </div>
           </div>
 
-          <PlayerBarWithMedia documentId={documentId} editor={editor} />
+          <PlayerBarWithMedia documentId={documentId} editor={editor} mediaPlayer={mediaPlayer} />
         </SpeakerColorsProvider>
       )}
 
@@ -261,9 +265,11 @@ function TitleSetter({ documentId }: { documentId: string }) {
 function PlayerBarWithMedia({
   documentId,
   editor,
+  mediaPlayer,
 }: {
   documentId: string;
   editor: Editor | undefined;
+  mediaPlayer: MediaPlayer;
 }) {
   const mediaFiles = useDocumentMetadata(documentId, ({ media_files }) => media_files, []);
 
@@ -272,6 +278,7 @@ function PlayerBarWithMedia({
       <PlayerBar
         documentId={documentId}
         editor={editor}
+        mediaPlayer={mediaPlayer}
         mediaFiles={mediaFiles.map((m) => ({
           ...m,
           url: m.url,

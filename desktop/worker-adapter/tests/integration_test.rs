@@ -240,6 +240,13 @@ async fn test_reencode() {
                 .to_str()
                 .unwrap()
                 .to_string(),
+            vec![
+                "video:mp4".to_string(),
+                "m4a".to_string(),
+                "mp3".to_string(),
+            ],
+            true,
+            true,
         )
         .await;
 

@@ -9,7 +9,7 @@
 
 use crate::media_file_serve::MediaFileBase;
 use crate::transcribee_archive::{self, MediaFileSource};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tauri::path::BaseDirectory;
 use tauri::plugin::{Builder, TauriPlugin};
-use tauri::{Emitter, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_store::StoreExt;
 use uuid::Uuid;
 use worker_adapter::state::Task;
@@ -103,7 +103,7 @@ impl Document {
             media_files: self
                 .media_files
                 .iter()
-                .map(|f| f.with_base_url(media_file_base_url))
+                .map(|f| f.with_base_url(self.id, media_file_base_url))
                 .collect(),
             has_unsaved_changes: self.has_unsaved_changes,
             tasks: self.worker_tasks.clone(),
@@ -130,23 +130,24 @@ pub struct MediaFile {
     pub source: MediaFileSource,
 }
 impl MediaFile {
-    pub fn from_worker_adapter_media_file(
-        v: worker_adapter::state::MediaFile,
-        document_uuid: Uuid,
-    ) -> Result<Self> {
+    pub fn from_worker_adapter_media_file(v: worker_adapter::state::MediaFile) -> Result<Self> {
         let mime = infer::get_from_path(&v.path)?
             .map(|x| x.mime_type())
             .unwrap_or("application/octet-stream");
+
+        let path = PathBuf::from(&v.path);
+        let file_name = path.file_name().context("context")?.to_string_lossy();
+
         Ok(Self {
             content_type: mime.to_string(),
             tags: v.tags,
-            url: format!("{document_uuid}/reencode"),
+            url: file_name.to_string(),
             source: MediaFileSource::Fs { media_path: v.path },
         })
     }
-    fn with_base_url(&self, base_url: &str) -> Self {
+    fn with_base_url(&self, doc_id: Uuid, base_url: &str) -> Self {
         Self {
-            url: format!("{base_url}/{}", self.url),
+            url: format!("{base_url}/{doc_id}/{}", self.url),
             ..self.clone()
         }
     }
@@ -157,7 +158,7 @@ pub trait DocumentsStoreExt<R: Runtime> {
     fn get_document(&self, id: Uuid) -> Result<Document>;
     fn update_documents(&self, op: impl Fn(Vec<Document>) -> Result<Vec<Document>>) -> Result<()>;
     fn update_document(&self, id: Uuid, op: impl Fn(Document) -> Document) -> Result<()>;
-    fn open_document(&self, path: &str) -> Result<Document>;
+    fn load_document(&self, path: &str) -> Result<Document>;
     fn create_new_document(&self, media_file_path: String) -> Result<Document>;
 }
 impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
@@ -218,12 +219,12 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
         Ok(())
     }
 
-    fn open_document(&self, path: &str) -> Result<Document> {
-        let already_opened = self
+    fn load_document(&self, path: &str) -> Result<Document> {
+        let already_loaded = self
             .get_documents()?
             .into_iter()
             .find(|doc| doc.save_path.as_ref().map(|p| p == path).unwrap_or(false));
-        if let Some(document) = already_opened {
+        if let Some(document) = already_loaded {
             return Ok(document);
         }
 
@@ -308,4 +309,15 @@ fn create_new_appdata_transcribee_archive<R: Runtime, T: Manager<R> + Emitter<R>
     }
     transcribee_archive::create_new(path.to_str().unwrap(), None, automerge_doc)?;
     Ok((id, path))
+}
+
+pub fn get_media_files_folder(app: &AppHandle) -> Result<String> {
+    let media_files_folder = app
+        .path()
+        .resolve("media_files", BaseDirectory::AppData)?
+        .to_string_lossy()
+        .to_string();
+    fs::create_dir_all(&media_files_folder)?;
+
+    Ok(media_files_folder)
 }

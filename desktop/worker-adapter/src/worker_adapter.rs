@@ -107,6 +107,9 @@ impl WorkerAdapter {
         document_uuid: Uuid,
         file_path: String,
         output_path: String,
+        profiles: Vec<String>,
+        generate_waveform: bool,
+        audio_for_video: bool,
     ) -> Task {
         let mut tasks = self.tasks.lock().await;
         let media_file = MediaFile::new(file_path.clone());
@@ -116,7 +119,12 @@ impl WorkerAdapter {
             current_attempt: None,
             dependencies: vec![],
             state: TaskState::New,
-            task_parameters: TaskParameters::Reencode(ReencodeTaskParameters { output_path }),
+            task_parameters: TaskParameters::Reencode(ReencodeTaskParameters {
+                output_path,
+                audio_for_video,
+                generate_waveform,
+                profiles,
+            }),
             document: doc,
             task_type: TaskType::Reencode,
         })

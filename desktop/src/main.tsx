@@ -15,6 +15,29 @@ attachLogger((payload) => {
   }
 });
 
+function prepareArg(arg: unknown) {
+  let asString = '';
+
+  if (typeof arg == 'string') {
+    asString = arg;
+  } else {
+    const json = JSON.stringify(arg);
+    if (json) {
+      asString = json;
+    } else {
+      asString = '' + arg;
+    }
+  }
+
+  const MAX_ARG_LENGTH = 10_000;
+  // sending very long strings stalls the whole application
+  if (asString.length > MAX_ARG_LENGTH) {
+    return asString.substring(0, MAX_ARG_LENGTH) + '… (truncated)';
+  } else {
+    return asString;
+  }
+}
+
 // forward js console -> rust logging
 function forwardConsole(
   fnName: 'log' | 'debug' | 'info' | 'warn' | 'error',
@@ -28,16 +51,7 @@ function forwardConsole(
       if (msg != '') {
         msg += ' ';
       }
-      if (typeof arg == 'string') {
-        msg += arg;
-      } else {
-        const json = JSON.stringify(arg);
-        if (json) {
-          msg += json;
-        } else {
-          msg += arg.toString();
-        }
-      }
+      msg += prepareArg(arg);
     }
     for (const line of msg.split('\n')) {
       logger(line);
