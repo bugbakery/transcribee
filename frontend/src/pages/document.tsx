@@ -36,6 +36,9 @@ import {
 } from 'transcribee-ui-common/components/transcription_progress';
 import { SpeakerColorsProvider } from 'transcribee-ui-common/editor/speaker_colors';
 import { Footer } from '../components/footer';
+import { VideoSpacer } from 'transcribee-ui-common/components/video_spacer';
+import { MediaPlayer } from 'transcribee-ui-common/utils/media_player';
+import { useMediaPlayer } from 'transcribee-ui-common/utils/use_media_player';
 
 const LazyDebugPanel = lazy(() =>
   import('transcribee-ui-common/editor/debug_panel').then((module) => ({
@@ -129,6 +132,7 @@ export function DocumentPage({
   const [_location, navigate] = useLocation();
   const debugMode = useDebugMode();
   const { isLoggedIn } = useAuthData();
+  const mediaPlayer = useMediaPlayer();
 
   const url = getDocumentWsUrl(documentId);
 
@@ -236,13 +240,13 @@ export function DocumentPage({
                 readOnly={!data || !data.can_write}
               />
               {/* Spacer to prevent video preview from hiding text */}
-              <div id="video-bottom-spacer" />
+              <VideoSpacer mediaPlayer={mediaPlayer}/>
               <Footer className="my-16" />
             </div>
           </div>
         </SpeakerColorsProvider>
       )}
-      <PlayerBarAutoMediaFiles documentId={documentId} editor={editor} />
+      <PlayerBarAutoMediaFiles documentId={documentId} editor={editor} mediaPlayer={mediaPlayer} />
 
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </div>
@@ -269,11 +273,11 @@ export function TranscriptionProgressIndicatorAutoRefresh({ documentId }: { docu
 function PlayerBarAutoMediaFiles({
   documentId,
   editor,
-  onShowVideo,
+  mediaPlayer,
 }: {
   documentId: string;
   editor?: Editor;
-  onShowVideo?: (show: boolean) => void;
+  mediaPlayer: MediaPlayer,
 }) {
   const { data: mediaFiles } = useGetDocumentMediaFiles(
     { document_id: documentId },
@@ -286,10 +290,10 @@ function PlayerBarAutoMediaFiles({
   if (editor && mediaFiles) {
     return (
       <PlayerBar
+        mediaPlayer={mediaPlayer}
         documentId={documentId}
         editor={editor}
         mediaFiles={mediaFiles}
-        onShowVideo={onShowVideo}
       />
     );
   }

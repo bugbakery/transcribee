@@ -3,20 +3,25 @@ import { IconButton } from '../components/button';
 import { ImBackward2, ImPause2, ImPlay3 } from 'react-icons/im';
 import { useCallback, useMemo, useEffect, useState, useRef, useContext } from 'react';
 import { MediaFile } from './api_document';
-import { CssRule } from '../utils/cssdom';
 import { SEEK_TO_EVENT, SeekToEvent } from './types';
 import { useEvent } from '../utils/use_event';
 import { Editor } from 'slate';
 import { useButtonHoldRepeat } from '../utils/button_hooks';
-import { useLocalStorage } from '../utils/use_local_storage';
 import { SpeakerColorsContext } from './speaker_colors';
 import { LoadingSpinner } from '../components/loading_spinner/loading_spinner';
 import { getSpeakerName, useDocumentSelector } from '../utils/document';
-import { sortMediaFiles, useAudio } from '../utils/use_audio';
+import {
+  sortMediaFiles,
+  useMediaPlayerInfo,
+  useSmoothMediaPlayerPlaytime,
+} from '../utils/use_media_player';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
 import { BiVideo, BiVideoOff } from 'react-icons/bi';
 import { AlignmentEditor } from './alignment_editor';
+import { CssRule } from '../utils/cssdom';
+import { useLocalStorage } from '../utils/use_local_storage';
+import { MediaPlayer } from '../utils/media_player';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -55,13 +60,14 @@ export function splitAndSortMediaFiles(mediaFiles: MediaFile[]) {
 export function PlayerBar({
   documentId,
   editor,
-  onShowVideo,
   mediaFiles,
+  mediaPlayer,
 }: {
   documentId: string;
   editor: Editor;
   onShowVideo?: (show: boolean) => void;
   mediaFiles: MediaFile[];
+  mediaPlayer: MediaPlayer;
 }) {
   const { videoSources, audioSources, hasVideo, waveformSource } = useMemo(
     () => splitAndSortMediaFiles(mediaFiles),
@@ -73,73 +79,90 @@ export function PlayerBar({
   const [showVideo, setShowVideo] = useState(true);
   const reallyShowVideo = showVideo && hasVideo;
 
-  const audio = useAudio({
-    playbackRate,
-    sources: reallyShowVideo ? videoSources : audioSources,
-    videoPreview: reallyShowVideo,
-    documentId,
-  });
+  useEffect(() => {
+    mediaPlayer.load(reallyShowVideo ? videoSources : audioSources);
+
+    const key = `video-size-${documentId}`;
+    const videoHeight = window.localStorage.getItem(key);
+    const onVideoHeightChange = (height: number) => {
+      window.localStorage.setItem(key, String(height));
+    };
+    mediaPlayer.addListener('videoHeightChange', onVideoHeightChange);
+
+    if (videoHeight) {
+      mediaPlayer.videoHeight = Number(videoHeight);
+    }
+    mediaPlayer.videoVisible = reallyShowVideo;
+
+    return () => {
+      mediaPlayer.removeListener('videoHeightChange', onVideoHeightChange);
+    };
+  }, [reallyShowVideo, videoSources, audioSources, mediaPlayer, documentId]);
 
   useEffect(() => {
-    if (onShowVideo) {
-      onShowVideo(reallyShowVideo);
-    }
-  }, [reallyShowVideo]);
+    mediaPlayer.playbackRate = playbackRate;
+  }, [mediaPlayer, playbackRate]);
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
 
   useEffect(() => {
-    const time = audio.playtime || 0;
-    let startTimeOfElement = 0;
+    const update = () => {
+      const time = mediaPlayer.playtime || 0;
+      let startTimeOfElement = 0;
 
-    if (!editor.doc.children) return;
-
-    // we loop from the back to the front to get the first element that is no longer too far
-    // (if no text is at the current time, we highlight the text before)
-    outer: for (let i = editor.doc.children.length - 1; i >= 0; i--) {
-      const paragraph = editor.doc.children[i];
-      if ('children' in paragraph) {
-        for (let j = paragraph.children.length - 1; j >= 0; j--) {
-          const word = paragraph.children[j];
-          if (word.start && word.start - 1e-10 <= time) {
-            startTimeOfElement = word.start;
-            break outer;
+      if (!editor.doc.children) return;
+      // we loop from the back to the front to get the first element that is no longer too far
+      // (if no text is at the current time, we highlight the text before)
+      outer: for (let i = editor.doc.children.length - 1; i >= 0; i--) {
+        const paragraph = editor.doc.children[i];
+        if ('children' in paragraph) {
+          for (let j = paragraph.children.length - 1; j >= 0; j--) {
+            const word = paragraph.children[j];
+            if (word.start && word.start - 1e-10 <= time) {
+              startTimeOfElement = word.start;
+              break outer;
+            }
           }
         }
       }
-    }
 
-    setCurrentElementStartTime(startTimeOfElement);
-  }, [editor.doc, audio.playtime]);
+      setCurrentElementStartTime(startTimeOfElement);
+    };
+    update();
+
+    mediaPlayer.addListener('playtime', update);
+    return () => {
+      mediaPlayer.removeListener('playtime', update);
+    };
+  }, [editor.doc, mediaPlayer]);
 
   // skip to a timestamp if the user clicks on a word in the transcript. The corresponding event is
   // dispatched in transcription_editor.tsx
   useEvent<SeekToEvent>(SEEK_TO_EVENT, (e) => {
     if (e.detail.start != undefined) {
       // move a bit into the word to avoid highlighting the previous word because of rounding errors
-      audio.setPlaytime(e.detail.start + 1e-6);
+      mediaPlayer.seek(e.detail.start + 1e-6);
     }
   });
 
-  // bind the tab key to play / pause
-  const togglePlaying = (play?: boolean) => {
-    const shouldPlay = play == undefined ? !audio.playing : play;
-    if (shouldPlay) {
-      audio.play();
+  const togglePlaying = () => {
+    if (mediaPlayer.isPlaying) {
+      mediaPlayer.pause();
     } else {
-      audio.pause();
+      mediaPlayer.play();
     }
   };
 
+  // bind the tab key to play / pause
   useEvent<KeyboardEvent>('keydown', (e) => {
     if (e.key == 'Tab') {
       // double tap to skip
       if (e.timeStamp - lastTabPressTs < DOUBLE_TAP_THRESHOLD_MS) {
         if (e.shiftKey) {
-          audio.seekRelative(SKIP_SHORTCUT_SEC);
+          mediaPlayer.seekRelative(SKIP_SHORTCUT_SEC);
         } else {
-          audio.seekRelative(-SKIP_SHORTCUT_SEC);
+          mediaPlayer.seekRelative(-SKIP_SHORTCUT_SEC);
         }
       }
 
@@ -152,21 +175,16 @@ export function PlayerBar({
   });
 
   const backwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => audio.seekRelative(-SKIP_BUTTON_SEC / 2),
-    onShortClick: () => audio.seekRelative(-SKIP_BUTTON_SEC),
+    repeatingAction: () => mediaPlayer.seekRelative(-SKIP_BUTTON_SEC / 2),
+    onShortClick: () => mediaPlayer.seekRelative(-SKIP_BUTTON_SEC),
   });
 
   const forwardLongPressProps = useButtonHoldRepeat({
-    repeatingAction: () => audio.seekRelative(SKIP_BUTTON_SEC / 2),
-    onShortClick: () => audio.seekRelative(SKIP_BUTTON_SEC),
+    repeatingAction: () => mediaPlayer.seekRelative(SKIP_BUTTON_SEC / 2),
+    onShortClick: () => mediaPlayer.seekRelative(SKIP_BUTTON_SEC),
   });
 
-  const onSeek = useCallback(
-    (time: number) => {
-      audio.setPlaytime(time);
-    },
-    [audio],
-  );
+  const mediaPlayerInfo = useMediaPlayerInfo(mediaPlayer);
 
   return (
     <>
@@ -195,10 +213,7 @@ export function PlayerBar({
           <AlignmentEditor
             waveformSource={waveformSource}
             editor={editor}
-            time={audio.playtime}
-            onSeek={onSeek}
-            playing={audio.playing}
-            onSetPlaying={togglePlaying}
+            mediaPlayer={mediaPlayer}
           />
         </div>
 
@@ -223,8 +238,8 @@ export function PlayerBar({
             {...backwardLongPressProps}
           />
           <PlayButton
-            playing={audio.playing}
-            buffering={audio.buffering}
+            playing={mediaPlayerInfo.playing}
+            buffering={mediaPlayerInfo.buffering || false}
             onClick={() => togglePlaying()}
           />
           <IconButton
@@ -235,15 +250,10 @@ export function PlayerBar({
           />
 
           <div className="pl-4 flex-grow">
-            <SeekBar
-              time={audio.playtime}
-              duration={audio.duration}
-              onSeek={onSeek}
-              editor={editor}
-            />
+            <SeekBar mediaPlayer={mediaPlayer} editor={editor} />
           </div>
 
-          <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
+          <PlaybackSpeedDropdown value={playbackRate} onChange={(rate) => setPlaybackRate(rate)} />
           {hasVideo && (
             <IconButton
               icon={reallyShowVideo ? BiVideoOff : BiVideo}
@@ -319,22 +329,20 @@ const timeFromPosition = (element: HTMLElement, x: number, duration: number) => 
   return clampedPercent * duration;
 };
 
-function SeekBar({
-  time,
-  duration,
-  onSeek,
-  editor,
-}: {
-  time: number;
-  duration: number | undefined;
-  onSeek: (time: number) => void;
-  editor: Editor;
-}) {
+function SeekBar({ mediaPlayer, editor }: { mediaPlayer: MediaPlayer; editor: Editor }) {
+  const { duration } = useMediaPlayerInfo(mediaPlayer);
+  const _time = useSmoothMediaPlayerPlaytime(mediaPlayer, 500);
   const ref = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [tmpTime, setTmpTime] = useState<number | undefined>();
   const [hover, setHover] = useState(false);
   const [hoverTime, setHoverTime] = useState<number>(0);
+
+  // wrap time, so we can optimistically update
+  const [time, setTime] = useState(_time);
+  useEffect(() => {
+    setTime(_time);
+  }, [_time]);
 
   const onDrag = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
@@ -356,7 +364,8 @@ function SeekBar({
       if (!ref.current || !duration) return;
 
       const time = timeFromPosition(ref.current, e.pageX, duration);
-      onSeek(time);
+      mediaPlayer.seek(time);
+      setTime(time); // optimistically update time to prevent jumping position indicator
 
       setTmpTime(undefined);
       setDragging(false);
@@ -367,7 +376,7 @@ function SeekBar({
       window.removeEventListener('mousemove', onDrag);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [dragging, onSeek, duration]);
+  }, [dragging, mediaPlayer, duration]);
 
   const paragraphs = useDocumentSelector(
     (doc) => {

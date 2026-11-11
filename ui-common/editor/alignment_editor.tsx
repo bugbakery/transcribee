@@ -19,6 +19,8 @@ import { useResizeObserver } from '../utils/use_resize_observer';
 import { Paragraph, Text } from './types';
 import { useSize } from '../utils/use_size';
 import { clamp } from '../utils/math';
+import { useSmoothMediaPlayerPlaytime } from '../utils/use_media_player';
+import { MediaPlayer } from '../utils/media_player';
 
 type DragHandle = {
   type: 'paragraph' | 'paragraphStart' | 'paragraphEnd';
@@ -70,17 +72,11 @@ function adjustParagraphTs(
 export function AlignmentEditor({
   waveformSource,
   editor,
-  time,
-  onSeek,
-  playing,
-  onSetPlaying: onTogglePlay,
+  mediaPlayer,
 }: {
   waveformSource: MediaFile | null;
   editor: Editor;
-  time: number;
-  onSeek: (t: number) => void;
-  playing: boolean;
-  onSetPlaying: (playing: boolean) => void;
+  mediaPlayer: MediaPlayer;
 }) {
   const [viewportStartSec, setViewportStartSec] = useState<number>(0);
   const samplesPerSecond = 16_000 / 128;
@@ -140,7 +136,7 @@ export function AlignmentEditor({
   const animatedSetViewportStartSec = (targetPos: number) => {
     if (seekTarget.current != null) return;
     const startTime = Date.now();
-    const targetTime = startTime + 200;
+    const targetTime = startTime + 300;
     const startPos = viewportStartSec;
     seekTarget.current = { startPos, startTime, targetPos, targetTime };
     const update = () => {
@@ -158,51 +154,59 @@ export function AlignmentEditor({
     };
     requestAnimationFrame(update);
   };
+  const isDecoupledRef = useRef(false);
 
-  // keep the cursor in viewport (generally)
-  // the view gets decoupled when one pans manually and it gets coupled again when
-  // * the user seeks to a different position manually
-  // * the user starts playing
-  const [isDecoupled, setIsDecoupled] = useState(false);
   useEffect(() => {
-    if (!containerSize || isDecoupled || !playing || seekTarget.current != null) return;
-    const viewportEndSec = viewportStartSec + px2sec(containerSize.width);
-    const marginSec = px2sec(containerSize.width) * 0.07;
-    if (time > viewportEndSec - marginSec) {
-      if (dragHandle != null) {
-        setIsDecoupled(true);
-        return;
+    const onPlay = () => {
+      // re-couple on play
+      isDecoupledRef.current = false;
+    };
+
+    const onSeek = (to: number) => {
+      if (!containerSize) return;
+
+      // scroll to play position if not in view
+      const viewportEndSec = viewportStartSec + px2sec(containerSize.width);
+      const marginSec = px2sec(containerSize.width) * 0.07;
+      if (to > viewportEndSec || to < viewportStartSec) {
+        animatedSetViewportStartSec(to - marginSec);
       }
-      setViewportStartSec(time - marginSec);
-    } else if (time < viewportStartSec) {
-      setViewportStartSec(time - marginSec);
-    }
-  }, [time, containerSize, viewportStartSec, px2sec, isDecoupled, playing, dragHandle]);
 
-  // re-couple on play
-  const lastPlaying = useRef(false);
-  useEffect(() => {
-    if (lastPlaying.current == false && playing == true) {
-      setIsDecoupled(false);
-    }
-    lastPlaying.current = playing;
-  }, [playing]);
+      // re-couple on seeks
+      isDecoupledRef.current = false;
+    };
 
-  // re-couple on large seeks
-  const lastTime = useRef(0.0);
-  useEffect(() => {
-    if (!containerSize) return;
-    const viewportEndSec = viewportStartSec + px2sec(containerSize.width);
-    const marginSec = px2sec(containerSize.width) * 0.07;
-    if (
-      (time > viewportEndSec || time < viewportStartSec) &&
-      Math.abs(lastTime.current - time) > 1.0
-    ) {
-      setIsDecoupled(false);
-      animatedSetViewportStartSec(time - marginSec);
-    }
-    lastTime.current = time;
-  }, [time, containerSize, px2sec, viewportStartSec]);
+    const onPlaytimeUpdate = (playtime: number) => {
+      if (!containerSize) return;
+
+      const viewportEndSec = viewportStartSec + px2sec(containerSize.width);
+      const marginSec = px2sec(containerSize.width) * 0.07;
+      // keep the cursor in viewport (generally)
+      // the view gets decoupled when one pans manually and it gets coupled again when
+      // * the user seeks to a different position manually
+      // * the user starts playing
+      if (isDecoupledRef.current || seekTarget.current != null || mediaPlayer.isScrubbing) return;
+      if (playtime > viewportEndSec - marginSec) {
+        if (dragHandle != null) {
+          // do not move viewport while dragging
+          return;
+        }
+        setViewportStartSec(playtime - marginSec);
+      } else if (playtime < viewportStartSec) {
+        setViewportStartSec(playtime - marginSec);
+      }
+    };
+
+    mediaPlayer.addListener('play', onPlay);
+    mediaPlayer.addListener('seek', onSeek);
+    mediaPlayer.addListener('playtime', onPlaytimeUpdate);
+
+    return () => {
+      mediaPlayer.removeListener('play', onPlay);
+      mediaPlayer.removeListener('seek', onSeek);
+      mediaPlayer.removeListener('playtime', onPlaytimeUpdate);
+    };
+  }, [mediaPlayer, viewportStartSec, animatedSetViewportStartSec, containerSize, dragHandle, px2sec]);
 
   // handle scrolling
   useEffect(() => {
@@ -227,8 +231,6 @@ export function AlignmentEditor({
         default:
           console.warn(`Unknown deltaMode received: ${e.deltaMode}`);
       }
-      setViewportStartSec((x) => x + e.deltaX * px2sec(deltaMultiplier));
-      setIsDecoupled(true);
       const canvasBoundingRect = c.getBoundingClientRect();
       if (e.ctrlKey) {
         const newPxPerSec = clamp(pxPerSec - sec2px(e.deltaY * deltaMultiplier * 0.01), 20, 600);
@@ -237,6 +239,9 @@ export function AlignmentEditor({
         const oldMouseX = (e.clientX - canvasBoundingRect.x) / pxPerSec;
         const newMouseX = (e.clientX - canvasBoundingRect.x) / newPxPerSec;
         setViewportStartSec((x) => x + oldMouseX - newMouseX);
+      } else {
+        setViewportStartSec((x) => x + e.deltaX * px2sec(deltaMultiplier));
+        isDecoupledRef.current = true;
       }
     };
 
@@ -286,47 +291,38 @@ export function AlignmentEditor({
     };
   }, [dragHandle, mousePos, editor, px2sec]);
 
-  // handle clicking to seek
-  const preSeekPlayingState = useRef<boolean | null>(null);
-  const handleSeek = useCallback(
+  const startScrub = useCallback(
     (e: React.MouseEvent) => {
-      if (dragHandle) return;
+      const target = e.currentTarget;
 
-      if (e.buttons & 1) {
-        if (preSeekPlayingState.current == null) {
-          preSeekPlayingState.current = playing;
-          onTogglePlay(false);
+      const onMouse = (e: React.MouseEvent | MouseEvent) => {
+        if (dragHandle) return;
+
+        if (e.buttons & 1) {
+          const clickTime = px2sec(e.clientX - target.getBoundingClientRect().x) + viewportStartSec;
+          mediaPlayer.startScrub(clickTime);
         }
-        const clickTime =
-          px2sec(e.clientX - e.currentTarget.getBoundingClientRect().x) + viewportStartSec;
-        onSeek(clickTime);
-      }
+      };
+
+      onMouse(e);
+
+      const onMouseUp = () => {
+        mediaPlayer.endScrub();
+        document.removeEventListener('mouseup', onMouseUp);
+        document.removeEventListener('mousemove', onMouse);
+      };
+
+      // handled globally, so we never miss when the scrubbing ends
+      document.addEventListener('mousemove', onMouse);
+      document.addEventListener('mouseup', onMouseUp);
     },
-    [dragHandle, viewportStartSec, px2sec, onSeek, onTogglePlay, playing],
-  );
-  const restorePlayingState = useCallback(
-    (_e: React.MouseEvent) => {
-      if (preSeekPlayingState.current == null) {
-        return;
-      }
-      onTogglePlay(preSeekPlayingState.current);
-      preSeekPlayingState.current = null;
-    },
-    [onTogglePlay],
+    [dragHandle, viewportStartSec, px2sec, mediaPlayer],
   );
 
   return (
     <div ref={containerRef}>
-      <div
-        className="h-[85px] relative overflow-hidden -mb-14"
-        onMouseDown={handleSeek}
-        onMouseMove={handleSeek}
-        onMouseUp={restorePlayingState}
-      >
-        <div
-          className="absolute w-[2px] bottom-0 top-[25px] bg-red-500"
-          style={{ left: sec2px(time - viewportStartSec) }}
-        />
+      <div className="h-[85px] relative overflow-hidden -mb-14" onMouseDown={startScrub}>
+        <TimeIndicator mediaPlayer={mediaPlayer} viewportStartSec={viewportStartSec} sec2px={sec2px} />
         {visibleParagraphs.map((p) => {
           let dragging = false;
 
@@ -436,6 +432,24 @@ export function AlignmentEditor({
         scale={px2sec(samplesPerSecond)}
       />
     </div>
+  );
+}
+
+function TimeIndicator({
+  mediaPlayer,
+  viewportStartSec,
+  sec2px,
+}: {
+  mediaPlayer: MediaPlayer;
+  viewportStartSec: number;
+  sec2px: (sec: number) => number;
+}) {
+  const time = useSmoothMediaPlayerPlaytime(mediaPlayer);
+  return (
+    <div
+      className="absolute w-[2px] bottom-0 top-[25px] bg-red-500"
+      style={{ left: sec2px(time - viewportStartSec) }}
+    />
   );
 }
 
