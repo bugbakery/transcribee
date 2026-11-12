@@ -35,10 +35,9 @@ type ParagraphWithInfos = Paragraph & {
 };
 
 function adjustParagraphTs(
-  editor: Editor,
   p: ParagraphWithInfos,
   { newLength, moveBy = 0 }: { newLength?: number; moveBy?: number },
-) {
+): ParagraphWithInfos {
   let scaleRatio = 1;
   if (newLength != undefined) {
     if (newLength <= 0.1) {
@@ -49,21 +48,38 @@ function adjustParagraphTs(
     const oldLength = p.end - p.start;
     scaleRatio = newLength / oldLength;
   }
+  const children = p.children.map((child) => {
+    const newChild = { ...child };
 
+    if (child.start != undefined) {
+      newChild.start = p.start + (child.start - p.start) * scaleRatio + moveBy;
+    }
+    if (child.end != undefined) {
+      newChild.end = p.start + (child.end - p.start) * scaleRatio + moveBy;
+    }
+    console.assert(
+      newChild.start == undefined || newChild.end == undefined || newChild.start <= newChild.end,
+    );
+
+    return newChild;
+  });
+
+  return {
+    ...p,
+    start: children[0]?.start || 0,
+    end: children[children.length - 1]?.end || 0,
+    children,
+  };
+}
+
+function updateParagraphChildrenTs(editor: Editor, p: ParagraphWithInfos) {
   Editor.withoutNormalizing(editor, () => {
     p.children.forEach((child, i) => {
       const update: Partial<Text> = {
         conf_ts: 1.0, // manually set timestamps get maximum confidence
+        start: child.start,
+        end: child.end,
       };
-      if (child.start != undefined) {
-        update.start = p.start + (child.start - p.start) * scaleRatio + moveBy;
-      }
-      if (child.end != undefined) {
-        update.end = p.start + (child.end - p.start) * scaleRatio + moveBy;
-      }
-      console.assert(
-        update.start == undefined || update.end == undefined || update.start <= update.end,
-      );
       Transforms.setNodes(editor, update, { at: [p.idx, i] });
     });
   });
@@ -280,14 +296,17 @@ export function AlignmentEditor({
         const oldLength = p.end - p.start;
 
         if (dragHandle.type == 'paragraph') {
-          adjustParagraphTs(editor, p, { moveBy: relativeSecs });
+          const newP = adjustParagraphTs(p, { moveBy: relativeSecs });
+          updateParagraphChildrenTs(editor, newP);
         } else if (dragHandle.type == 'paragraphStart') {
-          adjustParagraphTs(editor, p, {
+          const newP = adjustParagraphTs(p, {
             newLength: oldLength - relativeSecs,
             moveBy: relativeSecs,
           });
+          updateParagraphChildrenTs(editor, newP);
         } else if (dragHandle.type == 'paragraphEnd') {
-          adjustParagraphTs(editor, p, { newLength: oldLength + relativeSecs });
+          const newP = adjustParagraphTs(p, { newLength: oldLength + relativeSecs });
+          updateParagraphChildrenTs(editor, newP);
         }
       }
 
@@ -347,38 +366,20 @@ export function AlignmentEditor({
             const offset = px2sec(mousePos.x - dragHandle.startX);
             switch (dragHandle.type) {
               case 'paragraphStart':
-                p = {
-                  ...p,
-                  start: p.start + offset,
-                  children: p.children.map((c) => ({
-                    ...c,
-                    start: c.start + offset,
-                    end: c.end + offset,
-                  })),
-                };
+                p = adjustParagraphTs(p, {
+                  newLength: p.end - p.start - offset,
+                  moveBy: offset,
+                });
                 break;
               case 'paragraphEnd':
-                p = {
-                  ...p,
-                  end: p.end + px2sec(mousePos.x - dragHandle.startX),
-                  children: p.children.map((c) => ({
-                    ...c,
-                    start: c.start + offset,
-                    end: c.end + offset,
-                  })),
-                };
+                p = adjustParagraphTs(p, {
+                  newLength: p.end - p.start + offset,
+                });
                 break;
               case 'paragraph':
-                p = {
-                  ...p,
-                  start: p.start + px2sec(mousePos.x - dragHandle.startX),
-                  end: p.end + px2sec(mousePos.x - dragHandle.startX),
-                  children: p.children.map((c) => ({
-                    ...c,
-                    start: c.start + offset,
-                    end: c.end + offset,
-                  })),
-                };
+                p = adjustParagraphTs(p, {
+                  moveBy: offset,
+                });
                 break;
             }
           }
