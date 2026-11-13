@@ -1,5 +1,6 @@
-use log::{debug, warn};
+use log::warn;
 use std::ops::Range;
+use tracing::{Level, event, instrument};
 
 use crate::audio_reader::format_time;
 
@@ -11,15 +12,17 @@ const THRESHOLD: f32 = 0.5;
 ///
 /// vad_samples is the raw samples output by the vad
 /// max_len is the maximum len of each segment in samples of the vad
+#[instrument(skip(vad_samples))]
 pub fn get_chunks(vad_samples: &[f32], sr: f32, max_len: f32, overlap: f32) -> Vec<Range<f32>> {
     let silence_runs = calculate_silence_runs(vad_samples, sr, THRESHOLD);
 
     let mut chunks: Vec<Range<f32>> = Vec::new();
-    let mut pos = 0.0;
-    while pos < vad_samples.len() as f32 / sr {
+    let mut pos = overlap;
+    while pos <= vad_samples.len() as f32 / sr - 0.001 {
+        pos -= overlap;
         let mut selected_silence = None;
         for silence in &silence_runs {
-            if silence.end <= pos + overlap + 0.00001 {
+            if silence.end <= pos + overlap + 0.001 {
                 continue;
             }
             if silence.end >= pos + max_len {
@@ -32,23 +35,37 @@ pub fn get_chunks(vad_samples: &[f32], sr: f32, max_len: f32, overlap: f32) -> V
         let chunk = if let Some(silence) = selected_silence {
             pos..silence.end
         } else {
+            let end = (pos + max_len).min(vad_samples.len() as f32 / sr);
             warn!(
                 "Splitting at maximum len at {end} (and not at silence) because no silence was found between {start} and {end}. This is potentially very bad and can cause chunking artifacts!",
                 end = format_time(pos + max_len),
                 start = format_time(pos)
             );
-            pos..pos + max_len
+            pos..end
         };
-        pos = chunk.end - overlap;
+        pos = chunk.end;
         chunks.push(chunk);
     }
 
     // TODO: maybe refine the solution to find a globally better optimum (unclear if worth it)
     // TDDO: maybe take into account turn taking here
 
+    event!(Level::DEBUG, "chunks:");
+    for (i, c) in chunks.iter().enumerate() {
+        event!(
+            Level::DEBUG,
+            chunk_idx = i,
+            "\t {} - {} ({:.01}s)",
+            format_time(c.start),
+            format_time(c.end),
+            c.end - c.start
+        );
+    }
+
     chunks
 }
 
+#[instrument(skip(vad_samples))]
 pub fn calculate_silence_runs(vad_samples: &[f32], sr: f32, threshold: f32) -> Vec<Range<f32>> {
     let mut runs = Vec::new();
     let mut current_run_start = None;
@@ -60,7 +77,7 @@ pub fn calculate_silence_runs(vad_samples: &[f32], sr: f32, threshold: f32) -> V
             if first_on_other_side.is_none() {
                 first_on_other_side = Some(i);
             }
-            if energy_on_other_side > 10.0 {
+            if energy_on_other_side > 1.0 {
                 current_run_start = first_on_other_side;
                 energy_on_other_side = 0.0;
                 first_on_other_side = None;
@@ -70,7 +87,7 @@ pub fn calculate_silence_runs(vad_samples: &[f32], sr: f32, threshold: f32) -> V
             if first_on_other_side.is_none() {
                 first_on_other_side = Some(i);
             }
-            if energy_on_other_side > 10.0 {
+            if energy_on_other_side > 1.0 {
                 runs.push(
                     current_run_start.unwrap() as f32 / sr
                         ..first_on_other_side.unwrap() as f32 / sr,
@@ -85,9 +102,14 @@ pub fn calculate_silence_runs(vad_samples: &[f32], sr: f32, threshold: f32) -> V
         runs.push(start as f32 / sr..vad_samples.len() as f32 / sr);
     }
 
-    debug!("silence_runs:");
+    event!(Level::DEBUG, "silence_runs:");
     for s in &runs {
-        debug!("\t {} - {}", format_time(s.start), format_time(s.end));
+        event!(
+            Level::DEBUG,
+            "\t {} - {}",
+            format_time(s.start),
+            format_time(s.end)
+        );
     }
 
     runs

@@ -17,8 +17,9 @@ use ort::{
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
 };
-use std::collections::HashMap;
 use std::time::Instant;
+use std::{collections::HashMap, fmt::Debug};
+use tracing::instrument;
 
 pub type OrtAudioChunkHandle = Handle;
 #[derive(Clone)]
@@ -28,6 +29,7 @@ pub struct OrtSequenceHandle {
     last_handle: Option<Handle>,
 }
 
+#[derive(Debug)]
 pub struct WhisperDecoderOrt {
     model: Session,
     cross_kv: CrossKV,
@@ -58,6 +60,7 @@ impl WhisperDecoderOrt {
 }
 
 impl WhisperDecoderBackend for WhisperDecoderOrt {
+    #[instrument(skip_all)]
     fn register_encoded_audio_chunks(
         &mut self,
         chunks: &[Array2<f32>],
@@ -70,6 +73,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
             .collect())
     }
 
+    #[instrument]
     fn register_sequence(&mut self, tokens: &[i64]) -> SequenceHandle {
         SequenceHandle::downcast(OrtSequenceHandle {
             tokens: tokens.to_vec(),
@@ -78,6 +82,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         })
     }
 
+    #[instrument]
     fn append_token_to_sequence(
         &mut self,
         seq: &SequenceHandle,
@@ -103,6 +108,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         }))
     }
 
+    #[instrument(skip_all)]
     fn forward(
         &mut self,
         inputs: &[(AudioChunkHandle, SequenceHandle)],
@@ -345,6 +351,11 @@ impl CrossKV {
         Ok(())
     }
 }
+impl Debug for CrossKV {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CrossKV").finish_non_exhaustive()
+    }
+}
 
 /// Our KV caching mechanism. Our model can do a gather on the first axis (batches) for the KV cache
 /// to efficiently support beam search (sharing audio and duplicating/moving past self KV cache entries).
@@ -447,5 +458,10 @@ impl KvCache {
             }
         }
         self.handles = new;
+    }
+}
+impl Debug for KvCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KvCache").finish_non_exhaustive()
     }
 }

@@ -4,19 +4,22 @@
 use anyhow::Result;
 use ndarray::{Array2, Array3, ArrayD, Axis, s};
 
+use crate::whisper::math::softmax;
+
 pub fn calculate_alignment(
-    x: Array3<f32>, // [heads, tokens, encoder_frames]
+    x: Array3<f32>, // [tokens, heads, encoder_frames]
     num_frames: usize,
 ) -> Result<Vec<usize>> {
     let x = x.slice_move(s![.., .., ..num_frames]);
 
     // 1. do softmax to the last axis (audio chunks)
     // this is already folded into the onnx model so we skip this step
+    let x = softmax(x.into_dyn(), Axis(2));
 
     // 2. rescale by mean and std in the second to last axis (tokens)
-    let std = x.std_axis(Axis(1), 0.0);
-    let mean = x.mean_axis(Axis(1)).unwrap();
-    let x = (x - mean.insert_axis(Axis(1))) / std.insert_axis(Axis(1));
+    let std = x.std_axis(Axis(0), 0.0);
+    let mean = x.mean_axis(Axis(0)).unwrap();
+    let x = (x - mean.insert_axis(Axis(0))) / std.insert_axis(Axis(0));
 
     // 3. apply a median filter along the last axis (audio chunks) probably for denoising
     let x: Array3<f32> = median_filter::<7>(x.into_dyn())
@@ -24,7 +27,7 @@ pub fn calculate_alignment(
         .unwrap();
 
     // 4. take the mean of all heads
-    let x = x.mean_axis(Axis(0)).unwrap();
+    let x = x.mean_axis(Axis(1)).unwrap();
 
     // 6. do dtw
     let dtw_result = dtw(-x.to_owned());
@@ -39,7 +42,7 @@ pub fn calculate_alignment(
     Ok(jumps)
 }
 
-fn median_filter<const WIDTH: usize>(x: ArrayD<f32>) -> ArrayD<f32> {
+pub fn median_filter<const WIDTH: usize>(x: ArrayD<f32>) -> ArrayD<f32> {
     let rank = x.shape().len();
     let mut filtered = ArrayD::<f32>::zeros(x.shape());
     let last_axis = Axis(rank - 1);

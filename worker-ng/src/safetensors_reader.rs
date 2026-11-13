@@ -6,11 +6,13 @@ use std::{
     str::FromStr,
 };
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct SafetensorsFile {
     file: File,
     tensors: HashMap<String, TensorInfo>,
 }
+#[allow(unused)]
 impl SafetensorsFile {
     pub fn new(path: &str) -> Result<Self> {
         let mut file = File::open(path)?;

@@ -1,9 +1,11 @@
-use std::time::Instant;
-
 use anyhow::{Ok, Result};
 use clap::{Arg, Command};
 use indicatif::ProgressBar;
 use ndarray::Array2;
+use std::io::Write;
+use std::{fs::File, time::Instant};
+use tracing_perfetto::PerfettoLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     audio_reader::AudioReader,
@@ -26,7 +28,17 @@ const WHISPER_LARGE_V3_TURBO: RemoteModel = RemoteModel {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    let layer = PerfettoLayer::new(std::sync::Mutex::new(
+        std::fs::File::create("target/trace.pftrace").unwrap(),
+    ));
+    let filter_layer = tracing_subscriber::EnvFilter::try_from_default_env()
+        .or_else(|_| tracing_subscriber::EnvFilter::try_new("info"))
+        .unwrap();
+    tracing_subscriber::registry()
+        .with(venator::Venator::default())
+        //.with(filter_layer)
+        .with(layer)
+        .init();
 
     let m = Command::new("transcribee-worker")
         .subcommand(
@@ -92,7 +104,6 @@ async fn main() -> Result<()> {
                     backend
                         .forward(&vec![(chunk.clone(), seq.clone()); 1])
                         .unwrap();
-                    let mut seq = seq.clone();
                     let start = Instant::now();
                     for _ in 0..10 {
                         //seq = backend.append_token_to_sequence(&seq, 0, 1.0).unwrap();
@@ -132,12 +143,20 @@ async fn main() -> Result<()> {
         // todo: store benchmark somewhere and pick the fastest
         let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
         let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
-        let mut whisper = Whisper::new(encoder, decoder).await?;
+        let mut whisper = Whisper::new(encoder, decoder, 5, 5, 1.0, 2, 5.0).await?;
 
+        let mut i = 0;
+        let file = &mut File::options()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open("target/transcript.json")?;
         whisper
             .transcribe(&ar, None, &mut |bar| {
-                let text: String = bar.atoms.iter().map(|atom| &atom.text as &str).collect();
-                println!("{text}")
+                println!("{i}: {}", bar.as_string());
+                writeln!(file, "{}", bar.as_json()).unwrap();
+                i += 1;
             })
             .await?;
     } else if let Some(_matches) = m.subcommand_matches("sysinfo") {

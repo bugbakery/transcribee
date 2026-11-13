@@ -7,7 +7,6 @@ use anyhow::Result;
 use ndarray::{Array2, Array3, Array4};
 use std::{any::Any, sync::Arc};
 
-pub type TokenSequence = Vec<(i64, f32)>; // token, conf
 pub type TokenLogits = Array3<f32>; // [batch, seq, tokens]
 pub type AlignmentData = Array4<f32>; // [batch, heads, tokens, encoder_frames]
 pub type DynWhisperDecoderBackend = Box<dyn WhisperDecoderBackend>;
@@ -32,7 +31,7 @@ pub fn get_backends(
     backends
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AudioChunkHandle(pub Arc<dyn Any>);
 impl AudioChunkHandle {
     pub fn downcast<T: 'static>(x: T) -> Self {
@@ -43,7 +42,7 @@ impl AudioChunkHandle {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SequenceHandle(pub Arc<dyn Any>);
 impl SequenceHandle {
     pub fn downcast<T: 'static>(x: T) -> Self {

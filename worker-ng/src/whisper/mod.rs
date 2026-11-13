@@ -7,5 +7,5 @@ mod math;
 mod timing;
 mod tokenizer;
 
-// TODO: #[cfg(test)]
+#[cfg(test)]
 mod reference;

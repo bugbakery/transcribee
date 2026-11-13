@@ -40,6 +40,10 @@ sysinfo = "0.40.1"
 tokenizers = "0.23.2"
 tokio = { version = "1.54.0", features = ["rt-multi-thread", "macros"] }
 npyz = "0.9.1"  # TODO: move to dev
+tracing = "0.1.44"
+tracing-perfetto = "0.1.5"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+venator = "1.1.0"
 
 [target.'cfg( target_os = "macos" )'.dependencies]
 burn-tensor = { version = "0.22.0", default-features = false, optional = true, features = [
@@ -47,6 +51,12 @@ burn-tensor = { version = "0.22.0", default-features = false, optional = true, f
     "apple-amx",
 ] }
 
+[profile.dev.package."*"]
+# Set the default for dependencies in Development mode.
+opt-level = 3
+
+[profile.release]
+debug = true
 
 [dev-dependencies]
 
