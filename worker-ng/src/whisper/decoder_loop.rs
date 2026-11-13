@@ -14,6 +14,7 @@ use crate::vad::chunking::get_chunks;
 use crate::vad::earshot::EarshotVadModel;
 use crate::whisper::timing::calculate_alignment;
 use crate::whisper::tokenizer::{LANGUAGES, NUM_TOKENS};
+use crate::whisper::tree_list::TreeList;
 use anyhow::{Ok, Result};
 use ndarray::{Array1, Array2, Array3, Axis, s, stack};
 use std::collections::HashMap;
@@ -457,7 +458,9 @@ impl Whisper {
                 with_context.tokens = with_context.tokens[..offset_in_with_context].to_vec();
                 with_context.logprobs = with_context.logprobs[..offset_in_with_context].to_vec();
                 with_context.alignment_data =
-                    with_context.alignment_data[..offset_in_with_context].to_vec();
+                    with_context.alignment_data.with_elements_removed_from_end(
+                        with_context.alignment_data.len() - offset_in_with_context,
+                    );
 
                 with_context
                     .tokens
@@ -465,12 +468,17 @@ impl Whisper {
                 with_context
                     .logprobs
                     .extend_from_slice(&match_without_context.logprobs[without_context_start..]);
-                with_context.alignment_data.extend_from_slice(
-                    &match_without_context.alignment_data[without_context_start..],
-                );
+                for x in &match_without_context
+                    .alignment_data
+                    .to_vec(without_context_start)
+                {
+                    with_context.alignment_data =
+                        with_context.alignment_data.with_element(x.clone());
+                }
                 with_context.new_tokens = (with_context.new_tokens as i64
                     + (with_context.len() as i64 - len_before))
                     as usize;
+                assert_eq!(with_context.alignment_data.len(), with_context.len());
 
                 with_context
             }
@@ -640,7 +648,7 @@ impl Whisper {
                     let mut new_seq = SequenceData {
                         tokens: seq.tokens[..seq.tokens.len() - peel].to_vec(),
                         logprobs: seq.logprobs[..seq.logprobs.len() - peel].to_vec(),
-                        alignment_data: seq.alignment_data[..seq.len() - peel].to_vec(),
+                        alignment_data: seq.alignment_data.with_elements_removed_from_end(peel - 1),
                         new_tokens: seq.new_tokens.saturating_sub(peel),
                     };
                     let new_seq_len = new_seq.len();
@@ -727,7 +735,7 @@ impl Whisper {
                             SequenceData {
                                 tokens: prompt.to_vec(),
                                 logprobs: logprobs.to_vec(),
-                                alignment_data: vec![],
+                                alignment_data: Default::default(),
                                 new_tokens: 0,
                             },
                         )
@@ -796,9 +804,10 @@ impl Whisper {
 
                     let mut new_sequence_data = sequence_data.clone();
                     for i in 0..last_token_idx + 1 {
-                        new_sequence_data
-                            .alignment_data
-                            .push(alignment_data.slice(s![result_idx, .., i, ..]).to_owned());
+                        new_sequence_data.alignment_data =
+                            new_sequence_data.alignment_data.with_element(
+                                alignment_data.slice(s![result_idx, .., i, ..]).to_owned(),
+                            );
                     }
                     new_sequence_data.new_tokens += 1;
                     new_sequence_datas.push(new_sequence_data);
@@ -949,7 +958,7 @@ impl<T> TopNVec<T> {
 pub struct SequenceData {
     tokens: Vec<i64>,
     logprobs: Vec<f32>,
-    alignment_data: Vec<Array2<f32>>, // [heads, audio_len]
+    alignment_data: TreeList<Array2<f32>>, // [heads, audio_len],
     new_tokens: usize,
 }
 impl SequenceData {
@@ -976,7 +985,9 @@ impl SequenceData {
     pub fn alignment_data_concatenated(&self, context_tokens_skip: usize) -> Array3<f32> {
         stack(
             Axis(0),
-            &self.alignment_data[context_tokens_skip..]
+            &self
+                .alignment_data
+                .to_vec(context_tokens_skip)
                 .iter()
                 .map(|x| x.view())
                 .collect::<Vec<_>>(),
