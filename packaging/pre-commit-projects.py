@@ -37,7 +37,8 @@ PROJECT_FILE_TYPES = {
                 "cargo clippy --all-features --fix --allow-dirty --allow-staged "
                 "&& cargo clippy --all-features -- -D warnings"
             ),
-            "test": "cargo test --all-features",
+            # we dont test cargo projects in pre-commit because it is too slow:
+            # "test": "cargo test",
         },
     },
 }
