@@ -13,6 +13,7 @@ use log::{debug, info};
 use ndarray::{Array1, Array2, Array3, Array4, s};
 use ort::{
     ep::ExecutionProviderDispatch,
+    memory::{AllocationDevice, AllocatorType, MemoryType},
     memory::{Allocator, MemoryInfo},
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
@@ -181,7 +182,12 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
 
             self.kv_cache.add_self_to_ort_binding(
                 &mut binding,
-                self.model.allocator().memory_info(),
+                &MemoryInfo::new(
+                    AllocationDevice::WEBGPU_BUFFER,
+                    0,
+                    AllocatorType::Device,
+                    MemoryType::Default,
+                )?,
                 inputs.iter().map(|(_, s)| s.last_handle.as_ref().unwrap()),
             )?;
 
@@ -306,7 +312,15 @@ impl CrossKV {
             .map(|o| o.name().to_string())
             .collect();
         for output in &output_names {
-            binding.bind_output_to_device(output, self.model.allocator().memory_info())?;
+            binding.bind_output_to_device(
+                output,
+                &MemoryInfo::new(
+                    AllocationDevice::WEBGPU_BUFFER,
+                    0,
+                    AllocatorType::Device,
+                    MemoryType::Default,
+                )?,
+            )?;
         }
 
         let mut outputs = self

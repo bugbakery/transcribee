@@ -143,7 +143,7 @@ async fn main() -> Result<()> {
         // todo: store benchmark somewhere and pick the fastest
         let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
         let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
-        let mut whisper = Whisper::new(encoder, decoder, 5, 5, 1.0, 2, 0.1, 10).await?;
+        let mut whisper = Whisper::new(encoder, decoder, 5, 5, 1.0, 10, 0.1, 10).await?;
 
         let mut i = 0;
         let file = &mut File::options()
