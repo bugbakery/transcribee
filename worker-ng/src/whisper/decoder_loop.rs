@@ -115,7 +115,7 @@ impl Whisper {
                     // mask away the parts that are not enceded (tryout of just running the encoder on smaller chunks)
                     // this sometimes breaks the encoder generating eot tokens (baad)
                     let mask_start = ((chunk.end - chunk.start) / 30. * 1500.) as usize;
-                    // *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
+                    *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
 
                     encoded_chunks[chunk_idx] = Some(encoded);
                 }
@@ -744,6 +744,15 @@ impl Whisper {
 
         let mut finished: Vec<Vec<SequenceData>> = vec![vec![]; x.len()];
         for i in 0.. {
+            for (chunk_idx, (_, beam)) in chunks.iter().enumerate() {
+                event!(
+                    Level::TRACE,
+                    chunk_idx = x[chunk_idx].0,
+                    "beam width: {}; finished: {}",
+                    beam.len(),
+                    finished[chunk_idx].len()
+                );
+            }
             let decoder_input: Vec<_> = chunks
                 .iter()
                 .enumerate()
@@ -798,8 +807,6 @@ impl Whisper {
             let mut next_chunks = chunks.clone();
             let mut result_idx = 0;
             for (chunk_idx, (_audio, beam)) in chunks.iter().enumerate() {
-                event!(Level::TRACE, chunk_idx = x[chunk_idx].0, "next token");
-
                 if finished[chunk_idx].len() >= self.beam_width {
                     continue;
                 }
@@ -888,129 +895,135 @@ impl Whisper {
                     if token as i64 == self.tokenizer.endoftext()
                         || next_sequence_data.len() >= Self::MAX_LEN
                     {
-                        event!(
-                            Level::TRACE,
-                            chunk_idx = x[chunk_idx].0,
-                            "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished",
-                            self.tokenizer.decode(&next_sequence_data.tokens)?,
-                            score
-                        );
-                        finished[chunk_idx].push(next_sequence_data);
+                        if token_prob > self.beamsearch_early_prune_min_token_conf
+                            || next_sequence_data.logprob_sum_normalized() > best_score
+                        {
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                            );
+                            finished[chunk_idx].push(next_sequence_data);
+                        } else {
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (too low token prob)",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                            );
+                        }
                     } else if finished[chunk_idx].is_empty() {
                         // we cannot prune all
-                        if next_sequence_data.naive_token_times.len() > 20
-                            && next_sequence_data.eot_prob.len() > 20
-                            && next_sequence_data.naive_token_times
-                                [next_sequence_data.naive_token_times.len() - 1]
-                                == next_sequence_data.naive_token_times
-                                    [next_sequence_data.naive_token_times.len() - 21]
-                        {
-                            // no timing progress since 20 tokens: probably we are stuck in a loop but we did not generate
-                            // an eot token yet. Now we cut the sequence at the position that is most likely to be the end
-                            let eot_probs: &[f32] = &next_sequence_data.eot_prob
-                                [next_sequence_data.eot_prob.len() - 21..];
-                            let mut argmax = 0;
-                            let mut max = 0.0;
-                            for (i, &x) in eot_probs.iter().enumerate() {
-                                if x > max {
-                                    max = x;
-                                    argmax = i
-                                }
-                            }
-                            let cut_sequence =
-                                next_sequence_data.with_x_tokens_removed_from_end(20 - argmax);
-                            event!(
-                                Level::TRACE,
-                                chunk_idx = x[chunk_idx].0,
-                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished (cut tokens of end because no progress)",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
-                                score
-                            );
-                            event!(
-                                Level::TRACE,
-                                chunk_idx = x[chunk_idx].0,
-                                "cut tokens of end eot probs: {:?}",
-                                eot_probs
-                            );
-                            finished[chunk_idx].push(cut_sequence);
-                            break;
-                        }
                         if best_token_prob < self.beamsearch_early_prune_min_token_conf {
                             // all options are shit, we cannot decide now, thus we keep all beams
                             event!(
                                 Level::TRACE,
                                 chunk_idx = x[chunk_idx].0,
-                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue (because all are shit)",
+                                "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue (because all are shit)",
                                 self.tokenizer.decode(&next_sequence_data.tokens)?,
-                                score
                             );
                             next_beam.push((next_seq, next_sequence_data));
                         } else if token_prob > self.beamsearch_early_prune_min_token_conf
                             || next_sequence_data.logprob_sum_normalized() > best_score
                         {
-                            event!(
-                                Level::TRACE,
-                                chunk_idx = x[chunk_idx].0,
-                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue (because its good enoug)",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
-                                score
-                            );
                             next_beam.push((next_seq, next_sequence_data));
-                            self.timing_helper.not_pruned += 1;
                         } else {
                             // we prune the beam
                             event!(
                                 Level::TRACE,
                                 chunk_idx = x[chunk_idx].0,
-                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune",
+                                "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (too low token prob)",
                                 self.tokenizer.decode(&next_sequence_data.tokens)?,
-                                score
                             );
                             self.timing_helper.pruned += 1;
                         }
                     } else {
                         // we could prune all
-
-                        if next_sequence_data.naive_token_times.len() > 10
-                            && next_sequence_data.naive_token_times
-                                [next_sequence_data.naive_token_times.len() - 1]
-                                == next_sequence_data.naive_token_times
-                                    [next_sequence_data.naive_token_times.len() - 11]
-                        {
-                            // we prune the beam because of no timing progress
-                            event!(
-                                Level::TRACE,
-                                chunk_idx = x[chunk_idx].0,
-                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (no timing progress since 10 tokens)",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
-                                score
-                            );
-                            self.timing_helper.pruned += 1;
-                        } else if token_prob > self.beamsearch_early_prune_min_token_conf
+                        if token_prob > self.beamsearch_early_prune_min_token_conf
                             || next_sequence_data.logprob_sum_normalized() > best_score
                         {
-                            event!(
-                                Level::TRACE,
-                                chunk_idx = x[chunk_idx].0,
-                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue (because its good enough)",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
-                                score
-                            );
                             next_beam.push((next_seq, next_sequence_data));
-                            self.timing_helper.not_pruned += 1;
                         } else {
                             // we prune the beam
                             event!(
                                 Level::TRACE,
                                 chunk_idx = x[chunk_idx].0,
-                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune",
+                                "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (too low token prob)",
                                 self.tokenizer.decode(&next_sequence_data.tokens)?,
-                                score
                             );
                             self.timing_helper.pruned += 1;
                         }
                     }
                 }
+                let next_beam_clone = next_beam.clone();
+                next_beam.retain(|(_, sequence_data)| {
+                    if sequence_data.tokens.len()
+                        < self.beamsearch_early_prune_max_decission_postpone
+                    {
+                        event!(
+                            Level::TRACE,
+                            chunk_idx = x[chunk_idx].0,
+                            "{tokens} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue",
+                            tokens = self.tokenizer.decode(&sequence_data.tokens).unwrap(),
+                            score = sequence_data.logprob_sum_normalized(),
+                            token_prob = sequence_data.logprobs.last().unwrap().exp(),
+                            naive_token_time = sequence_data.naive_token_times.last().unwrap()
+                        );
+                        self.timing_helper.not_pruned += 1;
+                        return true;
+                    };
+                    let sibling_tokens = &sequence_data.tokens[sequence_data.tokens.len()
+                        - self.beamsearch_early_prune_max_decission_postpone
+                        ..sequence_data.tokens.len()];
+                    let siblings = next_beam_clone
+                        .iter()
+                        .map(|(_, sequence_data)| sequence_data)
+                        .filter(|candidate| {
+                            if candidate.tokens.len()
+                                < self.beamsearch_early_prune_max_decission_postpone
+                            {
+                                return false;
+                            };
+                            let candidate_sibling_tokens = &candidate.tokens[candidate.tokens.len()
+                                - self.beamsearch_early_prune_max_decission_postpone
+                                ..candidate.tokens.len()];
+                            candidate_sibling_tokens == sibling_tokens
+                        });
+                    let best_sibling = siblings
+                        .max_by(|a, b| {
+                            a.logprob_sum_normalized()
+                                .total_cmp(&b.logprob_sum_normalized())
+                        })
+                        .unwrap();
+                    let keep = best_sibling.tokens == sequence_data.tokens;
+                    if keep {
+                        event!(
+                            Level::TRACE,
+                            chunk_idx = x[chunk_idx].0,
+                            "{tokens} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue",
+                            tokens = self.tokenizer.decode(&sequence_data.tokens).unwrap(),
+                            score = sequence_data.logprob_sum_normalized(),
+                            token_prob = sequence_data.logprobs.last().unwrap().exp(),
+                            naive_token_time = sequence_data.naive_token_times.last().unwrap()
+                        );
+                        self.timing_helper.not_pruned += 1;
+                        true
+                    } else {
+                        event!(
+                            Level::TRACE,
+                            chunk_idx = x[chunk_idx].0,
+                            "{tokens} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (max decision time exceeded)",
+                            tokens = self.tokenizer.decode(&sequence_data.tokens).unwrap(),
+                            score = sequence_data.logprob_sum_normalized(),
+                            token_prob = sequence_data.logprobs.last().unwrap().exp(),
+                            naive_token_time = sequence_data.naive_token_times.last().unwrap()
+                        );
+                        self.timing_helper.pruned += 1;
+                        false
+                    }
+                });
+
                 next_chunks[chunk_idx].1 = next_beam
             }
             chunks = next_chunks;
