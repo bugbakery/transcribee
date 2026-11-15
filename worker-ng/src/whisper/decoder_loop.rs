@@ -99,34 +99,36 @@ impl Whisper {
         );
 
         let mut encoded_chunks = vec![None; chunks.len()];
-        let mut get_encoded_chunk =
-            |whisper: &mut Whisper, chunk_idx: usize| -> Result<Array2<f32>> {
-                if encoded_chunks[chunk_idx].is_none() {
-                    let chunk = &chunks[chunk_idx];
-                    let samples = ar.get(
-                        (chunk.start * ar.sample_rate()) as usize
-                            ..(chunk.end * ar.sample_rate()) as usize,
-                    )?;
-                    let start = Instant::now();
-                    let mel = compute_mel(samples.to_vec())?;
-                    let mut encoded = whisper.encoder.encode(mel)?;
-                    whisper.timing_helper.encode.push(start.elapsed());
+        let mut get_encoded_chunk = |whisper: &mut Whisper,
+                                     encoded_chunks: &mut Vec<Option<_>>,
+                                     chunk_idx: usize|
+         -> Result<Array2<f32>> {
+            if encoded_chunks[chunk_idx].is_none() {
+                let chunk = &chunks[chunk_idx];
+                let samples = ar.get(
+                    (chunk.start * ar.sample_rate()) as usize
+                        ..(chunk.end * ar.sample_rate()) as usize,
+                )?;
+                let start = Instant::now();
+                let mel = compute_mel(samples.to_vec())?;
+                let mut encoded = whisper.encoder.encode(mel)?;
+                whisper.timing_helper.encode.push(start.elapsed());
 
-                    // mask away the parts that are not enceded (tryout of just running the encoder on smaller chunks)
-                    // this sometimes breaks the encoder generating eot tokens (baad)
-                    let mask_start = ((chunk.end - chunk.start) / 30. * 1500.) as usize;
-                    *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
+                // mask away the parts that are not enceded (tryout of just running the encoder on smaller chunks)
+                // this sometimes breaks the encoder generating eot tokens (baad)
+                let mask_start = ((chunk.end - chunk.start) / 30. * 1500.) as usize;
+                *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
 
-                    encoded_chunks[chunk_idx] = Some(encoded);
-                }
-                Ok(encoded_chunks[chunk_idx].as_ref().unwrap().clone())
-            };
+                encoded_chunks[chunk_idx] = Some(encoded);
+            }
+            Ok(encoded_chunks[chunk_idx].as_ref().unwrap().clone())
+        };
 
         // step 2: detect language (if unknown)
         let language = if language.is_none() {
             event!(Level::INFO, "language is not given, detecting language...");
             // we take a non-silence segment from the middle of the text to detect the language
-            let encoded = get_encoded_chunk(self, chunks.len() / 2)?;
+            let encoded = get_encoded_chunk(self, &mut encoded_chunks, chunks.len() / 2)?;
             let registered = self.decoder.register_encoded_audio_chunks(&[encoded])?;
             let probs = self.detect_language(&registered)?.remove(0);
             probs[0].0
@@ -188,7 +190,7 @@ impl Whisper {
             }
             let audio_encoded = to_process
                 .iter()
-                .map(|&i| get_encoded_chunk(self, i))
+                .map(|&i| get_encoded_chunk(self, &mut encoded_chunks, i))
                 .collect::<Result<Vec<_>>>()?;
             let audio_handles = self.decoder.register_encoded_audio_chunks(&audio_encoded)?;
             let no_context = vec![SequenceData::default()];
@@ -322,6 +324,9 @@ impl Whisper {
                     },
                 )?;
                 on_new_bar(bar);
+                encoded_chunks[outboxed_idx] = None;
+                decoded_chunks[outboxed_idx] = vec![];
+                decoded_chunks_again[outboxed_idx] = None;
                 outboxed_idx += 1;
             }
         }
