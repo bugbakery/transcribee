@@ -586,7 +586,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "num-traits",
  "oneshot",
- "rand 0.10.3",
+ "rand 0.10.4",
  "rand_distr",
  "serde",
  "spin",
@@ -748,7 +748,7 @@ dependencies = [
  "ndarray 0.17.2",
  "num-traits",
  "paste",
- "rand 0.10.3",
+ "rand 0.10.4",
  "rayon",
  "seq-macro",
 ]
@@ -768,7 +768,7 @@ dependencies = [
  "futures-util",
  "gloo-timers",
  "log",
- "rand 0.10.3",
+ "rand 0.10.4",
  "rmp-serde",
  "serde",
  "serde_bytes",
@@ -809,7 +809,7 @@ dependencies = [
  "half",
  "hashbrown 0.16.1",
  "num-traits",
- "rand 0.10.3",
+ "rand 0.10.4",
  "rand_distr",
  "serde",
  "smallvec",
@@ -1523,7 +1523,7 @@ dependencies = [
  "parking_lot",
  "portable-atomic",
  "portable-atomic-util",
- "rand 0.10.3",
+ "rand 0.10.4",
  "serde",
  "serde_bytes",
  "serde_json",
@@ -1950,7 +1950,7 @@ dependencies = [
  "cubek-std",
  "half",
  "num-traits",
- "rand 0.10.3",
+ "rand 0.10.4",
  "serde",
 ]
 
@@ -5139,7 +5139,7 @@ dependencies = [
  "bytes",
  "getrandom 0.4.3",
  "lru-slab",
- "rand 0.10.3",
+ "rand 0.10.4",
  "rand_pcg 0.10.2",
  "ring",
  "rustc-hash 2.1.3",
@@ -5216,9 +5216,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65c9fb96cbc91e3478eaae79a69fcd3f1ae4ad052e471fe6732fff548984b4af"
+checksum = "8f6fa277c67e6ea590466f04c3fe82cb509f0864fe470643e5570de9514a9b11"
 dependencies = [
  "chacha20",
  "getrandom 0.4.3",
@@ -5276,7 +5276,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d431c2703ccf129de4d45253c03f49ebb22b97d6ad79ee3ecfc7e3f4862c1d8"
 dependencies = [
  "num-traits",
- "rand 0.10.3",
+ "rand 0.10.4",
 ]
 
 [[package]]
@@ -7002,7 +7002,7 @@ version = "2.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86a801b3cea342a06d468c8710662aa29e5e05e4f5c0d62f00bbb7f2ad7941c2"
 dependencies = [
- "rand 0.10.3",
+ "rand 0.9.5",
 ]
 
 [[package]]
@@ -7899,6 +7899,7 @@ dependencies = [
  "ndarray 0.17.2",
  "npyz",
  "ort",
+ "rand 0.10.4",
  "reqwest",
  "stft-rs",
  "sysinfo 0.40.1",

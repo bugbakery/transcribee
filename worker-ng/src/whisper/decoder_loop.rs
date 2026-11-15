@@ -16,13 +16,13 @@ use crate::whisper::timing::calculate_alignment;
 use crate::whisper::tokenizer::{LANGUAGES, NUM_TOKENS};
 use crate::whisper::tree_list::TreeList;
 use anyhow::{Ok, Result};
-use ndarray::{Array1, Array2, Array3, Axis, s, stack};
+use ndarray::{Array1, Array2, Array3, ArrayView1, Axis, s, stack};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::Write;
 use std::ops::Range;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tracing::{Level, event, instrument};
 
 pub struct Whisper {
@@ -34,10 +34,14 @@ pub struct Whisper {
     reset_after_x_bars: usize,
     overlap_s: f32,
     max_parallel_chunks: usize,
-    beamsearch_early_prune: f32,
+
+    beamsearch_early_prune_min_token_conf: f32,
+    beamsearch_early_prune_max_decission_postpone: usize,
 
     startofprev_sequence: Vec<i64>,
     punct_chars: Vec<char>,
+
+    timing_helper: TimingHelper,
 }
 impl Whisper {
     // idea: make the beam_width only wider if we are unsure about the next token. otherwise greedy is fine
@@ -51,7 +55,8 @@ impl Whisper {
         reset_after_x_bars: usize,
         overlap_s: f32,
         max_parallel_chunks: usize,
-        beamsearch_early_prune: f32,
+        beamsearch_early_prune_min_token_conf: f32,
+        beamsearch_early_prune_max_decission_postpone: usize,
     ) -> Result<Self> {
         let tokenizer = Tokenizer::new().await?;
 
@@ -70,7 +75,9 @@ impl Whisper {
             max_parallel_chunks,
             startofprev_sequence,
             punct_chars,
-            beamsearch_early_prune,
+            beamsearch_early_prune_min_token_conf,
+            beamsearch_early_prune_max_decission_postpone,
+            timing_helper: Default::default(),
         })
     }
 
@@ -93,19 +100,22 @@ impl Whisper {
 
         let mut encoded_chunks = vec![None; chunks.len()];
         let mut get_encoded_chunk =
-            |encoder: &mut DynWhisperEncoderBackend, chunk_idx: usize| -> Result<Array2<f32>> {
+            |whisper: &mut Whisper, chunk_idx: usize| -> Result<Array2<f32>> {
                 if encoded_chunks[chunk_idx].is_none() {
                     let chunk = &chunks[chunk_idx];
                     let samples = ar.get(
                         (chunk.start * ar.sample_rate()) as usize
                             ..(chunk.end * ar.sample_rate()) as usize,
                     )?;
+                    let start = Instant::now();
                     let mel = compute_mel(samples.to_vec())?;
-                    let mut encoded = encoder.encode(mel)?;
+                    let mut encoded = whisper.encoder.encode(mel)?;
+                    whisper.timing_helper.encode.push(start.elapsed());
 
                     // mask away the parts that are not enceded (tryout of just running the encoder on smaller chunks)
+                    // this sometimes breaks the encoder generating eot tokens (baad)
                     let mask_start = ((chunk.end - chunk.start) / 30. * 1500.) as usize;
-                    *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
+                    // *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
 
                     encoded_chunks[chunk_idx] = Some(encoded);
                 }
@@ -116,7 +126,7 @@ impl Whisper {
         let language = if language.is_none() {
             event!(Level::INFO, "language is not given, detecting language...");
             // we take a non-silence segment from the middle of the text to detect the language
-            let encoded = get_encoded_chunk(&mut self.encoder, chunks.len() / 2)?;
+            let encoded = get_encoded_chunk(self, chunks.len() / 2)?;
             let registered = self.decoder.register_encoded_audio_chunks(&[encoded])?;
             let probs = self.detect_language(&registered)?.remove(0);
             probs[0].0
@@ -178,7 +188,7 @@ impl Whisper {
             }
             let audio_encoded = to_process
                 .iter()
-                .map(|&i| get_encoded_chunk(&mut self.encoder, i))
+                .map(|&i| get_encoded_chunk(self, i))
                 .collect::<Result<Vec<_>>>()?;
             let audio_handles = self.decoder.register_encoded_audio_chunks(&audio_encoded)?;
             let no_context = vec![SequenceData::default()];
@@ -317,11 +327,9 @@ impl Whisper {
         }
 
         let audio_len_s = ar.len() as f32 / ar.sample_rate();
-        let duration = start_time.elapsed().as_secs_f32();
-        println!(
-            "transcription of {audio_len_s:.2}s took {duration:.2}s ({:.2}x realtime)",
-            audio_len_s / duration
-        );
+        let total_duration = start_time.elapsed().as_secs_f32();
+        self.timing_helper.report_stats(audio_len_s, total_duration);
+
         Ok(())
     }
 
@@ -645,12 +653,7 @@ impl Whisper {
             let mut outputs = vec![];
             for (i, seq) in beams.iter().enumerate() {
                 let mut add_sequence = |peel: usize, last_token_penalty: f32| {
-                    let mut new_seq = SequenceData {
-                        tokens: seq.tokens[..seq.tokens.len() - peel].to_vec(),
-                        logprobs: seq.logprobs[..seq.logprobs.len() - peel].to_vec(),
-                        alignment_data: seq.alignment_data.with_elements_removed_from_end(peel - 1),
-                        new_tokens: seq.new_tokens.saturating_sub(peel),
-                    };
+                    let mut new_seq = seq.with_x_tokens_removed_from_end(peel);
                     let new_seq_len = new_seq.len();
                     if new_seq_len > 0 {
                         new_seq.logprobs[new_seq_len - 1] += last_token_penalty.ln();
@@ -662,7 +665,7 @@ impl Whisper {
                         self.tokenizer
                             .decode(&seq.tokens[..seq.len() - peel])
                             .unwrap(),
-                        new_seq.logprob_sum_normalized().exp()
+                        new_seq.logprob_sum_normalized()
                     );
                     outputs.push(new_seq);
                 };
@@ -701,13 +704,6 @@ impl Whisper {
                     }
                 }
             }
-            let best_mean_logprob = outputs
-                .iter()
-                .map(|seq| seq.logprob_sum_normalized())
-                .max_by(|a, b| a.total_cmp(b))
-                .unwrap();
-            outputs.retain(|seq| !self.should_early_prune(best_mean_logprob, seq));
-
             to_return.push(outputs);
         }
         Ok(to_return)
@@ -735,6 +731,8 @@ impl Whisper {
                             SequenceData {
                                 tokens: prompt.to_vec(),
                                 logprobs: logprobs.to_vec(),
+                                naive_token_times: vec![],
+                                eot_prob: vec![],
                                 alignment_data: Default::default(),
                                 new_tokens: 0,
                             },
@@ -758,7 +756,17 @@ impl Whisper {
                 break;
             }
 
+            let start = Instant::now();
             let (logits, alignment_data) = self.decoder.forward(&decoder_input)?;
+            if alignment_data.shape()[2] > 1 {
+                self.timing_helper
+                    .prefill
+                    .push((start.elapsed(), alignment_data.shape()[0]));
+            } else {
+                self.timing_helper
+                    .decode
+                    .push((start.elapsed(), alignment_data.shape()[0]));
+            }
 
             let nospeech = &[self.tokenizer.nospeech()];
             let nospeech_and_endoftext = &[self.tokenizer.endoftext(), self.tokenizer.nospeech()];
@@ -790,6 +798,8 @@ impl Whisper {
             let mut next_chunks = chunks.clone();
             let mut result_idx = 0;
             for (chunk_idx, (_audio, beam)) in chunks.iter().enumerate() {
+                event!(Level::TRACE, chunk_idx = x[chunk_idx].0, "next token");
+
                 if finished[chunk_idx].len() >= self.beam_width {
                     continue;
                 }
@@ -800,48 +810,205 @@ impl Whisper {
                 let mut new_sequence_datas = vec![];
                 for (beam_idx, (seq_handle, sequence_data)) in beam.iter().enumerate() {
                     let last_token_idx = if i == 0 { sequence_data.len() - 1 } else { 0 };
-                    let token_probs = token_probs.slice(s![result_idx, last_token_idx, ..]);
+                    let token_probs: ArrayView1<f32> =
+                        token_probs.slice(s![result_idx, last_token_idx, ..]);
 
                     let mut new_sequence_data = sequence_data.clone();
                     for i in 0..last_token_idx + 1 {
-                        new_sequence_data.alignment_data =
-                            new_sequence_data.alignment_data.with_element(
-                                alignment_data.slice(s![result_idx, .., i, ..]).to_owned(),
-                            );
+                        let slice = alignment_data.slice(s![result_idx, .., i, ..]);
+                        new_sequence_data.alignment_data = new_sequence_data
+                            .alignment_data
+                            .with_element(slice.to_owned());
+
+                        // maintain naive token time
+                        let softmaxed =
+                            softmax(slice.mean_axis(Axis(0)).unwrap().into_dyn(), Axis(0));
+                        let mut argmax = 0;
+                        let mut max = 0.0;
+                        for (i, &x) in softmaxed.iter().enumerate() {
+                            if x > max {
+                                max = x;
+                                argmax = i
+                            }
+                        }
+                        let energy_around = softmaxed
+                            .slice(s![
+                                argmax.saturating_sub(5)..(argmax + 5).min(softmaxed.len())
+                            ])
+                            .sum();
+                        let argmax_time = argmax as f32 * 30. / 1500.;
+                        let last_time = *sequence_data.naive_token_times.last().unwrap_or(&0.0);
+                        let naive_token_time = if energy_around > 0.35 && argmax_time > last_time {
+                            argmax_time
+                        } else {
+                            last_time
+                        };
+                        new_sequence_data.naive_token_times.push(naive_token_time);
                     }
+                    new_sequence_data
+                        .eot_prob
+                        .push(token_probs[self.tokenizer.endoftext() as usize]);
                     new_sequence_data.new_tokens += 1;
                     new_sequence_datas.push(new_sequence_data);
 
                     let seq_base_logprob = sequence_data.logprob_sum();
                     let seq_len = (&sequence_data.len() + 1) as f32;
-                    for (token, &prob) in token_probs.iter().enumerate() {
-                        let total_logprob = (seq_base_logprob + prob.ln()) / seq_len;
-                        best.insert(total_logprob, (beam_idx, seq_handle, token as i64, prob));
+                    for (token, &token_prob) in token_probs.iter().enumerate() {
+                        let total_logprob = (seq_base_logprob + token_prob.ln()) / seq_len;
+                        best.insert(
+                            total_logprob,
+                            (beam_idx, seq_handle, token as i64, token_prob),
+                        );
                     }
 
                     result_idx += 1;
                 }
 
-                for (score, (beam_idx, seq, token, conf)) in best.data {
+                let best_score = best.max.max(
+                    finished[chunk_idx]
+                        .iter()
+                        .map(|seq| seq.logprob_sum_normalized())
+                        .max_by(|a, b| a.total_cmp(b))
+                        .unwrap_or(f32::NEG_INFINITY),
+                );
+                let best_token_prob = best
+                    .data
+                    .iter()
+                    .map(|x| x.1.3)
+                    .max_by(|a, b| a.total_cmp(&b))
+                    .unwrap_or(0.0);
+
+                for (score, (beam_idx, seq, token, token_prob)) in best.data {
                     let mut next_sequence_data = new_sequence_datas[beam_idx].clone();
                     next_sequence_data.tokens.push(token);
-                    next_sequence_data.logprobs.push(conf.ln());
+                    next_sequence_data.logprobs.push(token_prob.ln());
                     let next_seq = self.decoder.append_token_to_sequence(seq, token)?;
-
-                    event!(
-                        Level::TRACE,
-                        chunk_idx = x[chunk_idx].0,
-                        "{} {}",
-                        self.tokenizer.decode(&next_sequence_data.tokens)?,
-                        score.exp()
-                    );
+                    let naive_token_time = *next_sequence_data.naive_token_times.last().unwrap();
 
                     if token as i64 == self.tokenizer.endoftext()
                         || next_sequence_data.len() >= Self::MAX_LEN
                     {
+                        event!(
+                            Level::TRACE,
+                            chunk_idx = x[chunk_idx].0,
+                            "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished",
+                            self.tokenizer.decode(&next_sequence_data.tokens)?,
+                            score
+                        );
                         finished[chunk_idx].push(next_sequence_data);
-                    } else if !self.should_early_prune(best.max, &next_sequence_data) {
-                        next_beam.push((next_seq, next_sequence_data));
+                    } else if finished[chunk_idx].is_empty() {
+                        // we cannot prune all
+                        if next_sequence_data.naive_token_times.len() > 20
+                            && next_sequence_data.eot_prob.len() > 20
+                            && next_sequence_data.naive_token_times
+                                [next_sequence_data.naive_token_times.len() - 1]
+                                == next_sequence_data.naive_token_times
+                                    [next_sequence_data.naive_token_times.len() - 21]
+                        {
+                            // no timing progress since 20 tokens: probably we are stuck in a loop but we did not generate
+                            // an eot token yet. Now we cut the sequence at the position that is most likely to be the end
+                            let eot_probs: &[f32] = &next_sequence_data.eot_prob
+                                [next_sequence_data.eot_prob.len() - 21..];
+                            let mut argmax = 0;
+                            let mut max = 0.0;
+                            for (i, &x) in eot_probs.iter().enumerate() {
+                                if x > max {
+                                    max = x;
+                                    argmax = i
+                                }
+                            }
+                            let cut_sequence =
+                                next_sequence_data.with_x_tokens_removed_from_end(20 - argmax);
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished (cut tokens of end because no progress)",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score
+                            );
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "cut tokens of end eot probs: {:?}",
+                                eot_probs
+                            );
+                            finished[chunk_idx].push(cut_sequence);
+                            break;
+                        }
+                        if best_token_prob < self.beamsearch_early_prune_min_token_conf {
+                            // all options are shit, we cannot decide now, thus we keep all beams
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue (because all are shit)",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score
+                            );
+                            next_beam.push((next_seq, next_sequence_data));
+                        } else if token_prob > self.beamsearch_early_prune_min_token_conf
+                            || next_sequence_data.logprob_sum_normalized() > best_score
+                        {
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue (because its good enoug)",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score
+                            );
+                            next_beam.push((next_seq, next_sequence_data));
+                            self.timing_helper.not_pruned += 1;
+                        } else {
+                            // we prune the beam
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score
+                            );
+                            self.timing_helper.pruned += 1;
+                        }
+                    } else {
+                        // we could prune all
+
+                        if next_sequence_data.naive_token_times.len() > 10
+                            && next_sequence_data.naive_token_times
+                                [next_sequence_data.naive_token_times.len() - 1]
+                                == next_sequence_data.naive_token_times
+                                    [next_sequence_data.naive_token_times.len() - 11]
+                        {
+                            // we prune the beam because of no timing progress
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (no timing progress since 10 tokens)",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score
+                            );
+                            self.timing_helper.pruned += 1;
+                        } else if token_prob > self.beamsearch_early_prune_min_token_conf
+                            || next_sequence_data.logprob_sum_normalized() > best_score
+                        {
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue (because its good enough)",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score
+                            );
+                            next_beam.push((next_seq, next_sequence_data));
+                            self.timing_helper.not_pruned += 1;
+                        } else {
+                            // we prune the beam
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune",
+                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score
+                            );
+                            self.timing_helper.pruned += 1;
+                        }
                     }
                 }
                 next_chunks[chunk_idx].1 = next_beam
@@ -850,16 +1017,6 @@ impl Whisper {
         }
 
         Ok(finished.into_iter().map(|x| x).collect())
-    }
-
-    /// determines if we should early prune a beam from the beamsearch.
-    /// the beamsearch_early_prune parameter basically asks: how many tokens with the best probability (1.0) are we allowed to imaginarily
-    /// add to make the beam better than the best. If the beam with beamsearch_early_prune tokens is not better than the best, we prune it.
-    /// beamsearch_early_prune can be a fractional number.
-    fn should_early_prune(&self, best_mean_logprob: f32, seq: &SequenceData) -> bool {
-        (seq.logprob_sum() + 1.0f32.ln() * self.beamsearch_early_prune)
-            / (seq.len() as f32 + self.beamsearch_early_prune)
-            < best_mean_logprob
     }
 
     /// This function detects the lanuage of the given audio chunks and returns a probability
@@ -946,7 +1103,12 @@ impl<T> TopNVec<T> {
                 .unwrap()
                 .0;
             self.data[current_min_idx] = (score, value);
-            self.min = score;
+            self.min = *self
+                .data
+                .iter()
+                .map(|(score, _)| score)
+                .min_by(|a, b| a.total_cmp(b))
+                .unwrap();
             if score > self.max {
                 self.max = score;
             }
@@ -958,6 +1120,8 @@ impl<T> TopNVec<T> {
 pub struct SequenceData {
     tokens: Vec<i64>,
     logprobs: Vec<f32>,
+    naive_token_times: Vec<f32>, // tend to be too low, used to check if transcription is stuck in a loop
+    eot_prob: Vec<f32>,
     alignment_data: TreeList<Array2<f32>>, // [heads, audio_len],
     new_tokens: usize,
 }
@@ -994,6 +1158,17 @@ impl SequenceData {
         )
         .unwrap()
         .into_owned()
+    }
+
+    fn with_x_tokens_removed_from_end(&self, x: usize) -> Self {
+        SequenceData {
+            tokens: self.tokens[..self.tokens.len() - x].to_vec(),
+            logprobs: self.logprobs[..self.logprobs.len() - x].to_vec(),
+            naive_token_times: self.naive_token_times[..self.naive_token_times.len() - x].to_vec(),
+            eot_prob: self.eot_prob[..self.eot_prob.len() - x].to_vec(),
+            alignment_data: self.alignment_data.with_elements_removed_from_end(x - 1),
+            new_tokens: self.new_tokens.saturating_sub(x),
+        }
     }
 }
 impl Debug for SequenceData {
@@ -1042,5 +1217,91 @@ impl Atom {
             "{{ \"text\": \"{}\", \"start\": {}, \"end\": {}, \"conf\": {}, \"conf_ts\": {} }}",
             self.text, self.start, self.end, self.conf, self.conf_ts,
         )
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct TimingHelper {
+    encode: Vec<Duration>,
+    prefill: Vec<(Duration, usize)>,
+    decode: Vec<(Duration, usize)>,
+
+    pruned: usize,
+    not_pruned: usize,
+}
+impl TimingHelper {
+    fn report_stats(&self, audio_len_s: f32, total_duration: f32) {
+        println!(
+            "transcription of {audio_len_s:.2}s took {total_duration:.2}s ({:.2}x realtime; early pruned {:.1}% of beams)",
+            audio_len_s / total_duration,
+            self.pruned as f32 / (self.pruned + self.not_pruned) as f32 * 100.
+        );
+        let encode_duration: f32 = self.encode.iter().map(|d| d.as_secs_f32()).sum();
+        println!(
+            "\t encode: {encode_duration:02.2}s ({:02.2}%) runs: {}",
+            encode_duration / total_duration * 100.,
+            self.encode.len(),
+        );
+
+        Self::report_histogram_stats("prefill", &self.prefill, total_duration);
+        Self::report_histogram_stats("decode", &self.decode, total_duration);
+    }
+
+    fn report_histogram_stats(name: &str, data: &Vec<(Duration, usize)>, parent_duration: f32) {
+        let self_duration: f32 = data.iter().map(|(d, _)| d.as_secs_f32()).sum();
+        let runs_mul_b = data.iter().map(|(_, b)| *b).sum::<usize>();
+        println!(
+            "\t {name}: {self_duration:.2}s ({:.2}%) runs: {} runs*b: {}",
+            self_duration / parent_duration * 100.,
+            data.len(),
+            runs_mul_b,
+        );
+        let max_batch_size = data.iter().map(|(_, b)| b).cloned().max().unwrap_or(0);
+        for i in 1..max_batch_size + 1 {
+            let time_spent: f32 = data
+                .iter()
+                .filter(|(_, b)| *b == i)
+                .map(|(d, _)| d.as_secs_f32())
+                .sum();
+            let count: usize = data.iter().filter(|(_, b)| *b == i).count();
+            if count == 0 {
+                continue;
+            }
+            let mean_duration_per_token = time_spent / (count * i) as f32;
+            println!(
+                "\t\t b: {i:>2} count: {count:>4} ({percent_calls:>5.02}% of calls; {percent_runs_mul_b:>5.02}% of calls*b) mean_duration/b: {mean_per_token:>6.02}ms time_spent: {time_spent:>6.02}ms ({percent_time:>5.02}% of time)",
+                percent_calls = count as f32 / data.len() as f32 * 100.,
+                percent_runs_mul_b = (count * i) as f32 / runs_mul_b as f32 * 100.,
+                mean_per_token = mean_duration_per_token * 1000.,
+                time_spent = time_spent * 1000.0,
+                percent_time = time_spent / self_duration * 100.,
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rand::RngExt;
+
+    use crate::whisper::decoder_loop::TopNVec;
+
+    #[test]
+    fn test_top_n_vec() {
+        let mut top_n_vec = TopNVec::new(5);
+        let mut numbers = vec![];
+
+        let mut rng = rand::rng();
+
+        for _ in 0..1000 {
+            let v: f32 = rng.random();
+            top_n_vec.insert(v.ln() as f32, v);
+            numbers.push((v.ln(), v));
+        }
+
+        numbers.sort_by(|(a, _), (b, _)| b.total_cmp(a));
+        top_n_vec.data.sort_by(|(a, _), (b, _)| b.total_cmp(a));
+
+        assert_eq!(top_n_vec.data, &numbers[..5]);
     }
 }
