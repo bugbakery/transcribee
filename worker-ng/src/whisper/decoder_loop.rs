@@ -340,7 +340,7 @@ impl Whisper {
 
     #[instrument(level = Level::TRACE, skip(chunk, chunk_without_context, next_chunk))]
     pub fn select_and_postprocess_transcribed_chunk(
-        &self,
+        &mut self,
         chunk_idx: usize,
         chunk_range: Range<f32>,
         chunk: &Vec<SequenceData>,
@@ -491,7 +491,7 @@ impl Whisper {
 
     #[instrument(level = Level::TRACE, skip(chunk))]
     pub fn postprocess_transcribed_chunk(
-        &self,
+        &mut self,
         chunk_idx: usize,
         chunk_range: Range<f32>,
         chunk: &SequenceData,
@@ -501,6 +501,8 @@ impl Whisper {
             chunk.alignment_data_concatenated(new_tokens_start - 2),
             ((chunk_range.end - chunk_range.start) * 1500. / 30.) as usize,
         )?;
+
+        self.timing_helper.output_tokens += chunk.tokens[new_tokens_start..].len();
 
         let atoms: Vec<_> = chunk.tokens[new_tokens_start..]
             .iter()
@@ -762,6 +764,7 @@ impl Whisper {
                     beam.len(),
                     finished[chunk_idx].len()
                 );
+                self.timing_helper.beam_widths.push(beam.len());
             }
             let decoder_input: Vec<_> = chunks
                 .iter()
@@ -1251,19 +1254,41 @@ pub struct TimingHelper {
 
     pruned: usize,
     not_pruned: usize,
+    beam_widths: Vec<usize>, // to calculate a histogram of beam widths
+    output_tokens: usize,
 }
 impl TimingHelper {
     fn report_stats(&self, audio_len_s: f32, total_duration: f32) {
-        println!(
-            "transcription of {audio_len_s:.2}s took {total_duration:.2}s ({:.2}x realtime; early pruned {:.1}% of beams)",
+        event!(
+            Level::INFO,
+            "transcription of {audio_len_s:.2}s took {total_duration:.2}s ({:.2}x realtime)",
             audio_len_s / total_duration,
-            self.pruned as f32 / (self.pruned + self.not_pruned) as f32 * 100.
         );
+        let generated_tokens = self.decode.iter().map(|(_, b)| b).sum::<usize>();
+        event!(
+            Level::INFO,
+            "Early pruned {:.1}% of beams. Generated {generated_tokens} tokens, output {} tokens ({02}%)",
+            self.pruned as f32 / (self.pruned + self.not_pruned) as f32 * 100.,
+            self.output_tokens,
+            self.output_tokens as f32 / generated_tokens as f32 * 100.,
+        );
+        for i in 1..*self.beam_widths.iter().max().unwrap_or(&0) {
+            event!(
+                Level::INFO,
+                "\t beam_width {i}: {:>5.02}%",
+                self.beam_widths.iter().filter(|w| **w == i).count() as f32
+                    / self.beam_widths.len() as f32
+                    * 100.
+            );
+        }
+
         let encode_duration: f32 = self.encode.iter().map(|d| d.as_secs_f32()).sum();
-        println!(
-            "\t encode: {encode_duration:02.2}s ({:02.2}%) runs: {}",
+        event!(
+            Level::INFO,
+            "\t encode: {encode_duration:02.2}s ({:02.2}%) runs: {} (mean_duration: {:.02}ms)",
             encode_duration / total_duration * 100.,
             self.encode.len(),
+            encode_duration / self.encode.len() as f32
         );
 
         Self::report_histogram_stats("prefill", &self.prefill, total_duration);
@@ -1273,7 +1298,8 @@ impl TimingHelper {
     fn report_histogram_stats(name: &str, data: &Vec<(Duration, usize)>, parent_duration: f32) {
         let self_duration: f32 = data.iter().map(|(d, _)| d.as_secs_f32()).sum();
         let runs_mul_b = data.iter().map(|(_, b)| *b).sum::<usize>();
-        println!(
+        event!(
+            Level::INFO,
             "\t {name}: {self_duration:.2}s ({:.2}%) runs: {} runs*b: {}",
             self_duration / parent_duration * 100.,
             data.len(),
@@ -1291,7 +1317,8 @@ impl TimingHelper {
                 continue;
             }
             let mean_duration_per_token = time_spent / (count * i) as f32;
-            println!(
+            event!(
+                Level::INFO,
                 "\t\t b: {i:>2} count: {count:>4} ({percent_calls:>5.02}% of calls; {percent_runs_mul_b:>5.02}% of calls*b) mean_duration/b: {mean_per_token:>6.02}ms time_spent: {time_spent:>6.02}ms ({percent_time:>5.02}% of time)",
                 percent_calls = count as f32 / data.len() as f32 * 100.,
                 percent_runs_mul_b = (count * i) as f32 / runs_mul_b as f32 * 100.,
