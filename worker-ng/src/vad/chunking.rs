@@ -12,7 +12,7 @@ const THRESHOLD: f32 = 0.5;
 ///
 /// vad_samples is the raw samples output by the vad
 /// max_len is the maximum len of each segment in samples of the vad
-#[instrument(skip(vad_samples))]
+#[instrument(level = Level::TRACE, skip(vad_samples))]
 pub fn get_chunks(vad_samples: &[f32], sr: f32, max_len: f32, overlap: f32) -> Vec<Range<f32>> {
     let silence_runs = calculate_silence_runs(vad_samples, sr, THRESHOLD);
 
@@ -65,7 +65,7 @@ pub fn get_chunks(vad_samples: &[f32], sr: f32, max_len: f32, overlap: f32) -> V
     chunks
 }
 
-#[instrument(skip(vad_samples))]
+#[instrument(level = Level::TRACE, skip(vad_samples))]
 pub fn calculate_silence_runs(vad_samples: &[f32], sr: f32, threshold: f32) -> Vec<Range<f32>> {
     let mut runs = Vec::new();
     let mut current_run_start = None;

@@ -1,9 +1,6 @@
-use std::time::Instant;
-
 use super::layers::WeightlessMLXModel;
 use crate::{safetensors_reader::SafetensorsFile, whisper::encoder::WhisperEncoderBackend};
 use anyhow::{Context, Result};
-use log::info;
 use mlx_rs::{Array, Device, DeviceType, Dtype::Float16, with_device};
 use ndarray::Array2;
 
@@ -62,12 +59,10 @@ impl WhisperEncoderBackend for WhisperEncoderMlx {
             DeviceType::Cpu => mel,
         };
 
-        let start = Instant::now();
         let output: Vec<f32> = with_device(Device::new(self.device, 0), || {
             let output = self.forward("model.encoder", mel);
             output.to_vec_cast().unwrap()
         });
-        info!("encoder took: {:?}", start.elapsed());
 
         let output_arr = Array2::from_shape_vec([1500, 1280], output)?;
         Ok(output_arr)

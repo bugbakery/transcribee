@@ -174,7 +174,7 @@ impl Whisper {
         let mut outboxed_idx = 0; // how many bars (from the start have we already outboxed?)
         loop {
             event!(
-                Level::INFO,
+                Level::DEBUG,
                 "chunk states before processing: {:?}",
                 chunk_states
             );
@@ -338,7 +338,7 @@ impl Whisper {
         Ok(())
     }
 
-    #[instrument(skip(chunk, chunk_without_context, next_chunk))]
+    #[instrument(level = Level::TRACE, skip(chunk, chunk_without_context, next_chunk))]
     pub fn select_and_postprocess_transcribed_chunk(
         &self,
         chunk_idx: usize,
@@ -365,39 +365,26 @@ impl Whisper {
                     prompt_without_special
                 })
                 .collect();
-            if !next_prompts.iter().all(|prompt| prompt == &next_prompts[0]) {
-                event!(
-                    Level::WARN,
-                    chunk_idx,
-                    "the prompts for the next bar have not converged. Next prompts (taking first):",
-                );
-                for prompt in &next_prompts {
-                    event!(
-                        Level::WARN,
-                        chunk_idx,
-                        "\t{}",
-                        self.tokenizer.decode(&prompt)?
-                    )
-                }
-            }
+
+            // that all prompts are the same (we enforce this at the end of a bar)
+            assert!(next_prompts.iter().all(|prompt| prompt == &next_prompts[0]));
+
             let next_prompt = &next_prompts[0];
 
-            event!(Level::INFO, chunk_idx, "options:");
+            event!(
+                Level::DEBUG,
+                chunk_idx,
+                "next_prompt: {}",
+                self.tokenizer.decode(&next_prompt)?
+            );
+
+            event!(Level::DEBUG, chunk_idx, "options:");
             for seq in chunk {
                 event!(
-                    Level::INFO,
+                    Level::DEBUG,
                     chunk_idx,
                     "\t{}",
                     self.tokenizer.decode(&seq.tokens)?
-                );
-            }
-            event!(Level::INFO, chunk_idx, "next_prompts:");
-            for prompt in &next_prompts {
-                event!(
-                    Level::INFO,
-                    chunk_idx,
-                    "\t{}",
-                    self.tokenizer.decode(&prompt)?
                 );
             }
 
@@ -405,10 +392,10 @@ impl Whisper {
             if let Some(exact_match) = exact_match {
                 exact_match.clone()
             } else {
-                event!(Level::INFO, chunk_idx, "options without context:");
+                event!(Level::DEBUG, chunk_idx, "options without context:");
                 for seq in chunk_without_context.unwrap() {
                     event!(
-                        Level::INFO,
+                        Level::DEBUG,
                         chunk_idx,
                         "\t{}",
                         self.tokenizer.decode(&seq.tokens)?
@@ -449,7 +436,7 @@ impl Whisper {
                     (0, next_prompt.len())
                 };
                 event!(
-                    Level::INFO,
+                    Level::DEBUG,
                     chunk_idx,
                     "from with    context: {}",
                     self.tokenizer
@@ -459,7 +446,7 @@ impl Whisper {
                 let without_context_start =
                     match_without_context.tokens.len() + prompt_offset - next_prompt.len();
                 event!(
-                    Level::INFO,
+                    Level::DEBUG,
                     chunk_idx,
                     "from without context: {}",
                     self.tokenizer
@@ -502,7 +489,7 @@ impl Whisper {
         self.postprocess_transcribed_chunk(chunk_idx, chunk_range, &sequence_data)
     }
 
-    #[instrument(skip(chunk))]
+    #[instrument(level = Level::TRACE, skip(chunk))]
     pub fn postprocess_transcribed_chunk(
         &self,
         chunk_idx: usize,
@@ -538,7 +525,7 @@ impl Whisper {
     ///
     /// `x` contains AudioChunks, a vec of possible context sequences that are the starting point
     /// for beam search, and the duration of the context bar
-    #[instrument(skip_all)]
+    #[instrument(level = Level::TRACE, skip_all)]
     pub fn transcribe_chunks_with_context(
         &mut self,
         x: &[(usize, AudioChunkHandle, &Vec<SequenceData>, f32)],
@@ -709,6 +696,24 @@ impl Whisper {
                     }
                 }
             }
+
+            // force convergence to one prompt at the end of the of the prompt (this is needed so that we have to buffer at most one bar)
+            let best_prompt =
+                &outputs[0].tokens[..outputs[0].tokens.len() - outputs[0].new_tokens].to_vec();
+            outputs.retain(|seq| {
+                if seq.tokens.starts_with(best_prompt) {
+                    true
+                } else {
+                    event!(
+                        Level::DEBUG,
+                        chunk_idx = x[chunk_idx].0,
+                        "{} -> prune (force convergence to one prompt at the end of bar)",
+                        self.tokenizer.decode(&seq.tokens).unwrap(),
+                    );
+                    false
+                }
+            });
+
             to_return.push(outputs);
         }
         Ok(to_return)
@@ -719,7 +724,7 @@ impl Whisper {
     ///
     /// `x` contains AudioChunks and Prompts. Multiple prompts represent multiple beams in beam search.
     /// returns the multiple possible sequences per beam
-    #[instrument(skip_all)]
+    #[instrument(level = Level::TRACE, skip_all)]
     pub fn transcribe_chunks(
         &mut self,
         x: &[(usize, AudioChunkHandle, Vec<(Vec<i64>, Vec<f32>)>)],
@@ -1039,7 +1044,7 @@ impl Whisper {
 
     /// This function detects the lanuage of the given audio chunks and returns a probability
     /// distribution of (lang, probability) for each chunk
-    #[instrument(skip_all)]
+    #[instrument(level = Level::TRACE, skip_all)]
     pub fn detect_language(
         &mut self,
         chunks: &[AudioChunkHandle],

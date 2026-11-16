@@ -9,7 +9,7 @@ use ort::{
     value::Value,
 };
 use std::{path::Path, time::Instant};
-use tracing::instrument;
+use tracing::{Level, instrument};
 
 #[derive(Debug)]
 pub struct WhisperEncoderOrt {
@@ -33,7 +33,7 @@ impl WhisperEncoderOrt {
     }
 }
 impl WhisperEncoderBackend for WhisperEncoderOrt {
-    #[instrument(skip(mel))]
+    #[instrument(level = Level::TRACE, skip(mel))]
     fn encode(&mut self, mel: Array2<f32>) -> Result<Array2<f32>> {
         let start = Instant::now();
         let outputs: ort::session::SessionOutputs<'_> = self

@@ -9,7 +9,6 @@ use crate::whisper::{
 };
 use anyhow::{Context, Result, bail};
 use half::f16;
-use log::{debug, info};
 use ndarray::{Array1, Array2, Array3, Array4, s};
 use ort::{
     ep::ExecutionProviderDispatch,
@@ -18,9 +17,8 @@ use ort::{
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
 };
-use std::time::Instant;
 use std::{collections::HashMap, fmt::Debug};
-use tracing::instrument;
+use tracing::{Level, instrument};
 
 pub type OrtAudioChunkHandle = Handle;
 #[derive(Clone)]
@@ -61,7 +59,7 @@ impl WhisperDecoderOrt {
 }
 
 impl WhisperDecoderBackend for WhisperDecoderOrt {
-    #[instrument(skip_all)]
+    #[instrument(level = Level::TRACE, skip_all)]
     fn register_encoded_audio_chunks(
         &mut self,
         chunks: &[Array2<f32>],
@@ -74,7 +72,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
             .collect())
     }
 
-    #[instrument]
+    #[instrument(level = Level::TRACE)]
     fn register_sequence(&mut self, tokens: &[i64]) -> SequenceHandle {
         SequenceHandle::downcast(OrtSequenceHandle {
             tokens: tokens.to_vec(),
@@ -83,7 +81,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         })
     }
 
-    #[instrument]
+    #[instrument(level = Level::TRACE)]
     fn append_token_to_sequence(
         &mut self,
         seq: &SequenceHandle,
@@ -109,7 +107,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         }))
     }
 
-    #[instrument(skip_all)]
+    #[instrument(level = Level::TRACE, skip_all)]
     fn forward(
         &mut self,
         inputs: &[(AudioChunkHandle, SequenceHandle)],
@@ -124,7 +122,6 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
             })
             .collect();
 
-        let start_forward_fn: Instant = Instant::now();
         let batch_size = inputs.len();
 
         let mut binding = self.model.create_binding()?;
@@ -215,7 +212,6 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         binding.bind_output_to_device("logits", output_mem_info)?;
         binding.bind_output_to_device("alignment_heads", output_mem_info)?;
 
-        let start_forward: Instant = Instant::now();
         let mut outputs: ort::session::SessionOutputs<'_> = self
             .model
             .run_binding(&binding)
@@ -225,13 +221,6 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         let logits = logits.into_dimensionality().unwrap().into_owned();
         let alignment_heads = outputs["alignment_heads"].try_extract_array::<f32>()?; // [batch_size, 6, seq_len, 1280]
         let alignment_heads = alignment_heads.into_dimensionality().unwrap().into_owned();
-
-        debug!(
-            "decoder forward pass (b={}, s={}) took {:?}",
-            inputs.len(),
-            logits.shape()[1],
-            start_forward.elapsed()
-        );
 
         let mut new_kv_meta = Vec::new();
         for (_b, (_, seq)) in inputs.iter().enumerate() {
@@ -255,7 +244,6 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         self.kv_cache
             .update_from_session_outputs(&mut outputs, new_kv_meta);
 
-        debug!("forward fn: {:?}", start_forward_fn.elapsed());
         Ok((logits, alignment_heads))
     }
 }
@@ -288,7 +276,6 @@ impl CrossKV {
         &mut self,
         chunks: &[Array2<f32>],
     ) -> Result<Vec<OrtAudioChunkHandle>> {
-        let start = Instant::now();
         let batch_size = self.registered_audio_chunks.len() + chunks.len();
         let mut encoder_hidden_states = Array3::zeros((batch_size, 1500, 1280));
         let mut i = 0;
@@ -333,7 +320,6 @@ impl CrossKV {
             .map(|output| (output.clone(), outputs.remove(output).unwrap()))
             .collect();
 
-        info!("register_encoded_audio_chunks took {:?}", start.elapsed());
         Ok(self.registered_audio_chunks.clone())
     }
 

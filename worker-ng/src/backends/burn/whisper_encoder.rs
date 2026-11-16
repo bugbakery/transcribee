@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use super::layers::WeightlessBurnModel;
 use crate::{safetensors_reader::SafetensorsFile, whisper::encoder::WhisperEncoderBackend};
 use anyhow::Result;
@@ -11,7 +9,6 @@ use burn_tensor::{
     activation::gelu,
     ops::ConvOptions,
 };
-use log::info;
 use ndarray::Array2;
 
 pub struct WhisperEncoderBurn {
@@ -65,10 +62,8 @@ impl WhisperEncoderBackend for WhisperEncoderBurn {
         )
         .cast(F16);
 
-        let start = Instant::now();
         let output = self.forward("model.encoder", input).cast(F32).into_data();
         self.device.sync()?;
-        info!("encoder took: {:?}", start.elapsed());
 
         let output = output.try_to_vec_as()?;
         let output_arr = Array2::from_shape_vec([1500, 1280], output)?;

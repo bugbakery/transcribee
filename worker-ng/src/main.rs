@@ -28,16 +28,17 @@ const WHISPER_LARGE_V3_TURBO: RemoteModel = RemoteModel {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let layer = PerfettoLayer::new(std::sync::Mutex::new(
-        std::fs::File::create("target/trace.pftrace").unwrap(),
-    ));
-    let filter_layer = tracing_subscriber::EnvFilter::try_from_default_env()
-        .or_else(|_| tracing_subscriber::EnvFilter::try_new("info"))
-        .unwrap();
     tracing_subscriber::registry()
-        .with(venator::Venator::default())
-        //.with(filter_layer)
-        .with(layer)
+        /*.with(venator::Venator::default())
+        .with(PerfettoLayer::new(std::sync::Mutex::new(
+            std::fs::File::create("target/trace.pftrace").unwrap(),
+        )))*/
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .or_else(|_| tracing_subscriber::EnvFilter::try_new("info"))
+                .unwrap(),
+        )
+        .with(tracing_subscriber::fmt::layer())
         .init();
 
     let m = Command::new("transcribee-worker")
