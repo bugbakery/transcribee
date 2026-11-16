@@ -4,7 +4,6 @@ use indicatif::ProgressBar;
 use ndarray::Array2;
 use std::io::Write;
 use std::{fs::File, time::Instant};
-use tracing_perfetto::PerfettoLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
@@ -28,11 +27,16 @@ const WHISPER_LARGE_V3_TURBO: RemoteModel = RemoteModel {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    #[cfg(feature = "debug-logging")]
     tracing_subscriber::registry()
-        /*.with(venator::Venator::default())
-        .with(PerfettoLayer::new(std::sync::Mutex::new(
+        .with(venator::Venator::default())
+        .with(tracing_perfetto::PerfettoLayer::new(std::sync::Mutex::new(
             std::fs::File::create("target/trace.pftrace").unwrap(),
-        )))*/
+        )))
+        .init();
+
+    #[cfg(not(feature = "debug-logging"))]
+    tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .or_else(|_| tracing_subscriber::EnvFilter::try_new("info"))

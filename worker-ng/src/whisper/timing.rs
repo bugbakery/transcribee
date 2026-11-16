@@ -1,7 +1,7 @@
 //! This file contains the timing alignment code for whisper. It roughly corresponds to parts of
 //! https://github.com/openai/whisper/blob/86098128c0b4f24f0e2aa2994de830614b474227/whisper/timing.py
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use ndarray::{Array2, Array3, ArrayD, Axis, s};
 
 use crate::whisper::math::softmax;
@@ -10,6 +10,10 @@ pub fn calculate_alignment(
     x: Array3<f32>, // [tokens, heads, encoder_frames]
     num_frames: usize,
 ) -> Result<Vec<usize>> {
+    if x.shape()[0] == 0 {
+        return Ok(vec![]);
+    }
+
     let x = x.slice_move(s![.., .., ..num_frames]);
 
     // 1. do softmax to the last axis (audio chunks)

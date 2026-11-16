@@ -172,7 +172,7 @@ impl Whisper {
             })
             .collect(); // chunks that have a true here are ready to be processed
         let mut outboxed_idx = 0; // how many bars (from the start have we already outboxed?)
-        loop {
+        for i in 0usize.. {
             event!(
                 Level::DEBUG,
                 "chunk states before processing: {:?}",
@@ -182,7 +182,7 @@ impl Whisper {
                 .iter()
                 .enumerate()
                 .filter(|(_, x)| x.can_process())
-                .take(self.max_parallel_chunks)
+                .take(self.max_parallel_chunks.min(i.saturating_sub(1).max(1)))
                 .map(|(i, _)| i)
                 .collect();
             if to_process.is_empty() {
@@ -423,6 +423,28 @@ impl Whisper {
                                 .windows(try_prompt.len())
                                 .position(|window| window == try_prompt)
                             {
+                                if with_context.tokens.len() > offset_in_with_context
+                                    && with_context.tokens[offset_in_with_context + 1..]
+                                        .windows(try_prompt.len())
+                                        .position(|window| window == try_prompt)
+                                        .is_some()
+                                {
+                                    // the match is not unique, dont strip any further
+                                    break;
+                                }
+                                if try_prompt.len() < 5 {
+                                    event!(
+                                        Level::WARN,
+                                        chunk_idx,
+                                        "overlap in gluing bars together is very small {} tokens. the result might be wrong",
+                                        try_prompt.len()
+                                    );
+                                }
+                                event!(
+                                    Level::INFO,
+                                    chunk_idx,
+                                    "end_peel={end_peel}, offset_in_with_context={offset_in_with_context}, prompt_offset={prompt_offset}",
+                                );
                                 break 'search (offset_in_with_context, prompt_offset);
                             }
                         }
@@ -431,9 +453,9 @@ impl Whisper {
                     event!(
                         Level::ERROR,
                         chunk_idx,
-                        "could not fit bars together. this _will_ cause an artifact",
+                        "could not fit bars together. this _will_ cause an artifact (taking bar with context)",
                     );
-                    (0, next_prompt.len())
+                    (with_context.tokens.len(), next_prompt.len())
                 };
                 event!(
                     Level::DEBUG,
@@ -703,7 +725,7 @@ impl Whisper {
             let best_prompt =
                 &outputs[0].tokens[..outputs[0].tokens.len() - outputs[0].new_tokens].to_vec();
             outputs.retain(|seq| {
-                if seq.tokens.starts_with(best_prompt) {
+                if &seq.tokens[..seq.tokens.len() - seq.new_tokens] == best_prompt {
                     true
                 } else {
                     event!(
@@ -756,21 +778,22 @@ impl Whisper {
 
         let mut finished: Vec<Vec<SequenceData>> = vec![vec![]; x.len()];
         for i in 0.. {
-            for (chunk_idx, (_, beam)) in chunks.iter().enumerate() {
-                event!(
-                    Level::TRACE,
-                    chunk_idx = x[chunk_idx].0,
-                    "beam width: {}; finished: {}",
-                    beam.len(),
-                    finished[chunk_idx].len()
-                );
-                self.timing_helper.beam_widths.push(beam.len());
-            }
             let decoder_input: Vec<_> = chunks
                 .iter()
                 .enumerate()
                 .filter(|&(chunk_idx, _)| finished[chunk_idx].len() < self.beam_width)
-                .flat_map(|(_, (audio, beam))| {
+                .flat_map(|(chunk_idx, (audio, beam))| {
+                    if !beam.is_empty() {
+                        event!(
+                            Level::TRACE,
+                            chunk_idx = x[chunk_idx].0,
+                            "beam width: {}; finished: {}",
+                            beam.len(),
+                            finished[chunk_idx].len()
+                        );
+                        self.timing_helper.beam_widths.push(beam.len());
+                    }
+
                     beam.iter().map(|(seq, _)| (audio.clone(), seq.clone()))
                 })
                 .collect();
@@ -905,9 +928,7 @@ impl Whisper {
                     let next_seq = self.decoder.append_token_to_sequence(seq, token)?;
                     let naive_token_time = *next_sequence_data.naive_token_times.last().unwrap();
 
-                    if token as i64 == self.tokenizer.endoftext()
-                        || next_sequence_data.len() >= Self::MAX_LEN
-                    {
+                    if token as i64 == self.tokenizer.endoftext() {
                         if token_prob > self.beamsearch_early_prune_min_token_conf
                             || next_sequence_data.logprob_sum_normalized() > best_score
                         {
@@ -926,6 +947,21 @@ impl Whisper {
                                 self.tokenizer.decode(&next_sequence_data.tokens)?,
                             );
                         }
+                    } else if next_sequence_data.len() >= Self::MAX_LEN
+                        && finished[chunk_idx].is_empty()
+                    {
+                        event!(
+                            Level::ERROR,
+                            chunk_idx = x[chunk_idx].0,
+                            "Reached max tokens for decoder. Maybe there was too much text in the bar or maybe the decoder looped. This will cause an artifact eitherway.",
+                        );
+                        event!(
+                            Level::INFO,
+                            chunk_idx = x[chunk_idx].0,
+                            "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished",
+                            self.tokenizer.decode(&next_sequence_data.tokens)?,
+                        );
+                        finished[chunk_idx].push(next_sequence_data);
                     } else if finished[chunk_idx].is_empty() {
                         // we cannot prune all
                         if best_token_prob < self.beamsearch_early_prune_min_token_conf {
@@ -1173,17 +1209,18 @@ impl SequenceData {
     }
 
     pub fn alignment_data_concatenated(&self, context_tokens_skip: usize) -> Array3<f32> {
-        stack(
-            Axis(0),
-            &self
-                .alignment_data
-                .to_vec(context_tokens_skip)
-                .iter()
-                .map(|x| x.view())
-                .collect::<Vec<_>>(),
-        )
-        .unwrap()
-        .into_owned()
+        let alignment_datas = self.alignment_data.to_vec(context_tokens_skip);
+
+        if alignment_datas.is_empty() {
+            Array3::zeros((0, 6, 1500))
+        } else {
+            stack(
+                Axis(0),
+                &alignment_datas.iter().map(|x| x.view()).collect::<Vec<_>>(),
+            )
+            .unwrap()
+            .into_owned()
+        }
     }
 
     fn with_x_tokens_removed_from_end(&self, x: usize) -> Self {
