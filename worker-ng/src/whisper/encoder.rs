@@ -9,10 +9,10 @@ const SAMPLE_RATE: usize = 16_000;
 const CHUNK_LEN_S: usize = 30;
 
 pub type DynWhisperEncoderBackend = Box<dyn WhisperEncoderBackend>;
+pub type WhisperEncoderBackendFactory = Box<dyn Fn() -> Result<DynWhisperEncoderBackend>>;
 
-pub fn get_backends(
-    _model_folder: &str,
-) -> Vec<(&str, Box<dyn Fn() -> Result<DynWhisperEncoderBackend>>)> {
+pub fn get_backends(_model_folder: &str) -> Vec<(&str, WhisperEncoderBackendFactory)> {
+    #[allow(unused)]
     macro_rules! b {
         ($name:expr, $init:expr) => {
             ($name, Box::new(|| ($init).map(|b| Box::new(b) as _)))
@@ -20,7 +20,7 @@ pub fn get_backends(
     }
 
     #[rustfmt::skip]
-    let backends: Vec<(&str, Box<dyn Fn() -> Result<DynWhisperEncoderBackend>>)> = vec![
+    let backends: Vec<(&str, WhisperEncoderBackendFactory)> = vec![
         #[cfg(feature = "backend-mlx")]
         b!("MLX GPU", crate::backends::mlx::whisper_encoder::WhisperEncoderMlx::new(mlx_rs::DeviceType::Gpu, "./target/whisper_large_v3_turbo.safetensors")),
         #[cfg(feature = "backend-burn")]

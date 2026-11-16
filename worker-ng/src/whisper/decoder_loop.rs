@@ -51,12 +51,7 @@ impl Whisper {
     pub async fn new(
         encoder: DynWhisperEncoderBackend,
         decoder: DynWhisperDecoderBackend,
-        beam_width: usize,
-        reset_after_x_bars: usize,
-        overlap_s: f32,
         max_parallel_chunks: usize,
-        beamsearch_early_prune_min_token_conf: f32,
-        beamsearch_early_prune_max_decission_postpone: usize,
     ) -> Result<Self> {
         let tokenizer = Tokenizer::new().await?;
 
@@ -69,14 +64,14 @@ impl Whisper {
             encoder,
             decoder,
             tokenizer,
-            beam_width,
-            reset_after_x_bars,
-            overlap_s,
+            beam_width: 5,
+            reset_after_x_bars: 5,
+            overlap_s: 1.0,
             max_parallel_chunks,
             startofprev_sequence,
             punct_chars,
-            beamsearch_early_prune_min_token_conf,
-            beamsearch_early_prune_max_decission_postpone,
+            beamsearch_early_prune_min_token_conf: 0.1,
+            beamsearch_early_prune_max_decission_postpone: 10,
             timing_helper: Default::default(),
         })
     }
@@ -99,9 +94,9 @@ impl Whisper {
         );
 
         let mut encoded_chunks = vec![None; chunks.len()];
-        let mut get_encoded_chunk = |whisper: &mut Whisper,
-                                     encoded_chunks: &mut Vec<Option<_>>,
-                                     chunk_idx: usize|
+        let get_encoded_chunk = |whisper: &mut Whisper,
+                                 encoded_chunks: &mut Vec<Option<_>>,
+                                 chunk_idx: usize|
          -> Result<Array2<f32>> {
             if encoded_chunks[chunk_idx].is_none() {
                 let chunk = &chunks[chunk_idx];
@@ -125,15 +120,15 @@ impl Whisper {
         };
 
         // step 2: detect language (if unknown)
-        let language = if language.is_none() {
+        let language = if let Some(language) = language {
+            language
+        } else {
             event!(Level::INFO, "language is not given, detecting language...");
             // we take a non-silence segment from the middle of the text to detect the language
             let encoded = get_encoded_chunk(self, &mut encoded_chunks, chunks.len() / 2)?;
             let registered = self.decoder.register_encoded_audio_chunks(&[encoded])?;
             let probs = self.detect_language(&registered)?.remove(0);
             probs[0].0
-        } else {
-            language.unwrap()
         };
         event!(Level::INFO, "language is {language}");
 
@@ -355,7 +350,7 @@ impl Whisper {
                     let prompt = if prompt.starts_with(&self.startofprev_sequence) {
                         &prompt[self.startofprev_sequence.len()..]
                     } else {
-                        &prompt
+                        prompt
                     };
                     let prompt_without_special: Vec<i64> = prompt
                         .iter()
@@ -375,7 +370,7 @@ impl Whisper {
                 Level::DEBUG,
                 chunk_idx,
                 "next_prompt: {}",
-                self.tokenizer.decode(&next_prompt)?
+                self.tokenizer.decode(next_prompt)?
             );
 
             event!(Level::DEBUG, chunk_idx, "options:");
@@ -555,10 +550,9 @@ impl Whisper {
         x: &[(usize, AudioChunkHandle, &Vec<SequenceData>, f32)],
         language: &str,
     ) -> Result<Vec<Vec<SequenceData>>> {
-        let mut transcribe_chunk_inputs: Vec<(usize, AudioChunkHandle, Vec<(Vec<i64>, Vec<f32>)>)> =
-            vec![];
+        let mut transcribe_chunk_inputs: Vec<(usize, AudioChunkHandle, SequenceLight)> = vec![];
         for (chunk_idx, audio_chunk_handle, initial_beams, last_chunk_duration) in x {
-            let mut prompts: Vec<(Vec<i64>, Vec<f32>)> = vec![];
+            let mut prompts: SequenceLight = vec![];
             for seq in initial_beams.iter() {
                 let mut tokens = vec![];
                 let mut logprobs = vec![];
@@ -751,7 +745,7 @@ impl Whisper {
     #[instrument(level = Level::TRACE, skip_all)]
     pub fn transcribe_chunks(
         &mut self,
-        x: &[(usize, AudioChunkHandle, Vec<(Vec<i64>, Vec<f32>)>)],
+        x: &[(usize, AudioChunkHandle, SequenceLight)],
     ) -> Result<Vec<Vec<SequenceData>>> {
         let mut chunks: Vec<(AudioChunkHandle, Vec<(SequenceHandle, SequenceData)>)> = Vec::new();
         for (_chunk_idx, audio, prompts) in x {
@@ -918,7 +912,7 @@ impl Whisper {
                     .data
                     .iter()
                     .map(|x| x.1.3)
-                    .max_by(|a, b| a.total_cmp(&b))
+                    .max_by(|a, b| a.total_cmp(b))
                     .unwrap_or(0.0);
 
                 for (score, (beam_idx, seq, token, token_prob)) in best.data {
@@ -928,7 +922,7 @@ impl Whisper {
                     let next_seq = self.decoder.append_token_to_sequence(seq, token)?;
                     let naive_token_time = *next_sequence_data.naive_token_times.last().unwrap();
 
-                    if token as i64 == self.tokenizer.endoftext() {
+                    if token == self.tokenizer.endoftext() {
                         if token_prob > self.beamsearch_early_prune_min_token_conf
                             || next_sequence_data.logprob_sum_normalized() > best_score
                         {
@@ -1078,7 +1072,7 @@ impl Whisper {
             chunks = next_chunks;
         }
 
-        Ok(finished.into_iter().map(|x| x).collect())
+        Ok(finished.into_iter().collect())
     }
 
     /// This function detects the lanuage of the given audio chunks and returns a probability
@@ -1093,7 +1087,7 @@ impl Whisper {
             .decoder
             .register_sequence(&[self.tokenizer.startoftranscript()]);
         let decoder_input: Vec<_> = chunks
-            .into_iter()
+            .iter()
             .map(|chunk| (chunk.clone(), prompt.clone()))
             .collect();
         let (logits, _alignment_data) = self.decoder.forward(&decoder_input)?;
@@ -1177,6 +1171,8 @@ impl<T> TopNVec<T> {
         }
     }
 }
+
+type SequenceLight = Vec<(Vec<i64>, Vec<f32>)>;
 
 #[derive(Clone, Default)]
 pub struct SequenceData {
@@ -1332,7 +1328,7 @@ impl TimingHelper {
         Self::report_histogram_stats("decode", &self.decode, total_duration);
     }
 
-    fn report_histogram_stats(name: &str, data: &Vec<(Duration, usize)>, parent_duration: f32) {
+    fn report_histogram_stats(name: &str, data: &[(Duration, usize)], parent_duration: f32) {
         let self_duration: f32 = data.iter().map(|(d, _)| d.as_secs_f32()).sum();
         let runs_mul_b = data.iter().map(|(_, b)| *b).sum::<usize>();
         event!(

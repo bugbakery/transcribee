@@ -2,9 +2,11 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
+#[allow(unused)]
 #[derive(Clone)]
 pub struct Handle(Arc<()>);
 impl Handle {
+    #[allow(unused)]
     pub fn new() -> Self {
         Self(Arc::new(()))
     }

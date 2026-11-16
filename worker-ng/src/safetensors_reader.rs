@@ -101,7 +101,9 @@ impl SafetensorsFile {
 
 #[derive(Debug, Clone)]
 pub struct TensorInfo {
+    #[allow(unused)]
     dtype: TensorDataType,
+    #[allow(unused)]
     shape: Vec<usize>,
     offset: u64,
     length: u64,

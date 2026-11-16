@@ -190,6 +190,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
 
             let max_sequence_len = self.kv_cache.max_sequence_length() + 1;
             let mut self_attn_mask = Array4::<f32>::zeros((batch_size, 1, 1, max_sequence_len));
+            #[allow(clippy::needless_range_loop)]
             for b in 0..batch_size {
                 let seq = &inputs[b].1;
                 let seq_valid_mask = self
@@ -223,7 +224,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         let alignment_heads = alignment_heads.into_dimensionality().unwrap().into_owned();
 
         let mut new_kv_meta = Vec::new();
-        for (_b, (_, seq)) in inputs.iter().enumerate() {
+        for (_, seq) in inputs.iter() {
             let seq_len = if is_prefill { seq.tokens.len() } else { 1 };
 
             let entry_validity = if is_prefill {
@@ -278,13 +279,11 @@ impl CrossKV {
     ) -> Result<Vec<OrtAudioChunkHandle>> {
         let batch_size = self.registered_audio_chunks.len() + chunks.len();
         let mut encoder_hidden_states = Array3::zeros((batch_size, 1500, 1280));
-        let mut i = 0;
         self.registered_audio_chunks = Vec::new();
-        for data in chunks {
+        for (i, data) in chunks.iter().enumerate() {
             encoder_hidden_states.slice_mut(s![i, .., ..]).assign(data);
             let handle = OrtAudioChunkHandle::new();
             self.registered_audio_chunks.push(handle);
-            i += 1;
         }
 
         let mut binding = self.model.create_binding()?;

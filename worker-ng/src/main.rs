@@ -138,7 +138,7 @@ async fn main() -> Result<()> {
                 backend.encode(dummy_data).unwrap();
             });
             println!("-> encode() min={min} mean={mean} max={max}");
-            report_benchmark_result(name, &format!("encode"), mean).await?;
+            report_benchmark_result(name, "encode", mean).await?;
         }
     } else if let Some(matches) = m.subcommand_matches("transcribe") {
         let f = matches.get_one::<String>("in_file").unwrap();
@@ -148,7 +148,7 @@ async fn main() -> Result<()> {
         // todo: store benchmark somewhere and pick the fastest
         let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
         let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
-        let mut whisper = Whisper::new(encoder, decoder, 5, 5, 1.0, 10, 0.1, 10).await?;
+        let mut whisper = Whisper::new(encoder, decoder, 5).await?;
 
         let mut i = 0;
         let file = &mut File::options()

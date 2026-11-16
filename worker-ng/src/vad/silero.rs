@@ -16,10 +16,12 @@ pub const SILERO_VAD: RemoteModel = RemoteModel {
     size: 1228183,
 };
 
+#[allow(unused)]
 pub struct SileroVadModel {
     output: Vec<f32>,
     sample_rate: f32,
 }
+#[allow(unused)]
 impl SileroVadModel {
     const CONTEXT_SIZE: usize = 64; // for some reason we use the last 64 samples again
     const CHUNK_SIZE: usize = 512; // ~32ms at 16khz sample rate

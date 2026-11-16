@@ -36,15 +36,14 @@ impl<T> Clone for TreeList<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum TreeListInner<T> {
+    #[default]
     BeginningOfSequence,
-    Element { previous: TreeList<T>, element: T },
-}
-impl<T> Default for TreeListInner<T> {
-    fn default() -> Self {
-        Self::BeginningOfSequence
-    }
+    Element {
+        previous: TreeList<T>,
+        element: T,
+    },
 }
 impl<T> TreeListInner<T> {
     pub fn len(&self) -> usize {

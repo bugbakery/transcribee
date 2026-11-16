@@ -10,10 +10,10 @@ use std::{any::Any, sync::Arc};
 pub type TokenLogits = Array3<f32>; // [batch, seq, tokens]
 pub type AlignmentData = Array4<f32>; // [batch, heads, tokens, encoder_frames]
 pub type DynWhisperDecoderBackend = Box<dyn WhisperDecoderBackend>;
+pub type WhisperDecoderBackendFactory = Box<dyn Fn() -> Result<DynWhisperDecoderBackend>>;
 
-pub fn get_backends(
-    _model_folder: &str,
-) -> Vec<(&str, Box<dyn Fn() -> Result<DynWhisperDecoderBackend>>)> {
+pub fn get_backends(_model_folder: &str) -> Vec<(&str, WhisperDecoderBackendFactory)> {
+    #[allow(unused)]
     macro_rules! b {
         ($name:expr, $init:expr) => {
             ($name, Box::new(|| ($init).map(|b| Box::new(b) as _)))
@@ -21,7 +21,7 @@ pub fn get_backends(
     }
 
     #[rustfmt::skip]
-    let backends: Vec<(&str, Box<dyn Fn() -> Result<DynWhisperDecoderBackend>>)> = vec![
+    let backends: Vec<(&str, WhisperDecoderBackendFactory)> = vec![
         #[cfg(feature = "backend-onnxruntime")]
         b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
 
@@ -33,6 +33,7 @@ pub fn get_backends(
 
 #[derive(Debug, Clone)]
 pub struct AudioChunkHandle(pub Arc<dyn Any>);
+#[allow(unused)]
 impl AudioChunkHandle {
     pub fn downcast<T: 'static>(x: T) -> Self {
         Self(Arc::new(x))
@@ -44,6 +45,7 @@ impl AudioChunkHandle {
 
 #[derive(Debug, Clone)]
 pub struct SequenceHandle(pub Arc<dyn Any>);
+#[allow(unused)]
 impl SequenceHandle {
     pub fn downcast<T: 'static>(x: T) -> Self {
         Self(Arc::new(x))
@@ -256,7 +258,6 @@ mod test {
             let (logits, alignment_data) = backend.forward(&inputs).unwrap();
 
             for (i, sequence_idx) in input_idx.into_iter().enumerate() {
-                let sequence = &sequences[sequence_idx];
                 if round == 0 {
                     // we are in prefill and need to check how much of the result we add for each sequence in the batch
                     logit_vecs[sequence_idx].push(

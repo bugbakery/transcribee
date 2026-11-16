@@ -12,4 +12,10 @@ dependencies = [
     "torch",
     "openai-whisper",
     "onnx",
+    "poethepoet>=0.49.0",
 ]
+
+
+[tool.poe.tasks]
+test = "echo nothing to do..."
+pyright = "echo nothing to do..."

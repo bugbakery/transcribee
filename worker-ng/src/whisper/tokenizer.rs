@@ -165,10 +165,10 @@ impl Tokenizer {
 
     pub fn encode_single(&self, text: &str) -> Result<i64> {
         let x = self.tokenizer.token_to_id(&text.replace(" ", "Ġ"));
-        if x.is_none() {
-            bail!("expected '{text}' to encode to one token but it encoded to {x:?}")
+        if let Some(x) = x {
+            Ok(x as i64)
         } else {
-            Ok(x.unwrap() as i64)
+            bail!("expected '{text}' to encode to one token but it encoded to {x:?}")
         }
     }
     pub fn decode_single(&self, id: i64) -> Result<String> {

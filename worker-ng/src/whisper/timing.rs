@@ -57,6 +57,7 @@ pub fn median_filter<const WIDTH: usize>(x: ArrayD<f32>) -> ArrayD<f32> {
     {
         for f in 0..src.len() {
             let window = &mut [0.0; WIDTH];
+            #[allow(clippy::needless_range_loop)]
             for i in 0..WIDTH {
                 let idx = f + i;
                 let idx = if idx > WIDTH / 2 {
