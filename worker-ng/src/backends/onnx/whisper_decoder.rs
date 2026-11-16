@@ -12,13 +12,12 @@ use half::f16;
 use ndarray::{Array1, Array2, Array3, Array4, s};
 use ort::{
     ep::ExecutionProviderDispatch,
-    memory::{AllocationDevice, AllocatorType, MemoryType},
-    memory::{Allocator, MemoryInfo},
+    memory::{AllocationDevice, Allocator, AllocatorType, MemoryInfo, MemoryType},
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
 };
 use std::{collections::HashMap, fmt::Debug};
-use tracing::{Level, instrument};
+use tracing::{Level, event, instrument};
 
 pub type OrtAudioChunkHandle = Handle;
 #[derive(Clone)]
@@ -331,6 +330,17 @@ impl CrossKV {
             binding.bind_input(name, value)?;
         }
 
+        event!(
+            Level::TRACE,
+            "cross kv Mb: {:02}",
+            self.tensors
+                .values()
+                .map(|t| t.data_type().byte_size(t.shape().num_elements()).unwrap())
+                .sum::<usize>() as f32
+                / 1000.
+                / 1000.
+        );
+
         let mut cross_kv_cache_indices = Array1::<i64>::zeros(audio_chunks.len());
         for (i, chunk) in audio_chunks.enumerate() {
             let idx = self
@@ -427,6 +437,17 @@ impl KvCache {
         memory_info: &MemoryInfo,
         last_handles: impl Iterator<Item = &'a Handle>,
     ) -> Result<()> {
+        event!(
+            Level::TRACE,
+            "kv cache Mb: {:02}",
+            self.tensors
+                .values()
+                .map(|t| t.data_type().byte_size(t.shape().num_elements()).unwrap())
+                .sum::<usize>() as f32
+                / 1000.
+                / 1000.
+        );
+
         for (k, v) in self.tensors.iter() {
             binding.bind_input(format!("past.{k}"), v)?;
             binding.bind_output_to_device(format!("present.{k}"), memory_info)?;

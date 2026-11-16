@@ -1321,7 +1321,7 @@ impl TimingHelper {
             "\t encode: {encode_duration:02.2}s ({:02.2}%) runs: {} (mean_duration: {:.02}ms)",
             encode_duration / total_duration * 100.,
             self.encode.len(),
-            encode_duration / self.encode.len() as f32
+            encode_duration / self.encode.len() as f32 * 1000.
         );
 
         Self::report_histogram_stats("prefill", &self.prefill, total_duration);
