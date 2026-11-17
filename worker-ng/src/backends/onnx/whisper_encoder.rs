@@ -27,7 +27,14 @@ impl WhisperEncoderOrt {
                 Path::new(model_path).parent().unwrap().to_str().unwrap(),
             )
             .unwrap()
-            .commit_from_file(model_path)?;
+            .with_config_entry(
+                "session.model_external_initializers_file_folder_path",
+                Path::new(model_path).parent().unwrap().to_str().unwrap(),
+            )
+            .unwrap()
+            .commit_from_memory(include_bytes!(
+                "./models/whisper_large_v3_turbo_encoder.onnx"
+            ))?;
 
         Ok(Self { model })
     }

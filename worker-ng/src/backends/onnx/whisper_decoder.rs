@@ -16,7 +16,7 @@ use ort::{
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
 };
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, path::Path};
 use tracing::{Level, event, instrument};
 
 pub type OrtAudioChunkHandle = Handle;
@@ -40,7 +40,14 @@ impl WhisperDecoderOrt {
             .unwrap()
             .with_execution_providers([backend.clone()])
             .unwrap()
-            .commit_from_file(model_path)?;
+            .with_config_entry(
+                "session.model_external_initializers_file_folder_path",
+                Path::new(model_path).parent().unwrap().to_str().unwrap(),
+            )
+            .unwrap()
+            .commit_from_memory(include_bytes!(
+                "./models/whisper_large_v3_turbo_decoder.onnx"
+            ))?;
 
         let base_path = &model_path
             .trim_end_matches("_decoder.onnx")
@@ -260,7 +267,14 @@ impl CrossKV {
             .unwrap()
             .with_execution_providers([backend.clone()])
             .unwrap()
-            .commit_from_file(model_path)?;
+            .with_config_entry(
+                "session.model_external_initializers_file_folder_path",
+                Path::new(model_path).parent().unwrap().to_str().unwrap(),
+            )
+            .unwrap()
+            .commit_from_memory(include_bytes!(
+                "./models/whisper_large_v3_turbo_decoder_cross_kv_prefill.onnx"
+            ))?;
 
         let tensors = HashMap::new();
         let registered_audio_chunks = Vec::new();
