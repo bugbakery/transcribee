@@ -1,2 +1,3 @@
-node
+node/*
+!node/a.js
 target

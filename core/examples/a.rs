@@ -1,27 +1,37 @@
-use transcribee_core::{A, BView};
+use transcribee_core::transcribee_document::v1::{self, Document};
 
-fn main() -> transcribee_core::Result<()> {
-  let b_view = BView::empty();
+fn main() {
+    let doc = Document::new();
+    let mut tx = doc.transaction();
+    tx.set_paragraphs(vec![]);
+    tx.paragraphs().insert(
+        0,
+      v1::Paragraph {
+            speaker: None,
+            lang: "de".to_owned(),
+            atoms: List(vec![]),
+        },
+    );
+    tx.commit();
 
-  let tx = b_view.into_transcation();
-  tx.set_a(A { i1: 1.0 })?;
-  tx.set_many_as(vec![A { i1: 2.0 }])?;
-  let b_view = tx.commit();
+    dbg!(doc.view().paragraphs().get(0).materialize());
 
-  // b_view.dump();
+    let tx = doc.transaction();
+    tx.paragraphs().set(
+        0,
+        Paragraph {
+            speaker: None,
+            lang: "en".to_owned(),
+            atoms: List(vec![Atom {
+                text: "hello".to_string(),
+                start: 0.0,
+                end: 1.0,
+                conf: 1.0,
+            }]),
+        },
+    );
 
-  dbg!(b_view.a()?.i1()?);
-  dbg!(b_view.many_as()?.get_obj(0)?.materialize());
-
-  // let b = B::from(Automerge::new());
-  // b.transaction()
-
-  // b.transact_with(|aaa| {
-  //   b.a.set_i1();
-  // });
-
-  // println!("{}", b.a.i1());
-  // println!("{}", b.a.set_i1());
-
-  Ok(())
+    dbg!(doc.view().paragraphs().get(0).materialize());
+    tx.commit();
+    dbg!(doc.view().paragraphs().get(0).materialize());
 }
