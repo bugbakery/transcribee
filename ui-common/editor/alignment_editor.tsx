@@ -196,16 +196,8 @@ export function AlignmentEditor({
   editor: Editor;
   mediaPlayer: MediaPlayer;
 }) {
-  const [viewportStartSec, setViewportStartSec] = useState<number>(0);
   const samplesPerSecond = 16_000 / 128;
   const [pxPerSec, setPxPerSec] = useState(100.0);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const speakerColors = useContext(SpeakerColorsContext);
-  const [dragHandle, setDragHandle] = useState<DragHandle | null>(null);
-  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>();
-  const containerSize = useSize(containerRef.current);
-  const editAtoms = false;
 
   const px2sec = useCallback(
     (pixels: number) => {
@@ -220,6 +212,18 @@ export function AlignmentEditor({
     },
     [pxPerSec],
   );
+
+  const VISIBILITY_MARGIN = 200;
+  const [viewportStartSec, setViewportStartSec] = useState<number>(
+    mediaPlayer.playtime - px2sec(VISIBILITY_MARGIN),
+  );
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const speakerColors = useContext(SpeakerColorsContext);
+  const [dragHandle, setDragHandle] = useState<DragHandle | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>();
+  const containerSize = useSize(containerRef.current);
+  const editAtoms = false;
 
   const paragraphs: ParagraphWithInfos[] = useDocumentSelector(
     (doc) => {
@@ -263,7 +267,6 @@ export function AlignmentEditor({
       });
   }, [paragraphs]);
 
-  const VISIBILITY_MARGIN = 200;
   const visibleParagraphs = stacked.filter((p) => {
     return (
       p.start < viewportStartSec + px2sec((containerSize?.width || 0) + VISIBILITY_MARGIN) &&
