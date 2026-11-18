@@ -45,6 +45,7 @@ export class MediaPlayer {
   #buffering = false;
   #videoVisible = false;
   #videoHeight = 220;
+  #videoBottomOffset = 24;
 
   init() {
     this.#mediaElement = video([]);
@@ -239,6 +240,18 @@ export class MediaPlayer {
     }
   }
 
+  get videoBottomOffset() {
+    return this.#videoBottomOffset;
+  }
+
+  set videoBottomOffset(value: number) {
+    this.#videoBottomOffset = value;
+
+    if (this.#videoVisible) {
+      this.#mediaElement.style.bottom = value + 'px';
+    }
+  }
+
   load(sources: { src: string; type: string }[]) {
     // update playtime right before unloading to prevent cursor jumping
     const playtime = this.#mediaElement?.currentTime;
@@ -282,7 +295,6 @@ export class MediaPlayer {
     this.#mediaElement.className = clsx(
       'fixed',
       'right-6',
-      'bottom-[190px]',
       'bg-black',
       'border-black dark:border-neutral-200',
       'border-2',
@@ -294,6 +306,7 @@ export class MediaPlayer {
       'z-20',
     );
     this.#mediaElement.style.height = this.#videoHeight + 'px';
+    this.#mediaElement.style.bottom = this.#videoBottomOffset + 'px';
 
     const getCursorType = (e: MouseEvent) => {
       const videoRect = this.#mediaElement.getBoundingClientRect();

@@ -22,6 +22,7 @@ import { AlignmentEditor } from './alignment_editor';
 import { CssRule } from '../utils/cssdom';
 import { useLocalStorage } from '../utils/use_local_storage';
 import { MediaPlayer } from '../utils/media_player';
+import { LuAudioLines } from 'react-icons/lu';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -69,6 +70,7 @@ export function PlayerBar({
   mediaFiles: MediaFile[];
   mediaPlayer: MediaPlayer;
 }) {
+  const [showAlignmentEditor, setShowAlignmentEditor] = useState(false);
   const { videoSources, audioSources, hasVideo, waveformSource } = useMemo(
     () => splitAndSortMediaFiles(mediaFiles),
     [mediaFiles],
@@ -102,6 +104,10 @@ export function PlayerBar({
   useEffect(() => {
     mediaPlayer.playbackRate = playbackRate;
   }, [mediaPlayer, playbackRate]);
+
+  useEffect(() => {
+    mediaPlayer.videoBottomOffset = showAlignmentEditor ? 190 : 80;
+  }, [mediaPlayer, showAlignmentEditor]);
 
   // calculate the start of the current element to color it
   const [currentElementStartTime, setCurrentElementStartTime] = useState(0.0);
@@ -198,24 +204,26 @@ export function PlayerBar({
         `}
       />
       <div className={clsx('fixed bottom-0 inset-x-6 mx-auto z-20')}>
-        <div
-          className={clsx(
-            'mb-1',
-            'p-2',
-            'bg-white dark:bg-neutral-900',
-            'border-black dark:border-neutral-200',
-            'border-2',
-            'shadow-brutal',
-            'shadow-slate-400 dark:shadow-neutral-600',
-            'rounded-lg',
-          )}
-        >
-          <AlignmentEditor
-            waveformSource={waveformSource}
-            editor={editor}
-            mediaPlayer={mediaPlayer}
-          />
-        </div>
+        {showAlignmentEditor && (
+          <div
+            className={clsx(
+              'mb-1',
+              'p-2',
+              'bg-white dark:bg-neutral-900',
+              'border-black dark:border-neutral-200',
+              'border-2',
+              'shadow-brutal',
+              'shadow-slate-400 dark:shadow-neutral-600',
+              'rounded-lg',
+            )}
+          >
+            <AlignmentEditor
+              waveformSource={waveformSource}
+              editor={editor}
+              mediaPlayer={mediaPlayer}
+            />
+          </div>
+        )}
 
         <div
           className={clsx(
@@ -261,6 +269,11 @@ export function PlayerBar({
               onClick={() => setShowVideo(!reallyShowVideo)}
             />
           )}
+          <IconButton
+            icon={LuAudioLines}
+            label={showAlignmentEditor ? 'hide alignment editor' : 'show alignment editor'}
+            onClick={() => setShowAlignmentEditor(!showAlignmentEditor)}
+          />
         </div>
       </div>
     </>
