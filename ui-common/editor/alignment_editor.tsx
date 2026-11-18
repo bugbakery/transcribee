@@ -40,6 +40,7 @@ type ParagraphWithInfos = Paragraph & {
   idx: number;
   start: number;
   end: number;
+  stackIdx: number;
 };
 
 const MIN_ATOM_LENGTH = 0.05;
@@ -204,7 +205,7 @@ export function AlignmentEditor({
   const [dragHandle, setDragHandle] = useState<DragHandle | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>();
   const containerSize = useSize(containerRef.current);
-  const editAtoms = true;
+  const editAtoms = false;
 
   const px2sec = useCallback(
     (pixels: number) => {
@@ -228,6 +229,7 @@ export function AlignmentEditor({
           idx: i,
           start: p.children[0]?.start || 0,
           end: p.children[p.children.length - 1]?.end || 0,
+          stackIdx: 0,
         })) || []
       );
     },
@@ -236,8 +238,33 @@ export function AlignmentEditor({
       editor,
     },
   );
+
+  // calculate stacking
+  const stacked = useMemo(() => {
+    const stack: number[] = [];
+    // this depends on paragraphs being sorted by time
+    return paragraphs
+      .toSorted((a, b) => a.start - b.start)
+      .map((p) => {
+        let stackIdx = 0;
+        for (const end of stack) {
+          if (end <= p.start) {
+            break;
+          }
+          stackIdx++;
+        }
+
+        stack[stackIdx] = p.end;
+
+        return {
+          ...p,
+          stackIdx: stackIdx,
+        };
+      });
+  }, [paragraphs]);
+
   const VISIBILITY_MARGIN = 200;
-  const visibleParagraphs = paragraphs.filter((p) => {
+  const visibleParagraphs = stacked.filter((p) => {
     return (
       p.start < viewportStartSec + px2sec((containerSize?.width || 0) + VISIBILITY_MARGIN) &&
       p.end > viewportStartSec - px2sec(VISIBILITY_MARGIN)
@@ -592,13 +619,14 @@ function TimingParagraph({
       style={{
         left: sec2px(p.start - viewportStartSec),
         width: sec2px(p.end - p.start),
+        top: `calc(${p.stackIdx}em + ${p.stackIdx * 12}px)`,
         background: `alpha(from ${p.speaker !== null ? speakerColors[p.speaker] : '#CCC'} / 30%)`,
         borderColor: `alpha(from ${p.speaker !== null ? speakerColors[p.speaker] : '#CCC'} / 70%)`,
       }}
       className={clsx(
         'absolute text-xs cursor-move select-none rounded',
         dragHandle?.paragraph.idx == p.idx && 'z-10',
-        'min-h-8 border-2',
+        'min-h-[1em] border-2 truncate',
       )}
       onMouseDown={(e) => {
         e.stopPropagation();
@@ -650,6 +678,7 @@ function TimingParagraphAtoms({
         ...{
           left: sec2px(p.start - viewportStartSec),
           width: sec2px(p.end - p.start),
+          top: p.stackIdx * 30,
         },
       }}
       className={clsx('absolute text-xs select-none', dragHandle?.paragraph.idx == p.idx && 'z-10')}
