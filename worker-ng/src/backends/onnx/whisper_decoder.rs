@@ -29,9 +29,11 @@ pub struct OrtSequenceHandle {
 
 #[derive(Debug)]
 pub struct WhisperDecoderOrt {
-    model: Session,
     cross_kv: CrossKV,
     kv_cache: KvCache,
+    // this needs to be last, otherwise the process segfaults on drop because ort tries to drop
+    // the tensors of the already freed context:
+    model: Session,
 }
 impl WhisperDecoderOrt {
     pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
@@ -256,9 +258,11 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
 }
 
 pub struct CrossKV {
-    model: Session,
     tensors: HashMap<String, Value<DynValueTypeMarker>>,
     registered_audio_chunks: Vec<OrtAudioChunkHandle>,
+    // this needs to be last, otherwise the process segfaults on drop because ort tries to drop
+    // the tensors of the already freed context:
+    model: Session,
 }
 impl CrossKV {
     pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
