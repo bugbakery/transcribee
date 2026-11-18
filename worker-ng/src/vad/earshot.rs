@@ -11,7 +11,7 @@ pub struct EarshotVadModel {
 impl EarshotVadModel {
     const CHUNK_SIZE: usize = 256; // ~16ms at 16khz sample rate
 
-    pub async fn new(src: &AudioReader) -> Result<Self> {
+    pub fn new(src: &AudioReader) -> Result<Self> {
         // TODO: we are currently doing all the computation here, this is maybe not the best idea
 
         let mut detector = earshot::Detector::default();
@@ -48,10 +48,9 @@ impl EarshotVadModel {
 mod test {
     use super::*;
 
-    #[tokio::test]
-    async fn test_smoke() {
+    fn test_smoke() {
         let ar = AudioReader::new("../worker/tests/data/sample.mp3").unwrap();
-        let vad = EarshotVadModel::new(&ar).await.unwrap();
+        let vad = EarshotVadModel::new(&ar).unwrap();
         assert!(
             *vad.get(0..100)
                 .unwrap()

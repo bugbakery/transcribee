@@ -5,7 +5,7 @@ pub mod encoder;
 pub mod handle;
 mod math;
 mod timing;
-mod tokenizer;
+pub mod tokenizer;
 mod tree_list;
 
 #[cfg(test)]

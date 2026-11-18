@@ -1,3 +1,11 @@
+use crate::benchmark::{benchmark_whisper, get_system_string};
+use crate::transcribee_worker::run_worker;
+use crate::whisper::tokenizer::Tokenizer;
+use crate::{
+    audio_reader::AudioReader,
+    model_downloader::RemoteModel,
+    whisper::{decoder, decoder_loop::Whisper, encoder},
+};
 use anyhow::{Ok, Result};
 use clap::{Arg, Command};
 use indicatif::ProgressBar;
@@ -5,18 +13,13 @@ use std::fs::File;
 use std::io::Write;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::benchmark::{benchmark_whisper, get_system_string};
-use crate::{
-    audio_reader::AudioReader,
-    model_downloader::RemoteModel,
-    whisper::{decoder, decoder_loop::Whisper, encoder},
-};
-
 mod audio_reader;
 mod backends;
 mod benchmark;
 mod model_downloader;
 mod safetensors_reader;
+mod transcribee_api_client;
+mod transcribee_worker;
 mod vad;
 mod whisper;
 
@@ -47,15 +50,21 @@ async fn main() -> Result<()> {
         .init();
 
     let m = Command::new("transcribee-worker")
+        .subcommand(Command::new("sysinfo"))
         .subcommand(
             Command::new("benchmark").about("benchmark the available backends on this system"),
+        )
+        .subcommand(
+            Command::new("work")
+                .about("work as a transcribee worker")
+                .arg(Arg::new("coordinator").long("coordinator").required(true))
+                .arg(Arg::new("token").long("token").required(true)),
         )
         .subcommand(
             Command::new("transcribe")
                 .about("transcribe an audio file")
                 .arg(Arg::new("in_file").required(true)),
         )
-        .subcommand(Command::new("sysinfo"))
         .get_matches();
 
     let pb = ProgressBar::new(0).with_message("downloading whisper model");
@@ -66,19 +75,23 @@ async fn main() -> Result<()> {
         })
         .await?;
 
-    if let Some(_matches) = m.subcommand_matches("sysinfo") {
+    if m.subcommand_matches("sysinfo").is_some() {
         println!("{}", get_system_string());
     } else if m.subcommand_matches("benchmark").is_some() {
         benchmark_whisper().await?
+    } else if let Some(matches) = m.subcommand_matches("work") {
+        let base_url = matches.get_one::<String>("coordinator").unwrap();
+        let token = matches.get_one::<String>("token").unwrap();
+        run_worker(base_url, token).await?;
     } else if let Some(matches) = m.subcommand_matches("transcribe") {
         let f = matches.get_one::<String>("in_file").unwrap();
-
         let ar = AudioReader::new(f)?;
 
         // todo: store benchmark somewhere and pick the fastest
         let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
         let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
-        let mut whisper = Whisper::new(encoder, decoder, 5).await?;
+        let tokenizer = Tokenizer::new().await?;
+        let mut whisper = Whisper::new(encoder, decoder, tokenizer, 5)?;
 
         let mut i = 0;
         let file = &mut File::options()
@@ -87,14 +100,16 @@ async fn main() -> Result<()> {
             .create(true)
             .truncate(true)
             .open("target/transcript.json")?;
-        whisper
-            .transcribe(&ar, None, &mut |bar| {
+        whisper.transcribe(
+            &ar,
+            None,
+            &mut |bar| {
                 println!("{i}: {}", bar.as_string());
                 writeln!(file, "{}", bar.as_json()).unwrap();
                 i += 1;
-            })
-            .await?;
+            },
+            &mut |_| true,
+        )?;
     }
-
     Ok(())
 }

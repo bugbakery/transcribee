@@ -10,7 +10,7 @@ use std::{any::Any, collections::HashMap};
 
 pub struct WeightlessBurnModel {
     safetensors_file: SafetensorsFile,
-    initializers: HashMap<String, Box<dyn Any>>, // Burn does not support dynamic rank tensors so we dyn Any here
+    initializers: HashMap<String, Box<dyn Any + Send>>, // Burn does not support dynamic rank tensors so we dyn Any here
     device: Device,
 }
 impl WeightlessBurnModel {

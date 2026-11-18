@@ -9,7 +9,7 @@ use std::{any::Any, sync::Arc};
 
 pub type TokenLogits = Array3<f32>; // [batch, seq, tokens]
 pub type AlignmentData = Array4<f32>; // [batch, heads, tokens, encoder_frames]
-pub type DynWhisperDecoderBackend = Box<dyn WhisperDecoderBackend>;
+pub type DynWhisperDecoderBackend = Box<dyn WhisperDecoderBackend + Send>;
 pub type WhisperDecoderBackendFactory = Box<dyn Fn() -> Result<DynWhisperDecoderBackend>>;
 
 pub fn get_backends(_model_folder: &str) -> Vec<(&str, WhisperDecoderBackendFactory)> {

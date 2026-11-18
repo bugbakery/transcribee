@@ -8,7 +8,7 @@ use stft_rs::{
 const SAMPLE_RATE: usize = 16_000;
 const CHUNK_LEN_S: usize = 30;
 
-pub type DynWhisperEncoderBackend = Box<dyn WhisperEncoderBackend>;
+pub type DynWhisperEncoderBackend = Box<dyn WhisperEncoderBackend + Send>;
 pub type WhisperEncoderBackendFactory = Box<dyn Fn() -> Result<DynWhisperEncoderBackend>>;
 
 pub fn get_backends(_model_folder: &str) -> Vec<(&str, WhisperEncoderBackendFactory)> {
