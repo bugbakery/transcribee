@@ -1,10 +1,20 @@
-export type Text = {
+type TextBase = {
   text: string;
-  start?: number;
-  end?: number;
   conf?: number;
   conf_ts?: number;
 };
+
+export type TextWithTs = TextBase & {
+  start: number;
+  end: number;
+};
+
+export type TextWithoutTs = TextBase & {
+  start: null;
+  end: null;
+};
+
+export type Text = TextWithTs | TextWithoutTs;
 
 export type Paragraph = {
   type: 'paragraph';
@@ -21,8 +31,8 @@ export type Document = {
 
 // we fire this event when the user clicks on a word and we want the player to skip through it
 export const SEEK_TO_EVENT = 'seekTo';
-export class SeekToEvent extends CustomEvent<{ start?: number }> {
-  constructor(start?: number) {
+export class SeekToEvent extends CustomEvent<{ start: number }> {
+  constructor(start: number) {
     super(SEEK_TO_EVENT, { detail: { start } });
   }
 }

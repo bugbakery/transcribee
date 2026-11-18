@@ -29,8 +29,8 @@ import { LoadingBee } from '../components/loading_spinner/loading_bee';
 import { useInView } from 'react-intersection-observer';
 import { ErrorBoundary } from './editor_error_boundary';
 
-export function formattedTime(sec: number | undefined): string {
-  if (sec === undefined) {
+export function formattedTime(sec: number | undefined | null): string {
+  if (sec == undefined) {
     return 'unknown';
   }
 
@@ -75,7 +75,9 @@ function ParagraphElement({ element, children, attributes }: RenderElementProps)
       {/* start time */}
       <div
         className={clsx(`text-slate-500 dark:text-neutral-400 tabular-nums`, 'md:mr-4')}
-        onClick={() => window.dispatchEvent(new SeekToEvent(startAtom.start))}
+        onClick={() =>
+          startAtom.start != null && window.dispatchEvent(new SeekToEvent(startAtom.start))
+        }
       >
         {formattedTime(startAtom.start)}
       </div>
@@ -177,7 +179,7 @@ const Leaf = memo(
     attributes,
     systemPrefersDark,
   }: {
-    start?: number;
+    start: number | null;
     conf?: number;
     children: RenderLeafProps['children'];
     attributes: RenderLeafProps['attributes'];
@@ -190,7 +192,7 @@ const Leaf = memo(
       : `hsl(0, 100%, ${Math.min((1 - conf) * 100, 45)}%)`;
 
     const classes = ['word'];
-    if (start !== undefined) {
+    if (start != null) {
       classes.push(startTimeToClassName(start));
     }
 
@@ -199,8 +201,10 @@ const Leaf = memo(
         {...attributes}
         className={classes.join(' ')}
         onClick={() => {
-          // this event is handeled in player.tsx to set the time when someone clicks a word
-          window.dispatchEvent(new SeekToEvent(start));
+          if (start != null) {
+            // this event is handeled in player.tsx to set the time when someone clicks a word
+            window.dispatchEvent(new SeekToEvent(start));
+          }
         }}
         style={{ color }}
       >
@@ -294,7 +298,10 @@ export function TranscriptionEditor({
                   e.target.isContentEditable
                 ) {
                   const [leaf] = editor.leaf(selection.anchor);
-                  window.dispatchEvent(new SeekToEvent(leaf.start));
+
+                  if (leaf.start != null) {
+                    window.dispatchEvent(new SeekToEvent(leaf.start));
+                  }
                 }
               }}
               onKeyDown={(e) => {

@@ -9,6 +9,7 @@ import {
   MouseEventHandler,
 } from 'react';
 import { Editor, Transforms } from 'slate';
+import { produce } from 'immer';
 import { useDocumentSelector } from '../utils/document';
 import { MediaFile } from './api_document';
 import { SpeakerColorsContext } from './speaker_colors';
@@ -16,17 +17,24 @@ import { WaveformRenderer } from './waveform_renderer';
 import { WaveformReader } from './waveform_reader';
 import { useMediaQuery } from '../utils/use_media_query';
 import { useResizeObserver } from '../utils/use_resize_observer';
-import { Paragraph, Text } from './types';
+import { Paragraph, Text, TextWithTs } from './types';
 import { useSize } from '../utils/use_size';
 import { clamp } from '../utils/math';
 import { useSmoothMediaPlayerPlaytime } from '../utils/use_media_player';
 import { MediaPlayer } from '../utils/media_player';
 
-type DragHandle = {
-  type: 'paragraph' | 'paragraphStart' | 'paragraphEnd';
-  startX: number;
-  paragraph: ParagraphWithInfos;
-};
+type DragHandle =
+  | {
+      type: 'paragraph' | 'paragraphStart' | 'paragraphEnd';
+      startX: number;
+      paragraph: ParagraphWithInfos;
+    }
+  | {
+      type: 'atom' | 'atomStart' | 'atomEnd';
+      atomIdx: number;
+      startX: number;
+      paragraph: ParagraphWithInfos;
+    };
 
 type ParagraphWithInfos = Paragraph & {
   idx: number;
@@ -34,53 +42,146 @@ type ParagraphWithInfos = Paragraph & {
   end: number;
 };
 
+const MIN_ATOM_LENGTH = 0.05;
+
+function atomLen(atom: TextWithTs) {
+  return atom.end - atom.start;
+}
+
 function adjustParagraphTs(
   p: ParagraphWithInfos,
-  { newLength, moveBy = 0 }: { newLength?: number; moveBy?: number },
+  { start, end }: { start?: number; end?: number },
 ): ParagraphWithInfos {
-  let scaleRatio = 1;
-  if (newLength != undefined) {
-    if (newLength <= 0.1) {
-      newLength = 0.1;
+  const newStart = start ?? p.start;
+  const newEnd = end ?? p.end;
+  const newLength = newEnd - newStart;
+  const scaleRatio = newLength / (p.end - p.start);
+
+  return produce(p, (p) => {
+    p.children.forEach((child) => {
+      if (child.start != null) {
+        child.start = newStart + (child.start - p.start) * scaleRatio;
+      }
+      if (child.end != null) {
+        child.end = newStart + (child.end - p.start) * scaleRatio;
+      }
+
+      if (child.start != null && atomLen(child) < MIN_ATOM_LENGTH) {
+        if (end !== undefined) {
+          child.end = child.start + MIN_ATOM_LENGTH;
+        } else {
+          child.start = child.end - MIN_ATOM_LENGTH;
+        }
+      }
+
+      console.assert(child.start == null || child.end == null || child.start <= child.end);
+    });
+
+    if (end != undefined) {
+      for (let i = 1; i < p.children.length; i++) {
+        const c = p.children[i];
+        const prev = p.children[i - 1];
+        if (c.start != null && prev.end != null && c.start < prev.end) {
+          c.start = prev.end;
+
+          if (atomLen(c) < MIN_ATOM_LENGTH) {
+            c.end = c.start + MIN_ATOM_LENGTH;
+          }
+        }
+      }
     }
 
-    // TODO: handle 0 length
-    const oldLength = p.end - p.start;
-    scaleRatio = newLength / oldLength;
-  }
-  const children = p.children.map((child) => {
-    const newChild = { ...child };
+    if (start != undefined) {
+      for (let i = p.children.length - 2; i >= 0; i--) {
+        const c = p.children[i];
+        const next = p.children[i + 1];
+        if (c.end != null && next.start != null && c.end > next.start) {
+          c.end = next.start;
 
-    if (child.start != undefined) {
-      newChild.start = p.start + (child.start - p.start) * scaleRatio + moveBy;
+          if (atomLen(c) < MIN_ATOM_LENGTH) {
+            c.start = c.end - MIN_ATOM_LENGTH;
+          }
+        }
+      }
     }
-    if (child.end != undefined) {
-      newChild.end = p.start + (child.end - p.start) * scaleRatio + moveBy;
-    }
-    console.assert(
-      newChild.start == undefined || newChild.end == undefined || newChild.start <= newChild.end,
-    );
 
-    return newChild;
+    p.start = p.children[0]?.start || 0;
+    p.end = p.children[p.children.length - 1]?.end || 0;
   });
+}
 
-  return {
-    ...p,
-    start: children[0]?.start || 0,
-    end: children[children.length - 1]?.end || 0,
-    children,
-  };
+function adjustParagraphAtomTs(
+  p: ParagraphWithInfos,
+  atomIdx: number,
+  { start, end }: { start?: number; end?: number },
+) {
+  return produce(p, (p) => {
+    const atom = p.children[atomIdx];
+
+    if (start != undefined) {
+      atom.start = start;
+    }
+    if (end != undefined) {
+      atom.end = end;
+    }
+    console.assert(atom.start == null || atom.end == null || atom.start <= atom.end);
+
+    // enforce minumum atom length
+    if (atom.start != null && atomLen(atom) < MIN_ATOM_LENGTH) {
+      if (end) {
+        atom.end = atom.start + MIN_ATOM_LENGTH;
+      }
+      if (start) {
+        atom.start = atom.end - MIN_ATOM_LENGTH;
+      }
+    }
+
+    // nudge atoms after the adjusted one
+    if (end != undefined) {
+      for (let i = atomIdx + 1; i < p.children.length; i++) {
+        const c = p.children[i];
+        const prev = p.children[i - 1];
+        if (c.start != null && prev.end != null && c.start < prev.end) {
+          c.start = prev.end;
+
+          if (atomLen(c) < MIN_ATOM_LENGTH) {
+            c.end = c.start + MIN_ATOM_LENGTH;
+          }
+        }
+      }
+    }
+
+    // nudge atoms before the adjusted one
+    if (start != undefined) {
+      for (let i = atomIdx - 1; i >= 0; i--) {
+        const c = p.children[i];
+        const next = p.children[i + 1];
+        if (c.end != null && next.start != null && c.end > next.start) {
+          c.end = next.start;
+
+          if (atomLen(c) < MIN_ATOM_LENGTH) {
+            c.start = c.end - MIN_ATOM_LENGTH;
+          }
+        }
+      }
+    }
+
+    p.start = p.children[0]?.start || 0;
+    p.end = p.children[p.children.length - 1]?.end || 0;
+  });
 }
 
 function updateParagraphChildrenTs(editor: Editor, p: ParagraphWithInfos) {
   Editor.withoutNormalizing(editor, () => {
     p.children.forEach((child, i) => {
-      const update: Partial<Text> = {
-        conf_ts: 1.0, // manually set timestamps get maximum confidence
-        start: child.start,
-        end: child.end,
-      };
-      Transforms.setNodes(editor, update, { at: [p.idx, i] });
+      if (child.start != undefined && child.end != undefined) {
+        const update: Partial<Text> = {
+          conf_ts: 1.0, // manually set timestamps get maximum confidence
+          start: child.start,
+          end: child.end,
+        };
+        Transforms.setNodes(editor, update, { at: [p.idx, i] });
+      }
     });
   });
 }
@@ -103,6 +204,7 @@ export function AlignmentEditor({
   const [dragHandle, setDragHandle] = useState<DragHandle | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>();
   const containerSize = useSize(containerRef.current);
+  const editAtoms = true;
 
   const px2sec = useCallback(
     (pixels: number) => {
@@ -293,19 +395,36 @@ export function AlignmentEditor({
       if (mousePos) {
         const relativeSecs = px2sec(mousePos.x - dragHandle.startX);
         const p = dragHandle.paragraph;
-        const oldLength = p.end - p.start;
 
         if (dragHandle.type == 'paragraph') {
-          const newP = adjustParagraphTs(p, { moveBy: relativeSecs });
+          const newP = adjustParagraphTs(p, {
+            start: p.start + relativeSecs,
+            end: p.end + relativeSecs,
+          });
           updateParagraphChildrenTs(editor, newP);
         } else if (dragHandle.type == 'paragraphStart') {
           const newP = adjustParagraphTs(p, {
-            newLength: oldLength - relativeSecs,
-            moveBy: relativeSecs,
+            start: p.start + relativeSecs,
           });
           updateParagraphChildrenTs(editor, newP);
         } else if (dragHandle.type == 'paragraphEnd') {
-          const newP = adjustParagraphTs(p, { newLength: oldLength + relativeSecs });
+          const newP = adjustParagraphTs(p, { end: p.end + relativeSecs });
+          updateParagraphChildrenTs(editor, newP);
+        } else if (dragHandle.type == 'atom') {
+          const newP = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+            start: p.children[dragHandle.atomIdx].start! + relativeSecs,
+            end: p.children[dragHandle.atomIdx].end! + relativeSecs,
+          });
+          updateParagraphChildrenTs(editor, newP);
+        } else if (dragHandle.type == 'atomStart') {
+          const newP = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+            start: p.children[dragHandle.atomIdx].start! + relativeSecs,
+          });
+          updateParagraphChildrenTs(editor, newP);
+        } else if (dragHandle.type == 'atomEnd') {
+          const newP = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+            end: p.children[dragHandle.atomIdx].end! + relativeSecs,
+          });
           updateParagraphChildrenTs(editor, newP);
         }
       }
@@ -358,90 +477,74 @@ export function AlignmentEditor({
           sec2px={sec2px}
         />
         {visibleParagraphs.map((p) => {
-          let dragging = false;
-
           // handle temporary adjustments while dragging
           if (dragHandle && mousePos && dragHandle.paragraph.idx == p.idx) {
-            dragging = true;
             const offset = px2sec(mousePos.x - dragHandle.startX);
+
             switch (dragHandle.type) {
               case 'paragraphStart':
                 p = adjustParagraphTs(p, {
-                  newLength: p.end - p.start - offset,
-                  moveBy: offset,
+                  start: p.start + offset,
                 });
                 break;
               case 'paragraphEnd':
                 p = adjustParagraphTs(p, {
-                  newLength: p.end - p.start + offset,
+                  end: p.end + offset,
                 });
                 break;
               case 'paragraph':
                 p = adjustParagraphTs(p, {
-                  moveBy: offset,
+                  start: p.start + offset,
+                  end: p.end + offset,
+                });
+                break;
+              case 'atom':
+                p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+                  start: p.children[dragHandle.atomIdx].start! + offset,
+                  end: p.children[dragHandle.atomIdx].end! + offset,
+                });
+                break;
+              case 'atomStart':
+                p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+                  start: p.children[dragHandle.atomIdx].start! + offset,
+                });
+                break;
+              case 'atomEnd':
+                p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+                  end: p.children[dragHandle.atomIdx].end! + offset,
                 });
                 break;
             }
           }
 
-          return (
-            <div
-              key={p.idx}
-              style={{
-                left: sec2px(p.start - viewportStartSec),
-                width: sec2px(p.end - p.start) + 4,
-                background: `alpha(from ${
-                  p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
-                } / 30%)`,
-                borderColor: `alpha(from ${
-                  p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
-                } / 70%)`,
-              }}
-              className={clsx(
-                'min-h-8 absolute text-xs cursor-move select-none border-2 rounded',
-                dragging && 'z-10',
-              )}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                setDragHandle({
-                  type: 'paragraph',
-                  startX: e.clientX,
-                  paragraph: p,
-                });
-              }}
-            >
-              {/* {p.children.map((c, i) => {
-                return (
-                  <span
-                    key={i}
-                    style={{
-                      left: secsToPixels((c.start || 0) - p.start),
-                      width: secsToPixels(c.end - c.start),
-                    }}
-                    className="absolute border rounded border-white/40 bg-white/15 px-0.5 top-1 overflow-hidden whitespace-nowrap"
-                  >
-                    {c.text}
-                  </span>
-                );
-              })} */}
-              <div className="px-1">{p.children.map((t) => t.text).join('')}</div>
-              <ResizeHandle
-                type="paragraphStart"
-                paragraph={p}
+          if (editAtoms) {
+            return (
+              <TimingParagraphAtoms
+                key={p.idx}
+                p={p}
+                viewportStartSec={viewportStartSec}
+                speakerColors={speakerColors}
+                sec2px={sec2px}
+                setDragHandle={setDragHandle}
                 dragHandle={dragHandle}
-                onDragHandleChange={setDragHandle}
               />
-              <ResizeHandle
-                type="paragraphEnd"
-                paragraph={p}
+            );
+          } else {
+            return (
+              <TimingParagraph
+                key={p.idx}
+                p={p}
+                viewportStartSec={viewportStartSec}
+                speakerColors={speakerColors}
+                sec2px={sec2px}
+                setDragHandle={setDragHandle}
                 dragHandle={dragHandle}
-                onDragHandleChange={setDragHandle}
               />
-            </div>
-          );
+            );
+          }
         })}
       </div>
+
       <WaveformViewer
         source={waveformSource}
         pos={sec2px(viewportStartSec)}
@@ -469,28 +572,199 @@ function TimeIndicator({
   );
 }
 
+function TimingParagraph({
+  p,
+  viewportStartSec,
+  speakerColors,
+  sec2px,
+  setDragHandle,
+  dragHandle,
+}: {
+  p: ParagraphWithInfos;
+  viewportStartSec: number;
+  speakerColors: Record<string, string>;
+  sec2px: (sec: number) => number;
+  dragHandle: DragHandle | null;
+  setDragHandle: (handle: DragHandle) => void;
+}) {
+  return (
+    <div
+      style={{
+        left: sec2px(p.start - viewportStartSec),
+        width: sec2px(p.end - p.start),
+        background: `alpha(from ${p.speaker !== null ? speakerColors[p.speaker] : '#CCC'} / 30%)`,
+        borderColor: `alpha(from ${p.speaker !== null ? speakerColors[p.speaker] : '#CCC'} / 70%)`,
+      }}
+      className={clsx(
+        'absolute text-xs cursor-move select-none rounded',
+        dragHandle?.paragraph.idx == p.idx && 'z-10',
+        'min-h-8 border-2',
+      )}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setDragHandle({
+          type: 'paragraph',
+          startX: e.clientX,
+          paragraph: p,
+        });
+      }}
+    >
+      <div className="px-1">{p.children.map((t) => t.text).join('')}</div>
+
+      <ResizeHandle
+        type="paragraphStart"
+        paragraph={p}
+        dragHandle={dragHandle}
+        onDragHandleChange={setDragHandle}
+      />
+      <ResizeHandle
+        type="paragraphEnd"
+        paragraph={p}
+        dragHandle={dragHandle}
+        onDragHandleChange={setDragHandle}
+      />
+    </div>
+  );
+}
+
+function TimingParagraphAtoms({
+  p,
+  viewportStartSec,
+  speakerColors,
+  sec2px,
+  setDragHandle,
+  dragHandle,
+}: {
+  p: ParagraphWithInfos;
+  viewportStartSec: number;
+  speakerColors: Record<string, string>;
+  sec2px: (sec: number) => number;
+  dragHandle: DragHandle | null;
+  setDragHandle: (handle: DragHandle) => void;
+}) {
+  return (
+    <div
+      key={p.idx}
+      style={{
+        ...{
+          left: sec2px(p.start - viewportStartSec),
+          width: sec2px(p.end - p.start),
+        },
+      }}
+      className={clsx('absolute text-xs select-none', dragHandle?.paragraph.idx == p.idx && 'z-10')}
+    >
+      <div
+        style={{
+          backgroundColor: `alpha(from ${
+            p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
+          } / 70%)`,
+        }}
+        className="relative rounded h-1.5"
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          setDragHandle({
+            type: 'paragraph',
+            startX: e.clientX,
+            paragraph: p,
+          });
+        }}
+      >
+        <ResizeHandle
+          type="paragraphStart"
+          paragraph={p}
+          dragHandle={dragHandle}
+          onDragHandleChange={setDragHandle}
+        />
+        <ResizeHandle
+          type="paragraphEnd"
+          paragraph={p}
+          dragHandle={dragHandle}
+          onDragHandleChange={setDragHandle}
+        />
+      </div>
+      {p.children.map((c, i) => {
+        if (c.start == null || c.end == null) {
+          return null;
+        }
+
+        return (
+          <span
+            key={i}
+            style={{
+              background: `alpha(from ${
+                p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
+              } / 30%)`,
+              borderColor: `alpha(from ${
+                p.speaker !== null ? speakerColors[p.speaker] : '#CCC'
+              } / 70%)`,
+              left: sec2px(c.start - p.start),
+              width: sec2px(c.end - c.start),
+            }}
+            className="absolute border rounded px-0.5 top-2 overflow-hidden whitespace-nowrap"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setDragHandle({
+                type: 'atom',
+                startX: e.clientX,
+                paragraph: p,
+                atomIdx: i,
+              });
+            }}
+          >
+            {c.text}
+            <ResizeHandle
+              type="atomStart"
+              paragraph={p}
+              dragHandle={dragHandle}
+              onDragHandleChange={setDragHandle}
+              atomIdx={i}
+            />
+            <ResizeHandle
+              type="atomEnd"
+              paragraph={p}
+              dragHandle={dragHandle}
+              onDragHandleChange={setDragHandle}
+              atomIdx={i}
+            />
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function ResizeHandle({
-  type: side,
+  type,
   dragHandle,
   onDragHandleChange,
   paragraph,
+  atomIdx,
 }: {
-  type: 'paragraphStart' | 'paragraphEnd';
+  type: 'paragraphStart' | 'paragraphEnd' | 'atomStart' | 'atomEnd';
   dragHandle: DragHandle | null;
   onDragHandleChange: (d: DragHandle) => void;
   paragraph: ParagraphWithInfos;
+  atomIdx?: number;
 }) {
-  const active = dragHandle?.paragraph.idx == paragraph.idx && dragHandle?.type == side;
+  let active = dragHandle?.paragraph.idx == paragraph.idx && dragHandle?.type == type;
+
+  if (dragHandle && active && atomIdx !== undefined) {
+    active = 'atomIdx' in dragHandle && dragHandle.atomIdx == atomIdx;
+  }
+
   const speakerColors = useContext(SpeakerColorsContext);
 
   return (
     <div
       className={clsx(
-        side == 'paragraphEnd' ? '-right-[2px]' : '-left-[2px]',
+        type == 'paragraphEnd' || type == 'atomEnd' ? '-right-[2px]' : '-left-[2px]',
         'w-2 -top-[2px] -bottom-[2px] absolute',
         'hover:opacity-100',
         active ? 'opacity-100' : 'opacity-0',
-        'cursor-col-resize rounded-lg',
+        'cursor-ew-resize rounded-lg',
       )}
       style={{
         backgroundColor: paragraph.speaker !== null ? speakerColors[paragraph.speaker] : '#888888',
@@ -498,11 +772,24 @@ function ResizeHandle({
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onDragHandleChange({
-          type: side,
-          startX: e.clientX,
-          paragraph: paragraph,
-        });
+        if (type == 'atomStart' || type == 'atomEnd') {
+          if (atomIdx == undefined) {
+            console.error('atomIdx may not be undefined');
+            return;
+          }
+          onDragHandleChange({
+            type,
+            startX: e.clientX,
+            paragraph: paragraph,
+            atomIdx: atomIdx,
+          });
+        } else {
+          onDragHandleChange({
+            type,
+            startX: e.clientX,
+            paragraph: paragraph,
+          });
+        }
       }}
     />
   );
