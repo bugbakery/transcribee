@@ -1,6 +1,5 @@
-import { primitiveWithClassname } from '../utils/styled';
+import { cn, primitiveWithClassname } from '../utils/styled';
 import { IconType } from 'react-icons';
-import { clsx } from 'clsx';
 import { LoadingSpinner } from './loading_spinner/loading_spinner';
 import { ComponentProps } from 'react';
 
@@ -36,11 +35,9 @@ export function LoadingSpinnerButton({
     <Component
       {...props}
       disabled={props.disabled || loading}
-      className={clsx('grid place-items-center', className)}
+      className={cn('grid place-items-center', className)}
     >
-      <span className={clsx('col-span-full row-span-full', loading && 'invisible')}>
-        {children}
-      </span>
+      <span className={cn('col-span-full row-span-full', loading && 'invisible')}>{children}</span>
       {loading && <LoadingSpinner className="row-span-full col-span-full" />}
     </Component>
   );
@@ -69,7 +66,7 @@ export function IconButton({
       {...props}
       title={label}
       aria-label={label}
-      className={clsx(
+      className={cn(
         !discreet && 'p-2 hover:bg-gray-200 dark:hover:bg-neutral-700',
         'rounded-full',
         'flex items-center',
@@ -77,7 +74,7 @@ export function IconButton({
       )}
     >
       {iconAfter && props.children}
-      <Icon className={clsx('shrink-0', iconClassName)} size={size || 20} />
+      <Icon className={cn('shrink-0', iconClassName)} size={size || 20} />
       {!iconAfter && props.children}
     </button>
   );
