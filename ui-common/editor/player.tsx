@@ -16,6 +16,9 @@ import { sortMediaFiles, useAudio } from '../utils/use_audio';
 import { formattedTime } from './transcription_editor';
 import { IconType } from 'react-icons';
 import { BiVideo, BiVideoOff } from 'react-icons/bi';
+import { WaveformRenderer } from './waveform_renderer';
+import { WaveformReader } from './waveform_reader';
+import { useMediaQuery } from '../utils/use_media_query';
 
 const DOUBLE_TAP_THRESHOLD_MS = 250;
 const SKIP_BUTTON_SEC = 2;
@@ -62,7 +65,7 @@ export function PlayerBar({
   onShowVideo?: (show: boolean) => void;
   mediaFiles: MediaFile[];
 }) {
-  const { videoSources, audioSources, hasVideo } = useMemo(
+  const { videoSources, audioSources, hasVideo, waveformSource } = useMemo(
     () => splitAndSortMediaFiles(mediaFiles),
     [mediaFiles],
   );
@@ -214,6 +217,7 @@ export function PlayerBar({
             onSeek={onSeek}
             editor={editor}
           />
+          <WaveformViewer source={waveformSource} />
         </div>
 
         <PlaybackSpeedDropdown value={playbackRate} onChange={setPlaybackRate} />
@@ -226,6 +230,117 @@ export function PlayerBar({
         )}
       </div>
     </>
+  );
+}
+
+function WaveformViewer({ source }: { source: MediaFile | null }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pos, setPos] = useState<number>(0);
+  const [reader, setReader] = useState<WaveformReader | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+
+  useEffect(() => {
+    if (!source) return;
+
+    const getData = async (media: MediaFile) => {
+      const res = await fetch(media.url);
+      const buffer = await res.arrayBuffer();
+      return new WaveformReader(buffer);
+    };
+
+    getData(source).then((reader) => {
+      setReader(reader);
+    });
+  }, [source]);
+
+  const renderer = useMemo(() => {
+    if (!canvasRef.current) return;
+
+    const ctx = canvasRef.current.getContext('webgl2');
+    if (!ctx) {
+      console.error('Could not create webgl context.');
+      return;
+    }
+
+    return new WaveformRenderer(ctx);
+  }, [canvasRef.current]);
+
+  useEffect(() => {
+    if (!renderer || !reader) return;
+    renderer.setData(reader.getDataIter());
+  }, [renderer, reader]);
+
+  useEffect(() => {
+    if (!renderer) return;
+    renderer.draw(pos, systemPrefersDark ? [1, 1, 1] : [0.2, 0.2, 0.2]);
+  }, [reader, renderer, pos]);
+
+  const onDrag = useCallback(
+    (e: MouseEvent | React.MouseEvent) => {
+      setPos((x) => x - e.movementX);
+    },
+    [dragging],
+  );
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    // globally listen to mouse move events to allow dragging outside of the canvas
+    window.addEventListener('mousemove', onDrag);
+
+    const onMouseUp = () => {
+      setDragging(false);
+    };
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [dragging, onDrag]);
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+
+    const listener = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let deltaMultiplier = 1;
+      switch (e.deltaMode) {
+        case 0: // pixel mode
+          deltaMultiplier = 1;
+          break;
+        case 1: // "line" mode
+          deltaMultiplier = 20;
+          break;
+        case 2: // "page" mode
+          deltaMultiplier = 500;
+          break;
+        default:
+          console.warn(`Unknown deltaMode received: ${e.deltaMode}`);
+      }
+      setPos((x) => x + e.deltaX * deltaMultiplier);
+    };
+
+    c.addEventListener('wheel', listener, { passive: false });
+
+    return () => {
+      c.removeEventListener('wheel', listener);
+    };
+  }, [canvasRef.current]);
+
+  return (
+    <canvas
+      onMouseDown={() => {
+        setDragging(true);
+      }}
+      ref={canvasRef}
+      width="1000"
+      height="100"
+    />
   );
 }
 
