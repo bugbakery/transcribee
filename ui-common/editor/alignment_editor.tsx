@@ -22,6 +22,8 @@ import { useSize } from '../utils/use_size';
 import { clamp } from '../utils/math';
 import { useSmoothMediaPlayerPlaytime } from '../utils/use_media_player';
 import { MediaPlayer } from '../utils/media_player';
+import { IconButton } from '../components/button';
+import { LuWholeWord } from 'react-icons/lu';
 
 type DragHandle =
   | {
@@ -223,7 +225,7 @@ export function AlignmentEditor({
   const [dragHandle, setDragHandle] = useState<DragHandle | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>();
   const containerSize = useSize(containerRef.current);
-  const editAtoms = false;
+  const [editAtoms, setEditAtoms] = useState(false);
 
   const paragraphs: ParagraphWithInfos[] = useDocumentSelector(
     (doc) => {
@@ -499,87 +501,100 @@ export function AlignmentEditor({
   );
 
   return (
-    <div ref={containerRef}>
-      <div className="h-[85px] relative overflow-hidden -mb-14" onMouseDown={startScrub}>
-        <TimeIndicator
-          mediaPlayer={mediaPlayer}
-          viewportStartSec={viewportStartSec}
-          sec2px={sec2px}
-        />
-        {visibleParagraphs.map((p) => {
-          // handle temporary adjustments while dragging
-          if (dragHandle && mousePos && dragHandle.paragraph.idx == p.idx) {
-            const offset = px2sec(mousePos.x - dragHandle.startX);
+    <div>
+      <div ref={containerRef}>
+        <div className="h-[85px] relative overflow-hidden -mb-14" onMouseDown={startScrub}>
+          <TimeIndicator
+            mediaPlayer={mediaPlayer}
+            viewportStartSec={viewportStartSec}
+            sec2px={sec2px}
+          />
+          <IconButton
+            icon={LuWholeWord}
+            onClick={() => {
+              setEditAtoms(!editAtoms);
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+            }}
+            label={editAtoms ? 'show word level alignment' : 'hide word level alignment'}
+            className="absolute right-0 bottom-0 bg-white dark:bg-black border-2 border-black dark:border-white p-1 rounded"
+          />
+          {visibleParagraphs.map((p) => {
+            // handle temporary adjustments while dragging
+            if (dragHandle && mousePos && dragHandle.paragraph.idx == p.idx) {
+              const offset = px2sec(mousePos.x - dragHandle.startX);
 
-            switch (dragHandle.type) {
-              case 'paragraphStart':
-                p = adjustParagraphTs(p, {
-                  start: p.start + offset,
-                });
-                break;
-              case 'paragraphEnd':
-                p = adjustParagraphTs(p, {
-                  end: p.end + offset,
-                });
-                break;
-              case 'paragraph':
-                p = adjustParagraphTs(p, {
-                  start: p.start + offset,
-                  end: p.end + offset,
-                });
-                break;
-              case 'atom':
-                p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
-                  start: p.children[dragHandle.atomIdx].start! + offset,
-                  end: p.children[dragHandle.atomIdx].end! + offset,
-                });
-                break;
-              case 'atomStart':
-                p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
-                  start: p.children[dragHandle.atomIdx].start! + offset,
-                });
-                break;
-              case 'atomEnd':
-                p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
-                  end: p.children[dragHandle.atomIdx].end! + offset,
-                });
-                break;
+              switch (dragHandle.type) {
+                case 'paragraphStart':
+                  p = adjustParagraphTs(p, {
+                    start: p.start + offset,
+                  });
+                  break;
+                case 'paragraphEnd':
+                  p = adjustParagraphTs(p, {
+                    end: p.end + offset,
+                  });
+                  break;
+                case 'paragraph':
+                  p = adjustParagraphTs(p, {
+                    start: p.start + offset,
+                    end: p.end + offset,
+                  });
+                  break;
+                case 'atom':
+                  p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+                    start: p.children[dragHandle.atomIdx].start! + offset,
+                    end: p.children[dragHandle.atomIdx].end! + offset,
+                  });
+                  break;
+                case 'atomStart':
+                  p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+                    start: p.children[dragHandle.atomIdx].start! + offset,
+                  });
+                  break;
+                case 'atomEnd':
+                  p = adjustParagraphAtomTs(p, dragHandle.atomIdx, {
+                    end: p.children[dragHandle.atomIdx].end! + offset,
+                  });
+                  break;
+              }
             }
-          }
 
-          if (editAtoms) {
-            return (
-              <TimingParagraphAtoms
-                key={p.idx}
-                p={p}
-                viewportStartSec={viewportStartSec}
-                speakerColors={speakerColors}
-                sec2px={sec2px}
-                setDragHandle={setDragHandle}
-                dragHandle={dragHandle}
-              />
-            );
-          } else {
-            return (
-              <TimingParagraph
-                key={p.idx}
-                p={p}
-                viewportStartSec={viewportStartSec}
-                speakerColors={speakerColors}
-                sec2px={sec2px}
-                setDragHandle={setDragHandle}
-                dragHandle={dragHandle}
-              />
-            );
-          }
-        })}
+            if (editAtoms) {
+              return (
+                <TimingParagraphAtoms
+                  key={p.idx}
+                  p={p}
+                  viewportStartSec={viewportStartSec}
+                  speakerColors={speakerColors}
+                  sec2px={sec2px}
+                  setDragHandle={setDragHandle}
+                  dragHandle={dragHandle}
+                />
+              );
+            } else {
+              return (
+                <TimingParagraph
+                  key={p.idx}
+                  p={p}
+                  viewportStartSec={viewportStartSec}
+                  speakerColors={speakerColors}
+                  sec2px={sec2px}
+                  setDragHandle={setDragHandle}
+                  dragHandle={dragHandle}
+                />
+              );
+            }
+          })}
+        </div>
+
+        <WaveformViewer
+          source={waveformSource}
+          pos={sec2px(viewportStartSec)}
+          scale={px2sec(samplesPerSecond)}
+        />
       </div>
-
-      <WaveformViewer
-        source={waveformSource}
-        pos={sec2px(viewportStartSec)}
-        scale={px2sec(samplesPerSecond)}
-      />
     </div>
   );
 }
