@@ -392,16 +392,33 @@ export function AlignmentEditor({
         default:
           console.warn(`Unknown deltaMode received: ${e.deltaMode}`);
       }
+
+      let zoom = 0;
+      let scroll = 0;
+
+      if (e.ctrlKey || e.metaKey) {
+        // pinching on a trackpad is also reported as ctrl key + y scroll
+        zoom = e.deltaY * deltaMultiplier;
+      } else {
+        // Sadly we cannot detect if a wheel event comes from a devices that supports horizontal scrolling (like a trackpad).
+        // The next best thing is to use the horizontal motion if it is not 0, otherwise use the vertical motion.
+        if (e.deltaX) {
+          scroll = e.deltaX * deltaMultiplier;
+        } else {
+          scroll = e.deltaY * deltaMultiplier;
+        }
+      }
+
       const canvasBoundingRect = c.getBoundingClientRect();
-      if (e.ctrlKey) {
-        const newPxPerSec = clamp(pxPerSec - sec2px(e.deltaY * deltaMultiplier * 0.01), 20, 600);
-        setPxPerSec(newPxPerSec);
+      if (zoom) {
+        const newPxPerSec = clamp(pxPerSec - sec2px(zoom * 0.01), 20, 600);
 
         const oldMouseX = (e.clientX - canvasBoundingRect.x) / pxPerSec;
         const newMouseX = (e.clientX - canvasBoundingRect.x) / newPxPerSec;
         setViewportStartSec((x) => x + oldMouseX - newMouseX);
+        setPxPerSec(newPxPerSec);
       } else {
-        setViewportStartSec((x) => x + e.deltaX * px2sec(deltaMultiplier));
+        setViewportStartSec((x) => x + px2sec(scroll));
         isDecoupledRef.current = true;
       }
     };
