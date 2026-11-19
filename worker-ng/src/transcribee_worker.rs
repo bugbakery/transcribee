@@ -2,7 +2,7 @@ use crate::audio_reader::AudioReader;
 use crate::transcribee_api_client::{
     Task, TaskParameters, TaskProgress, TranscribeeWorkerApiClient,
 };
-use crate::whisper::decoder_loop::{Whisper, WhisperBar};
+use crate::whisper::decoder_loop::{WhisperBar, WhisperModel};
 use crate::whisper::tokenizer::Tokenizer;
 use crate::whisper::{decoder, encoder};
 use anyhow::{Ok, Result};
@@ -89,7 +89,9 @@ pub async fn process_task(
     let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
     let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
     let tokenizer = Tokenizer::new().await?;
-    let whisper = Arc::new(Mutex::new(Whisper::new(encoder, decoder, tokenizer, 5)?));
+    let whisper = Arc::new(Mutex::new(WhisperModel::new(
+        encoder, decoder, tokenizer, 5,
+    )?));
 
     let media_file = task.document.media_files.first().unwrap();
     let media_file = client.lock().await.get_media(media_file).await?;
@@ -141,7 +143,7 @@ pub async fn process_task(
         ))
         .await?;
 
-    let mut on_new_bar = move |bar: WhisperBar| {
+    let on_new_bar = move |bar: WhisperBar| {
         doc.transact(|doc| {
             let paragraphs = doc.get(automerge::ROOT, "children")?.unwrap().1;
             let paragraphs_len = doc.length(&paragraphs);
@@ -183,7 +185,7 @@ pub async fn process_task(
     };
 
     let progress = progress.clone();
-    let mut on_progress = {
+    let on_progress = {
         let should_continue = should_continue.clone();
         move |p: f32| {
             *progress.lock().unwrap() = TaskProgress {
@@ -201,7 +203,10 @@ pub async fn process_task(
         whisper
             .lock()
             .unwrap()
-            .transcribe(&ar, language, &mut on_new_bar, &mut on_progress)
+            .new_session(ar, language)
+            .with_new_bar_listener(on_new_bar)
+            .with_progress_listener(on_progress)
+            .transcribe()
     })
     .await??;
     should_continue.store(false, Relaxed);

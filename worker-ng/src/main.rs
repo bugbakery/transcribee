@@ -4,7 +4,7 @@ use crate::whisper::tokenizer::Tokenizer;
 use crate::{
     audio_reader::AudioReader,
     model_downloader::RemoteModel,
-    whisper::{decoder, decoder_loop::Whisper, encoder},
+    whisper::{decoder, decoder_loop::WhisperModel, encoder},
 };
 use anyhow::{Ok, Result};
 use clap::{Arg, Command};
@@ -91,25 +91,23 @@ async fn main() -> Result<()> {
         let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
         let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
         let tokenizer = Tokenizer::new().await?;
-        let mut whisper = Whisper::new(encoder, decoder, tokenizer, 5)?;
+        let mut whisper = WhisperModel::new(encoder, decoder, tokenizer, 5)?;
 
         let mut i = 0;
-        let file = &mut File::options()
+        let mut file = File::options()
             .read(true)
             .write(true)
             .create(true)
             .truncate(true)
             .open("target/transcript.json")?;
-        whisper.transcribe(
-            &ar,
-            None,
-            &mut |bar| {
+        whisper
+            .new_session(ar, None)
+            .with_new_bar_listener(move |bar| {
                 println!("{i}: {}", bar.as_string());
-                writeln!(file, "{}", bar.as_json()).unwrap();
+                writeln!(&mut file, "{}", bar.as_json()).unwrap();
                 i += 1;
-            },
-            &mut |_| true,
-        )?;
+            })
+            .transcribe()?;
     }
     Ok(())
 }

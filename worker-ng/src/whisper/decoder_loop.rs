@@ -25,7 +25,7 @@ use std::ops::Range;
 use std::time::{Duration, Instant};
 use tracing::{Level, event, instrument};
 
-pub struct Whisper {
+pub struct WhisperModel {
     encoder: DynWhisperEncoderBackend,
     decoder: DynWhisperDecoderBackend,
     tokenizer: Tokenizer,
@@ -41,9 +41,8 @@ pub struct Whisper {
     startofprev_sequence: Vec<i64>,
     punct_chars: Vec<char>,
 }
-impl Whisper {
-    // idea: make the beam_width only wider if we are unsure about the next token. otherwise greedy is fine
-    const MAX_LEN: usize = 448;
+impl WhisperModel {
+    const MAX_DECODER_TOKENS: usize = 448;
     const MAX_CONTEXT_LEN: usize = 50;
 
     pub fn new(
@@ -72,75 +71,176 @@ impl Whisper {
         })
     }
 
-    pub fn transcribe(
+    pub fn new_session(
         &mut self,
-        ar: &AudioReader,
+        audio_reader: AudioReader,
         language: Option<String>,
-        on_new_bar: &mut dyn FnMut(WhisperBar),
-        on_progress: &mut dyn FnMut(f32) -> bool,
-    ) -> Result<()> {
-        let audio_len_s = ar.len() as f32 / ar.sample_rate();
-        let mut timing_helper = TimingHelper::new(audio_len_s);
+    ) -> WhisperTranscriptionSession<'_> {
+        let audio_len_s = audio_reader.len() as f32 / audio_reader.sample_rate();
+        let timing_helper = TimingHelper::new(audio_len_s);
 
-        // step 1: voice activity detection
-        let vad = EarshotVadModel::new(ar)?;
-        let chunks = get_chunks(
-            &vad.get(0..vad.len())?,
-            vad.sample_rate(),
+        WhisperTranscriptionSession {
+            whisper: self,
+            on_new_bar: Box::new(|_| {}),
+            on_progress: Box::new(|_| true),
+            audio_reader,
+
+            vad_samples: vec![],
+            vad_sample_rate: f32::NAN,
+
+            chunks: vec![],
+            encoded_chunks: vec![],
+            language,
+
+            timing_helper,
+        }
+    }
+}
+impl Debug for WhisperModel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Whisper")
+            .field("beam_width", &self.beam_width)
+            .field("reset_after_x_bars", &self.reset_after_x_bars)
+            .field("overlap_s", &self.overlap_s)
+            .field("max_parallel_chunks", &self.max_parallel_chunks)
+            .field("startofprev_sequence", &self.startofprev_sequence)
+            .finish_non_exhaustive()
+    }
+}
+
+pub struct WhisperTranscriptionSession<'w> {
+    whisper: &'w mut WhisperModel,
+    on_new_bar: Box<dyn FnMut(WhisperBar)>,
+    on_progress: Box<dyn FnMut(f32) -> bool>,
+    audio_reader: AudioReader,
+
+    vad_samples: Vec<f32>,
+    vad_sample_rate: f32,
+    chunks: Vec<Range<f32>>,
+    encoded_chunks: Vec<Option<Array2<f32>>>,
+    language: Option<String>,
+
+    timing_helper: TimingHelper,
+}
+impl<'w> WhisperTranscriptionSession<'w> {
+    pub fn with_new_bar_listener(mut self, on_new_bar: impl FnMut(WhisperBar) + 'static) -> Self {
+        self.on_new_bar = Box::new(on_new_bar);
+        self
+    }
+    pub fn with_progress_listener(
+        mut self,
+        on_progress: impl FnMut(f32) -> bool + 'static,
+    ) -> Self {
+        self.on_progress = Box::new(on_progress);
+        self
+    }
+
+    pub fn transcribe(&mut self) -> Result<()> {
+        // step 1: split audio into chunks according to vad data
+        let vad = EarshotVadModel::new(&self.audio_reader)?;
+        self.vad_samples = vad.get(0..vad.len())?;
+        self.vad_sample_rate = vad.sample_rate();
+
+        self.chunks = get_chunks(
+            &self.vad_samples,
+            self.vad_sample_rate,
             30.0,
-            self.overlap_s,
+            self.whisper.overlap_s,
         );
-        timing_helper.num_chunks = chunks.len();
-
-        let mut encoded_chunks = vec![None; chunks.len()];
-        let get_encoded_chunk = |whisper: &mut Whisper,
-                                 encoded_chunks: &mut Vec<Option<_>>,
-                                 chunk_idx: usize,
-                                 timing_helper: &mut TimingHelper|
-         -> Result<Array2<f32>> {
-            if encoded_chunks[chunk_idx].is_none() {
-                let chunk = &chunks[chunk_idx];
-                let samples = ar.get(
-                    (chunk.start * ar.sample_rate()) as usize
-                        ..(chunk.end * ar.sample_rate()) as usize,
-                )?;
-                let start = Instant::now();
-                let mel = compute_mel(samples.to_vec())?;
-                let mut encoded = whisper.encoder.encode(mel)?;
-                timing_helper.encode.push(start.elapsed());
-
-                // mask away the parts that are not enceded (tryout of just running the encoder on smaller chunks)
-                // this sometimes breaks the encoder generating eot tokens (baad)
-                let mask_start = ((chunk.end - chunk.start) / 30. * 1500.) as usize;
-                *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
-
-                encoded_chunks[chunk_idx] = Some(encoded);
-            }
-            Ok(encoded_chunks[chunk_idx].as_ref().unwrap().clone())
-        };
+        self.encoded_chunks.resize(self.chunks.len(), None);
+        self.timing_helper.num_chunks = self.chunks.len();
 
         // step 2: detect language (if unknown)
-        let language = if let Some(language) = language {
-            language
-        } else {
+        if self.language.is_none() {
             event!(Level::INFO, "language is not given, detecting language...");
             // we take a non-silence segment from the middle of the text to detect the language
-            let encoded = get_encoded_chunk(
-                self,
-                &mut encoded_chunks,
-                chunks.len() / 2,
-                &mut timing_helper,
-            )?;
-            let registered = self.decoder.register_encoded_audio_chunks(&[encoded])?;
+            let encoded = self.get_encoded_chunk(self.chunks.len() / 2)?;
+            let registered = self
+                .whisper
+                .decoder
+                .register_encoded_audio_chunks(&[encoded])?;
             let probs = self.detect_language(&registered)?.remove(0);
-            probs[0].0.to_string()
+            self.language = Some(probs[0].0.to_string());
         };
-        event!(Level::INFO, "language is {language}");
-        if !on_progress(timing_helper.get_progress()) {
+        event!(
+            Level::INFO,
+            "language is {}",
+            self.language.as_ref().unwrap()
+        );
+        if !(self.on_progress)(self.timing_helper.get_progress()) {
             event!(Level::INFO, "transcription job aborted");
-            bail!("aborted");
+            bail!("transcription job aborted");
         }
 
+        self.longform_transcribe(|sess, chunk_idx, bar| {
+            let bar = sess.postprocess_transcribed_chunk(chunk_idx, &bar).unwrap();
+            (sess.on_new_bar)(bar);
+        })?;
+
+        self.timing_helper.report_stats();
+        Ok(())
+    }
+
+    #[instrument(level = Level::TRACE, skip_all)]
+    pub fn postprocess_transcribed_chunk(
+        &mut self,
+        chunk_idx: usize,
+        sequence_data: &SequenceData,
+    ) -> Result<WhisperBar> {
+        let chunk_range = &self.chunks[chunk_idx];
+        let new_tokens_start = sequence_data.len() - sequence_data.new_tokens;
+        let alignment = calculate_alignment(
+            sequence_data.alignment_data_concatenated(new_tokens_start - 2),
+            ((chunk_range.end - chunk_range.start) * 1500. / 30.) as usize,
+        )?;
+
+        self.timing_helper.output_tokens += sequence_data.tokens[new_tokens_start..].len();
+
+        let atoms: Vec<_> = sequence_data.tokens[new_tokens_start..]
+            .iter()
+            .enumerate()
+            .map(|(i, token)| Atom {
+                conf: sequence_data.logprobs[new_tokens_start + i].exp(),
+                conf_ts: 1.0,
+                start: alignment[i + 1] as f32 / 1500. * 30. + chunk_range.start,
+                end: alignment[i + 2] as f32 / 1500. * 30. + chunk_range.start,
+                text: self.whisper.tokenizer.decode_single(*token).unwrap(),
+            })
+            .collect();
+
+        Ok(WhisperBar {
+            atoms,
+            language: self.language.as_ref().unwrap().clone(),
+        })
+    }
+
+    #[instrument(level = Level::TRACE, skip_all)]
+    fn get_encoded_chunk(&mut self, chunk_idx: usize) -> Result<Array2<f32>> {
+        if self.encoded_chunks[chunk_idx].is_none() {
+            let chunk = &self.chunks[chunk_idx];
+            let samples = self.audio_reader.get(
+                (chunk.start * self.audio_reader.sample_rate()) as usize
+                    ..(chunk.end * self.audio_reader.sample_rate()) as usize,
+            )?;
+            let start = Instant::now();
+            let mel = compute_mel(samples.to_vec())?;
+            let mut encoded = self.whisper.encoder.encode(mel)?;
+            self.timing_helper.encode.push(start.elapsed());
+
+            // mask away the parts that are not enceded (tryout of just running the encoder on smaller chunks)
+            // this sometimes breaks the encoder generating eot tokens (baad)
+            let mask_start = ((chunk.end - chunk.start) / 30. * 1500.) as usize;
+            *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
+
+            self.encoded_chunks[chunk_idx] = Some(encoded);
+        }
+        Ok(self.encoded_chunks[chunk_idx].as_ref().unwrap().clone())
+    }
+
+    fn longform_transcribe(
+        &mut self,
+        mut on_new_bar: impl FnMut(&mut WhisperTranscriptionSession, usize, SequenceData),
+    ) -> Result<()> {
         #[derive(Debug)]
         enum ChunkStates {
             // example state transition (A = CanProcessWithoutContext, others first letter):
@@ -164,18 +264,19 @@ impl Whisper {
         }
 
         // step 3: transcribe chunks
-        let mut decoded_chunks: Vec<Vec<SequenceData>> = vec![vec![]; chunks.len()];
-        let mut decoded_chunks_again: Vec<Option<Vec<SequenceData>>> = vec![None; chunks.len()];
-        let mut chunk_states: Vec<ChunkStates> = (0..chunks.len())
+        let mut decoded_chunks: Vec<Vec<SequenceData>> = vec![vec![]; self.chunks.len()];
+        let mut decoded_chunks_again: Vec<Option<Vec<SequenceData>>> =
+            vec![None; self.chunks.len()];
+        let mut chunk_states: Vec<ChunkStates> = (0..self.chunks.len())
             .map(|i| {
-                if i % self.reset_after_x_bars == 0 {
+                if i % self.whisper.reset_after_x_bars == 0 {
                     ChunkStates::CanProcessWithoutContext
                 } else {
                     ChunkStates::WaitingForPrevious
                 }
             })
             .collect(); // chunks that have a true here are ready to be processed
-        timing_helper.num_decodes = chunk_states
+        self.timing_helper.num_decodes = chunk_states
             .iter()
             .map(|state| match state {
                 ChunkStates::CanProcessWithoutContext => 2,
@@ -195,7 +296,12 @@ impl Whisper {
                 .iter()
                 .enumerate()
                 .filter(|(_, x)| x.can_process())
-                .take(self.max_parallel_chunks.min(i.saturating_sub(1).max(1)))
+                // slowly ramp up paralellism to get the first bars with less latency and later full throughput
+                .take(
+                    self.whisper
+                        .max_parallel_chunks
+                        .min(i.saturating_sub(1).max(1)),
+                )
                 .map(|(i, _)| i)
                 .collect();
             if to_process.is_empty() {
@@ -203,14 +309,17 @@ impl Whisper {
             }
             let mut audio_encoded = vec![];
             for &i in &to_process {
-                let encoded = get_encoded_chunk(self, &mut encoded_chunks, i, &mut timing_helper)?;
+                let encoded = self.get_encoded_chunk(i)?;
                 audio_encoded.push(encoded);
-                if !on_progress(timing_helper.get_progress()) {
+                if !(self.on_progress)(self.timing_helper.get_progress()) {
                     event!(Level::INFO, "transcription job aborted");
                     bail!("aborted");
                 }
             }
-            let audio_handles = self.decoder.register_encoded_audio_chunks(&audio_encoded)?;
+            let audio_handles = self
+                .whisper
+                .decoder
+                .register_encoded_audio_chunks(&audio_encoded)?;
             let no_context = vec![SequenceData::default()];
             let inputs: Vec<_> = audio_handles
                 .into_iter()
@@ -222,8 +331,8 @@ impl Whisper {
                         _ => unreachable!(),
                     };
                     let last_chunk_duration = if chunk_idx > 0 {
-                        let last_chunk = &chunks[chunk_idx - 1];
-                        last_chunk.end - last_chunk.start - self.overlap_s
+                        let last_chunk = &self.chunks[chunk_idx - 1];
+                        last_chunk.end - last_chunk.start - self.whisper.overlap_s
                     } else {
                         0.0
                     };
@@ -231,11 +340,10 @@ impl Whisper {
                 })
                 .collect();
 
-            let outputs =
-                self.transcribe_chunks_with_context(&inputs, &language, &mut timing_helper)?;
+            let outputs = self.transcribe_chunks_with_context(&inputs)?;
 
-            timing_helper.chunks_decoded += outputs.len();
-            if !on_progress(timing_helper.get_progress()) {
+            self.timing_helper.chunks_decoded += outputs.len();
+            if !(self.on_progress)(self.timing_helper.get_progress()) {
                 event!(Level::INFO, "transcription job aborted");
                 bail!("aborted");
             }
@@ -261,14 +369,21 @@ impl Whisper {
                     let filtered: Vec<i64> = seq.tokens[new_tokens_start..]
                         .iter()
                         .cloned()
-                        .filter(|t| !self.tokenizer.decode_single(*t).unwrap().contains("<|"))
+                        .filter(|t| {
+                            !self
+                                .whisper
+                                .tokenizer
+                                .decode_single(*t)
+                                .unwrap()
+                                .contains("<|")
+                        })
                         .collect();
 
-                    writeln!(file, "\t{}", self.tokenizer.decode(&filtered)?)?;
+                    writeln!(file, "\t{}", self.whisper.tokenizer.decode(&filtered)?)?;
                 }
                 writeln!(file, "outputs:")?;
                 for seq in &outputs[i] {
-                    writeln!(file, "\t{}", self.tokenizer.decode(&seq.tokens)?)?;
+                    writeln!(file, "\t{}", self.whisper.tokenizer.decode(&seq.tokens)?)?;
                 }
             }
 
@@ -280,7 +395,7 @@ impl Whisper {
                 }
                 match chunk_states[chunk_idx] {
                     ChunkStates::CanProcessWithoutContext => {
-                        if chunk_idx != chunks.len() - 1
+                        if chunk_idx != self.chunks.len() - 1
                             && matches!(
                                 chunk_states[chunk_idx + 1],
                                 ChunkStates::WaitingForPrevious
@@ -289,7 +404,7 @@ impl Whisper {
                             chunk_states[chunk_idx + 1] = ChunkStates::CanProcess;
                         }
                         if chunk_idx == 0 {
-                            if chunk_idx == chunks.len() - 1 {
+                            if chunk_idx == self.chunks.len() - 1 {
                                 chunk_states[chunk_idx] = ChunkStates::Done;
                             } else {
                                 chunk_states[chunk_idx] = ChunkStates::NeedsNextToDecide;
@@ -305,7 +420,7 @@ impl Whisper {
                             chunk_states[chunk_idx - 1] = ChunkStates::Done;
                         }
 
-                        if chunk_idx == chunks.len() - 1 {
+                        if chunk_idx == self.chunks.len() - 1 {
                             chunk_states[chunk_idx] = ChunkStates::Done;
                         } else if let ChunkStates::Done | ChunkStates::NeedsNextToDecide =
                             chunk_states[chunk_idx + 1]
@@ -315,7 +430,7 @@ impl Whisper {
                             chunk_states[chunk_idx] = ChunkStates::NeedsNextToDecide;
                         }
 
-                        if chunk_idx != chunks.len() - 1
+                        if chunk_idx != self.chunks.len() - 1
                             && matches!(
                                 chunk_states[chunk_idx + 1],
                                 ChunkStates::WaitingForPrevious
@@ -331,63 +446,61 @@ impl Whisper {
             while outboxed_idx < chunk_states.len()
                 && matches!(chunk_states[outboxed_idx], ChunkStates::Done)
             {
-                let bar = self.select_and_postprocess_transcribed_chunk(
+                let bar = self.select_transcribed_chunk(
                     outboxed_idx,
-                    chunks[outboxed_idx].clone(),
                     decoded_chunks_again[outboxed_idx]
                         .as_ref()
                         .unwrap_or(&decoded_chunks[outboxed_idx]),
                     decoded_chunks_again[outboxed_idx]
                         .as_ref()
                         .map(|_| &decoded_chunks[outboxed_idx]),
-                    if outboxed_idx < chunks.len() - 1 {
+                    if outboxed_idx < self.chunks.len() - 1 {
                         decoded_chunks_again[outboxed_idx + 1]
                             .as_ref()
                             .or(decoded_chunks.get(outboxed_idx + 1))
                     } else {
                         None
                     },
-                    language.clone(),
-                    &mut timing_helper,
                 )?;
-                on_new_bar(bar);
-                encoded_chunks[outboxed_idx] = None;
+                on_new_bar(self, outboxed_idx, bar);
+                self.encoded_chunks[outboxed_idx] = None;
                 decoded_chunks[outboxed_idx] = vec![];
                 decoded_chunks_again[outboxed_idx] = None;
                 outboxed_idx += 1;
             }
         }
-
-        timing_helper.report_stats();
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
-    #[instrument(level = Level::TRACE, skip(chunk, chunk_without_context, next_chunk))]
-    pub fn select_and_postprocess_transcribed_chunk(
+    #[instrument(level = Level::TRACE, skip_all)]
+    fn select_transcribed_chunk(
         &mut self,
         chunk_idx: usize,
-        chunk_range: Range<f32>,
         chunk: &Vec<SequenceData>,
         chunk_without_context: Option<&Vec<SequenceData>>,
         next_chunk: Option<&Vec<SequenceData>>,
-        language: String,
-        timing_helper: &mut TimingHelper,
-    ) -> Result<WhisperBar> {
+    ) -> Result<SequenceData> {
         let sequence_data = if let Some(next_chunk) = next_chunk {
             let next_prompts: Vec<_> = next_chunk
                 .iter()
                 .map(|seq| {
                     let prompt = &seq.tokens[..seq.tokens.len() - seq.new_tokens];
-                    let prompt = if prompt.starts_with(&self.startofprev_sequence) {
-                        &prompt[self.startofprev_sequence.len()..]
+                    let prompt = if prompt.starts_with(&self.whisper.startofprev_sequence) {
+                        &prompt[self.whisper.startofprev_sequence.len()..]
                     } else {
                         prompt
                     };
                     let prompt_without_special: Vec<i64> = prompt
                         .iter()
                         .cloned()
-                        .filter(|t| !self.tokenizer.decode_single(*t).unwrap().contains("<|"))
+                        .filter(|t| {
+                            !self
+                                .whisper
+                                .tokenizer
+                                .decode_single(*t)
+                                .unwrap()
+                                .contains("<|")
+                        })
                         .collect();
                     prompt_without_special
                 })
@@ -402,7 +515,7 @@ impl Whisper {
                 Level::DEBUG,
                 chunk_idx,
                 "next_prompt: {}",
-                self.tokenizer.decode(next_prompt)?
+                self.whisper.tokenizer.decode(next_prompt)?
             );
 
             event!(Level::DEBUG, chunk_idx, "options:");
@@ -411,7 +524,7 @@ impl Whisper {
                     Level::DEBUG,
                     chunk_idx,
                     "\t{}",
-                    self.tokenizer.decode(&seq.tokens)?
+                    self.whisper.tokenizer.decode(&seq.tokens)?
                 );
             }
 
@@ -425,7 +538,7 @@ impl Whisper {
                         Level::DEBUG,
                         chunk_idx,
                         "\t{}",
-                        self.tokenizer.decode(&seq.tokens)?
+                        self.whisper.tokenizer.decode(&seq.tokens)?
                     );
                 }
 
@@ -488,7 +601,8 @@ impl Whisper {
                     Level::DEBUG,
                     chunk_idx,
                     "from with    context: {}",
-                    self.tokenizer
+                    self.whisper
+                        .tokenizer
                         .decode(&with_context.tokens[..offset_in_with_context])
                         .unwrap()
                 );
@@ -498,7 +612,8 @@ impl Whisper {
                     Level::DEBUG,
                     chunk_idx,
                     "from without context: {}",
-                    self.tokenizer
+                    self.whisper
+                        .tokenizer
                         .decode(&match_without_context.tokens[without_context_start..])
                         .unwrap()
                 );
@@ -535,45 +650,7 @@ impl Whisper {
             chunk[0].clone()
         };
 
-        self.postprocess_transcribed_chunk(
-            chunk_idx,
-            chunk_range,
-            &sequence_data,
-            language,
-            timing_helper,
-        )
-    }
-
-    #[instrument(level = Level::TRACE, skip(chunk))]
-    pub fn postprocess_transcribed_chunk(
-        &mut self,
-        chunk_idx: usize,
-        chunk_range: Range<f32>,
-        chunk: &SequenceData,
-        language: String,
-        timing_helper: &mut TimingHelper,
-    ) -> Result<WhisperBar> {
-        let new_tokens_start = chunk.len() - chunk.new_tokens;
-        let alignment = calculate_alignment(
-            chunk.alignment_data_concatenated(new_tokens_start - 2),
-            ((chunk_range.end - chunk_range.start) * 1500. / 30.) as usize,
-        )?;
-
-        timing_helper.output_tokens += chunk.tokens[new_tokens_start..].len();
-
-        let atoms: Vec<_> = chunk.tokens[new_tokens_start..]
-            .iter()
-            .enumerate()
-            .map(|(i, token)| Atom {
-                conf: chunk.logprobs[new_tokens_start + i].exp(),
-                conf_ts: 1.0,
-                start: alignment[i + 1] as f32 / 1500. * 30. + chunk_range.start,
-                end: alignment[i + 2] as f32 / 1500. * 30. + chunk_range.start,
-                text: self.tokenizer.decode_single(*token).unwrap(),
-            })
-            .collect();
-
-        Ok(WhisperBar { atoms, language })
+        Ok(sequence_data)
     }
 
     /// This function transcribes chunks and prepares the optionally given context for good results
@@ -585,11 +662,9 @@ impl Whisper {
     /// `x` contains AudioChunks, a vec of possible context sequences that are the starting point
     /// for beam search, and the duration of the context bar
     #[instrument(level = Level::TRACE, skip_all)]
-    pub fn transcribe_chunks_with_context(
+    fn transcribe_chunks_with_context(
         &mut self,
         x: &[(usize, AudioChunkHandle, &Vec<SequenceData>, f32)],
-        language: &str,
-        timing_helper: &mut TimingHelper,
     ) -> Result<Vec<Vec<SequenceData>>> {
         let mut transcribe_chunk_inputs: Vec<(usize, AudioChunkHandle, SequenceLight)> = vec![];
         for (chunk_idx, audio_chunk_handle, initial_beams, last_chunk_duration) in x {
@@ -597,14 +672,15 @@ impl Whisper {
             for seq in initial_beams.iter() {
                 let mut tokens = vec![];
                 let mut logprobs = vec![];
-                let context_tokens_start = seq.new_tokens.saturating_sub(Self::MAX_CONTEXT_LEN)
-                    + (seq.len() - seq.new_tokens);
+                let context_tokens_start =
+                    seq.new_tokens.saturating_sub(WhisperModel::MAX_CONTEXT_LEN)
+                        + (seq.len() - seq.new_tokens);
                 let context_tokens = &seq.tokens[context_tokens_start..];
 
                 // fill context from the provided last sequences
                 if !context_tokens.is_empty() {
-                    tokens.extend_from_slice(&self.startofprev_sequence);
-                    logprobs.extend_from_slice(&vec![0.0; self.startofprev_sequence.len()]);
+                    tokens.extend_from_slice(&self.whisper.startofprev_sequence);
+                    logprobs.extend_from_slice(&vec![0.0; self.whisper.startofprev_sequence.len()]);
 
                     // put tokens that are in the overlap to the right of the sot sequence, others to the left
                     let last_chunk_last_audio_idx = (last_chunk_duration / 30. * 1500.) as usize;
@@ -629,8 +705,9 @@ impl Whisper {
                     };
 
                     if seq.tokens[context_tokens_start + leftmost_on_right..].len() == 1
-                        && self.punct_chars.iter().any(|c| {
-                            self.tokenizer
+                        && self.whisper.punct_chars.iter().any(|c| {
+                            self.whisper
+                                .tokenizer
                                 .decode_single(seq.tokens[seq.tokens.len() - 1])
                                 .unwrap()
                                 .contains(*c)
@@ -647,7 +724,11 @@ impl Whisper {
                             [context_tokens_start..context_tokens_start + leftmost_on_right],
                     );
 
-                    let sot_sequence = &self.tokenizer.sot_sequence(language).unwrap();
+                    let sot_sequence = &self
+                        .whisper
+                        .tokenizer
+                        .sot_sequence(self.language.as_ref().unwrap())
+                        .unwrap();
                     tokens.extend_from_slice(sot_sequence);
                     logprobs.extend_from_slice(&vec![0.0; sot_sequence.len()]);
 
@@ -657,7 +738,11 @@ impl Whisper {
                         &seq.logprobs[context_tokens_start + leftmost_on_right..],
                     );
                 } else {
-                    let sot_sequence = &self.tokenizer.sot_sequence(language).unwrap();
+                    let sot_sequence = &self
+                        .whisper
+                        .tokenizer
+                        .sot_sequence(self.language.as_ref().unwrap())
+                        .unwrap();
                     tokens.extend_from_slice(sot_sequence);
                     logprobs.extend_from_slice(&vec![0.0; sot_sequence.len()]);
                 }
@@ -671,14 +756,14 @@ impl Whisper {
                     Level::DEBUG,
                     chunk_idx,
                     "\t{}",
-                    self.tokenizer.decode(&prompt.0).unwrap()
+                    self.whisper.tokenizer.decode(&prompt.0).unwrap()
                 )
             }
             transcribe_chunk_inputs.push((*chunk_idx, audio_chunk_handle.clone(), prompts));
         }
 
         // TODO: detect common prefixes and only prefill once. this might save a lot of compute
-        let transcribed = self.transcribe_chunks(&transcribe_chunk_inputs, timing_helper)?;
+        let transcribed = self.transcribe_chunks(&transcribe_chunk_inputs)?;
 
         let mut to_return = vec![];
         for (chunk_idx, mut beams) in transcribed.into_iter().enumerate() {
@@ -693,7 +778,8 @@ impl Whisper {
                     chunk_idx,
                     "beam #{}: {} {} ({} new tokens)",
                     i,
-                    self.tokenizer
+                    self.whisper
+                        .tokenizer
                         .decode(&beam.tokens[beam.tokens.len() - beam.new_tokens..])
                         .unwrap(),
                     beam.logprob_sum_normalized_new_tokens(),
@@ -713,7 +799,8 @@ impl Whisper {
                         Level::DEBUG,
                         chunk_idx,
                         "\t {} {}",
-                        self.tokenizer
+                        self.whisper
+                            .tokenizer
                             .decode(&seq.tokens[..seq.len() - peel])
                             .unwrap(),
                         new_seq.logprob_sum_normalized()
@@ -727,10 +814,16 @@ impl Whisper {
                 // peel of one token of the most likely sequence if it is a sentence sign
                 if i == 0 && seq.new_tokens > 2 {
                     let last_token_str = self
+                        .whisper
                         .tokenizer
                         .decode_single(seq.tokens[seq.tokens.len() - 2])
                         .unwrap();
-                    if self.punct_chars.iter().any(|c| last_token_str.contains(*c)) {
+                    if self
+                        .whisper
+                        .punct_chars
+                        .iter()
+                        .any(|c| last_token_str.contains(*c))
+                    {
                         add_sequence(2, 0.9);
                     }
                 }
@@ -741,6 +834,7 @@ impl Whisper {
                     let mut peel = 2;
                     while seq.new_tokens > peel {
                         if self
+                            .whisper
                             .tokenizer
                             .decode_single(seq.tokens[seq.tokens.len() - peel])
                             .unwrap()
@@ -767,7 +861,7 @@ impl Whisper {
                         Level::DEBUG,
                         chunk_idx = x[chunk_idx].0,
                         "{} -> prune (force convergence to one prompt at the end of bar)",
-                        self.tokenizer.decode(&seq.tokens).unwrap(),
+                        self.whisper.tokenizer.decode(&seq.tokens).unwrap(),
                     );
                     false
                 }
@@ -784,10 +878,9 @@ impl Whisper {
     /// `x` contains AudioChunks and Prompts. Multiple prompts represent multiple beams in beam search.
     /// returns the multiple possible sequences per beam
     #[instrument(level = Level::TRACE, skip_all)]
-    pub fn transcribe_chunks(
+    fn transcribe_chunks(
         &mut self,
         x: &[(usize, AudioChunkHandle, SequenceLight)],
-        timing_helper: &mut TimingHelper,
     ) -> Result<Vec<Vec<SequenceData>>> {
         let mut chunks: Vec<(AudioChunkHandle, Vec<(SequenceHandle, SequenceData)>)> = Vec::new();
         for (_chunk_idx, audio, prompts) in x {
@@ -797,7 +890,7 @@ impl Whisper {
                     .iter()
                     .map(|(prompt, logprobs)| {
                         (
-                            self.decoder.register_sequence(prompt),
+                            self.whisper.decoder.register_sequence(prompt),
                             SequenceData {
                                 tokens: prompt.to_vec(),
                                 logprobs: logprobs.to_vec(),
@@ -817,7 +910,7 @@ impl Whisper {
             let decoder_input: Vec<_> = chunks
                 .iter()
                 .enumerate()
-                .filter(|&(chunk_idx, _)| finished[chunk_idx].len() < self.beam_width)
+                .filter(|&(chunk_idx, _)| finished[chunk_idx].len() < self.whisper.beam_width)
                 .flat_map(|(chunk_idx, (audio, beam))| {
                     if !beam.is_empty() {
                         event!(
@@ -827,7 +920,7 @@ impl Whisper {
                             beam.len(),
                             finished[chunk_idx].len()
                         );
-                        timing_helper.beam_widths.push(beam.len());
+                        self.timing_helper.beam_widths.push(beam.len());
                     }
 
                     beam.iter().map(|(seq, _)| (audio.clone(), seq.clone()))
@@ -838,37 +931,40 @@ impl Whisper {
             }
 
             let start = Instant::now();
-            let (logits, alignment_data) = self.decoder.forward(&decoder_input)?;
+            let (logits, alignment_data) = self.whisper.decoder.forward(&decoder_input)?;
             if alignment_data.shape()[2] > 1 {
-                timing_helper
+                self.timing_helper
                     .prefill
                     .push((start.elapsed(), alignment_data.shape()[0]));
             } else {
-                timing_helper
+                self.timing_helper
                     .decode
                     .push((start.elapsed(), alignment_data.shape()[0]));
             }
 
-            let nospeech = &[self.tokenizer.nospeech()];
-            let nospeech_and_endoftext = &[self.tokenizer.endoftext(), self.tokenizer.nospeech()];
+            let nospeech = &[self.whisper.tokenizer.nospeech()];
+            let nospeech_and_endoftext = &[
+                self.whisper.tokenizer.endoftext(),
+                self.whisper.tokenizer.nospeech(),
+            ];
             let mask = if false {
                 // as the first token, we extrude a timestamp token with a certain maximum time
                 let mut mask = Array1::zeros(NUM_TOKENS);
                 for i in 0..NUM_TOKENS {
                     mask[i] = f32::NEG_INFINITY;
                 }
-                for time in self.tokenizer.encode_single("<|0.00|>").unwrap()
-                    ..self.tokenizer.encode_single("<|1.00|>").unwrap()
+                for time in self.whisper.tokenizer.encode_single("<|0.00|>").unwrap()
+                    ..self.whisper.tokenizer.encode_single("<|1.00|>").unwrap()
                 {
                     mask[time as usize] = 0.0;
                 }
                 mask
             } else {
-                self.tokenizer.special_tokens_mask(if i == 0 {
+                self.whisper.tokenizer.special_tokens_mask(if i == 0 {
                     nospeech
                 } else {
                     nospeech_and_endoftext
-                }) + self.tokenizer.non_speech_tokens_mask()
+                }) + self.whisper.tokenizer.non_speech_tokens_mask()
             };
             let result = logits + mask;
             let last_axis = Axis(result.shape().len() - 1);
@@ -879,13 +975,13 @@ impl Whisper {
             let mut next_chunks = chunks.clone();
             let mut result_idx = 0;
             for (chunk_idx, (_audio, beam)) in chunks.iter().enumerate() {
-                if finished[chunk_idx].len() >= self.beam_width {
+                if finished[chunk_idx].len() >= self.whisper.beam_width {
                     continue;
                 }
                 // inside this for loop happens beam search
                 let mut next_beam = Vec::new();
                 let mut best: TopNVec<(usize, &SequenceHandle, i64, f32)> =
-                    TopNVec::new(self.beam_width);
+                    TopNVec::new(self.whisper.beam_width);
                 let mut new_sequence_datas = vec![];
                 for (beam_idx, (seq_handle, sequence_data)) in beam.iter().enumerate() {
                     let last_token_idx = if i == 0 { sequence_data.len() - 1 } else { 0 };
@@ -926,7 +1022,7 @@ impl Whisper {
                     }
                     new_sequence_data
                         .eot_prob
-                        .push(token_probs[self.tokenizer.endoftext() as usize]);
+                        .push(token_probs[self.whisper.tokenizer.endoftext() as usize]);
                     new_sequence_data.new_tokens += 1;
                     new_sequence_datas.push(new_sequence_data);
 
@@ -961,18 +1057,18 @@ impl Whisper {
                     let mut next_sequence_data = new_sequence_datas[beam_idx].clone();
                     next_sequence_data.tokens.push(token);
                     next_sequence_data.logprobs.push(token_prob.ln());
-                    let next_seq = self.decoder.append_token_to_sequence(seq, token)?;
+                    let next_seq = self.whisper.decoder.append_token_to_sequence(seq, token)?;
                     let naive_token_time = *next_sequence_data.naive_token_times.last().unwrap();
 
-                    if token == self.tokenizer.endoftext() {
-                        if token_prob > self.beamsearch_early_prune_min_token_conf
+                    if token == self.whisper.tokenizer.endoftext() {
+                        if token_prob > self.whisper.beamsearch_early_prune_min_token_conf
                             || next_sequence_data.logprob_sum_normalized() > best_score
                         {
                             event!(
                                 Level::TRACE,
                                 chunk_idx = x[chunk_idx].0,
                                 "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                self.whisper.tokenizer.decode(&next_sequence_data.tokens)?,
                             );
                             finished[chunk_idx].push(next_sequence_data);
                         } else {
@@ -980,10 +1076,10 @@ impl Whisper {
                                 Level::TRACE,
                                 chunk_idx = x[chunk_idx].0,
                                 "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (too low token prob)",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                self.whisper.tokenizer.decode(&next_sequence_data.tokens)?,
                             );
                         }
-                    } else if next_sequence_data.len() >= Self::MAX_LEN
+                    } else if next_sequence_data.len() >= WhisperModel::MAX_DECODER_TOKENS
                         && finished[chunk_idx].is_empty()
                     {
                         event!(
@@ -995,21 +1091,21 @@ impl Whisper {
                             Level::INFO,
                             chunk_idx = x[chunk_idx].0,
                             "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished",
-                            self.tokenizer.decode(&next_sequence_data.tokens)?,
+                            self.whisper.tokenizer.decode(&next_sequence_data.tokens)?,
                         );
                         finished[chunk_idx].push(next_sequence_data);
                     } else if finished[chunk_idx].is_empty() {
                         // we cannot prune all
-                        if best_token_prob < self.beamsearch_early_prune_min_token_conf {
+                        if best_token_prob < self.whisper.beamsearch_early_prune_min_token_conf {
                             // all options are shit, we cannot decide now, thus we keep all beams
                             event!(
                                 Level::TRACE,
                                 chunk_idx = x[chunk_idx].0,
                                 "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue (because all are shit)",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                self.whisper.tokenizer.decode(&next_sequence_data.tokens)?,
                             );
                             next_beam.push((next_seq, next_sequence_data));
-                        } else if token_prob > self.beamsearch_early_prune_min_token_conf
+                        } else if token_prob > self.whisper.beamsearch_early_prune_min_token_conf
                             || next_sequence_data.logprob_sum_normalized() > best_score
                         {
                             next_beam.push((next_seq, next_sequence_data));
@@ -1019,13 +1115,13 @@ impl Whisper {
                                 Level::TRACE,
                                 chunk_idx = x[chunk_idx].0,
                                 "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (too low token prob)",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                self.whisper.tokenizer.decode(&next_sequence_data.tokens)?,
                             );
-                            timing_helper.pruned += 1;
+                            self.timing_helper.pruned += 1;
                         }
                     } else {
                         // we could prune all
-                        if token_prob > self.beamsearch_early_prune_min_token_conf
+                        if token_prob > self.whisper.beamsearch_early_prune_min_token_conf
                             || next_sequence_data.logprob_sum_normalized() > best_score
                         {
                             next_beam.push((next_seq, next_sequence_data));
@@ -1035,43 +1131,43 @@ impl Whisper {
                                 Level::TRACE,
                                 chunk_idx = x[chunk_idx].0,
                                 "{} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (too low token prob)",
-                                self.tokenizer.decode(&next_sequence_data.tokens)?,
+                                self.whisper.tokenizer.decode(&next_sequence_data.tokens)?,
                             );
-                            timing_helper.pruned += 1;
+                            self.timing_helper.pruned += 1;
                         }
                     }
                 }
                 let next_beam_clone = next_beam.clone();
                 next_beam.retain(|(_, sequence_data)| {
                     if sequence_data.tokens.len()
-                        < self.beamsearch_early_prune_max_decission_postpone
+                        < self.whisper.beamsearch_early_prune_max_decission_postpone
                     {
                         event!(
                             Level::TRACE,
                             chunk_idx = x[chunk_idx].0,
                             "{tokens} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue",
-                            tokens = self.tokenizer.decode(&sequence_data.tokens).unwrap(),
+                            tokens = self.whisper.tokenizer.decode(&sequence_data.tokens).unwrap(),
                             score = sequence_data.logprob_sum_normalized(),
                             token_prob = sequence_data.logprobs.last().unwrap().exp(),
                             naive_token_time = sequence_data.naive_token_times.last().unwrap()
                         );
-                        timing_helper.not_pruned += 1;
+                        self.timing_helper.not_pruned += 1;
                         return true;
                     };
                     let sibling_tokens = &sequence_data.tokens[sequence_data.tokens.len()
-                        - self.beamsearch_early_prune_max_decission_postpone
+                        - self.whisper.beamsearch_early_prune_max_decission_postpone
                         ..sequence_data.tokens.len()];
                     let siblings = next_beam_clone
                         .iter()
                         .map(|(_, sequence_data)| sequence_data)
                         .filter(|candidate| {
                             if candidate.tokens.len()
-                                < self.beamsearch_early_prune_max_decission_postpone
+                                < self.whisper.beamsearch_early_prune_max_decission_postpone
                             {
                                 return false;
                             };
                             let candidate_sibling_tokens = &candidate.tokens[candidate.tokens.len()
-                                - self.beamsearch_early_prune_max_decission_postpone
+                                - self.whisper.beamsearch_early_prune_max_decission_postpone
                                 ..candidate.tokens.len()];
                             candidate_sibling_tokens == sibling_tokens
                         });
@@ -1087,24 +1183,24 @@ impl Whisper {
                             Level::TRACE,
                             chunk_idx = x[chunk_idx].0,
                             "{tokens} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> continue",
-                            tokens = self.tokenizer.decode(&sequence_data.tokens).unwrap(),
+                            tokens = self.whisper.tokenizer.decode(&sequence_data.tokens).unwrap(),
                             score = sequence_data.logprob_sum_normalized(),
                             token_prob = sequence_data.logprobs.last().unwrap().exp(),
                             naive_token_time = sequence_data.naive_token_times.last().unwrap()
                         );
-                        timing_helper.not_pruned += 1;
+                        self.timing_helper.not_pruned += 1;
                         true
                     } else {
                         event!(
                             Level::TRACE,
                             chunk_idx = x[chunk_idx].0,
                             "{tokens} (score: {score}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (max decision time exceeded)",
-                            tokens = self.tokenizer.decode(&sequence_data.tokens).unwrap(),
+                            tokens = self.whisper.tokenizer.decode(&sequence_data.tokens).unwrap(),
                             score = sequence_data.logprob_sum_normalized(),
                             token_prob = sequence_data.logprobs.last().unwrap().exp(),
                             naive_token_time = sequence_data.naive_token_times.last().unwrap()
                         );
-                        timing_helper.pruned += 1;
+                        self.timing_helper.pruned += 1;
                         false
                     }
                 });
@@ -1120,25 +1216,34 @@ impl Whisper {
     /// This function detects the lanuage of the given audio chunks and returns a probability
     /// distribution of (lang, probability) for each chunk
     #[instrument(level = Level::TRACE, skip_all)]
-    pub fn detect_language(
+    fn detect_language(
         &mut self,
         chunks: &[AudioChunkHandle],
     ) -> Result<Vec<Vec<(&'static str, f32)>>> {
         let len = chunks.len();
         let prompt = self
+            .whisper
             .decoder
-            .register_sequence(&[self.tokenizer.startoftranscript()]);
+            .register_sequence(&[self.whisper.tokenizer.startoftranscript()]);
         let decoder_input: Vec<_> = chunks
             .iter()
             .map(|chunk| (chunk.clone(), prompt.clone()))
             .collect();
-        let (logits, _alignment_data) = self.decoder.forward(&decoder_input)?;
+        let (logits, _alignment_data) = self.whisper.decoder.forward(&decoder_input)?;
 
         let language_tokens = LANGUAGES
             .iter()
-            .map(|(code, _)| Ok((self.tokenizer.encode_single(&format!("<|{code}|>"))?, *code)))
+            .map(|(code, _)| {
+                Ok((
+                    self.whisper
+                        .tokenizer
+                        .encode_single(&format!("<|{code}|>"))?,
+                    *code,
+                ))
+            })
             .collect::<Result<HashMap<_, _>>>()?;
         let mask = self
+            .whisper
             .tokenizer
             .generate_mask(|t| language_tokens.contains_key(&t));
 
@@ -1156,17 +1261,6 @@ impl Whisper {
                 with_prob
             })
             .collect())
-    }
-}
-impl Debug for Whisper {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Whisper")
-            .field("beam_width", &self.beam_width)
-            .field("reset_after_x_bars", &self.reset_after_x_bars)
-            .field("overlap_s", &self.overlap_s)
-            .field("max_parallel_chunks", &self.max_parallel_chunks)
-            .field("startofprev_sequence", &self.startofprev_sequence)
-            .finish_non_exhaustive()
     }
 }
 
