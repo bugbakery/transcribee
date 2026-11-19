@@ -84,7 +84,9 @@ export class MediaPlayer {
 
     e.onReady(() => {
       // restore playtime after source changed
-      if (props(this.#mediaElement).playtime == 0) {
+      const playtime = props(this.#mediaElement).playtime;
+      if (playtime == 0 && playtime !== this.#playtime) {
+        // setPlaytime triggers onReady, so be carefull to not create a loop
         actions(this.#mediaElement).setPlaytime(this.#playtime);
         if (this.#playing) {
           this.play();
