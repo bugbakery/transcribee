@@ -106,7 +106,7 @@ impl WorkerAdapter {
         &self,
         document_uuid: Uuid,
         file_path: String,
-        output_path: String,
+        output_dir: String,
         profiles: Vec<String>,
         generate_waveform: bool,
         audio_for_video: bool,
@@ -120,7 +120,7 @@ impl WorkerAdapter {
             dependencies: vec![],
             state: TaskState::New,
             task_parameters: TaskParameters::Reencode(ReencodeTaskParameters {
-                output_path,
+                output_dir,
                 audio_for_video,
                 generate_waveform,
                 profiles,
