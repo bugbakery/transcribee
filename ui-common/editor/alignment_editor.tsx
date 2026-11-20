@@ -661,7 +661,7 @@ function TimingParagraph({
       className={clsx(
         'absolute text-xs cursor-move select-none rounded',
         dragHandle?.paragraph.idx == p.idx && 'z-10',
-        'min-h-[1em] border-2 truncate',
+        'min-h-[calc(1em_+_8px)] border-2 truncate',
       )}
       onMouseDown={(e) => {
         e.stopPropagation();
@@ -766,7 +766,7 @@ function TimingParagraphAtoms({
               left: sec2px(c.start - p.start),
               width: sec2px(c.end - c.start),
             }}
-            className="absolute border rounded px-0.5 top-2 overflow-hidden whitespace-nowrap"
+            className="absolute border rounded px-0.5 top-2 min-h-[calc(1em_+_8px)] overflow-hidden whitespace-nowrap"
             onMouseDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
