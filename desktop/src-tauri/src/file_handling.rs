@@ -162,6 +162,7 @@ pub trait DocumentsStoreExt<R: Runtime> {
     fn update_document(&self, id: Uuid, op: impl Fn(Document) -> Document) -> Result<()>;
     fn load_document(&self, path: &str) -> Result<Document>;
     fn create_new_document(&self, media_file_path: String) -> Result<Document>;
+    fn cleanup_non_existing_media(&self, id: Uuid) -> Result<()>;
 }
 impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
     fn get_documents(&self) -> Result<Vec<Document>> {
@@ -292,6 +293,16 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
             Ok(documents)
         })?;
         Ok(document)
+    }
+
+    fn cleanup_non_existing_media(&self, id: Uuid) -> Result<()> {
+        self.update_document(id, |mut d| {
+            d.media_files.retain(|m| match &m.source {
+                MediaFileSource::Fs { media_path } => fs::exists(media_path).unwrap_or(true),
+                _ => true,
+            });
+            d
+        })
     }
 }
 

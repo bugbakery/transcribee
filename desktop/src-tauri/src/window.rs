@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindo
 use worker_adapter::WorkerAdapter;
 
 use crate::{
-    file_handling::{get_media_files_folder, Document},
+    file_handling::{get_media_files_folder, Document, DocumentsStoreExt},
     range_util::RangeChunks,
     transcribee_archive::MediaFileSource,
 };
@@ -112,15 +112,18 @@ pub async fn create_or_focus_document_window(
     fullscreen: bool,
 ) -> tauri::Result<tauri::WebviewWindow> {
     let app_clone = app.clone();
-    let document_clone: Document = document.clone();
-    tauri::async_runtime::spawn(async move {
-        generate_waveform_if_needed(&app_clone, &document_clone).await
-    });
+    let document_id = document.id;
+    app_clone.cleanup_non_existing_media(document.id)?;
+    let document = app_clone.get_document(document.id)?;
+
+    tauri::async_runtime::spawn(
+        async move { generate_waveform_if_needed(&app_clone, &document).await },
+    );
 
     create_or_focus_window(
         app,
-        &format!("document/{}", document.id),
-        WebviewUrl::App(format!("document/{}", document.id).into()),
+        &format!("document/{}", document_id),
+        WebviewUrl::App(format!("document/{}", document_id).into()),
         |builder| builder.inner_size(1200.0, 800.0).fullscreen(fullscreen),
     )
     .await
