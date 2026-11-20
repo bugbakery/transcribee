@@ -12,6 +12,7 @@ interface MediaPlayerEvents {
   seek: (to: number) => void;
   playtime: (playtime: number) => void;
   videoHeightChange: (height: number) => void;
+  videoBottomOffsetChange: (offset: number) => void;
   showVideo: () => void;
   hideVideo: () => void;
 }
@@ -248,10 +249,10 @@ export class MediaPlayer {
 
   set videoBottomOffset(value: number) {
     this.#videoBottomOffset = value;
-
     if (this.#videoVisible) {
       this.#mediaElement.style.bottom = value + 'px';
     }
+    this.#emit('videoBottomOffsetChange', value);
   }
 
   load(sources: { src: string; type: string }[]) {

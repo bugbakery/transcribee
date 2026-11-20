@@ -36,7 +36,7 @@ import {
 } from 'transcribee-ui-common/components/transcription_progress';
 import { SpeakerColorsProvider } from 'transcribee-ui-common/editor/speaker_colors';
 import { Footer } from '../components/footer';
-import { VideoSpacer } from 'transcribee-ui-common/components/video_spacer';
+import { DocumentBottomSpacer } from 'transcribee-ui-common/components/document_bottom_spacer';
 import { MediaPlayer } from 'transcribee-ui-common/utils/media_player';
 import { useMediaPlayer } from 'transcribee-ui-common/utils/use_media_player';
 
@@ -165,7 +165,7 @@ export function DocumentPage({
       <Helmet>
         <title>{data?.name}</title>
       </Helmet>
-      <div className="max-w-screen-xl w-full p-6 mx-auto">
+      <div className="max-w-screen-xl w-full p-6 pb-0 -mb-6 mx-auto">
         <TopBar className="!items-start z-40">
           <TopBarPart
             className={
@@ -230,8 +230,8 @@ export function DocumentPage({
 
       {editor && (
         <SpeakerColorsProvider editor={editor}>
-          <div className="overflow-y-scroll overscroll-contain h-screen">
-            <div className="max-w-screen-xl p-6 mx-auto flex flex-col">
+          <div className="overflow-y-scroll overscroll-contain h-screen flex">
+            <div className="max-w-screen-xl p-6 mx-auto flex flex-col grow">
               <DocumentNotFinishedBannerAutoRefresh documentId={documentId} className="mt-6" />
               <TranscriptionEditor
                 editor={editor}
@@ -239,14 +239,18 @@ export function DocumentPage({
                 className={'grow flex flex-col'}
                 readOnly={!data || !data.can_write}
               />
+              <Footer className="mt-16" />
               {/* Spacer to prevent video preview from hiding text */}
-              <VideoSpacer mediaPlayer={mediaPlayer} />
-              <Footer className="my-16" />
+              <DocumentBottomSpacer mediaPlayer={mediaPlayer} />
             </div>
           </div>
+          <PlayerBarAutoMediaFiles
+            documentId={documentId}
+            editor={editor}
+            mediaPlayer={mediaPlayer}
+          />
         </SpeakerColorsProvider>
       )}
-      <PlayerBarAutoMediaFiles documentId={documentId} editor={editor} mediaPlayer={mediaPlayer} />
 
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </div>
