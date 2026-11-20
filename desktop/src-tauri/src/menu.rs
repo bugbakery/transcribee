@@ -8,7 +8,7 @@ use std::{collections::HashMap, sync::Mutex};
 use tauri::{
     menu::{Menu, MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder},
     plugin::{Builder, TauriPlugin},
-    AppHandle, Emitter, Listener, Manager, Wry,
+    AppHandle, Emitter, EventTarget, Listener, Manager, Wry,
 };
 
 use crate::{
@@ -167,7 +167,15 @@ fn setup_macos_menu(app: &AppHandle) -> std::result::Result<(), Box<dyn std::err
             }
             event => {
                 // some events are handled by the frontend
-                app.emit("macos_menu_clicked", event)?;
+                if let Some(window) = focused_window(&app) {
+                    app.emit_to(
+                        EventTarget::WebviewWindow {
+                            label: window.label().to_string(),
+                        },
+                        "macos_menu_clicked",
+                        event,
+                    )?;
+                }
 
                 if !WINDOW_SPECIFIC_MENU_ITEMS.contains(&event) {
                     warn!("Menu event '{event}' has no handler. Maybe it is missing in WINDOW_SPECIFIC_MENU_ITEMS?");
