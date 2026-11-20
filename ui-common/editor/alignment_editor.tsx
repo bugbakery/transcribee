@@ -45,7 +45,7 @@ type ParagraphWithInfos = Paragraph & {
   stackIdx: number;
 };
 
-const MIN_ATOM_LENGTH = 0.05;
+const MIN_ATOM_LENGTH = 0.05; // seconds
 
 function atomLen(atom: TextWithTs) {
   return atom.end - atom.start;
@@ -80,6 +80,7 @@ function adjustParagraphTs(
       console.assert(child.start == null || child.end == null || child.start <= child.end);
     });
 
+    // prevent overlapping atoms caused by ensuring min atom length above
     if (end != undefined) {
       for (let i = 1; i < p.children.length; i++) {
         const c = p.children[i];
@@ -198,7 +199,6 @@ export function AlignmentEditor({
   editor: Editor;
   mediaPlayer: MediaPlayer;
 }) {
-  const samplesPerSecond = 16_000 / 128;
   const [pxPerSec, setPxPerSec] = useState(100.0);
 
   const px2sec = useCallback(
@@ -285,7 +285,6 @@ export function AlignmentEditor({
   }>(null);
   const animatedSetViewportStartSec = useCallback(
     (targetPos: number) => {
-      if (seekTarget.current != null) return;
       const startTime = Date.now();
       const targetTime = startTime + 300;
       const startPos = viewportStartSec;
@@ -308,6 +307,10 @@ export function AlignmentEditor({
     [viewportStartSec],
   );
 
+  // keep the cursor in viewport (generally)
+  // the view gets decoupled when one pans manually and it gets coupled again when
+  // * the user seeks to a different position manually
+  // * the user starts playing
   const isDecoupledRef = useRef(false);
 
   useEffect(() => {
@@ -335,10 +338,6 @@ export function AlignmentEditor({
 
       const viewportEndSec = viewportStartSec + px2sec(containerSize.width);
       const marginSec = px2sec(containerSize.width) * 0.07;
-      // keep the cursor in viewport (generally)
-      // the view gets decoupled when one pans manually and it gets coupled again when
-      // * the user seeks to a different position manually
-      // * the user starts playing
       if (isDecoupledRef.current || seekTarget.current != null || mediaPlayer.isScrubbing) return;
       if (playtime > viewportEndSec - marginSec) {
         if (dragHandle != null) {
@@ -606,11 +605,7 @@ export function AlignmentEditor({
           })}
         </div>
 
-        <WaveformViewer
-          source={waveformSource}
-          pos={sec2px(viewportStartSec)}
-          scale={px2sec(samplesPerSecond)}
-        />
+        <WaveformViewer source={waveformSource} pos={sec2px(viewportStartSec)} scale={px2sec(1)} />
       </div>
     </div>
   );
@@ -917,10 +912,12 @@ function WaveformViewer({
   }, [renderer, reader]);
 
   useEffect(() => {
-    if (!renderer) return;
+    if (!renderer || !reader) return;
     renderer.setColor(systemPrefersDark ? [1, 1, 1] : [0.2, 0.2, 0.2]);
     renderer.setPos(pos * window.devicePixelRatio);
-    renderer.setScale(scale / window.devicePixelRatio);
+    renderer.setScale(
+      (scale * (reader.sampleRate / reader.samplesPerPixel)) / window.devicePixelRatio,
+    );
     renderer.draw();
   }, [reader, renderer, pos, scale, window.devicePixelRatio]);
 
