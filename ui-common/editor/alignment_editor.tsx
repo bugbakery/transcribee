@@ -224,7 +224,7 @@ export function AlignmentEditor({
   const speakerColors = useContext(SpeakerColorsContext);
   const [dragHandle, setDragHandle] = useState<DragHandle | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>();
-  const containerSize = useSize(containerRef.current);
+  const containerSize = useSize(containerRef);
   const [editAtoms, setEditAtoms] = useState(false);
 
   const paragraphs: ParagraphWithInfos[] = useDocumentSelector(
@@ -901,7 +901,7 @@ function WaveformViewer({
   }, [canvasRef.current]);
 
   useResizeObserver(
-    canvasRef.current,
+    canvasRef,
     (rect) => {
       if (!canvasRef.current) return;
       canvasRef.current.width = rect.width * window.devicePixelRatio;

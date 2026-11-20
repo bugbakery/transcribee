@@ -1,28 +1,23 @@
-import { useMemo, useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState, RefObject } from 'react';
+import { useResizeObserver } from './use_resize_observer';
 
-export function useSize(target: Element | undefined | null) {
-  const [size, setSize] = useState(target?.getBoundingClientRect());
+export function useSize(target: RefObject<Element | null> | null) {
+  const [size, setSize] = useState(target?.current?.getBoundingClientRect());
 
-  const observer = useMemo(
-    () =>
-      new ResizeObserver(async (entries) => {
-        const rect = entries[0].target.getBoundingClientRect();
-        setSize(rect);
-      }),
+  useResizeObserver(
+    target,
+    (observedSize) => {
+      setSize(observedSize);
+    },
     [],
   );
 
   useLayoutEffect(() => {
-    if (target) {
-      observer.observe(target);
+    const t = target?.current;
+    if (t) {
+      setSize(t.getBoundingClientRect());
     }
-
-    return () => {
-      if (target) {
-        observer.unobserve(target);
-      }
-    };
-  }, [target, observer]);
+  }, [target]);
 
   return size;
 }
