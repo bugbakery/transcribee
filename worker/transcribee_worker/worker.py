@@ -303,8 +303,8 @@ class Worker:
         self.set_duration(task, duration)
 
         if settings.WORKER_TYPE == "desktop":
-            assert task.task_parameters.output_path is not None
-            output_dir = Path(task.task_parameters.output_path)
+            assert task.task_parameters.output_dir is not None
+            output_dir = Path(task.task_parameters.output_dir)
         else:
             assert settings.WORKER_TYPE == "web"
             output_dir = self._get_tmpdir()

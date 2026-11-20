@@ -89,7 +89,7 @@ class ReencodeTaskParameters(BaseModel):
     profiles: list[str]
     audio_for_video: bool
     generate_waveform: bool = False
-    output_path: str | None = None
+    output_dir: str | None = None
 
 
 class TranscribeTask(TaskBase):
