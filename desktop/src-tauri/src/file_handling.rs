@@ -9,7 +9,7 @@
 
 use crate::media_file_serve::MediaFileBase;
 use crate::transcribee_archive::{self, MediaFileSource};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -103,7 +103,7 @@ impl Document {
             media_files: self
                 .media_files
                 .iter()
-                .map(|f| f.with_base_url(self.id, media_file_base_url))
+                .map(|f| f.with_base_url(media_file_base_url))
                 .collect(),
             has_unsaved_changes: self.has_unsaved_changes,
             tasks: self.worker_tasks.clone(),
@@ -130,24 +130,26 @@ pub struct MediaFile {
     pub source: MediaFileSource,
 }
 impl MediaFile {
-    pub fn from_worker_adapter_media_file(v: worker_adapter::state::MediaFile) -> Result<Self> {
+    pub fn from_worker_adapter_media_file(
+        v: worker_adapter::state::MediaFile,
+        doc_id: Uuid,
+    ) -> Result<Self> {
         let mime = infer::get_from_path(&v.path)?
             .map(|x| x.mime_type())
             .unwrap_or("application/octet-stream");
 
-        let path = PathBuf::from(&v.path);
-        let file_name = path.file_name().context("context")?.to_string_lossy();
+        let url = format!("{}/worker_{}", doc_id, v.tags.join("+"));
 
         Ok(Self {
             content_type: mime.to_string(),
             tags: v.tags,
-            url: file_name.to_string(),
+            url,
             source: MediaFileSource::Fs { media_path: v.path },
         })
     }
-    fn with_base_url(&self, doc_id: Uuid, base_url: &str) -> Self {
+    fn with_base_url(&self, base_url: &str) -> Self {
         Self {
-            url: format!("{base_url}/{doc_id}/{}", self.url),
+            url: format!("{base_url}/{}", self.url),
             ..self.clone()
         }
     }
