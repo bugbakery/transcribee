@@ -1,7 +1,7 @@
-import { useMemo, useLayoutEffect, useCallback } from 'react';
+import { useMemo, useLayoutEffect, useCallback, RefObject } from 'react';
 
 export function useResizeObserver(
-  target: Element | undefined | null,
+  target: RefObject<Element | null> | undefined | null,
   callback: (rect: DOMRect) => void,
   deps: unknown[],
 ) {
@@ -16,13 +16,14 @@ export function useResizeObserver(
   );
 
   useLayoutEffect(() => {
-    if (target) {
-      observer.observe(target);
+    const t = target?.current;
+    if (t) {
+      observer.observe(t);
     }
 
     return () => {
-      if (target) {
-        observer.unobserve(target);
+      if (t) {
+        observer.unobserve(t);
       }
     };
   }, [target, observer]);
