@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { useOnClickOutside } from 'transcribee-ui-common/utils/use_on_click_outside';
 import { useFloating } from '@floating-ui/react-dom';
 import { platform } from '@tauri-apps/plugin-os';
-import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 export type MenuItemDef = {
   text: string;
@@ -77,7 +77,7 @@ export function MenuBar({ hidden, menus }: { hidden?: boolean; menus: MenuDef[] 
     invoke('set_available_menu_items', { items: availableMenuItems });
 
     // handle window specific items from global macOS menu
-    const unlistenPromise = listen('macos_menu_clicked', (e) => {
+    const unlistenPromise = getCurrentWebviewWindow().listen('macos_menu_clicked', (e) => {
       menus.forEach((menu) => {
         menu.items.forEach((item) => {
           if (item.action && e.payload == item.macOsMenuItemId) {
