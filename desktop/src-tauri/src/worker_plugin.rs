@@ -284,9 +284,11 @@ pub fn install_worker_adapter_documents_store_sync<R: Runtime>(
                 move |document, media_file: worker_adapter::state::MediaFile| {
                     app_handle
                         .update_document(document, |mut doc| {
-                            let mut media_file =
-                                MediaFile::from_worker_adapter_media_file(media_file.clone())
-                                    .unwrap();
+                            let mut media_file = MediaFile::from_worker_adapter_media_file(
+                                media_file.clone(),
+                                doc.id,
+                            )
+                            .unwrap();
 
                             if !media_file.tags.contains(&"waveform".to_string()) {
                                 media_file.tags.push("browser_compatible".to_string());
