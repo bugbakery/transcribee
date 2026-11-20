@@ -20,7 +20,7 @@ import { showModal } from 'transcribee-ui-common/components/modal';
 import { ExportModal } from 'transcribee-ui-common/editor/export/index';
 import { useMediaPlayer } from 'transcribee-ui-common/utils/use_media_player';
 import { MediaPlayer } from 'transcribee-ui-common/utils/media_player';
-import { VideoSpacer } from 'transcribee-ui-common/components/video_spacer';
+import { DocumentBottomSpacer } from 'transcribee-ui-common/components/document_bottom_spacer';
 
 function useAutomergeLocalFileEditor(documentId: string): [Editor?, Paragraph[]?] {
   const [editorAndInitialValue, setEditorAndInitialValue] = useState<null | {
@@ -219,18 +219,18 @@ export function DocumentPage({
       {editor && (
         <SpeakerColorsProvider editor={editor}>
           <div className="p-6 overflow-y-scroll overscroll-contain h-screen">
-            <div className="max-w-screen-xl mx-auto flex flex-col border-box h-screen">
+            <div className="max-w-screen-xl mx-auto flex flex-col">
               {/* this container exists to limit overscroll on macos to only the contained elements */}
               <DocumentNotFinishedBannerFromId documentId={documentId} />
               <TranscriptionEditor
                 editor={editor}
                 initialValue={initialValue}
-                className={'grow flex flex-col pb-20'}
+                className={'grow flex flex-col'}
                 readOnly={false}
                 disableUndoRedoHotkeys // handled by the menu
               />
               {/* Spacer to prevent video preview from hiding text */}
-              <VideoSpacer mediaPlayer={mediaPlayer} />
+              <DocumentBottomSpacer mediaPlayer={mediaPlayer} />
             </div>
           </div>
 
