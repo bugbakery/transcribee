@@ -13,7 +13,7 @@ import { PrimaryButton } from 'transcribee-ui-common/components/button';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { useResizeWindowToFitElement } from '../utils/window';
+import { useResizeWindowToElementHeight } from '../utils/window';
 
 type FieldValues = {
   files: string[];
@@ -29,7 +29,7 @@ export function NewTranscriptDialog() {
   }, []);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  useResizeWindowToFitElement(containerRef);
+  useResizeWindowToElementHeight(containerRef);
 
   const {
     register,
