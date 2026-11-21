@@ -213,6 +213,7 @@ jobs:
           # add worker into extracted tree
           mkdir -p ./squashfs-root/usr/lib/transcribee-desktop/worker/
           tar -xf ../../../../../../worker/packaging/build/worker-*.tar -C ./squashfs-root/usr/lib/transcribee-desktop/worker/
+          chmod a+r,a+x ./squashfs-root
           # reassemble appimage with appimagetool
           curl -fsSL "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$(uname -m).AppImage" -o appimagetool
           chmod +x appimagetool
