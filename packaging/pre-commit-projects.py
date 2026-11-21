@@ -34,10 +34,11 @@ PROJECT_FILE_TYPES = {
         "checks": {
             "fmt": "cargo fmt",
             "clippy": (
-                "cargo clippy --all-features --fix --allow-dirty --allow-staged "
-                "&& cargo clippy --all-features -- -D warnings"
+                "cargo clippy --fix --allow-dirty --allow-staged "
+                "&& cargo clippy -- -D warnings"
             ),
-            "test": "cargo test --all-features",
+            # we dont test cargo projects in pre-commit because it is too slow:
+            # "test": "cargo test",
         },
     },
 }

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<title>fttw benchmark viewer</title>
+<style>
+    html,
+    body,
+    #main {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 0;
+        margin: 0;
+    }
+</style>
+
+x: <select id="x">
+    <option value="none">none</option>
+    <option value="machine">machine</option>
+    <option value="task">task</option>
+    <option value="backend">backend</option>
+</select>
+group: <select id="group">
+    <option value="none">none</option>
+    <option value="machine">machine</option>
+    <option value="task">task</option>
+    <option value="backend">backend</option>
+</select>
+filter: <select id="filter">
+    <option value="none">none</option>
+    <option value="machine">machine</option>
+    <option value="task">task</option>
+    <option value="backend">backend</option>
+</select>
+<select id="filter_value"></select>
+
+<div id="main"></div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/pocketbase@0.28.2/dist/pocketbase.umd.js"></script>
+<script src=" https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js "></script>
+<script type="text/javascript">
+    window.addEventListener('load', async () => {
+        pb = new PocketBase("https://fttw-perf.niemo.de/")
+        backends = (await (await pb.collection('backends')).getFullList()).map(x => x["backend"]);
+        machines = (await (await pb.collection('machines')).getFullList()).map(x => x["machine"]);
+        tasks = (await (await pb.collection('tasks')).getFullList()).map(x => x["task"]);
+
+        options = { backend: backends, machine: machines, task: tasks, none: [] };
+        updateFilterValues = () => {
+            document.getElementById("filter_value").innerHTML = options[filter.value]
+                .map(x => `<option value="${x}">${x}</option>`)
+                .reduce((a, b) => a + b, "")
+        }
+        updateFilterValues();
+        filter.addEventListener("change", updateFilterValues)
+
+        chart = echarts.init(main);
+        updateChart = async () => {
+            if (filter.value == 'none') {
+                filter_str = ``;
+            } else {
+                filter_str = ` && ${filter.value}="${filter_value.value}"`
+            }
+            data = Object.fromEntries((await Promise.all(
+                options[x.value].map(async xi => {
+                    try {
+                        return [[xi, (await pb.collection("benchmarks").getFirstListItem(`${x.value}="${xi}"${filter_str}`)).duration]]
+                    } catch {
+                        return []
+                    }
+                })
+            )).flat(1))
+
+            chart.setOption({
+                legend: {
+                    show: true
+                },
+                tooltip: {
+                    show: true,
+                },
+                xAxis: {},
+                yAxis: {
+                    type: 'category',
+                    inverse: true,
+                    data: Object.keys(data),
+                },
+                series: await Promise.all(options[group.value].map(async g => {
+                    data = (await Promise.all(
+                        Object.keys(data).map(async xi => {
+                            try {
+                                return (await pb.collection("benchmarks").getList(0, 1, {
+                                    filter: `${x.value}="${xi}"${filter_str} && ${group.value}="${g}"`,
+                                    sort: '+duration',
+                                    requestKey: null,
+                                })).items[0].duration
+                            } catch(e) {
+                                return undefined
+                            }
+                        })
+                    ))
+                    return {
+                        name: g,
+                        type: 'bar',
+                        data: Object.values(data),
+                        label: {
+                            show: true,
+                            position: 'right',
+                        },
+                    }
+                }))
+            })
+        };
+        updateChart();
+        [filter, filter_value, x, group].forEach(e => {
+            e.addEventListener("change", updateChart)
+        });
+    })
+</script>
