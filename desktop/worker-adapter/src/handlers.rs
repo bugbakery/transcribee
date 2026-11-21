@@ -1,6 +1,7 @@
 use crate::WorkerAdapter;
 use crate::state::{MediaFile, Task, TaskAttempt, TaskNotFoundError, TaskType};
 use crate::sync_message::SyncMessage;
+use axum::body::Body;
 use axum::extract::ws::Message;
 use axum::extract::{Path, State};
 use axum::{
@@ -36,10 +37,18 @@ pub async fn claim_unassigned_task(
     Json(task)
 }
 
+pub async fn stream_body_into_the_void(body: Body) {
+    body.into_data_stream().count().await;
+}
+
 pub async fn mark_completed(
     State(app_state): State<WorkerAdapter>,
     Path(task_id): Path<Uuid>,
+    body: Body,
 ) -> Result<Json<()>> {
+    // we need to read the body, otherwise the connection may be closed before the client expects it
+    stream_body_into_the_void(body).await;
+
     let mut tasks = app_state.tasks.lock().await;
     let document_uuid = tasks.get(&task_id).ok_or(TaskNotFoundError)?.document.id;
     tasks.complete_task(task_id)?;
@@ -51,7 +60,11 @@ pub async fn mark_completed(
 pub async fn mark_failed(
     State(app_state): State<WorkerAdapter>,
     Path(task_id): Path<Uuid>,
+    body: Body,
 ) -> Result<Json<()>> {
+    // we need to read the body, otherwise the connection may be closed before the client expects it
+    stream_body_into_the_void(body).await;
+
     let mut tasks = app_state.tasks.lock().await;
     tasks.fail_task(task_id)?;
     Ok(Json(()))
