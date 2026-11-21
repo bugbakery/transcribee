@@ -1,6 +1,9 @@
 use tauri::{AppHandle, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogResult};
-use worker_adapter::{state::TaskState::Completed, WorkerAdapter};
+use worker_adapter::{
+    state::TaskState::{Assigned, New},
+    WorkerAdapter,
+};
 
 pub async fn confirm_close_dialog(app: AppHandle) -> bool {
     let adapter = app.state::<WorkerAdapter>();
@@ -10,7 +13,7 @@ pub async fn confirm_close_dialog(app: AppHandle) -> bool {
         .await
         .tasks
         .iter()
-        .any(|(_uuid, task)| task.state != Completed)
+        .any(|(_uuid, task)| task.state == New || task.state == Assigned)
     {
         let dialog_res = app
                     .dialog()
