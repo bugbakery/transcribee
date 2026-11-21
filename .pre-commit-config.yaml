@@ -13,19 +13,6 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
-  # python checks
-  - repo: https://github.com/psf/black
-    rev: 23.1.0
-    hooks:
-      - id: black
-  - repo: local
-    hooks:
-      - id: ruff
-        name: Run ruff for python files
-        entry: ruff check --config .ruff.toml --force-exclude --fix
-        language: system
-        "types_or": [python, pyi]
-
   # package manager managed projects
   - repo: local
     hooks:
