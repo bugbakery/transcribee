@@ -74,15 +74,20 @@ if __name__ == "__main__":
         project_dir = (root / proj).parent
         cmd = PROJECT_FILE_TYPES[proj.name]["install"]
         handle = Popen(
-            cmd, cwd=str(project_dir), shell=True, stderr=STDOUT, stdout=PIPE
+            cmd,
+            cwd=str(project_dir),
+            shell=True,
+            stderr=STDOUT,
+            stdout=PIPE,
+            text=True,
         )
         handles[str(proj.parent)] = handle
     errors = []
     for name, handle in handles.items():
-        returncode = handle.wait()
-        if returncode != 0:
+        (stdout, _) = handle.communicate()
+        if handle.returncode != 0:
             print(f"❌ {name}:install")
-            print(handle.stdout)
+            print(indent(stdout, "   "))
             errors.append(name)
 
     if len(errors) != 0:
