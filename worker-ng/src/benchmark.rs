@@ -1,8 +1,9 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::whisper::{decoder, encoder};
 use anyhow::Result;
 use ndarray::Array2;
+use tokio::spawn;
 use tracing::{Level, event};
 
 pub async fn benchmark_whisper() -> Result<()> {
@@ -101,19 +102,19 @@ async fn report_benchmark_result(backend: &str, task: &str, duration: f32) -> Re
         }}"
     );
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_millis(100))
-        .build()?;
-    let res = client
-        .post("https://fttw-perf.niemo.de/api/collections/benchmarks/records")
-        .body(payload)
-        .header("Content-Type", "application/json")
-        .send()
-        .await;
+    spawn(async {
+        let client = reqwest::Client::new();
+        let res = client
+            .post("https://fttw-perf.niemo.de/api/collections/benchmarks/records")
+            .body(payload)
+            .header("Content-Type", "application/json")
+            .send()
+            .await;
 
-    if let Err(e) = res.and_then(|r| r.error_for_status()) {
-        event!(Level::ERROR, "error while pushing test results: {e:?}");
-    }
+        if let Err(e) = res.and_then(|r| r.error_for_status()) {
+            event!(Level::ERROR, "error while pushing test results: {e:?}");
+        }
+    });
 
     Ok(())
 }
