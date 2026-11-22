@@ -228,29 +228,27 @@ export function DocumentPage({
         </TopBar>
       </div>
 
-      {editor && (
-        <SpeakerColorsProvider editor={editor}>
-          <div className="overflow-y-scroll overscroll-contain h-screen flex">
-            <div className="max-w-screen-xl p-6 mx-auto flex flex-col grow">
-              <DocumentNotFinishedBannerAutoRefresh documentId={documentId} className="mt-6" />
-              <TranscriptionEditor
-                editor={editor}
-                initialValue={initialValue}
-                className={'grow flex flex-col'}
-                readOnly={!data || !data.can_write}
-              />
-              <Footer className="mt-16" />
-              {/* Spacer to prevent video preview from hiding text */}
-              <DocumentBottomSpacer mediaPlayer={mediaPlayer} />
-            </div>
+      <SpeakerColorsProvider editor={editor}>
+        <div className="overflow-y-scroll overscroll-contain h-screen flex">
+          <div className="max-w-screen-xl p-6 mx-auto flex flex-col grow">
+            <DocumentNotFinishedBannerAutoRefresh documentId={documentId} className="mt-6" />
+            <TranscriptionEditor
+              editor={editor}
+              initialValue={initialValue}
+              className={'grow flex flex-col'}
+              readOnly={!data || !data.can_write}
+            />
+            <Footer className="mt-16" />
+            {/* Spacer to prevent video preview from hiding text */}
+            <DocumentBottomSpacer mediaPlayer={mediaPlayer} />
           </div>
-          <PlayerBarAutoMediaFiles
-            documentId={documentId}
-            editor={editor}
-            mediaPlayer={mediaPlayer}
-          />
-        </SpeakerColorsProvider>
-      )}
+        </div>
+        <PlayerBarAutoMediaFiles
+          documentId={documentId}
+          editor={editor}
+          mediaPlayer={mediaPlayer}
+        />
+      </SpeakerColorsProvider>
 
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </div>

@@ -23,7 +23,7 @@ function getColor(n: number) {
   return palette[n % palette.length];
 }
 
-export function SpeakerColorsProvider({
+function SpeakerColorsProviderInner({
   children,
   editor,
 }: {
@@ -36,4 +36,16 @@ export function SpeakerColorsProvider({
   }, [speakerIDs]);
 
   return <SpeakerColorsContext.Provider value={colors}>{children}</SpeakerColorsContext.Provider>;
+}
+
+export function SpeakerColorsProvider({
+  children,
+  editor,
+}: {
+  children: React.ReactNode;
+  editor: Editor | undefined;
+}) {
+  if (!editor)
+    return <SpeakerColorsContext.Provider value={{}}>{children}</SpeakerColorsContext.Provider>;
+  return <SpeakerColorsProviderInner editor={editor}>{children}</SpeakerColorsProviderInner>;
 }
