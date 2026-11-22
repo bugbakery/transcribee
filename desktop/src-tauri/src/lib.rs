@@ -4,6 +4,7 @@ use std::time::SystemTime;
 
 use crate::confirm_close::confirm_close_dialog;
 use crate::file_handling::DocumentsStoreExt;
+use crate::update_check::check_for_update;
 use crate::window::{create_or_focus_document_window, create_or_focus_main_window};
 use crate::{before_exit::BeforeExitState, cmd::install_cmds};
 use colored::Color;
@@ -25,6 +26,7 @@ mod menu;
 mod range_util;
 mod tar;
 mod transcribee_archive;
+mod update_check;
 mod window;
 mod worker_plugin;
 
@@ -116,6 +118,12 @@ pub fn run() {
     let builder = builder
         .setup(|app| {
             handle_args(app.handle(), std::env::args().collect());
+            let app_handle = app.handle().clone();
+            spawn(async move {
+                if let Err(e) = check_for_update(&app_handle).await {
+                    warn!("Failed to check for update: {e:?}");
+                }
+            });
             Ok(())
         })
         .on_window_event(|window, event| {
