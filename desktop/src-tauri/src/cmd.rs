@@ -1,9 +1,11 @@
 use crate::{
     cmd_error::CmdResult,
-    file_handling::{get_media_files_folder, Document, DocumentsStoreExt, FrontendDocument},
+    file_handling::{
+        get_media_files_folder, Document, DocumentsStoreExt, FrontendDocument, MediaFile,
+    },
     media_file_serve::MediaFileBase,
     menu::{update_macos_menu_items, MenuState},
-    transcribee_archive::{self, MediaFileSource},
+    transcribee_archive::{self},
     window::{
         create_or_focus_document_window, create_or_focus_main_window, create_or_focus_window,
         focused_window,
@@ -317,7 +319,7 @@ pub async fn export_file_chooser_dialog(
 pub async fn get_document_media_for_save_or_display_error(
     app_handle: &AppHandle,
     document: &Document,
-) -> Result<MediaFileSource> {
+) -> Result<MediaFile> {
     let Some(media_file) = document
         .media_files
         .iter()
@@ -336,7 +338,7 @@ pub async fn get_document_media_for_save_or_display_error(
         ));
     };
 
-    Ok(media_file.source.clone())
+    Ok(media_file.clone())
 }
 
 #[tauri::command]

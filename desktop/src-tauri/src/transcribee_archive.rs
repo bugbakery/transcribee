@@ -1,24 +1,23 @@
 use crate::{
+    file_handling::MediaFile,
     range_util::{RangeChunks, RangeLen},
     tar::{
-        get_byte_range_of_file_in_tar, get_bytes_of_file_in_tar, pad_file_to_next_tar_block,
-        TarHeader, TAR_BLOCK_SIZE,
+        get_byte_range_of_file_in_tar, get_bytes_of_file_in_tar, get_next_tar_entry,
+        pad_file_to_next_tar_block, TarHeader, TAR_BLOCK_SIZE,
     },
 };
 use anyhow::{bail, Context, Result};
 use log::warn;
+use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom::Start, Write},
     ops::Range,
 };
+use uuid::Uuid;
 
-pub fn create_new(
-    path: &str,
-    media_file: Option<MediaFileSource>,
-    automerge_doc: &[u8],
-) -> Result<()> {
+pub fn create_new(path: &str, media_file: Option<MediaFile>, automerge_doc: &[u8]) -> Result<()> {
     let mut file = File::options()
         .read(true)
         .write(true)
@@ -32,14 +31,14 @@ pub fn create_new(
     if let Some(media_file) = media_file {
         file.write_all(
             &TarHeader {
-                path: "media".to_string(),
-                size: media_file.len()?,
+                path: format!("media/{}", media_file.tags.join("+")),
+                size: media_file.source.len()?,
             }
             .as_bytes()?,
         )?;
         // we copy the file in chunks of 10Mb to avoid having to load it into memory in full
-        for chunk in (0..media_file.len()?).chunks(10_000_000) {
-            let buf = media_file
+        for chunk in (0..media_file.source.len()?).chunks(10_000_000) {
+            let buf = media_file.source
                 .get_bytes(chunk.clone())
                 .with_context(|| format!("while trying to media_file.get_bytes({chunk:?}) in transcribe_archive::create_new with path={path}"))?;
             file.write_all(&buf)?;
@@ -144,6 +143,47 @@ pub fn get_automerge_doc(path: &str) -> Result<Vec<u8>> {
     get_bytes_of_file_in_tar(&mut file, "document.automerge").with_context(|| {
         format!("while get_bytes_of_file_in_tar in transcribe_archive::get_automerge_doc with path={path}")
     })
+}
+
+pub fn get_media_files(path: &str, doc_id: Uuid) -> Result<Vec<MediaFile>> {
+    let mut file = File::open(path).with_context(|| {
+        format!("while trying to open file in transcribe_archive::get_media_files with path={path}")
+    })?;
+
+    let mut media_files = Vec::new();
+    let mut offset = 0;
+    while let Some((header, file_start)) = get_next_tar_entry(&mut file, offset)? {
+        if header.path.starts_with("media") {
+            let mime_guess_bytes = 24;
+            let mut mime_guess_buf = vec![0u8; mime_guess_bytes];
+            file.seek(Start(file_start))?;
+            file.read_exact(&mut mime_guess_buf)?;
+            let content_type = infer::get(&mime_guess_buf)
+                .map(|x| x.mime_type())
+                .unwrap_or("application/octet-stream")
+                .to_string();
+
+            let tags = if let Some(tags_str) = header.path.strip_prefix("media/") {
+                tags_str.split('+').map(|s| s.to_string()).collect()
+            } else {
+                vec!["browser_compatible".to_string()]
+            };
+
+            let token = Alphanumeric.sample_string(&mut rand::rng(), 32);
+            media_files.push(MediaFile {
+                url: format!("{doc_id}/archive_{}+{token}", tags.join("+")),
+                tags,
+                content_type,
+                source: MediaFileSource::InTar {
+                    archive_path: path.to_string(),
+                    path_in_archive: header.path,
+                },
+            });
+        }
+        offset = file_start + header.size;
+    }
+
+    Ok(media_files)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
