@@ -21,8 +21,6 @@ use sentencex::segment;
 use std::char;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs::File;
-use std::io::Write;
 use std::ops::Range;
 use std::time::{Duration, Instant};
 use tracing::{Level, event, instrument};
@@ -294,45 +292,6 @@ impl<'w> WhisperTranscriptionSession<'w> {
             if !(self.on_progress)(self.timing_helper.get_progress()) {
                 event!(Level::INFO, "transcription job aborted");
                 bail!("aborted");
-            }
-
-            for (i, &chunk_idx) in to_process.iter().enumerate() {
-                let path = if matches!(
-                    chunk_states[chunk_idx],
-                    ChunkStates::CanProcessWithoutContext
-                ) {
-                    format!("target/chunk_{chunk_idx}_no_context.txt")
-                } else {
-                    format!("target/chunk_{chunk_idx}.txt")
-                };
-                let file = &mut File::options()
-                    .read(true)
-                    .write(true)
-                    .truncate(true)
-                    .create(true)
-                    .open(&path)?;
-                writeln!(file, "prompts:")?;
-                for seq in inputs[i].2 {
-                    let new_tokens_start = seq.len() - seq.new_tokens;
-                    let filtered: Vec<i64> = seq.tokens[new_tokens_start..]
-                        .iter()
-                        .cloned()
-                        .filter(|t| {
-                            !self
-                                .whisper
-                                .tokenizer
-                                .decode_single(*t)
-                                .unwrap()
-                                .contains("<|")
-                        })
-                        .collect();
-
-                    writeln!(file, "\t{}", self.whisper.tokenizer.decode(&filtered)?)?;
-                }
-                writeln!(file, "outputs:")?;
-                for seq in &outputs[i] {
-                    writeln!(file, "\t{}", self.whisper.tokenizer.decode(&seq.tokens)?)?;
-                }
             }
 
             for (&chunk_idx, decoded_chunk) in to_process.iter().zip(outputs) {
