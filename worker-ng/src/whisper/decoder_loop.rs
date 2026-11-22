@@ -16,7 +16,7 @@ use crate::whisper::timing::{calculate_alignment, preprocess_alignment_data};
 use crate::whisper::tokenizer::{LANGUAGES, NUM_TOKENS};
 use crate::whisper::tree_list::TreeList;
 use anyhow::{Ok, Result, bail};
-use ndarray::{Array1, Array2, Array3, ArrayView1, Axis, s, stack};
+use ndarray::{Array1, Array2, Array3, Axis, s, stack};
 use sentencex::segment;
 use std::char;
 use std::collections::HashMap;
@@ -41,6 +41,10 @@ pub struct WhisperModel {
 
     startofprev_sequence: Vec<i64>,
     punct_chars: Vec<char>,
+    punct_tokens: Vec<i64>,
+    nudge_towards_punct_delay: usize,
+    nudge_towards_punct_rate: f32,
+
     enable_sentence_combiner: bool,
 }
 impl WhisperModel {
@@ -54,9 +58,16 @@ impl WhisperModel {
         max_parallel_chunks: usize,
     ) -> Result<Self> {
         let mut startofprev_sequence = vec![tokenizer.startofprev()];
-        startofprev_sequence.extend_from_slice(&tokenizer.encode("?.,").unwrap());
+        startofprev_sequence.extend_from_slice(&tokenizer.encode("").unwrap());
 
-        let punct_chars = "?!.,¿¡;".chars().collect();
+        let punct_chars: Vec<char> = "?!.,¿¡;".chars().collect();
+        let punct_tokens = (0..NUM_TOKENS as i64)
+            .filter(|t| {
+                punct_chars
+                    .iter()
+                    .any(|p| tokenizer.decode_single(*t).unwrap().contains(*p))
+            })
+            .collect();
 
         Ok(Self {
             encoder,
@@ -74,6 +85,10 @@ impl WhisperModel {
 
             startofprev_sequence,
             punct_chars,
+            punct_tokens,
+            nudge_towards_punct_delay: 20,
+            nudge_towards_punct_rate: 0.01,
+
             enable_sentence_combiner: true,
         })
     }
@@ -762,9 +777,9 @@ impl<'w> WhisperTranscriptionSession<'w> {
         &mut self,
         x: &[(usize, AudioChunkHandle, &Vec<SequenceData>, f32)],
     ) -> Result<Vec<Vec<SequenceData>>> {
-        let mut transcribe_chunk_inputs: Vec<(usize, AudioChunkHandle, SequenceLight)> = vec![];
+        let mut transcribe_chunk_inputs: Vec<(usize, AudioChunkHandle, Vec<SequenceData>)> = vec![];
         for (chunk_idx, audio_chunk_handle, initial_beams, last_chunk_duration) in x {
-            let mut prompts: SequenceLight = vec![];
+            let mut prompts = vec![];
             for seq in initial_beams.iter() {
                 let mut tokens = vec![];
                 let mut logprobs = vec![];
@@ -843,7 +858,17 @@ impl<'w> WhisperTranscriptionSession<'w> {
                     logprobs.extend_from_slice(&vec![0.0; sot_sequence.len()]);
                 }
 
-                prompts.push((tokens.clone(), logprobs));
+                let prompt_sequence = SequenceData {
+                    tokens: tokens.clone(),
+                    logprobs: logprobs.to_vec(),
+                    naive_token_times: vec![],
+                    eot_prob: vec![],
+                    alignment_data: Default::default(),
+                    new_tokens: 0,
+                    tokens_since_last_punct: seq.tokens_since_last_punct,
+                };
+
+                prompts.push(prompt_sequence);
             }
 
             event!(Level::DEBUG, chunk_idx, "prompts:");
@@ -852,7 +877,7 @@ impl<'w> WhisperTranscriptionSession<'w> {
                     Level::DEBUG,
                     chunk_idx,
                     "\t{}",
-                    self.whisper.tokenizer.decode(&prompt.0).unwrap()
+                    self.whisper.tokenizer.decode(&prompt.tokens).unwrap()
                 )
             }
             transcribe_chunk_inputs.push((*chunk_idx, audio_chunk_handle.clone(), prompts));
@@ -976,7 +1001,7 @@ impl<'w> WhisperTranscriptionSession<'w> {
     #[instrument(level = Level::TRACE, skip_all)]
     fn transcribe_chunks(
         &mut self,
-        x: &[(usize, AudioChunkHandle, SequenceLight)],
+        x: &[(usize, AudioChunkHandle, Vec<SequenceData>)],
     ) -> Result<Vec<Vec<SequenceData>>> {
         let mut chunks: Vec<(AudioChunkHandle, Vec<(SequenceHandle, SequenceData)>)> = Vec::new();
         for (_chunk_idx, audio, prompts) in x {
@@ -984,17 +1009,12 @@ impl<'w> WhisperTranscriptionSession<'w> {
                 audio.clone(),
                 prompts
                     .iter()
-                    .map(|(prompt, logprobs)| {
+                    .map(|sequence_data| {
                         (
-                            self.whisper.decoder.register_sequence(prompt),
-                            SequenceData {
-                                tokens: prompt.to_vec(),
-                                logprobs: logprobs.to_vec(),
-                                naive_token_times: vec![],
-                                eot_prob: vec![],
-                                alignment_data: Default::default(),
-                                new_tokens: 0,
-                            },
+                            self.whisper
+                                .decoder
+                                .register_sequence(&sequence_data.tokens),
+                            sequence_data.clone(),
                         )
                     })
                     .collect::<Vec<_>>(),
@@ -1062,11 +1082,8 @@ impl<'w> WhisperTranscriptionSession<'w> {
                     nospeech_and_endoftext
                 }) + self.whisper.tokenizer.non_speech_tokens_mask()
             };
+
             let result = logits + mask;
-            let last_axis = Axis(result.shape().len() - 1);
-            let token_probs: Array3<f32> = softmax(result.into_dyn(), last_axis)
-                .into_dimensionality()
-                .unwrap();
 
             let mut next_chunks = chunks.clone();
             let mut result_idx = 0;
@@ -1079,10 +1096,25 @@ impl<'w> WhisperTranscriptionSession<'w> {
                 let mut best: TopNVec<(usize, &SequenceHandle, i64, f32)> =
                     TopNVec::new(self.whisper.beam_width);
                 let mut new_sequence_datas = vec![];
+
                 for (beam_idx, (seq_handle, sequence_data)) in beam.iter().enumerate() {
                     let last_token_idx = if i == 0 { sequence_data.len() - 1 } else { 0 };
-                    let token_probs: ArrayView1<f32> =
-                        token_probs.slice(s![result_idx, last_token_idx, ..]);
+                    let mut result_slice =
+                        result.slice(s![result_idx, last_token_idx, ..]).to_owned();
+                    if sequence_data.tokens_since_last_punct
+                        > self.whisper.nudge_towards_punct_delay
+                    {
+                        let nudge_factor = (sequence_data.tokens_since_last_punct
+                            - self.whisper.nudge_towards_punct_delay)
+                            as f32
+                            * self.whisper.nudge_towards_punct_rate;
+                        for t in &self.whisper.punct_tokens {
+                            result_slice[*t as usize] *= 1.0 + nudge_factor;
+                        }
+                    }
+
+                    let token_probs: Array1<f32> =
+                        softmax(result_slice.into_dyn(), Axis(0)).into_dimensionality()?;
 
                     let mut new_sequence_data = sequence_data.clone();
                     for i in 0..last_token_idx + 1 {
@@ -1155,6 +1187,17 @@ impl<'w> WhisperTranscriptionSession<'w> {
                     next_sequence_data.logprobs.push(token_prob.ln());
                     let next_seq = self.whisper.decoder.append_token_to_sequence(seq, token)?;
                     let naive_token_time = *next_sequence_data.naive_token_times.last().unwrap();
+                    let token_str = self.whisper.tokenizer.decode_single(token).unwrap();
+                    if self
+                        .whisper
+                        .punct_chars
+                        .iter()
+                        .any(|p| token_str.contains(*p))
+                    {
+                        next_sequence_data.tokens_since_last_punct = 0;
+                    } else {
+                        next_sequence_data.tokens_since_last_punct += 1;
+                    }
 
                     if token == self.whisper.tokenizer.endoftext() {
                         if token_prob > self.whisper.beamsearch_early_prune_min_token_conf
@@ -1209,8 +1252,7 @@ impl<'w> WhisperTranscriptionSession<'w> {
                             // an eot token yet. Now we cut the sequence at the position that is most likely to be the end
                             let eot_probs: &[f32] =
                                 &next_sequence_data.eot_prob[next_sequence_data.eot_prob.len()
-                                    - self.whisper.max_tokens_without_timing_progress
-                                    - 1..];
+                                    - self.whisper.max_tokens_without_timing_progress..];
                             let mut argmax = 0;
                             let mut max = 0.0;
                             for (i, &x) in eot_probs.iter().enumerate() {
@@ -1473,8 +1515,6 @@ impl<T> TopNVec<T> {
     }
 }
 
-type SequenceLight = Vec<(Vec<i64>, Vec<f32>)>;
-
 #[derive(Clone, Default)]
 pub struct SequenceData {
     tokens: Vec<i64>,
@@ -1483,6 +1523,7 @@ pub struct SequenceData {
     eot_prob: Vec<f32>,
     alignment_data: TreeList<Array2<f32>>, // [heads, audio_len],
     new_tokens: usize,
+    tokens_since_last_punct: usize,
 }
 impl SequenceData {
     pub fn len(&self) -> usize {
@@ -1528,6 +1569,7 @@ impl SequenceData {
             eot_prob: self.eot_prob[..self.eot_prob.len() - x].to_vec(),
             alignment_data: self.alignment_data.with_elements_removed_from_end(x - 1),
             new_tokens: self.new_tokens.saturating_sub(x),
+            tokens_since_last_punct: self.tokens_since_last_punct - x,
         }
     }
 }
