@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .or_else(|_| tracing_subscriber::EnvFilter::try_new("info"))
+                .or_else(|_| tracing_subscriber::EnvFilter::try_new("ort=warn,info"))
                 .unwrap(),
         )
         .with(tracing_subscriber::fmt::layer())
