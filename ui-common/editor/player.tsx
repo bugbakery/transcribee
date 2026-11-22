@@ -34,9 +34,9 @@ export function splitAndSortMediaFiles(mediaFiles: MediaFile[]) {
   const videoFiles = mediaFiles.filter(
     (media) => !media.tags.includes('waveform') && media.tags.includes('video'),
   );
-  const audioFiles = mediaFiles.filter(
-    (media) => !media.tags.includes('waveform') && !media.tags.includes('video'),
-  );
+  const audioFiles = mediaFiles
+    .filter((media) => !media.tags.includes('waveform') && !media.tags.includes('video'))
+    .filter((media) => mediaFiles.length == 1 || !media.tags.includes('original'));
   const waveformFiles = mediaFiles.filter((media) => media.tags.includes('waveform'));
 
   const mapFile = (media: (typeof mediaFiles)[0]) => {
@@ -82,7 +82,8 @@ export function PlayerBar({
   const reallyShowVideo = showVideo && hasVideo;
 
   useEffect(() => {
-    mediaPlayer.load(reallyShowVideo ? videoSources : audioSources);
+    // fallback to video sources for audio playback
+    mediaPlayer.load(reallyShowVideo ? videoSources : [...audioSources, ...videoSources]);
 
     const key = `video-size-${documentId}`;
     const videoHeight = window.localStorage.getItem(key);
