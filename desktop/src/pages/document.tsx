@@ -216,27 +216,25 @@ export function DocumentPage({
       />
       <TitleSetter documentId={documentId} />
 
-      {editor && (
-        <SpeakerColorsProvider editor={editor}>
-          <div className="p-6 overflow-y-scroll overscroll-contain h-screen">
-            <div className="max-w-screen-xl mx-auto flex flex-col">
-              {/* this container exists to limit overscroll on macos to only the contained elements */}
-              <DocumentNotFinishedBannerFromId documentId={documentId} />
-              <TranscriptionEditor
-                editor={editor}
-                initialValue={initialValue}
-                className={'grow flex flex-col'}
-                readOnly={false}
-                disableUndoRedoHotkeys // handled by the menu
-              />
-              {/* Spacer to prevent video preview from hiding text */}
-              <DocumentBottomSpacer mediaPlayer={mediaPlayer} />
-            </div>
+      <SpeakerColorsProvider editor={editor}>
+        <div className="p-6 overflow-y-scroll overscroll-contain h-screen">
+          <div className="max-w-screen-xl mx-auto flex flex-col">
+            {/* this container exists to limit overscroll on macos to only the contained elements */}
+            <DocumentNotFinishedBannerFromId documentId={documentId} />
+            <TranscriptionEditor
+              editor={editor}
+              initialValue={initialValue}
+              className={'grow flex flex-col'}
+              readOnly={false}
+              disableUndoRedoHotkeys // handled by the menu
+            />
+            {/* Spacer to prevent video preview from hiding text */}
+            <DocumentBottomSpacer mediaPlayer={mediaPlayer} />
           </div>
+        </div>
 
-          <PlayerBarWithMedia documentId={documentId} editor={editor} mediaPlayer={mediaPlayer} />
-        </SpeakerColorsProvider>
-      )}
+        <PlayerBarWithMedia documentId={documentId} editor={editor} mediaPlayer={mediaPlayer} />
+      </SpeakerColorsProvider>
 
       {editor && debugMode && <Suspense>{<LazyDebugPanel editor={editor} />}</Suspense>}
     </div>
