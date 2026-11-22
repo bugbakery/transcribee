@@ -1,4 +1,3 @@
-use log::warn;
 use std::ops::Range;
 use tracing::{Level, event, instrument};
 
@@ -36,7 +35,8 @@ pub fn get_chunks(vad_samples: &[f32], sr: f32, max_len: f32, overlap: f32) -> V
             pos..silence.end
         } else {
             let end = (pos + max_len).min(vad_samples.len() as f32 / sr);
-            warn!(
+            event!(
+                Level::WARN,
                 "Splitting at maximum len at {end} (and not at silence) because no silence was found between {start} and {end}. This is potentially very bad and can cause chunking artifacts!",
                 end = format_time(pos + max_len),
                 start = format_time(pos)

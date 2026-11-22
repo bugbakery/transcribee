@@ -147,7 +147,13 @@ fn benchmark(n: usize, mut work: impl FnMut()) -> (f32, f32, f32) {
 }
 
 fn benchmark_with_setup(n: usize, mut work: impl FnMut() -> f32) -> (f32, f32, f32) {
-    let mut times: Vec<f32> = (0..n).map(|_| work()).collect();
+    let mut times: Vec<f32> = (0..n)
+        .map(|_| {
+            let time = work();
+            event!(Level::INFO, "run took {:.02}ms", time * 1000.);
+            time
+        })
+        .collect();
     times.remove(0); // first run is warmup
     let min = *times.iter().min_by(|a, b| a.total_cmp(b)).unwrap();
     let mean = times.iter().sum::<f32>() / times.len() as f32;

@@ -8003,7 +8003,6 @@ dependencies = [
  "half",
  "indicatif",
  "json",
- "log",
  "mlx-rs",
  "ndarray 0.17.2",
  "npyz",
