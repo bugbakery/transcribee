@@ -23,8 +23,12 @@ pub fn get_backends(_model_folder: &str) -> Vec<(&str, WhisperDecoderBackendFact
     #[rustfmt::skip]
     let backends: Vec<(&str, WhisperDecoderBackendFactory)> = vec![
         #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
+        b!("ONNX Runtime OpenVINO GPU", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::OpenVINO::default().with_device_type("GPU").build().error_on_failure(), "./target/whisper_large_v3_turbo_decoder.onnx")),
+        #[cfg(feature = "backend-onnxruntime")]
+        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::WebGPU::default().build().error_on_failure(), "./target/whisper_large_v3_turbo_decoder.onnx")),
 
+        #[cfg(feature = "backend-onnxruntime")]
+        b!("ONNX Runtime OpenVINO CPU", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::OpenVINO::default().with_device_type("CPU").build().error_on_failure(), "./target/whisper_large_v3_turbo_decoder.onnx")),
         #[cfg(feature = "backend-onnxruntime")]
         b!("ONNX Runtime CPU diy attn", crate::backends::onnx::whisper_decoder::WhisperDecoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_decoder.onnx")),
     ];

@@ -30,6 +30,7 @@ ort = { version = "2.0.0-rc.15", default-features = false, optional = true, feat
     "ndarray",
     "webgpu",
     "api-27",
+    "openvino",
     "half",
     "load-dynamic",
     "tracing",

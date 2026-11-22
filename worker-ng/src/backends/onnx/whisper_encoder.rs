@@ -1,13 +1,14 @@
+use std::path::Path;
+
 use super::ORT_RUNTIME;
 use crate::whisper::encoder::WhisperEncoderBackend;
-use anyhow::Result;
+use anyhow::{Result, format_err};
 use ndarray::{Array2, Axis};
 use ort::{
     ep::ExecutionProviderDispatch,
     session::{Session, builder::GraphOptimizationLevel},
     value::Value,
 };
-use std::path::Path;
 use tracing::{Level, instrument};
 
 #[derive(Debug)]
@@ -18,19 +19,19 @@ impl WhisperEncoderOrt {
     pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
         let model = Session::builder(&ORT_RUNTIME)?
             .with_execution_providers([backend.clone()])
-            .unwrap()
+            .map_err(|e| format_err!("{}", e.message()))?
             .with_optimization_level(GraphOptimizationLevel::Level3)
-            .unwrap()
+            .map_err(|e| format_err!("{}", e.message()))?
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
                 Path::new(model_path).parent().unwrap().to_str().unwrap(),
             )
-            .unwrap()
+            .map_err(|e| format_err!("{}", e.message()))?
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
                 Path::new(model_path).parent().unwrap().to_str().unwrap(),
             )
-            .unwrap()
+            .map_err(|e| format_err!("{}", e.message()))?
             .commit_from_memory(include_bytes!(
                 "./models/whisper_large_v3_turbo_encoder.onnx"
             ))?;

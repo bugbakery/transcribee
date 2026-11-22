@@ -7,7 +7,7 @@ use crate::whisper::{
     },
     handle::Handle,
 };
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, format_err};
 use half::f16;
 use ndarray::{Array1, Array2, Array3, Array4, s};
 use ort::{
@@ -58,14 +58,14 @@ impl WhisperDecoderOrt {
     pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
         let model = Session::builder(&ORT_RUNTIME)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
-            .unwrap()
+            .map_err(|e| format_err!("{}", e.message()))?
             .with_execution_providers([backend.clone()])
-            .unwrap()
+            .map_err(|e| format_err!("{}", e.message()))?
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
                 Path::new(model_path).parent().unwrap().to_str().unwrap(),
             )
-            .unwrap()
+            .map_err(|e| format_err!("{}", e.message()))?
             .commit_from_memory(include_bytes!(
                 "./models/whisper_large_v3_turbo_decoder.onnx"
             ))?;

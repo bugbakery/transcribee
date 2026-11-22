@@ -8,7 +8,13 @@ use tracing::{Level, event};
 
 pub async fn benchmark_whisper() -> Result<()> {
     for (name, backend) in encoder::get_backends("target/") {
-        let mut backend = backend().unwrap();
+        let mut backend = match backend() {
+            Ok(backend) => backend,
+            Err(e) => {
+                event!(Level::WARN, "could not construct backend {name}: {e:?}");
+                continue;
+            }
+        };
         println!("benchmarking encoder {}...", name);
         let (min, mean, max) = benchmark(10, || {
             let dummy_data = Array2::zeros((128, 3000));
@@ -19,7 +25,13 @@ pub async fn benchmark_whisper() -> Result<()> {
     }
 
     for (name, backend) in decoder::get_backends("target/") {
-        let mut backend = backend().unwrap();
+        let mut backend = match backend() {
+            Ok(backend) => backend,
+            Err(e) => {
+                event!(Level::WARN, "could not construct backend {name}: {e:?}");
+                continue;
+            }
+        };
         println!("benchmarking decoder {}...", name);
         let mut chunk = None;
         let (min, mean, max) = benchmark(10, || {

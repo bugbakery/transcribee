@@ -11,6 +11,7 @@ use clap::{Arg, Command};
 use indicatif::ProgressBar;
 use std::fs::File;
 use std::io::Write;
+use tracing::{Level, event};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod audio_reader;
@@ -88,8 +89,41 @@ async fn main() -> Result<()> {
         let ar = AudioReader::new(f)?;
 
         // todo: store benchmark somewhere and pick the fastest
-        let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
-        let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
+        let encoder = 'backend_search: {
+            for (name, factory) in encoder::get_backends("target/") {
+                match factory() {
+                    Result::Ok(backend) => {
+                        event!(Level::INFO, "selected encoder backend {name}");
+                        break 'backend_search backend;
+                    }
+                    Err(e) => {
+                        event!(
+                            Level::WARN,
+                            "could not construct encoder backend {name}: {e:?}"
+                        );
+                    }
+                }
+            }
+            panic!("did not find a working encoder backend")
+        };
+        let decoder = 'backend_search: {
+            for (name, factory) in decoder::get_backends("target/") {
+                match factory() {
+                    Result::Ok(backend) => {
+                        event!(Level::INFO, "selected decoder backend {name}");
+                        break 'backend_search backend;
+                    }
+                    Err(e) => {
+                        event!(
+                            Level::WARN,
+                            "could not construct decoder backend {name}: {e:?}"
+                        );
+                    }
+                }
+            }
+            panic!("did not find a working decoder backend")
+        };
+
         let tokenizer = Tokenizer::new().await?;
         let mut whisper = WhisperModel::new(encoder, decoder, tokenizer, 5)?;
 

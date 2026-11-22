@@ -23,13 +23,17 @@ pub fn get_backends(_model_folder: &str) -> Vec<(&str, WhisperEncoderBackendFact
     let backends: Vec<(&str, WhisperEncoderBackendFactory)> = vec![
         #[cfg(feature = "backend-mlx")]
         b!("MLX GPU", crate::backends::mlx::whisper_encoder::WhisperEncoderMlx::new(mlx_rs::DeviceType::Gpu, "./target/whisper_large_v3_turbo.safetensors")),
+        #[cfg(feature = "backend-onnxruntime")]
+        b!("ONNX Runtime OpenVINO GPU", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::OpenVINO::default().with_device_type("GPU").build().error_on_failure(), "./target/whisper_large_v3_turbo_decoder.onnx")),
         #[cfg(feature = "backend-burn")]
         b!("Burn WebGPU", crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(burn_tensor::Device::wgpu(Default::default()), "./target/whisper_large_v3_turbo.safetensors")),
         #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::WebGPU::default().build(), "./target/whisper_large_v3_turbo_encoder.onnx")),
+        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::WebGPU::default().build().error_on_failure(), "./target/whisper_large_v3_turbo_encoder.onnx")),
 
         #[cfg(feature = "backend-mlx")]
         b!("MLX CPU", crate::backends::mlx::whisper_encoder::WhisperEncoderMlx::new(mlx_rs::DeviceType::Cpu, "./target/whisper_large_v3_turbo.safetensors")),
+        #[cfg(feature = "backend-onnxruntime")]
+        b!("ONNX Runtime OpenVINO CPU", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::OpenVINO::default().with_device_type("CPU").build().error_on_failure(), "./target/whisper_large_v3_turbo_decoder.onnx")),
         #[cfg(feature = "backend-burn")]
         b!("Burn flex (CPU)", crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(burn_tensor::Device::flex(), "./target/whisper_large_v3_turbo.safetensors")),
         #[cfg(feature = "backend-onnxruntime")]
