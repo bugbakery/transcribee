@@ -8,7 +8,7 @@
 //! file name.
 
 use crate::media_file_serve::MediaFileBase;
-use crate::transcribee_archive::{self, MediaFileSource};
+use crate::transcribee_archive::{self, get_media_files, MediaFileSource};
 use anyhow::{anyhow, bail, Result};
 use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
@@ -233,23 +233,7 @@ impl<R: Runtime, T: Manager<R> + Emitter<R>> DocumentsStoreExt<R> for T {
 
         let automerge_doc = transcribee_archive::get_automerge_doc(path)?;
         let (id, app_data_path) = create_new_appdata_transcribee_archive(self, &automerge_doc)?;
-
-        let media_source = MediaFileSource::InTar {
-            archive_path: path.to_string(),
-            path_in_archive: "media".to_string(),
-        };
-        let mime_guess_bytes = 24;
-        let mime_guess_buf = media_source.get_bytes(0..mime_guess_bytes)?;
-        let mime = infer::get(&mime_guess_buf)
-            .map(|x| x.mime_type())
-            .unwrap_or("application/octet-stream");
-        let token = Alphanumeric.sample_string(&mut rand::rng(), 32);
-        let media_files = vec![MediaFile {
-            content_type: mime.to_string(),
-            tags: vec!["browser_compatible".to_string()],
-            url: format!("{id}/media+{token}"),
-            source: media_source,
-        }];
+        let media_files = get_media_files(path, id)?;
 
         let document = Document {
             id,
