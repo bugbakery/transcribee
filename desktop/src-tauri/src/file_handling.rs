@@ -138,7 +138,8 @@ impl MediaFile {
             .map(|x| x.mime_type())
             .unwrap_or("application/octet-stream");
 
-        let url = format!("{}/worker_{}", doc_id, v.tags.join("+"));
+        let token = Alphanumeric.sample_string(&mut rand::rng(), 32);
+        let url = format!("{}/worker_{}+{token}", doc_id, v.tags.join("+"));
 
         Ok(Self {
             content_type: mime.to_string(),
