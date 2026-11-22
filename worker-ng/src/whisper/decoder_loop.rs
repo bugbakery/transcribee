@@ -37,6 +37,7 @@ pub struct WhisperModel {
 
     beamsearch_early_prune_min_token_conf: f32,
     beamsearch_early_prune_max_decission_postpone: usize,
+    max_tokens_without_timing_progress: usize,
 
     startofprev_sequence: Vec<i64>,
     punct_chars: Vec<char>,
@@ -69,6 +70,7 @@ impl WhisperModel {
 
             beamsearch_early_prune_min_token_conf: 0.1,
             beamsearch_early_prune_max_decission_postpone: 10,
+            max_tokens_without_timing_progress: 20,
 
             startofprev_sequence,
             punct_chars,
@@ -1190,6 +1192,53 @@ impl<'w> WhisperTranscriptionSession<'w> {
                         finished[chunk_idx].push(next_sequence_data);
                     } else if finished[chunk_idx].is_empty() {
                         // we cannot prune all
+
+                        if next_sequence_data.naive_token_times.len()
+                            > self.whisper.max_tokens_without_timing_progress
+                            && next_sequence_data.eot_prob.len()
+                                > self.whisper.max_tokens_without_timing_progress
+                            && next_sequence_data.naive_token_times
+                                [next_sequence_data.naive_token_times.len() - 1]
+                                == next_sequence_data.naive_token_times[next_sequence_data
+                                    .naive_token_times
+                                    .len()
+                                    - self.whisper.max_tokens_without_timing_progress
+                                    - 1]
+                        {
+                            // no timing progress since 20 tokens: probably we are stuck in a loop but we did not generate
+                            // an eot token yet. Now we cut the sequence at the position that is most likely to be the end
+                            let eot_probs: &[f32] =
+                                &next_sequence_data.eot_prob[next_sequence_data.eot_prob.len()
+                                    - self.whisper.max_tokens_without_timing_progress
+                                    - 1..];
+                            let mut argmax = 0;
+                            let mut max = 0.0;
+                            for (i, &x) in eot_probs.iter().enumerate() {
+                                if x > max {
+                                    max = x;
+                                    argmax = i
+                                }
+                            }
+                            let cut_sequence = next_sequence_data.with_x_tokens_removed_from_end(
+                                self.whisper.max_tokens_without_timing_progress - argmax,
+                            );
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> finished (cut tokens of end because no progress)",
+                                self.whisper.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score
+                            );
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "cut tokens of end eot probs: {:?}",
+                                eot_probs
+                            );
+                            finished[chunk_idx].push(cut_sequence);
+                            break;
+                        }
+
                         if best_token_prob < self.whisper.beamsearch_early_prune_min_token_conf {
                             // all options are shit, we cannot decide now, thus we keep all beams
                             event!(
@@ -1215,6 +1264,28 @@ impl<'w> WhisperTranscriptionSession<'w> {
                         }
                     } else {
                         // we could prune all
+
+                        if next_sequence_data.naive_token_times.len()
+                            > self.whisper.max_tokens_without_timing_progress
+                            && next_sequence_data.naive_token_times
+                                [next_sequence_data.naive_token_times.len() - 1]
+                                == next_sequence_data.naive_token_times[next_sequence_data
+                                    .naive_token_times
+                                    .len()
+                                    - self.whisper.max_tokens_without_timing_progress
+                                    - 1]
+                        {
+                            // we prune the beam because of no timing progress
+                            event!(
+                                Level::TRACE,
+                                chunk_idx = x[chunk_idx].0,
+                                "{} (score: {}; token_prob: {token_prob}; naive_token_time: {naive_token_time}) -> prune (no timing progress since {} tokens)",
+                                self.whisper.tokenizer.decode(&next_sequence_data.tokens)?,
+                                score,
+                                self.whisper.max_tokens_without_timing_progress
+                            );
+                            self.timing_helper.pruned += 1;
+                        }
                         if token_prob > self.whisper.beamsearch_early_prune_min_token_conf
                             || next_sequence_data.logprob_sum_normalized() > best_score
                         {
