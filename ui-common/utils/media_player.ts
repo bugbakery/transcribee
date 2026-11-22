@@ -262,16 +262,21 @@ export class MediaPlayer {
       this.#playtime = playtime;
     }
 
-    this.#mediaElement.innerHTML = '';
+    let newInnerHtml = '';
     sources.forEach((source) => {
       const sourceElement = document.createElement('source');
       sourceElement.src = source.src;
       sourceElement.type = source.type;
-      this.#mediaElement.appendChild(sourceElement);
+      newInnerHtml += sourceElement.outerHTML;
     });
-    this.#mediaElement.load();
-    if (this.#playing) {
-      actions(this.#mediaElement).play();
+
+    // ignore load when nothing changes
+    if (this.#mediaElement.innerHTML != newInnerHtml) {
+      this.#mediaElement.innerHTML = newInnerHtml;
+      this.#mediaElement.load();
+      if (this.#playing) {
+        actions(this.#mediaElement).play();
+      }
     }
   }
 
