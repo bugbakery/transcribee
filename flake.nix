@@ -2,7 +2,7 @@
   description = "transcribee monorepo";
 
   inputs = {
-    nixpkgs.url = "https://channels.nixos.org/nixos-26.05/nixexprs.tar.zst";
+    nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
     flake-utils.url = "github:numtide/flake-utils";
     nixgl = {
       url = "github:nix-community/nixGL";
@@ -89,6 +89,9 @@
             pkgs.bzip2
             pkgs.lame
             pkgs.libz
+            pkgs.onnxruntime
+            pkgs.gcc
+            pkgs.nasm
           ] ++ pkgs.lib.optionals (!pkgs.stdenv.isDarwin) [
             # required by desktop
             pkgs.libsoup_3

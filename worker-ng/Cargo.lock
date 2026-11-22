@@ -7999,6 +7999,7 @@ dependencies = [
  "compile-time-run",
  "earshot",
  "ez-ffmpeg",
+ "ffmpeg-sys-next",
  "futures",
  "half",
  "indicatif",
