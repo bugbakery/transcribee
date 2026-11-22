@@ -1,13 +1,25 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::whisper::{decoder, encoder};
 use anyhow::Result;
 use ndarray::Array2;
+use tracing::{Level, event};
 
 pub async fn benchmark_whisper() -> Result<()> {
+    for (name, backend) in encoder::get_backends("target/") {
+        let mut backend = backend().unwrap();
+        println!("benchmarking encoder {}...", name);
+        let (min, mean, max) = benchmark(10, || {
+            let dummy_data = Array2::zeros((128, 3000));
+            backend.encode(dummy_data).unwrap();
+        });
+        println!("-> encode() min={min} mean={mean} max={max}");
+        report_benchmark_result(name, "encode", mean).await?;
+    }
+
     for (name, backend) in decoder::get_backends("target/") {
         let mut backend = backend().unwrap();
-        println!("benchmarking {}...", name);
+        println!("benchmarking decoder {}...", name);
         let mut chunk = None;
         let (min, mean, max) = benchmark(10, || {
             let dummy_data = Array2::zeros((1500, 1280));
@@ -37,14 +49,14 @@ pub async fn benchmark_whisper() -> Result<()> {
         }
 
         for batch in [1, 5, 10, 20] {
-            let seq = backend.register_sequence(&vec![0i64; 100]);
+            let mut seq = backend.register_sequence(&vec![0i64; 100]);
             let (min, mean, max) = benchmark_with_setup(10, || {
                 backend
                     .forward(&vec![(chunk.clone(), seq.clone()); 1])
                     .unwrap();
                 let start = Instant::now();
                 for _ in 0..10 {
-                    //seq = backend.append_token_to_sequence(&seq, 0, 1.0).unwrap();
+                    seq = backend.append_token_to_sequence(&seq, 0).unwrap();
                     backend
                         .forward(&vec![(chunk.clone(), seq.clone()); batch])
                         .unwrap();
@@ -61,17 +73,6 @@ pub async fn benchmark_whisper() -> Result<()> {
             )
             .await?;
         }
-    }
-
-    for (name, backend) in encoder::get_backends("target/") {
-        let mut backend = backend().unwrap();
-        println!("benchmarking {}...", name);
-        let (min, mean, max) = benchmark(10, || {
-            let dummy_data = Array2::zeros((128, 3000));
-            backend.encode(dummy_data).unwrap();
-        });
-        println!("-> encode() min={min} mean={mean} max={max}");
-        report_benchmark_result(name, "encode", mean).await?;
     }
 
     Ok(())
@@ -100,14 +101,19 @@ async fn report_benchmark_result(backend: &str, task: &str, duration: f32) -> Re
         }}"
     );
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(100))
+        .build()?;
     let res = client
         .post("https://fttw-perf.niemo.de/api/collections/benchmarks/records")
         .body(payload)
         .header("Content-Type", "application/json")
         .send()
-        .await?;
-    res.error_for_status()?;
+        .await;
+
+    if let Err(e) = res.and_then(|r| r.error_for_status()) {
+        event!(Level::ERROR, "error while pushing test results: {e:?}");
+    }
 
     Ok(())
 }

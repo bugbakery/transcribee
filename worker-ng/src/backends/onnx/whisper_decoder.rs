@@ -27,13 +27,32 @@ pub struct OrtSequenceHandle {
     last_handle: Option<Handle>,
 }
 
-#[derive(Debug)]
 pub struct WhisperDecoderOrt {
     cross_kv: CrossKV,
     kv_cache: KvCache,
     // this needs to be last, otherwise the process segfaults on drop because ort tries to drop
     // the tensors of the already freed context:
     model: Session,
+    ep: ExecutionProviderDispatch,
+}
+impl WhisperDecoderOrt {
+    fn memory_info_on_device(&self) -> Result<MemoryInfo<'static>> {
+        let mem_info = match self.ep.name() {
+            "WebGpuExecutionProvider" => MemoryInfo::new(
+                AllocationDevice::WEBGPU_BUFFER,
+                0,
+                AllocatorType::Device,
+                MemoryType::Default,
+            ),
+            _ => MemoryInfo::new(
+                self.model.allocator().memory_info().allocation_device(),
+                self.model.allocator().memory_info().device_id(),
+                self.model.allocator().memory_info().allocator_type(),
+                self.model.allocator().memory_info().memory_type(),
+            ),
+        };
+        Ok(mem_info?)
+    }
 }
 impl WhisperDecoderOrt {
     pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
@@ -62,6 +81,7 @@ impl WhisperDecoderOrt {
                 &format!("{base_path}_decoder_cross_kv_prefill.onnx"),
             )?,
             kv_cache: KvCache::default(),
+            ep: backend.clone(),
         })
     }
 }
@@ -74,13 +94,13 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
     ) -> Result<Vec<AudioChunkHandle>> {
         Ok(self
             .cross_kv
-            .register_encoded_audio_chunks(chunks)?
+            .register_encoded_audio_chunks(chunks, &self.memory_info_on_device()?)?
             .into_iter()
             .map(AudioChunkHandle::downcast)
             .collect())
     }
 
-    #[instrument(level = Level::TRACE)]
+    #[instrument(level = Level::TRACE, skip_all)]
     fn register_sequence(&mut self, tokens: &[i64]) -> SequenceHandle {
         SequenceHandle::downcast(OrtSequenceHandle {
             tokens: tokens.to_vec(),
@@ -89,7 +109,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
         })
     }
 
-    #[instrument(level = Level::TRACE)]
+    #[instrument(level = Level::TRACE, skip_all)]
     fn append_token_to_sequence(
         &mut self,
         seq: &SequenceHandle,
@@ -187,12 +207,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
 
             self.kv_cache.add_self_to_ort_binding(
                 &mut binding,
-                &MemoryInfo::new(
-                    AllocationDevice::WEBGPU_BUFFER,
-                    0,
-                    AllocatorType::Device,
-                    MemoryType::Default,
-                )?,
+                &self.memory_info_on_device()?,
                 inputs.iter().map(|(_, s)| s.last_handle.as_ref().unwrap()),
             )?;
 
@@ -293,6 +308,7 @@ impl CrossKV {
     fn register_encoded_audio_chunks(
         &mut self,
         chunks: &[Array2<f32>],
+        memory_info: &MemoryInfo,
     ) -> Result<Vec<OrtAudioChunkHandle>> {
         let batch_size = self.registered_audio_chunks.len() + chunks.len();
         let mut encoder_hidden_states = Array3::zeros((batch_size, 1500, 1280));
@@ -315,15 +331,7 @@ impl CrossKV {
             .map(|o| o.name().to_string())
             .collect();
         for output in &output_names {
-            binding.bind_output_to_device(
-                output,
-                &MemoryInfo::new(
-                    AllocationDevice::WEBGPU_BUFFER,
-                    0,
-                    AllocatorType::Device,
-                    MemoryType::Default,
-                )?,
-            )?;
+            binding.bind_output_to_device(output, memory_info)?;
         }
 
         let mut outputs = self
