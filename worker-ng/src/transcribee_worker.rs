@@ -157,12 +157,29 @@ pub async fn process_task(
             let children = doc.put_object(&paragraph, "children", automerge::ObjType::List)?;
             for (i, atom) in bar.atoms.iter().enumerate() {
                 let child = doc.insert_object(&children, i, automerge::ObjType::Map)?;
-                let text = doc.put_object(&child, "text", automerge::ObjType::Text)?;
-                doc.splice_text(&text, 0, 0, &atom.text)?;
-                doc.put(&child, "start", atom.start as f64)?;
-                doc.put(&child, "end", atom.end as f64)?;
-                doc.put(&child, "conf", atom.conf as f64)?;
-                doc.put(&child, "conf_ts", atom.conf_ts as f64)?;
+                match atom {
+                    crate::whisper::decoder_loop::Atom::WithTiming {
+                        text,
+                        conf,
+                        start,
+                        end,
+                        conf_ts,
+                    } => {
+                        let automerge_text =
+                            doc.put_object(&child, "text", automerge::ObjType::Text)?;
+                        doc.splice_text(&automerge_text, 0, 0, text)?;
+                        doc.put(&child, "conf", *conf as f64)?;
+                        doc.put(&child, "start", *start as f64)?;
+                        doc.put(&child, "end", *end as f64)?;
+                        doc.put(&child, "conf_ts", *conf_ts as f64)?;
+                    }
+                    crate::whisper::decoder_loop::Atom::WithoutTiming { text, conf } => {
+                        let automerge_text =
+                            doc.put_object(&child, "text", automerge::ObjType::Text)?;
+                        doc.splice_text(&automerge_text, 0, 0, text)?;
+                        doc.put(&child, "conf", *conf as f64)?;
+                    }
+                }
             }
             Ok(())
         })

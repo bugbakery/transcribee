@@ -6,18 +6,17 @@ use ndarray::{Array2, Array3, ArrayD, Axis, s};
 
 use crate::whisper::math::softmax;
 
-pub fn calculate_alignment(
+pub fn preprocess_alignment_data(
     x: Array3<f32>, // [tokens, heads, encoder_frames]
     num_frames: usize,
-) -> Result<Vec<usize>> {
+) -> Array2<f32> {
     if x.shape()[0] == 0 {
-        return Ok(vec![]);
+        return Array2::zeros((0, 0));
     }
 
     let x = x.slice_move(s![.., .., ..num_frames]);
 
     // 1. do softmax to the last axis (audio chunks)
-    // this is already folded into the onnx model so we skip this step
     let x = softmax(x.into_dyn(), Axis(2));
 
     // 2. rescale by mean and std in the second to last axis (tokens)
@@ -31,10 +30,16 @@ pub fn calculate_alignment(
         .unwrap();
 
     // 4. take the mean of all heads
-    let x = x.mean_axis(Axis(1)).unwrap();
+    x.mean_axis(Axis(1)).unwrap()
+}
+
+pub fn calculate_alignment(preprocessed: Array2<f32>) -> Result<Vec<usize>> {
+    if preprocessed.shape()[0] == 0 {
+        return Ok(vec![]);
+    }
 
     // 6. do dtw
-    let dtw_result = dtw(-x.to_owned());
+    let dtw_result = dtw(-preprocessed.to_owned());
 
     // postprocess dtw output to be start & end time per token
     let mut jumps = vec![dtw_result.first().unwrap().1];

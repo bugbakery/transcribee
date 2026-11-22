@@ -12,11 +12,13 @@ use super::tokenizer::Tokenizer;
 use crate::audio_reader::AudioReader;
 use crate::vad::chunking::get_chunks;
 use crate::vad::earshot::EarshotVadModel;
-use crate::whisper::timing::calculate_alignment;
+use crate::whisper::timing::{calculate_alignment, preprocess_alignment_data};
 use crate::whisper::tokenizer::{LANGUAGES, NUM_TOKENS};
 use crate::whisper::tree_list::TreeList;
 use anyhow::{Ok, Result, bail};
 use ndarray::{Array1, Array2, Array3, ArrayView1, Axis, s, stack};
+use sentencex::segment;
+use std::char;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
@@ -40,6 +42,7 @@ pub struct WhisperModel {
 
     startofprev_sequence: Vec<i64>,
     punct_chars: Vec<char>,
+    enable_sentence_combiner: bool,
 }
 impl WhisperModel {
     const MAX_DECODER_TOKENS: usize = 448;
@@ -54,20 +57,24 @@ impl WhisperModel {
         let mut startofprev_sequence = vec![tokenizer.startofprev()];
         startofprev_sequence.extend_from_slice(&tokenizer.encode("?.,").unwrap());
 
-        let punct_chars = "?!.,".chars().collect();
+        let punct_chars = "?!.,¿¡;".chars().collect();
 
         Ok(Self {
             encoder,
             decoder,
             tokenizer,
+
             beam_width: 5,
             reset_after_x_bars: 5,
             overlap_s: 1.0,
             max_parallel_chunks,
-            startofprev_sequence,
-            punct_chars,
+
             beamsearch_early_prune_min_token_conf: 0.1,
             beamsearch_early_prune_max_decission_postpone: 10,
+
+            startofprev_sequence,
+            punct_chars,
+            enable_sentence_combiner: true,
         })
     }
 
@@ -91,6 +98,7 @@ impl WhisperModel {
             chunks: vec![],
             encoded_chunks: vec![],
             language,
+            atoms_left_from_last_bar: vec![],
 
             timing_helper,
         }
@@ -119,6 +127,7 @@ pub struct WhisperTranscriptionSession<'w> {
     chunks: Vec<Range<f32>>,
     encoded_chunks: Vec<Option<Array2<f32>>>,
     language: Option<String>,
+    atoms_left_from_last_bar: Vec<Atom>,
 
     timing_helper: TimingHelper,
 }
@@ -172,75 +181,14 @@ impl<'w> WhisperTranscriptionSession<'w> {
             bail!("transcription job aborted");
         }
 
-        self.longform_transcribe(|sess, chunk_idx, bar| {
-            let bar = sess.postprocess_transcribed_chunk(chunk_idx, &bar).unwrap();
-            (sess.on_new_bar)(bar);
-        })?;
+        self.longform_transcribe()?;
+        self.outbox_sentence_whisper_bars(&[], true)?;
 
         self.timing_helper.report_stats();
         Ok(())
     }
 
-    #[instrument(level = Level::TRACE, skip_all)]
-    pub fn postprocess_transcribed_chunk(
-        &mut self,
-        chunk_idx: usize,
-        sequence_data: &SequenceData,
-    ) -> Result<WhisperBar> {
-        let chunk_range = &self.chunks[chunk_idx];
-        let new_tokens_start = sequence_data.len() - sequence_data.new_tokens;
-        let alignment = calculate_alignment(
-            sequence_data.alignment_data_concatenated(new_tokens_start - 2),
-            ((chunk_range.end - chunk_range.start) * 1500. / 30.) as usize,
-        )?;
-
-        self.timing_helper.output_tokens += sequence_data.tokens[new_tokens_start..].len();
-
-        let atoms: Vec<_> = sequence_data.tokens[new_tokens_start..]
-            .iter()
-            .enumerate()
-            .map(|(i, token)| Atom {
-                conf: sequence_data.logprobs[new_tokens_start + i].exp(),
-                conf_ts: 1.0,
-                start: alignment[i + 1] as f32 / 1500. * 30. + chunk_range.start,
-                end: alignment[i + 2] as f32 / 1500. * 30. + chunk_range.start,
-                text: self.whisper.tokenizer.decode_single(*token).unwrap(),
-            })
-            .collect();
-
-        Ok(WhisperBar {
-            atoms,
-            language: self.language.as_ref().unwrap().clone(),
-        })
-    }
-
-    #[instrument(level = Level::TRACE, skip_all)]
-    fn get_encoded_chunk(&mut self, chunk_idx: usize) -> Result<Array2<f32>> {
-        if self.encoded_chunks[chunk_idx].is_none() {
-            let chunk = &self.chunks[chunk_idx];
-            let samples = self.audio_reader.get(
-                (chunk.start * self.audio_reader.sample_rate()) as usize
-                    ..(chunk.end * self.audio_reader.sample_rate()) as usize,
-            )?;
-            let start = Instant::now();
-            let mel = compute_mel(samples.to_vec())?;
-            let mut encoded = self.whisper.encoder.encode(mel)?;
-            self.timing_helper.encode.push(start.elapsed());
-
-            // mask away the parts that are not enceded (tryout of just running the encoder on smaller chunks)
-            // this sometimes breaks the encoder generating eot tokens (baad)
-            let mask_start = ((chunk.end - chunk.start) / 30. * 1500.) as usize;
-            *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
-
-            self.encoded_chunks[chunk_idx] = Some(encoded);
-        }
-        Ok(self.encoded_chunks[chunk_idx].as_ref().unwrap().clone())
-    }
-
-    fn longform_transcribe(
-        &mut self,
-        mut on_new_bar: impl FnMut(&mut WhisperTranscriptionSession, usize, SequenceData),
-    ) -> Result<()> {
+    fn longform_transcribe(&mut self) -> Result<()> {
         #[derive(Debug)]
         enum ChunkStates {
             // example state transition (A = CanProcessWithoutContext, others first letter):
@@ -462,7 +410,8 @@ impl<'w> WhisperTranscriptionSession<'w> {
                         None
                     },
                 )?;
-                on_new_bar(self, outboxed_idx, bar);
+                let to_atoms = self.sequence_data_to_atoms(outboxed_idx, &bar)?;
+                self.outbox_sentence_whisper_bars(&to_atoms, false)?;
                 self.encoded_chunks[outboxed_idx] = None;
                 decoded_chunks[outboxed_idx] = vec![];
                 decoded_chunks_again[outboxed_idx] = None;
@@ -470,6 +419,29 @@ impl<'w> WhisperTranscriptionSession<'w> {
             }
         }
         Ok(())
+    }
+
+    #[instrument(level = Level::TRACE, skip_all)]
+    fn get_encoded_chunk(&mut self, chunk_idx: usize) -> Result<Array2<f32>> {
+        if self.encoded_chunks[chunk_idx].is_none() {
+            let chunk = &self.chunks[chunk_idx];
+            let samples = self.audio_reader.get(
+                (chunk.start * self.audio_reader.sample_rate()) as usize
+                    ..(chunk.end * self.audio_reader.sample_rate()) as usize,
+            )?;
+            let start = Instant::now();
+            let mel = compute_mel(samples.to_vec())?;
+            let mut encoded = self.whisper.encoder.encode(mel)?;
+            self.timing_helper.encode.push(start.elapsed());
+
+            // mask away the parts that are not enceded (tryout of just running the encoder on smaller chunks)
+            // this sometimes breaks the encoder generating eot tokens (baad)
+            let mask_start = ((chunk.end - chunk.start) / 30. * 1500.) as usize;
+            *encoded.slice_mut(s![mask_start..1500, ..]) *= 0.0;
+
+            self.encoded_chunks[chunk_idx] = Some(encoded);
+        }
+        Ok(self.encoded_chunks[chunk_idx].as_ref().unwrap().clone())
     }
 
     #[instrument(level = Level::TRACE, skip_all)]
@@ -553,61 +525,84 @@ impl<'w> WhisperTranscriptionSession<'w> {
                     .find(|seq| seq.tokens.ends_with(next_prompt))
                     .unwrap();
                 let mut with_context = chunk[0].clone();
-                let (offset_in_with_context, prompt_offset) = 'search: {
-                    for end_peel in 0..next_prompt.len().div_ceil(2) {
-                        let next_prompt = &next_prompt[..next_prompt.len() - end_peel];
-                        for prompt_offset in 0..next_prompt.len() {
-                            let try_prompt = &next_prompt[prompt_offset..];
-                            if let Some(offset_in_with_context) = with_context
-                                .tokens
-                                .windows(try_prompt.len())
-                                .position(|window| window == try_prompt)
+                struct PossibleJoinPoint {
+                    offset_in_with_context: usize,
+                    prompt_offset: usize,
+                    overlap_len: usize,
+                }
+                let mut possible_join_points: Vec<PossibleJoinPoint> = vec![];
+                for end_peel in 0..next_prompt.len().div_ceil(2) {
+                    let next_prompt = &next_prompt[..next_prompt.len() - end_peel];
+                    for prompt_offset in 0..next_prompt.len() {
+                        let try_prompt = &next_prompt[prompt_offset..];
+                        if let Some(offset_in_with_context) = with_context
+                            .tokens
+                            .windows(try_prompt.len())
+                            .position(|window| window == try_prompt)
+                        {
+                            if with_context.tokens.len() > offset_in_with_context
+                                && with_context.tokens[offset_in_with_context + 1..]
+                                    .windows(try_prompt.len())
+                                    .position(|window| window == try_prompt)
+                                    .is_some()
                             {
-                                if with_context.tokens.len() > offset_in_with_context
-                                    && with_context.tokens[offset_in_with_context + 1..]
-                                        .windows(try_prompt.len())
-                                        .position(|window| window == try_prompt)
-                                        .is_some()
-                                {
-                                    // the match is not unique, dont strip any further
-                                    break;
-                                }
-                                if try_prompt.len() < 5 {
-                                    event!(
-                                        Level::WARN,
-                                        chunk_idx,
-                                        "overlap in gluing bars together is very small {} tokens. the result might be wrong",
-                                        try_prompt.len()
-                                    );
-                                }
-                                event!(
-                                    Level::INFO,
-                                    chunk_idx,
-                                    "end_peel={end_peel}, offset_in_with_context={offset_in_with_context}, prompt_offset={prompt_offset}",
-                                );
-                                break 'search (offset_in_with_context, prompt_offset);
+                                // the match is not unique, dont strip any further
+                                break;
                             }
+
+                            possible_join_points.push(PossibleJoinPoint {
+                                offset_in_with_context,
+                                prompt_offset,
+                                overlap_len: try_prompt.len(),
+                            });
                         }
                     }
-
+                }
+                possible_join_points.sort_by_key(|x| x.overlap_len);
+                let join_point = if let Some(p) = possible_join_points.last() {
+                    p
+                } else {
                     event!(
                         Level::ERROR,
                         chunk_idx,
                         "could not fit bars together. this _will_ cause an artifact (taking bar with context)",
                     );
-                    (with_context.tokens.len(), next_prompt.len())
+                    &PossibleJoinPoint {
+                        offset_in_with_context: with_context.tokens.len(),
+                        prompt_offset: next_prompt.len(),
+                        overlap_len: 0,
+                    }
                 };
+
+                if join_point.overlap_len < 5 {
+                    event!(
+                        Level::WARN,
+                        chunk_idx,
+                        "overlap in gluing bars together is very small {} tokens. the result might be wrong",
+                        join_point.overlap_len
+                    );
+                }
+                event!(
+                    Level::INFO,
+                    chunk_idx,
+                    "offset_in_with_context={}, prompt_offset={}, overlap_len={}",
+                    join_point.offset_in_with_context,
+                    join_point.prompt_offset,
+                    join_point.overlap_len
+                );
+
                 event!(
                     Level::DEBUG,
                     chunk_idx,
                     "from with    context: {}",
                     self.whisper
                         .tokenizer
-                        .decode(&with_context.tokens[..offset_in_with_context])
+                        .decode(&with_context.tokens[..join_point.offset_in_with_context])
                         .unwrap()
                 );
-                let without_context_start =
-                    match_without_context.tokens.len() + prompt_offset - next_prompt.len();
+                let without_context_start = match_without_context.tokens.len()
+                    + join_point.prompt_offset
+                    - next_prompt.len();
                 event!(
                     Level::DEBUG,
                     chunk_idx,
@@ -619,11 +614,13 @@ impl<'w> WhisperTranscriptionSession<'w> {
                 );
 
                 let len_before = with_context.len() as i64;
-                with_context.tokens = with_context.tokens[..offset_in_with_context].to_vec();
-                with_context.logprobs = with_context.logprobs[..offset_in_with_context].to_vec();
+                with_context.tokens =
+                    with_context.tokens[..join_point.offset_in_with_context].to_vec();
+                with_context.logprobs =
+                    with_context.logprobs[..join_point.offset_in_with_context].to_vec();
                 with_context.alignment_data =
                     with_context.alignment_data.with_elements_removed_from_end(
-                        with_context.alignment_data.len() - offset_in_with_context,
+                        with_context.alignment_data.len() - join_point.offset_in_with_context,
                     );
 
                 with_context
@@ -651,6 +648,144 @@ impl<'w> WhisperTranscriptionSession<'w> {
         };
 
         Ok(sequence_data)
+    }
+
+    #[instrument(level = Level::TRACE, skip_all)]
+    pub fn sequence_data_to_atoms(
+        &mut self,
+        chunk_idx: usize,
+        sequence_data: &SequenceData,
+    ) -> Result<Vec<Atom>> {
+        let chunk_range = &self.chunks[chunk_idx];
+        let new_tokens_start = sequence_data.len() - sequence_data.new_tokens;
+        let preprocessed = preprocess_alignment_data(
+            sequence_data.alignment_data_concatenated(new_tokens_start - 2),
+            ((chunk_range.end - chunk_range.start) * 1500. / 30.) as usize,
+        );
+        let alignment = calculate_alignment(preprocessed.clone())?;
+
+        self.timing_helper.output_tokens += sequence_data.tokens[new_tokens_start..].len();
+
+        let mut atoms = vec![];
+        for (i, token) in sequence_data.tokens[new_tokens_start..].iter().enumerate() {
+            let text = self.whisper.tokenizer.decode_single(*token).unwrap();
+            let start = alignment[i + 1] as f32 / 1500. * 30. + chunk_range.start;
+            let end = alignment[i + 2] as f32 / 1500. * 30. + chunk_range.start;
+            let conf = sequence_data.logprobs[new_tokens_start + i].exp();
+            let to_split = if let Some(word) = text.strip_prefix(char::is_whitespace) {
+                // we split the whitespace off the token
+                let vad_samples = &self.vad_samples[(start * self.vad_sample_rate) as usize
+                    ..(end * self.vad_sample_rate) as usize];
+                let mut seen_speech = false;
+                vad_samples
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .find(|(_, s)| {
+                        if seen_speech && **s < 0.5 {
+                            return true;
+                        }
+                        if **s > 0.5 {
+                            seen_speech = true;
+                        }
+                        false
+                    })
+                    .map(|(i, _)| (i as f32 / self.vad_sample_rate, text.len() - word.len()))
+            } else {
+                None
+            };
+            if let Some((split_time, split_str_offset)) = to_split {
+                atoms.push(Atom::WithTiming {
+                    conf,
+                    conf_ts: 1.0,
+                    text: text[..split_str_offset].to_string(),
+                    start,
+                    end: start + split_time,
+                });
+                atoms.push(Atom::WithTiming {
+                    conf,
+                    conf_ts: 1.0,
+                    text: text[split_str_offset..].to_string(),
+                    start: start + split_time,
+                    end,
+                });
+            } else {
+                atoms.push(Atom::WithTiming {
+                    conf,
+                    conf_ts: 1.0,
+                    text,
+                    start,
+                    end,
+                });
+            }
+        }
+
+        Ok(atoms)
+    }
+
+    pub fn outbox_sentence_whisper_bars(&mut self, new_atoms: &[Atom], flush: bool) -> Result<()> {
+        if !self.whisper.enable_sentence_combiner {
+            (self.on_new_bar)(WhisperBar {
+                language: self.language.as_ref().unwrap().clone(),
+                atoms: new_atoms.to_vec(),
+            });
+            return Ok(());
+        }
+        self.atoms_left_from_last_bar.extend_from_slice(new_atoms);
+
+        // we dont split after the last token in our current working set because the context after it can make
+        // a difference when determening breaks.
+        let text = self
+            .atoms_left_from_last_bar
+            .iter()
+            .map(|a| a.text())
+            .collect::<String>();
+        let split = segment(self.language.as_ref().unwrap(), &text);
+        for sentence in &split[..split.len() - 1] {
+            let mut len_so_far = 0;
+            let num_atoms = self
+                .atoms_left_from_last_bar
+                .iter()
+                .take_while(|a| {
+                    len_so_far += a.text().len();
+                    len_so_far <= sentence.len()
+                })
+                .count();
+            let rest = self.atoms_left_from_last_bar.split_off(num_atoms);
+            let current_bar = std::mem::replace(&mut self.atoms_left_from_last_bar, rest);
+
+            // merge tokens to words in current bar
+            let mut words_merged: Vec<Atom> = vec![];
+            for atom in current_bar {
+                if !words_merged
+                    .last()
+                    .map(|a| {
+                        a.text().ends_with(|c: char| {
+                            self.whisper.punct_chars.contains(&c) || c.is_whitespace()
+                        })
+                    })
+                    .unwrap_or(true)
+                    && !atom.text().starts_with(char::is_whitespace)
+                {
+                    words_merged.last_mut().unwrap().append_atom(&atom);
+                } else {
+                    words_merged.push(atom);
+                }
+            }
+
+            (self.on_new_bar)(WhisperBar {
+                language: self.language.as_ref().unwrap().clone(),
+                atoms: words_merged,
+            });
+        }
+
+        if flush {
+            (self.on_new_bar)(WhisperBar {
+                language: self.language.as_ref().unwrap().clone(),
+                atoms: std::mem::take(&mut self.atoms_left_from_last_bar),
+            })
+        }
+        Ok(())
     }
 
     /// This function transcribes chunks and prepares the optionally given context for good results
@@ -1384,7 +1519,7 @@ impl WhisperBar {
     pub fn as_string(&self) -> String {
         let mut to_return = String::new();
         for a in &self.atoms {
-            to_return.push_str(&a.text);
+            to_return.push_str(a.text());
         }
         to_return
     }
@@ -1399,20 +1534,68 @@ impl WhisperBar {
     }
 }
 
-#[derive(Debug)]
-pub struct Atom {
-    pub conf: f32,
-    pub conf_ts: f32,
-    pub start: f32,
-    pub end: f32,
-    pub text: String,
+#[derive(Debug, Clone)]
+pub enum Atom {
+    WithTiming {
+        text: String,
+        conf: f32,
+        start: f32,
+        end: f32,
+        conf_ts: f32,
+    },
+    #[allow(dead_code)] // this is not supported by the frontend atm
+    WithoutTiming { text: String, conf: f32 },
 }
 impl Atom {
+    fn text(&self) -> &str {
+        match self {
+            Atom::WithTiming { text, .. } => text,
+            Atom::WithoutTiming { text, .. } => text,
+        }
+    }
+
+    fn append_atom(&mut self, other: &Atom) {
+        match (self, other) {
+            (
+                Atom::WithTiming {
+                    text,
+                    conf,
+                    start: _start,
+                    end,
+                    conf_ts,
+                },
+                Atom::WithTiming {
+                    text: other_text,
+                    conf: other_conf,
+                    start: _other_start,
+                    end: other_end,
+                    conf_ts: other_conf_ts,
+                },
+            ) => {
+                *text += other_text;
+                *conf = (*conf + *other_conf) / 2.;
+                *end = *other_end;
+                *conf_ts = (*conf_ts + *other_conf_ts) / 2.;
+            }
+            _ => unimplemented!(),
+        }
+    }
+
     fn as_json(&self) -> String {
-        format!(
-            "{{ \"text\": \"{}\", \"start\": {}, \"end\": {}, \"conf\": {}, \"conf_ts\": {} }}",
-            self.text, self.start, self.end, self.conf, self.conf_ts,
-        )
+        match self {
+            Atom::WithTiming {
+                text,
+                conf,
+                start,
+                end,
+                conf_ts,
+            } => format!(
+                "{{ \"text\": \"{text}\", \"conf\": {conf}, \"start\": {start}, \"end\": {end}, \"conf_ts\": {conf_ts} }}",
+            ),
+            Atom::WithoutTiming { text, conf } => {
+                format!("{{ \"text\": \"{text}\", \"conf\": {conf} }}",)
+            }
+        }
     }
 }
 
@@ -1555,5 +1738,24 @@ mod test {
         top_n_vec.data.sort_by(|(a, _), (b, _)| b.total_cmp(a));
 
         assert_eq!(top_n_vec.data, &numbers[..5]);
+    }
+
+    #[test]
+    fn test_sentence_segmenter() {
+        use icu_locale::langid;
+        use icu_segmenter::SentenceSegmenter;
+        use icu_segmenter::options::SentenceBreakOptions;
+
+        let mut options = SentenceBreakOptions::default();
+        let langid = &langid!("de");
+        options.content_locale = Some(langid);
+        let segmenter = SentenceSegmenter::try_new(options).unwrap();
+
+        let text =
+            "Es gibt viele schwierige Verkehrsteilnehmer, z.B. Autos. Diese sind doof... lol";
+        let breakpoints: Vec<usize> = segmenter.as_borrowed().segment_str(text).collect();
+        let snippets: Vec<&str> = breakpoints.windows(2).map(|w| &text[w[0]..w[1]]).collect();
+        dbg!(snippets);
+        assert_eq!(&breakpoints, &[0, 13, 36]);
     }
 }
