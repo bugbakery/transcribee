@@ -136,6 +136,7 @@
               export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:$XDG_DATA_DIRS"
               export GST_PLUGIN_SYSTEM_PATH_1_0="${pkgs.gst_all_1.gst-plugins-base}/lib/gstreamer-1.0/:${pkgs.gst_all_1.gst-plugins-good}/lib/gstreamer-1.0/:${pkgs.gst_all_1.gst-plugins-bad}/lib/gstreamer-1.0/:${pkgs.gst_all_1.gstreamer.out}/lib/gstreamer-1.0/"
               export ORT_DYLIB_PATH="${pkgs.onnxruntime}/lib/libonnxruntime.so"
+              export OCL_ICD_VENDORS="${pkgs.intel-compute-runtime}/etc/OpenCL/vendors"
             '';
         };
       }
