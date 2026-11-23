@@ -1,5 +1,5 @@
-use transcribee_core::transcribee_document::v1::{self, Document};
-use crate::v1::Paragraph;
+use transcribee_core::transcribee_document::v1::{self, Document, List};
+use crate::v1::{Paragraph, Atom, Accessor};
 
 fn main() {
     let doc = Document::new();

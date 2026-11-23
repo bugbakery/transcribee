@@ -5,17 +5,15 @@ use automerge::{
     Automerge, ObjId, Prop, ReadDoc, ROOT,
 };
 
-use crate::automerge_adapter::{Accessor, DocHandle, List, ListAccessor, TxHandle, WithDoc};
+use crate::automerge_adapter::{WithDoc};
 
-pub use crate::automerge_adapter::List;
+pub use crate::automerge_adapter::{List, Accessor, TxHandle, ListAccessor, DocHandle};
 
 pub struct Document {
     root_doc: DocHandle,
 }
 
-use wasm_bindgen::prelude::wasm_bindgen;
-#[wasm_bindgen]
-struct DocumentAccessor<T> {
+pub struct DocumentAccessor<T> {
     doc: T,
     obj_id: ObjId,
 }
@@ -46,7 +44,7 @@ impl Document {
 }
 
 impl DocumentAccessor<TxHandle> {
-    pub fn commit(mut self) {
+    pub fn commit(self) {
         self.doc.commit();
     }
 }
@@ -73,9 +71,9 @@ impl<T: WithDoc<Target = V>, V: Transactable> DocumentAccessor<T> {
 
 #[derive(Debug)]
 pub struct Paragraph {
-    speaker: Option<String>,
-    lang: String,
-    atoms: List<Atom>,
+    pub speaker: Option<String>,
+    pub lang: String,
+    pub atoms: List<Atom>,
 }
 
 impl Into<hydrate::Value> for Paragraph {
@@ -92,7 +90,7 @@ impl Into<hydrate::Value> for Paragraph {
     }
 }
 
-struct ParagraphAccessor<T> {
+pub struct ParagraphAccessor<T> {
     doc: T,
     obj_id: ObjId,
 }
@@ -127,11 +125,11 @@ impl<T> Accessor<T> for ParagraphAccessor<T> {
 }
 
 #[derive(Debug)]
-struct Atom {
-    text: String,
-    start: f64, // in seconds
-    end: f64,   // in seconds
-    conf: f64,  // confidence ~ logit probability
+pub struct Atom {
+    pub text: String,
+    pub start: f64, // in seconds
+    pub end: f64,   // in seconds
+    pub conf: f64,  // confidence ~ logit probability
 }
 
 impl Into<hydrate::Value> for Atom {
@@ -195,70 +193,70 @@ impl<T: WithDoc<Target = V>, V: ReadDoc> AtomAccessor<T> {
     }
 }
 
-// uniffi::setup_scaffolding!();
-// mod ffi {
-//     use wasm_bindgen::prelude::*;
+uniffi::setup_scaffolding!();
+mod ffi {
+    use wasm_bindgen::prelude::*;
 
-//     use crate::automerge_adapter::DocHandle;
-//     use crate::automerge_adapter::TxHandle;
+    use crate::automerge_adapter::DocHandle;
+    use crate::automerge_adapter::TxHandle;
 
-//     use super::Document as RustDocument;
-//     use super::DocumentAccessor;
+    use super::Document as RustDocument;
+    use super::DocumentAccessor;
 
-//     #[wasm_bindgen]
-//     #[derive(uniffi::Object)]
-//     pub struct Document(RustDocument);
+    #[wasm_bindgen]
+    // #[derive(uniffi::Object)]
+    pub struct Document(RustDocument);
 
-//     #[wasm_bindgen]
-//     #[derive(uniffi::Object)]
-//     pub struct DocumentView(DocumentAccessor<DocHandle>);
+    #[wasm_bindgen]
+    // #[derive(uniffi::Object)]
+    pub struct DocumentView(DocumentAccessor<DocHandle>);
 
-//     #[wasm_bindgen]
-//     #[derive(uniffi::Object)]
-//     pub struct DocumentTransaction(DocumentAccessor<TxHandle>);
+    #[wasm_bindgen]
+    // #[derive(uniffi::Object)]
+    pub struct DocumentTransaction(DocumentAccessor<TxHandle>);
 
-//     #[wasm_bindgen]
-//     #[uniffi::export]
-//     impl Document {
-//         #[wasm_bindgen(constructor)]
-//         #[uniffi::constructor]
-//         pub fn new() -> Self {
-//             Document(RustDocument::new())
-//         }
+    #[wasm_bindgen]
+    // #[uniffi::export]
+    impl Document {
+        #[wasm_bindgen(constructor)]
+        #[uniffi::constructor]
+        pub fn new() -> Self {
+            Document(RustDocument::new())
+        }
 
-//         pub fn view(&self) -> DocumentView {
-//             DocumentView(self.0.view())
-//         }
+        pub fn view(&self) -> DocumentView {
+            DocumentView(self.0.view())
+        }
 
-//         pub fn transaction(&self) -> DocumentTransaction {
-//             DocumentTransaction(self.0.transaction())
-//         }
-//     }
+        pub fn transaction(&self) -> DocumentTransaction {
+            DocumentTransaction(self.0.transaction())
+        }
+    }
 
-//     #[wasm_bindgen]
-//     #[uniffi::export]
-//     impl DocumentView {
-//         #[wasm_bindgen(getter)]
-//         pub fn version(&self) -> i64 {
-//             self.0.version()
-//         }
-//     }
+    #[wasm_bindgen]
+    // #[uniffi::export]
+    impl DocumentView {
+        #[wasm_bindgen(getter)]
+        pub fn version(&self) -> i64 {
+            self.0.version()
+        }
+    }
 
-//     #[wasm_bindgen]
-//     #[uniffi::export]
-//     impl DocumentTransaction {
-//         #[wasm_bindgen(getter)]
-//         pub fn version(&self) -> i64 {
-//             self.0.version()
-//         }
+    #[wasm_bindgen]
+    // #[uniffi::export]
+    impl DocumentTransaction {
+        #[wasm_bindgen(getter)]
+        pub fn version(&self) -> i64 {
+            self.0.version()
+        }
 
-//         #[wasm_bindgen(setter)]
-//         pub fn set_version(&self, version: i64) {
-//             self.0.set_version(version)
-//         }
+        #[wasm_bindgen(setter)]
+        pub fn set_version(&self, version: i64) {
+            self.0.set_version(version)
+        }
 
-//         pub fn commit(&self) {
-//             self.0.doc.commit();
-//         }
-//     }
-// }
+        pub fn commit(&self) {
+            self.0.doc.commit();
+        }
+    }
+}

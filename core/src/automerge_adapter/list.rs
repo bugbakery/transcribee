@@ -5,7 +5,7 @@ use automerge::{ObjId, Prop, ReadDoc, hydrate, transaction::Transactable};
 use super::{Accessor, WithDoc};
 
 #[derive(Debug)]
-pub(crate) struct List<V>(Vec<V>);
+pub struct List<V>(pub Vec<V>);
 
 impl<V: Into<hydrate::Value>> Into<hydrate::Value> for List<V> {
     fn into(self) -> hydrate::Value {
@@ -18,7 +18,7 @@ impl<V: Into<hydrate::Value>> Into<hydrate::Value> for List<V> {
     }
 }
 
-pub(crate) struct ListAccessor<T, V> {
+pub struct ListAccessor<T, V> {
     doc: T,
     obj_id: ObjId,
     _marker: PhantomData<V>,

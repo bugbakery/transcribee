@@ -1,6 +1,6 @@
 use automerge::{ScalarValue, hydrate};
 
-pub(crate) trait FromHydrate {
+pub trait FromHydrate {
     fn from_hydrate(value: hydrate::Value) -> Self;
 }
 
