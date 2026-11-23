@@ -3,6 +3,10 @@ name = "worker-adapter"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "transcribe"
+path = "bin/transcribe.rs"
+
 [dependencies]
 axum = { version = "0.8.9", features = ["macros", "ws"] }
 axum-extra = { version = "0.12.6", features = ["query"] }
@@ -18,9 +22,8 @@ tower-http = { version = "0.7.0", features = ["trace"] }
 tracing = "0.1.44"
 uuid = { version = "1.23.1", features = ["serde", "v7"] }
 
-[dev-dependencies]
+#[dev-dependencies]
 automerge = "0.10.0"
 kill_tree = "0.2.4"
 nonblock = "0.2.0"
 reqwest = "0.13.4"
-uuid = "1.24.0"
