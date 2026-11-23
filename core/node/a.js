@@ -10,6 +10,7 @@ let tx2 = doc.transaction()
 tx2.version = BigInt(2)
 
 console.log(doc.view().version)
+console.log(tx2.version)
 
 tx2.commit()
 

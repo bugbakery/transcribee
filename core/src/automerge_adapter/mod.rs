@@ -7,19 +7,19 @@ use std::sync::{Arc, Mutex};
 
 pub(crate) mod from_hydrate;
 pub(crate) mod list;
-pub(crate) use list::*;
+pub use list::*;
 
 pub(crate) mod accessor;
-pub(crate) use accessor::*;
+pub use accessor::*;
 
 use from_hydrate::FromHydrate;
 
 // use interior mutability + mutex for python support
 #[derive(Clone)]
-pub(crate) struct DocHandle(Arc<Mutex<Automerge>>);
+pub struct DocHandle(Arc<Mutex<Automerge>>);
 
 #[derive(Clone)]
-pub(crate) struct TxHandle {
+pub struct TxHandle {
     tx: Arc<Mutex<Option<OwnedTransaction>>>,
     root_doc: DocHandle,
 }
@@ -38,7 +38,7 @@ impl DocHandle {
     }
 }
 
-pub(crate) trait WithDoc: Clone + Sized {
+pub trait WithDoc: Clone + Sized {
     type Target;
     fn with_doc<R>(&self, cb: impl FnOnce(&mut Self::Target) -> R) -> R;
 

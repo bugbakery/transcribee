@@ -1,7 +1,7 @@
 use automerge::{ObjId, Prop, ReadDoc, hydrate};
 use super::WithDoc;
 
-pub(crate) trait Accessor<T> {
+pub trait Accessor<T> {
     type Hydrate: Into<hydrate::Value>;
 
     fn new(doc: T, obj_id: ObjId) -> Self;

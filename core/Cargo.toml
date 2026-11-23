@@ -17,7 +17,7 @@ version = "*"
 features = ["wasm_js"]
 
 
-[[bin]]
+#[[bin]]
 # This can be whatever name makes sense for your project, but the rest of this tutorial assumes uniffi-bindgen.
-name = "uniffi-bindgen"
-path = "uniffi-bindgen.rs"
+#name = "uniffi-bindgen"
+#path = "uniffi-bindgen.rs"
