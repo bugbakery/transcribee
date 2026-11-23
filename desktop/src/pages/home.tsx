@@ -4,7 +4,6 @@ import {
   SecondaryButton,
 } from 'transcribee-ui-common/components/button';
 import {
-  calculateTranscriptionProgress,
   ProgressPie,
   TranscriptionProgressIndicator,
 } from 'transcribee-ui-common/components/transcription_progress';
@@ -204,10 +203,6 @@ export function HomePage() {
 }
 
 function TranscriptionQueue({ documents }: { documents: DocumentMetadata[] }) {
-  documents.sort(
-    (a, b) => calculateTranscriptionProgress(a.tasks) - calculateTranscriptionProgress(b.tasks),
-  );
-
   return (
     <div className="w-full max-w-[500px] px-4 pb-8">
       <h2 className="font-semibold text-center px-1 mb-4">Transcription Queue</h2>
