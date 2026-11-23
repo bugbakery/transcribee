@@ -1,6 +1,6 @@
 [project]
 name = "transcribee-worker"
-version = "0.1.0"
+version = "0.2.0"
 description = "a transcription worker for the transcribee open-source transcription platform"
 authors = [
     { name = "anuejn", email = "jarohabiger@googlemail.com" },

@@ -1,6 +1,6 @@
 {
   "name": "transcribee-ui-common",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "common ui components of transcribee-web & transcribee-desktop",
   "license": "AGPL-3.0-only",
   "author": "transcribee team <transcribee@riseup.net>",
