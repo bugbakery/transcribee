@@ -1,7 +1,7 @@
 import { ComponentProps, JSX, cloneElement, useRef, useState } from 'react';
 import { useEvent } from '../utils/use_event';
 import { Dialog, DialogTitle } from './dialog';
-import { clsx } from 'clsx';
+import { cn } from '../utils/styled';
 
 const SHOW_MODAL_EVENT = 'showModal';
 class ShowModalEvent extends CustomEvent<{ children: JSX.Element | null }> {
@@ -70,7 +70,7 @@ export function Modal({
   return (
     <div
       {...props}
-      className={clsx(className, 'relative z-50')}
+      className={cn(className, 'relative z-50')}
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
@@ -87,16 +87,14 @@ export function Modal({
       }}
     >
       <div
-        className={clsx(
+        className={cn(
           'fixed inset-0 bg-white dark:bg-neutral-900 bg-opacity-75 dark:bg-opacity-75',
           transitionClassName,
         )}
       />
 
       <div className="fixed inset-0 z-10 overflow-y-auto">
-        <div
-          className={clsx('flex min-h-full justify-center items-center p-0', transitionClassName)}
-        >
+        <div className={cn('flex min-h-full justify-center items-center p-0', transitionClassName)}>
           <Dialog ref={dialogRef} className={dialogClassName}>
             <ModalTitle id="modal-title">{label}</ModalTitle>
             {children}
@@ -109,6 +107,6 @@ export function Modal({
 
 export function DoubleWidthModal({ dialogClassName, ...props }: ComponentProps<typeof Modal>) {
   return (
-    <Modal {...props} dialogClassName={clsx(dialogClassName, 'w-very-large-dialog w-max-full')} />
+    <Modal {...props} dialogClassName={cn(dialogClassName, 'w-very-large-dialog w-max-full')} />
   );
 }
