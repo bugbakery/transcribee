@@ -87,6 +87,7 @@
 
             # needed for core
             pkgs.lld
+            pkgs.wasm-pack
           ] ++ pkgs.lib.optionals (!pkgs.stdenv.isDarwin) [
             # required by desktop
             pkgs.libsoup_3
