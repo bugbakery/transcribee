@@ -7,10 +7,14 @@ use automerge::{
 
 use crate::automerge_adapter::{Accessor, DocHandle, List, ListAccessor, TxHandle, WithDoc};
 
+pub use crate::automerge_adapter::List;
+
 pub struct Document {
     root_doc: DocHandle,
 }
 
+use wasm_bindgen::prelude::wasm_bindgen;
+#[wasm_bindgen]
 struct DocumentAccessor<T> {
     doc: T,
     obj_id: ObjId,

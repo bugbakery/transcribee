@@ -1,4 +1,5 @@
 use transcribee_core::transcribee_document::v1::{self, Document};
+use crate::v1::Paragraph;
 
 fn main() {
     let doc = Document::new();

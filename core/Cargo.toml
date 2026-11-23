@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 automerge = { version = "0.9.0" }
 uniffi = { version = "0.31.1", features = ["wasm-unstable-single-threaded"] }
-wasm-bindgen = "0.2.125"
+wasm-bindgen = "*"
 
 [lib]
 crate-type = ["staticlib", "rlib", "cdylib"]
