@@ -84,6 +84,9 @@
             pkgs.redis
 
             pkgs.glibcLocales
+
+            # needed for core
+            pkgs.lld
           ] ++ pkgs.lib.optionals (!pkgs.stdenv.isDarwin) [
             # required by desktop
             pkgs.libsoup_3
