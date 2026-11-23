@@ -141,7 +141,7 @@ pub fn get_system_string() -> String {
         sys.total_memory() / 1024 / 1024 / 1024
     );
     for gpu in &sysinfo::Gpus::new_with_refreshed_list().unwrap() {
-        str += &format!(" + GPU: {}", gpu.model().unwrap());
+        str += &format!(" + GPU: {}", gpu.model().unwrap_or("unknown"));
         if let Some(mem) = gpu.total_memory() {
             str += &format!("({}GB)", mem / 1024 / 1024 / 1024)
         }
