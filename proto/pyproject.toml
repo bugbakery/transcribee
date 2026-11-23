@@ -1,6 +1,6 @@
 [project]
 name = "transcribee-proto"
-version = "0.1.0"
+version = "0.2.0"
 description = "common python code & datatypes in the transcribee open-source transcription platform"
 authors = [
     {name = "anuejn", email = "jarohabiger@googlemail.com"},
