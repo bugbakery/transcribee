@@ -92,6 +92,7 @@
             pkgs.onnxruntime
             pkgs.gcc
             pkgs.nasm
+            pkgs.libclang
           ] ++ pkgs.lib.optionals (!pkgs.stdenv.isDarwin) [
             # required by desktop
             pkgs.libsoup_3
@@ -112,6 +113,7 @@
 
               export TRANSCRIBEE_DYLD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath ld_packages}
               export LD_LIBRARY_PATH=$LD_SEARCH_PATH:$TRANSCRIBEE_DYLD_LIBRARY_PATH
+              export LIBCLANG_PATH=${pkgs.libclang.lib}/lib
             ''
             + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
               export CPPFLAGS="-I${pkgs.libcxx.dev}/include/c++/v1"
