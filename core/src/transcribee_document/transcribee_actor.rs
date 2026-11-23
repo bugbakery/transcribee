@@ -22,6 +22,6 @@ impl TranscribeeActor {
         other_id += id.to_bytes()[0] as u16;
         other_id += (id.to_bytes()[1] as u16) << 8;
 
-        return self.actor_id == other_id;
+        self.actor_id == other_id
     }
 }

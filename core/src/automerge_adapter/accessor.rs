@@ -1,5 +1,5 @@
-use automerge::{ObjId, Prop, ReadDoc, hydrate};
 use super::WithDoc;
+use automerge::{ObjId, Prop, ReadDoc, hydrate};
 
 pub trait Accessor<T> {
     type Hydrate: Into<hydrate::Value>;

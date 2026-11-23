@@ -7,10 +7,10 @@ use super::{Accessor, WithDoc};
 #[derive(Debug)]
 pub struct List<V>(pub Vec<V>);
 
-impl<V: Into<hydrate::Value>> Into<hydrate::Value> for List<V> {
-    fn into(self) -> hydrate::Value {
+impl<V: Into<hydrate::Value>> From<List<V>> for hydrate::Value {
+    fn from(val: List<V>) -> Self {
         hydrate::Value::from(
-            self.0
+            val.0
                 .into_iter()
                 .map(|v| v.into())
                 .collect::<Vec<hydrate::Value>>(),

@@ -1,13 +1,10 @@
 use automerge::{
-    hydrate,
-    hydrate_map,
-    transaction::Transactable,
-    Automerge, ObjId, Prop, ReadDoc, ROOT,
+    Automerge, ObjId, Prop, ROOT, ReadDoc, hydrate, hydrate_map, transaction::Transactable,
 };
 
-use crate::automerge_adapter::{WithDoc};
+use crate::automerge_adapter::WithDoc;
 
-pub use crate::automerge_adapter::{List, Accessor, TxHandle, ListAccessor, DocHandle};
+pub use crate::automerge_adapter::{Accessor, DocHandle, List, ListAccessor, TxHandle};
 
 pub struct Document {
     root_doc: DocHandle,
@@ -16,6 +13,12 @@ pub struct Document {
 pub struct DocumentAccessor<T> {
     doc: T,
     obj_id: ObjId,
+}
+
+impl Default for Document {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Document {
@@ -76,16 +79,16 @@ pub struct Paragraph {
     pub atoms: List<Atom>,
 }
 
-impl Into<hydrate::Value> for Paragraph {
-    fn into(self) -> hydrate::Value {
-        let speaker = match self.speaker {
+impl From<Paragraph> for hydrate::Value {
+    fn from(val: Paragraph) -> Self {
+        let speaker = match val.speaker {
             Some(speaker) => speaker.as_str().into(),
             None => hydrate::Value::Scalar(automerge::ScalarValue::Null),
         };
         hydrate::Value::Map(hydrate_map!(
           "speaker" => speaker,
-          "lang" => self.lang.as_str(),
-          "atoms" => <List::<Atom> as Into<hydrate::Value>>::into(self.atoms)
+          "lang" => val.lang.as_str(),
+          "atoms" => <List::<Atom> as Into<hydrate::Value>>::into(val.atoms)
         ))
     }
 }
@@ -132,13 +135,13 @@ pub struct Atom {
     pub conf: f64,  // confidence ~ logit probability
 }
 
-impl Into<hydrate::Value> for Atom {
-    fn into(self) -> hydrate::Value {
+impl From<Atom> for hydrate::Value {
+    fn from(val: Atom) -> Self {
         hydrate::Value::Map(hydrate_map!(
-          "text" => hydrate::Value::text(automerge::TextEncoding::Utf8CodeUnit, &self.text),
-          "start" => self.start,
-          "end" => self.end,
-          "conf" => self.conf,
+          "text" => hydrate::Value::text(automerge::TextEncoding::Utf8CodeUnit, &val.text),
+          "start" => val.start,
+          "end" => val.end,
+          "conf" => val.conf,
         ))
     }
 }

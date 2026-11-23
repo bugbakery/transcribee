@@ -1,7 +1,6 @@
 use automerge::{
-    hydrate,
+    Automerge, ObjId, ObjType, Prop, ReadDoc, ScalarValue, Value, hydrate,
     transaction::{OwnedTransaction, Transactable},
-    Automerge, ObjId, ObjType, Prop, ReadDoc, ScalarValue, Value,
 };
 use std::sync::{Arc, Mutex};
 
@@ -117,7 +116,7 @@ pub trait WithDoc: Clone + Sized {
 impl WithDoc for DocHandle {
     type Target = Automerge;
     fn with_doc<R>(&self, cb: impl FnOnce(&mut Self::Target) -> R) -> R {
-        cb(&mut *self.0.lock().unwrap())
+        cb(&mut self.0.lock().unwrap())
     }
 }
 

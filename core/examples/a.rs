@@ -1,5 +1,5 @@
+use crate::v1::{Accessor, Atom, Paragraph};
 use transcribee_core::transcribee_document::v1::{self, Document, List};
-use crate::v1::{Paragraph, Atom, Accessor};
 
 fn main() {
     let doc = Document::new();
@@ -7,7 +7,7 @@ fn main() {
     tx.set_paragraphs(vec![]);
     tx.paragraphs().insert(
         0,
-      v1::Paragraph {
+        v1::Paragraph {
             speaker: None,
             lang: "de".to_owned(),
             atoms: List(vec![]),
