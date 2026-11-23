@@ -86,8 +86,8 @@ pub async fn process_task(
     progress: Arc<Mutex<TaskProgress>>,
     client: Arc<tokio::sync::Mutex<TranscribeeWorkerApiClient>>,
 ) -> Result<()> {
-    let encoder = encoder::get_backends("target/").remove(0).1().unwrap();
-    let decoder = decoder::get_backends("target/").remove(0).1().unwrap();
+    let encoder = encoder::get_backends("target/").remove(2).1().unwrap();
+    let decoder = decoder::get_backends("target/").remove(2).1().unwrap();
     let tokenizer = Tokenizer::new().await?;
     let whisper = Arc::new(Mutex::new(WhisperModel::new(
         encoder, decoder, tokenizer, 5,

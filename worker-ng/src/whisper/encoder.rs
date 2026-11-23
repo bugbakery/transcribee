@@ -1,5 +1,7 @@
+use crate::backends::onnx::ORT_RUNTIME;
 use anyhow::Result;
 use ndarray::{Array2, Axis};
+use ort::AsPointer;
 use stft_rs::{
     BatchStftF32, StftConfigF32,
     mel::{BatchMelSpectrogramF32, MelConfigF32},
@@ -11,34 +13,68 @@ const CHUNK_LEN_S: usize = 30;
 pub type DynWhisperEncoderBackend = Box<dyn WhisperEncoderBackend + Send>;
 pub type WhisperEncoderBackendFactory = Box<dyn Fn() -> Result<DynWhisperEncoderBackend>>;
 
-pub fn get_backends(_model_folder: &str) -> Vec<(&str, WhisperEncoderBackendFactory)> {
+pub fn get_backends(_model_folder: &str) -> Vec<(String, WhisperEncoderBackendFactory)> {
     #[allow(unused)]
     macro_rules! b {
         ($name:expr, $init:expr) => {
-            ($name, Box::new(|| ($init).map(|b| Box::new(b) as _)))
+            ($name, Box::new(move || ($init).map(|b| Box::new(b) as _)))
         };
     }
 
     #[rustfmt::skip]
-    let backends: Vec<(&str, WhisperEncoderBackendFactory)> = vec![
+    let mut backends: Vec<(String, WhisperEncoderBackendFactory)> = vec![
         #[cfg(feature = "backend-mlx")]
         b!("MLX GPU", crate::backends::mlx::whisper_encoder::WhisperEncoderMlx::new(mlx_rs::DeviceType::Gpu, "./target/whisper_large_v3_turbo.safetensors")),
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime OpenVINO GPU", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::OpenVINO::default().with_device_type("GPU").build().error_on_failure(), "./target/whisper_large_v3_turbo_decoder.onnx")),
-        #[cfg(feature = "backend-burn")]
-        b!("Burn WebGPU", crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(burn_tensor::Device::wgpu(Default::default()), "./target/whisper_large_v3_turbo.safetensors")),
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime WebGPU diy attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::WebGPU::default().build().error_on_failure(), "./target/whisper_large_v3_turbo_encoder.onnx")),
-
         #[cfg(feature = "backend-mlx")]
         b!("MLX CPU", crate::backends::mlx::whisper_encoder::WhisperEncoderMlx::new(mlx_rs::DeviceType::Cpu, "./target/whisper_large_v3_turbo.safetensors")),
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime OpenVINO CPU", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::OpenVINO::default().with_device_type("CPU").build().error_on_failure(), "./target/whisper_large_v3_turbo_decoder.onnx")),
-        #[cfg(feature = "backend-burn")]
-        b!("Burn flex (CPU)", crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(burn_tensor::Device::flex(), "./target/whisper_large_v3_turbo.safetensors")),
-        #[cfg(feature = "backend-onnxruntime")]
-        b!("ONNX Runtime CPU diy attn", crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(ort::ep::CPU::default().build(), "./target/whisper_large_v3_turbo_encoder.onnx")),
     ];
+
+    for device in ORT_RUNTIME.devices() {
+        let hardware_device = device.hardware_device();
+        // TODO: this is broken for now
+        if hardware_device.ty() == ort::memory::DeviceType::NPU {
+            continue;
+        }
+        // TODO: whats the preference for these vs others?
+        if device.ep().unwrap() == "OpenVINOExecutionProvider.AUTO" {
+            continue;
+        }
+        let name = format!(
+            "ONNX: {ep}: {ty:?}",
+            ty = hardware_device.ty(),
+            ep = device.ep().unwrap()
+        );
+        let device_ptr = device.ptr();
+        backends.push(b!(name, {
+            let device = ORT_RUNTIME
+                .devices()
+                .find(|d| d.ptr() == device_ptr)
+                .unwrap();
+            crate::backends::onnx::whisper_encoder::WhisperEncoderOrt::new(
+                device,
+                "./target/whisper_large_v3_turbo.safetensors",
+            )
+        }));
+    }
+
+    backends.append(&mut vec![
+        #[cfg(feature = "backend-burn")]
+        b!(
+            "Burn WebGPU",
+            crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(
+                burn_tensor::Device::wgpu(Default::default()),
+                "./target/whisper_large_v3_turbo.safetensors"
+            )
+        ),
+        #[cfg(feature = "backend-burn")]
+        b!(
+            "Burn flex (CPU)",
+            crate::backends::burn::whisper_encoder::WhisperEncoderBurn::new(
+                burn_tensor::Device::flex(),
+                "./target/whisper_large_v3_turbo.safetensors"
+            )
+        ),
+    ]);
     backends
 }
 

@@ -35,6 +35,11 @@
 
           # for ctranslate2
           pkgs.stdenv.cc.cc.lib
+
+          # for openvino NPU
+          pkgs.intel-compute-runtime
+          pkgs.level-zero
+          pkgs.intel-npu-driver
         ];
       in
       {
@@ -90,6 +95,9 @@
             pkgs.lame
             pkgs.libz
             pkgs.onnxruntime
+            pkgs.intel-compute-runtime
+            pkgs.intel-npu-driver
+            pkgs.intel-gmmlib
             pkgs.gcc
             pkgs.nasm
             pkgs.libclang

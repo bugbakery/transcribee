@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use super::ORT_RUNTIME;
+use super::{ORT_RUNTIME, ensure_with_cpu};
 use crate::whisper::encoder::WhisperEncoderBackend;
 use anyhow::{Result, format_err};
 use ndarray::{Array2, Axis};
 use ort::{
-    ep::ExecutionProviderDispatch,
+    device::Device,
     session::{Session, builder::GraphOptimizationLevel},
     value::Value,
 };
@@ -16,9 +16,9 @@ pub struct WhisperEncoderOrt {
     model: Session,
 }
 impl WhisperEncoderOrt {
-    pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
+    pub fn new(device: Device<'_>, model_path: &str) -> Result<Self> {
         let model = Session::builder(&ORT_RUNTIME)?
-            .with_execution_providers([backend.clone()])
+            .with_devices(ensure_with_cpu(&device), None)
             .map_err(|e| format_err!("{}", e.message()))?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .map_err(|e| format_err!("{}", e.message()))?

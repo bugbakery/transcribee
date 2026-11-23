@@ -21,9 +21,8 @@ pub async fn benchmark_whisper() -> Result<()> {
             backend.encode(dummy_data).unwrap();
         });
         println!("-> encode() min={min} mean={mean} max={max}");
-        report_benchmark_result(name, "encode", mean).await?;
+        report_benchmark_result(&name, "encode", mean).await?;
     }
-
     for (name, backend) in decoder::get_backends("target/") {
         let mut backend = match backend() {
             Ok(backend) => backend,
@@ -43,7 +42,7 @@ pub async fn benchmark_whisper() -> Result<()> {
             );
         });
         println!("-> register_encoded_audio_chunks \t min={min:.1} mean={mean:.1} max={max:.1}");
-        report_benchmark_result(name, "register_encoded_audio_chunks", mean).await?;
+        report_benchmark_result(&name, "register_encoded_audio_chunks", mean).await?;
         let chunk = chunk.unwrap().remove(0);
         for batch in [1, 2, 3, 4] {
             for len in [100, 200] {
@@ -56,8 +55,12 @@ pub async fn benchmark_whisper() -> Result<()> {
                 println!(
                     "-> prefill {len} tokens batch {batch} \t\t min={min:.1} mean={mean:.1} max={max:.1}"
                 );
-                report_benchmark_result(name, &format!("prefill {len} tokens batch {batch}"), mean)
-                    .await?;
+                report_benchmark_result(
+                    &name,
+                    &format!("prefill {len} tokens batch {batch}"),
+                    mean,
+                )
+                .await?;
             }
         }
 
@@ -80,7 +83,7 @@ pub async fn benchmark_whisper() -> Result<()> {
                 "-> decode 10 tokens batch {batch} (context=100) \t\t min={min:.1} mean={mean:.1} max={max:.1}"
             );
             report_benchmark_result(
-                name,
+                &name,
                 &format!("decode 10 tokens batch {batch} (context=100)"),
                 mean,
             )

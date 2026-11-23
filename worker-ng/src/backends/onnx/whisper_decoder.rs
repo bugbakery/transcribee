@@ -1,6 +1,6 @@
 //! This file contains an ONNX backed implementation of the decoder backend defined in `../decoder.rs`
 
-use super::ORT_RUNTIME;
+use super::{ORT_RUNTIME, ensure_with_cpu};
 use crate::whisper::{
     decoder::{
         AlignmentData, AudioChunkHandle, SequenceHandle, TokenLogits, WhisperDecoderBackend,
@@ -11,7 +11,7 @@ use anyhow::{Context, Result, bail, format_err};
 use half::f16;
 use ndarray::{Array1, Array2, Array3, Array4, s};
 use ort::{
-    ep::ExecutionProviderDispatch,
+    device::Device,
     memory::{AllocationDevice, Allocator, AllocatorType, MemoryInfo, MemoryType},
     session::{IoBinding, Session, builder::GraphOptimizationLevel},
     value::{DynValueTypeMarker, Tensor, Value},
@@ -33,34 +33,37 @@ pub struct WhisperDecoderOrt {
     // this needs to be last, otherwise the process segfaults on drop because ort tries to drop
     // the tensors of the already freed context:
     model: Session,
-    ep: ExecutionProviderDispatch,
+    mem_info_on_device: MemoryInfo<'static>,
 }
 impl WhisperDecoderOrt {
-    fn memory_info_on_device(&self) -> Result<MemoryInfo<'static>> {
-        let mem_info = match self.ep.name() {
+    fn memory_info_on_device(device: &Device<'_>) -> Result<MemoryInfo<'static>> {
+        Ok(match device.ep()? {
             "WebGpuExecutionProvider" => MemoryInfo::new(
                 AllocationDevice::WEBGPU_BUFFER,
                 0,
                 AllocatorType::Device,
                 MemoryType::Default,
-            ),
-            _ => MemoryInfo::new(
-                self.model.allocator().memory_info().allocation_device(),
-                self.model.allocator().memory_info().device_id(),
-                self.model.allocator().memory_info().allocator_type(),
-                self.model.allocator().memory_info().memory_type(),
-            ),
-        };
-        Ok(mem_info?)
+            )?,
+            _ => MemoryInfo::default(), /*MemoryInfo::new(
+                                            self.model.allocator().memory_info().allocation_device(),
+                                            self.model.allocator().memory_info().device_id(),
+                                            self.model.allocator().memory_info().allocator_type(),
+                                            self.model.allocator().memory_info().memory_type(),
+                                        )*/
+        })
     }
 }
+
 impl WhisperDecoderOrt {
-    pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
+    pub fn new(device: Device<'_>, model_path: &str) -> Result<Self> {
+        let mem_info_on_device = Self::memory_info_on_device(&device)?;
         let model = Session::builder(&ORT_RUNTIME)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .map_err(|e| format_err!("{}", e.message()))?
-            .with_execution_providers([backend.clone()])
+            .with_devices(ensure_with_cpu(&device), None)
             .map_err(|e| format_err!("{}", e.message()))?
+            // .with_execution_providers([backend.clone()])
+            // .map_err(|e| format_err!("{}", e.message()))?
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
                 Path::new(model_path).parent().unwrap().to_str().unwrap(),
@@ -74,14 +77,15 @@ impl WhisperDecoderOrt {
             .trim_end_matches("_decoder.onnx")
             .trim_end_matches("_decoder_onnx_attn.onnx")
             .trim_end_matches("_decoder_ms_attn.onnx");
+
         Ok(Self {
             model,
             cross_kv: CrossKV::new(
-                backend.clone(),
+                device,
                 &format!("{base_path}_decoder_cross_kv_prefill.onnx"),
             )?,
             kv_cache: KvCache::default(),
-            ep: backend.clone(),
+            mem_info_on_device,
         })
     }
 }
@@ -94,7 +98,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
     ) -> Result<Vec<AudioChunkHandle>> {
         Ok(self
             .cross_kv
-            .register_encoded_audio_chunks(chunks, &self.memory_info_on_device()?)?
+            .register_encoded_audio_chunks(chunks, &self.mem_info_on_device)?
             .into_iter()
             .map(AudioChunkHandle::downcast)
             .collect())
@@ -163,7 +167,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
                 .is_none()
         });
         if is_prefill {
-            KvCache::add_prefill_to_ort_bindings(&mut binding, batch_size)?;
+            KvCache::add_prefill_to_ort_bindings(&mut binding, batch_size, self.mem_info_on_device.clone())?;
 
             let max_sequence_len = inputs
                 .iter()
@@ -207,7 +211,7 @@ impl WhisperDecoderBackend for WhisperDecoderOrt {
 
             self.kv_cache.add_self_to_ort_binding(
                 &mut binding,
-                &self.memory_info_on_device()?,
+                &self.mem_info_on_device,
                 inputs.iter().map(|(_, s)| s.last_handle.as_ref().unwrap()),
             )?;
 
@@ -280,11 +284,11 @@ pub struct CrossKV {
     model: Session,
 }
 impl CrossKV {
-    pub fn new(backend: ExecutionProviderDispatch, model_path: &str) -> Result<Self> {
+    pub fn new<'a>(device: Device<'a>, model_path: &str) -> Result<Self> {
         let model = Session::builder(&ORT_RUNTIME)?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
-            .with_execution_providers([backend.clone()])
+            .with_devices(ensure_with_cpu(&device), None)
             .unwrap()
             .with_config_entry(
                 "session.model_external_initializers_file_folder_path",
@@ -431,8 +435,7 @@ impl KvCache {
         })
     }
 
-    pub fn add_prefill_to_ort_bindings(binding: &mut IoBinding, batch_size: usize) -> Result<()> {
-        let memory_info = MemoryInfo::default();
+    pub fn add_prefill_to_ort_bindings(binding: &mut IoBinding, batch_size: usize, memory_info_on_device: MemoryInfo<'static>) -> Result<()> {
         for i in 0..4 {
             for name in [
                 format!("block.{i}.attn.key"),
@@ -442,7 +445,7 @@ impl KvCache {
                     format!("past.{name}"),
                     &Tensor::<f16>::new(&Allocator::default(), [1usize, 0, 1280])?,
                 )?;
-                binding.bind_output_to_device(format!("present.{name}"), &memory_info)?;
+                binding.bind_output_to_device(format!("present.{name}"), &memory_info_on_device)?;
             }
         }
         binding.bind_input(

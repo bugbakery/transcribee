@@ -91,6 +91,9 @@ async fn main() -> Result<()> {
         // todo: store benchmark somewhere and pick the fastest
         let encoder = 'backend_search: {
             for (name, factory) in encoder::get_backends("target/") {
+                if name == "ONNX: CPUExecutionProvider: CPU" {
+                    continue
+                }
                 match factory() {
                     Result::Ok(backend) => {
                         event!(Level::INFO, "selected encoder backend {name}");
@@ -108,6 +111,9 @@ async fn main() -> Result<()> {
         };
         let decoder = 'backend_search: {
             for (name, factory) in decoder::get_backends("target/") {
+                if name == "ONNX: CPUExecutionProvider: CPU" {
+                    continue
+                }
                 match factory() {
                     Result::Ok(backend) => {
                         event!(Level::INFO, "selected decoder backend {name}");
